@@ -1,13 +1,21 @@
 const jwt = require("jsonwebtoken");
-// require("dotenv").config();
+const loginModel = require("../models/LoginModel");
 
 const login = async (request, response) => {
+  const { user_id, password } = request.body;
   try {
-    const token = generateToken();
-    return response.status(200).send({
-      message: "Login successfull",
-      token: token,
-    });
+    const validateUser = await loginModel.login(user_id, password);
+
+    if (validateUser) {
+      const token = generateToken(validateUser);
+      return response.status(200).send({
+        message: "Login successful",
+        token: token,
+        data: validateUser,
+      });
+    } else {
+      throw new Error("Invalid userId and password");
+    }
   } catch (error) {
     response.status(500).send({
       message: "Error while login",
@@ -16,11 +24,19 @@ const login = async (request, response) => {
   }
 };
 
-const generateToken = () => {
+const generateToken = (user) => {
+  // Verify JWT_SECRET exists and is valid
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error("Invalid JWT secret configuration");
+  }
+
   return jwt.sign(
-    // { id: user.id, email: user.email }, //Payload
-    process.env.JWT_SECRET, // Secret
-    { expiresIn: "1d" } // Token expires in 1 day
+    {
+      id: user.id,
+      position: user.position_id,
+    },
+    process.env.JWT_SECRET, // From .env file
+    { expiresIn: "1d" }
   );
 };
 
