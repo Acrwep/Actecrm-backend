@@ -35,6 +35,24 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
+
+  updateUser: async (id, user_id, user_name) => {
+    try {
+      const [isIdExists] = await pool.query(
+        `SELECT id FROM users WHERE id = ?`,
+        [id]
+      );
+      if (isIdExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+      const updateQuery = `UPDATE users SET user_id = ?, user_name = ? WHERE id = ?`;
+      const values = [user_id, user_name, id];
+      const [result] = await pool.query(updateQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = UserModel;

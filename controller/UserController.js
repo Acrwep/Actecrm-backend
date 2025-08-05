@@ -10,7 +10,7 @@ const addUser = async (request, response) => {
   }
   try {
     const result = await userModel.addUser(user_id, user_name, password);
-    response.status(200).json({
+    response.status(201).json({
       message: "User addedd successfully",
       data: result,
     });
@@ -37,7 +37,24 @@ const getUsers = async (request, response) => {
   }
 };
 
+const updateUser = async (request, response) => {
+  const { id, user_id, user_name } = request.body;
+  try {
+    const users = await userModel.updateUser(id, user_id, user_name);
+    response.status(200).json({
+      message: "User updated successfully",
+      data: users,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while update users",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
+  updateUser,
 };
