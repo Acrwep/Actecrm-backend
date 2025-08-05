@@ -1,54 +1,7 @@
 const pool = require("../config/dbconfig");
-const bcrypt = require("bcrypt");
 
 const UserModel = {
-  getPositions: async () => {
-    try {
-      const [positions] = await pool.query(
-        `SELECT id, position FROM position_master WHERE is_active = 1`
-      );
-      return positions;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
-  getDepartments: async () => {
-    try {
-      const [departments] = await pool.query(
-        `SELECT id, department FROM department_master WHERE is_active = 1`
-      );
-      return departments;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
-  getRoles: async () => {
-    try {
-      const [roles] = await pool.query(
-        `SELECT id, role FROM role_master WHERE is_active = 1`
-      );
-      return roles;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
-  addUser: async (
-    user_id,
-    user_name,
-    position_id,
-    role_id,
-    department_id,
-    pre_quality,
-    ra,
-    hrs,
-    post_quality,
-    sales_supervisor,
-    manager,
-    password
-  ) => {
+  addUser: async (user_id, user_name, password) => {
     try {
       const [isUserIdExists] = await pool.query(
         `SELECT id FROM users WHERE user_id = ? AND is_active = 1`,
@@ -60,35 +13,24 @@ const UserModel = {
       const insertQuery = `INSERT INTO users(
                               user_id,
                               user_name,
-                              position_id,
-                              role_id,
-                              department_id,
-                              pre_quality,
-                              ra,
-                              hrs,
-                              post_quality,
-                              sales_supervisor,
-                              manager,
                               password
                           )
-                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const values = [
-        user_id,
-        user_name,
-        position_id,
-        role_id,
-        department_id,
-        pre_quality,
-        ra,
-        hrs,
-        post_quality,
-        sales_supervisor,
-        manager,
-        password,
-      ];
+                          VALUES(?, ?, ?)`;
+      const values = [user_id, user_name, password];
 
       const [result] = await pool.query(insertQuery, values);
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getUsers: async () => {
+    try {
+      const [users] = await pool.query(
+        `SELECT id, user_id, user_name FROM users WHERE is_active = 1 ORDER BY user_name`
+      );
+      return users;
     } catch (error) {
       throw new Error(error.message);
     }
