@@ -57,7 +57,6 @@ const UserModel = {
       if (isUserIdExists.length > 0) {
         throw new Error("User Id already exists");
       }
-      const hashedPassword = await hashPassword(password);
       const insertQuery = `INSERT INTO users(
                               user_id,
                               user_name,
@@ -85,7 +84,7 @@ const UserModel = {
         post_quality,
         sales_supervisor,
         manager,
-        hashedPassword,
+        password,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -94,13 +93,6 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
-};
-
-// 🔐 Encrypt (Hash) Password
-const hashPassword = async (plainPassword) => {
-  const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
-  return hashedPassword;
 };
 
 module.exports = UserModel;

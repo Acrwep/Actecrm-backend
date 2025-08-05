@@ -4,18 +4,12 @@ const bcrypt = require("bcrypt");
 const LoginModel = {
   login: async (user_id, password) => {
     try {
-      console.log("uuu: ", user_id, "pppp: ", password);
-
       const [isExists] = await pool.query(
-        `SELECT id, user_id, password FROM users WHERE user_id = ? AND is_active = 1`,
-        [user_id]
+        `SELECT id, user_id, password FROM users WHERE user_id = ? AND password = ? AND is_active = 1`,
+        [user_id, password]
       );
-      if (isExists.length <= 0) throw new Error("Invalid user Id");
-      console.log("uuu", isExists);
-      console.log("eee", isExists[0].password);
+      if (isExists.length <= 0) throw new Error("Invalid user Id or password");
 
-      const isMatch = await verifyPassword(password, isExists[0].password);
-      if (!isMatch) throw new Error("Invalid password!");
       const getQuery = `SELECT
                             u.id,
                             u.user_id,
@@ -42,19 +36,6 @@ const LoginModel = {
       throw new Error(error.message);
     }
   },
-};
-
-// 🔐 Verify Password
-const verifyPassword = async (password, hashedPassword) => {
-  const isMatch = await bcrypt.compare(password, hashedPassword);
-  return isMatch;
-};
-
-// 🔐 Encrypt (Hash) Password
-const hashPassword = async (plainPassword) => {
-  const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
-  return hashedPassword;
 };
 
 module.exports = LoginModel;
