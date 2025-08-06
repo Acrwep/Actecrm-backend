@@ -25,11 +25,21 @@ const UserModel = {
     }
   },
 
-  getUsers: async () => {
+  getUsers: async (user_id, user_name) => {
     try {
-      const [users] = await pool.query(
-        `SELECT id, user_id, user_name FROM users WHERE is_active = 1 ORDER BY user_name`
-      );
+      const params = [];
+      let getQuery = `SELECT id, user_id, user_name, password, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
+      if (user_id) {
+        getQuery += ` AND user_id = ?`;
+        params.push(user_id);
+      }
+      if (user_name) {
+        getQuery += ` AND user_name LIKE '%${user_name}%'`;
+        // params.push(user_name);
+      }
+      getQuery += ` ORDER BY user_name`;
+
+      const [users] = await pool.query(getQuery, params);
       return users;
     } catch (error) {
       throw new Error(error.message);

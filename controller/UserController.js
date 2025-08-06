@@ -23,8 +23,9 @@ const addUser = async (request, response) => {
 };
 
 const getUsers = async (request, response) => {
+  const { user_id, user_name } = request.query;
   try {
-    const users = await userModel.getUsers();
+    const users = await userModel.getUsers(user_id, user_name);
     response.status(200).json({
       message: "User fetched successfully",
       data: users,
