@@ -11,5 +11,7 @@ router.get("/getUsers", verifyToken, UserController.getUsers);
 router.put("/updateUser", verifyToken, UserController.updateUser);
 router.get("/getTechnologies", verifyToken, TrainerController.getTechnologies);
 router.get("/getBatches", verifyToken, TrainerController.getBatches);
+router.post("/addTrainer", verifyToken, TrainerController.addTrainer);
+router.put("/updateTrainer", verifyToken, TrainerController.updateTrainer);
 
 module.exports = router;
