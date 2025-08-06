@@ -175,7 +175,9 @@ const TrainerModel = {
                             CASE WHEN is_active = 1 THEN 1 ELSE 0
                         END AS is_active
                         FROM
-                            trainer AND is_active = 1 ORDER BY name`;
+                            trainer WHERE is_active = 1 ORDER BY name`;
+      const [trainers] = await pool.query(getQuery);
+      return trainers;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -127,9 +127,25 @@ const updateTrainer = async (request, response) => {
   }
 };
 
+const getTrainers = async (request, response) => {
+  try {
+    const trainers = await TrainerModel.getTrainers();
+    return response.status(200).send({
+      message: "Trainer fetched successfully",
+      data: trainers,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching trainers",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
   addTrainer,
   updateTrainer,
+  getTrainers,
 };
