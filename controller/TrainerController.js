@@ -31,6 +31,21 @@ const getBatches = async (request, response) => {
   }
 };
 
+const getExperience = async (request, response) => {
+  try {
+    const result = await TrainerModel.getExperience();
+    return response.status(200).send({
+      message: "Experience fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching experience",
+      details: error.message,
+    });
+  }
+};
+
 const addTrainer = async (request, response) => {
   const {
     trainer_name,
@@ -39,9 +54,7 @@ const addTrainer = async (request, response) => {
     whatsapp,
     technology_id,
     overall_exp_year,
-    overall_exp_month,
     relevant_exp_year,
-    relevant_exp_month,
     batch_id,
     availability_time,
     secondary_time,
@@ -57,9 +70,7 @@ const addTrainer = async (request, response) => {
       whatsapp,
       technology_id,
       overall_exp_year,
-      overall_exp_month,
       relevant_exp_year,
-      relevant_exp_month,
       batch_id,
       availability_time,
       secondary_time,
@@ -86,9 +97,7 @@ const updateTrainer = async (request, response) => {
     whatsapp,
     technology_id,
     overall_exp_year,
-    overall_exp_month,
     relevant_exp_year,
-    relevant_exp_month,
     batch_id,
     availability_time,
     secondary_time,
@@ -105,9 +114,7 @@ const updateTrainer = async (request, response) => {
       whatsapp,
       technology_id,
       overall_exp_year,
-      overall_exp_month,
       relevant_exp_year,
-      relevant_exp_month,
       batch_id,
       availability_time,
       secondary_time,
@@ -148,4 +155,5 @@ module.exports = {
   addTrainer,
   updateTrainer,
   getTrainers,
+  getExperience,
 };

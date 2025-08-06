@@ -23,6 +23,15 @@ const TrainerModel = {
     }
   },
 
+  getExperience: async () => {
+    try {
+      const [result] = await pool.query(`SELECT id, exp_range FROM experience`);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   addTrainer: async (
     trainer_name,
     mobile,
@@ -30,9 +39,7 @@ const TrainerModel = {
     whatsapp,
     technology_id,
     overall_exp_year,
-    overall_exp_month,
     relevant_exp_year,
-    relevant_exp_month,
     batch_id,
     availability_time,
     secondary_time,
@@ -54,9 +61,7 @@ const TrainerModel = {
                                 whatsapp,
                                 technology_id,
                                 overall_exp_year,
-                                overall_exp_month,
                                 relavant_exp_year,
-                                relavant_exp_month,
                                 batch_id,
                                 availability_time,
                                 secondary_time,
@@ -71,9 +76,7 @@ const TrainerModel = {
         whatsapp,
         technology_id,
         overall_exp_year,
-        overall_exp_month,
         relevant_exp_year,
-        relevant_exp_month,
         batch_id,
         availability_time,
         secondary_time,
@@ -95,9 +98,7 @@ const TrainerModel = {
     whatsapp,
     technology_id,
     overall_exp_year,
-    overall_exp_month,
     relevant_exp_year,
-    relevant_exp_month,
     batch_id,
     availability_time,
     secondary_time,
@@ -120,9 +121,7 @@ const TrainerModel = {
                                 whatsapp = ?,
                                 technology_id = ?,
                                 overall_exp_year = ?,
-                                overall_exp_month = ?,
                                 relavant_exp_year = ?,
-                                relavant_exp_month = ?,
                                 batch_id = ?,
                                 availability_time = ?,
                                 secondary_time = ?,
@@ -137,9 +136,7 @@ const TrainerModel = {
         whatsapp,
         technology_id,
         overall_exp_year,
-        overall_exp_month,
         relevant_exp_year,
-        relevant_exp_month,
         batch_id,
         availability_time,
         secondary_time,
@@ -164,9 +161,7 @@ const TrainerModel = {
                             whatsapp,
                             technology_id,
                             overall_exp_year,
-                            overall_exp_month,
                             relavant_exp_year,
-                            relavant_exp_month,
                             batch_id,
                             availability_time,
                             secondary_time,
