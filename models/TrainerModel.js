@@ -151,28 +151,51 @@ const TrainerModel = {
     }
   },
 
-  getTrainers: async () => {
+  getTrainers: async (name, mobile, email) => {
     try {
-      const getQuery = `SELECT
-                            id,
-                            name,
-                            mobile,
-                            email,
-                            whatsapp,
-                            technology_id,
-                            overall_exp_year,
-                            relavant_exp_year,
-                            batch_id,
-                            availability_time,
-                            secondary_time,
-                            skills,
-                            location,
-                            CASE WHEN is_active = 1 THEN 1 ELSE 0
-                        END AS is_active
-                        FROM
-                            trainer WHERE is_active = 1 ORDER BY name`;
+      let getQuery = `SELECT
+                        t.id,
+                        t.name,
+                        t.mobile,
+                        t.email,
+                        t.whatsapp,
+                        t.technology_id,
+                        te.name AS technology,
+                        t.overall_exp_year,
+                        t.relavant_exp_year,
+                        t.batch_id,
+                        b.name AS batch,
+                        t.availability_time,
+                        t.secondary_time,
+                        t.skills,
+                        t.location,
+                        CASE WHEN t.is_active = 1 THEN 1 ELSE 0
+                    END AS is_active
+                    FROM
+                        trainer AS t
+                    INNER JOIN technologies te ON
+                        te.id = t.technology_id
+                    INNER JOIN batches b ON
+                        b.id = t.batch_id
+                    WHERE
+                        t.is_active = 1`;
+      if (name) {
+        getQuery += ` AND t.name LIKE '%${name}%'`;
+      }
+      if (mobile) {
+        getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
+      }
+      if (email) {
+        getQuery += ` AND t.email LIKE '%${email}%'`;
+      }
+      getQuery += ` ORDER BY t.name`;
       const [trainers] = await pool.query(getQuery);
-      return trainers;
+
+      const formattedResult = trainers.map((item) => ({
+        ...item,
+        skills: JSON.parse(item.skills),
+      }));
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }

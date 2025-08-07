@@ -13,6 +13,6 @@ router.get("/getTechnologies", verifyToken, TrainerController.getTechnologies);
 router.get("/getBatches", verifyToken, TrainerController.getBatches);
 router.post("/addTrainer", verifyToken, TrainerController.addTrainer);
 router.put("/updateTrainer", verifyToken, TrainerController.updateTrainer);
-router.get("/getTrainers", verifyToken, TrainerController.getTrainers);
+router.post("/getTrainers", verifyToken, TrainerController.getTrainers);
 router.get("/getExperience", verifyToken, TrainerController.getExperience);
 module.exports = router;

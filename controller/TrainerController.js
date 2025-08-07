@@ -135,8 +135,9 @@ const updateTrainer = async (request, response) => {
 };
 
 const getTrainers = async (request, response) => {
+  const { name, mobile, email } = request.body;
   try {
-    const trainers = await TrainerModel.getTrainers();
+    const trainers = await TrainerModel.getTrainers(name, mobile, email);
     return response.status(200).send({
       message: "Trainer fetched successfully",
       data: trainers,
