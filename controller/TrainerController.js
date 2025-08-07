@@ -103,6 +103,7 @@ const updateTrainer = async (request, response) => {
     secondary_time,
     skills,
     location,
+    status,
     id,
   } = request.body;
   const formattedSkills = Array.isArray(skills) ? skills : [skills];
@@ -120,6 +121,7 @@ const updateTrainer = async (request, response) => {
       secondary_time,
       formattedSkills,
       location,
+      status,
       id
     );
     return response.status(200).send({

@@ -66,9 +66,10 @@ const TrainerModel = {
                                 availability_time,
                                 secondary_time,
                                 skills,
-                                location
+                                location,
+                                status
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         trainer_name,
         mobile,
@@ -82,6 +83,7 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
+        "PENDING",
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -104,6 +106,7 @@ const TrainerModel = {
     secondary_time,
     skills,
     location,
+    status,
     id
   ) => {
     try {
@@ -126,7 +129,8 @@ const TrainerModel = {
                                 availability_time = ?,
                                 secondary_time = ?,
                                 skills = ?,
-                                location = ?
+                                location = ?,
+                                status = ?
                             WHERE
                                 id = ?`;
       const values = [
@@ -142,6 +146,7 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
+        status,
         id,
       ];
       const [result] = await pool.query(updateQuery, values);
@@ -169,6 +174,7 @@ const TrainerModel = {
                         t.secondary_time,
                         t.skills,
                         t.location,
+                        t.status,
                         CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                     END AS is_active
                     FROM
