@@ -68,7 +68,7 @@ const TrainerModel = {
                                 skills,
                                 location
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         trainer_name,
         mobile,
