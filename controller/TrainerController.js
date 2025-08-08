@@ -152,6 +152,22 @@ const getTrainers = async (request, response) => {
   }
 };
 
+const updateStatus = async (request, response) => {
+  const { trainer_id, status } = request.body;
+  try {
+    const result = await TrainerModel.updateStatus(trainer_id, status);
+    return response.status(200).send({
+      message: "Status updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating status",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -159,4 +175,5 @@ module.exports = {
   updateTrainer,
   getTrainers,
   getExperience,
+  updateStatus,
 };

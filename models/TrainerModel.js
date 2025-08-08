@@ -206,6 +206,24 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+
+  updateStatus: async (trainer_id, status) => {
+    try {
+      const [isIdExists] = await pool.query(
+        `SELECT id FROM trainer WHERE id = ?`,
+        [trainer_id]
+      );
+      if (isIdExists.length <= 0) throw new Error("Invalid trainer Id");
+
+      const [result] = await pool.query(
+        `UPDATE trainer SET status = ? WHERE id = ?`,
+        [status, trainer_id]
+      );
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = TrainerModel;

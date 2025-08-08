@@ -21,6 +21,7 @@ router.post("/addTrainer", verifyToken, TrainerController.addTrainer);
 router.put("/updateTrainer", verifyToken, TrainerController.updateTrainer);
 router.post("/getTrainers", verifyToken, TrainerController.getTrainers);
 router.get("/getExperience", verifyToken, TrainerController.getExperience);
+router.put("/updateStatus", verifyToken, TrainerController.updateStatus);
 // Trainer end
 
 // Lead start
