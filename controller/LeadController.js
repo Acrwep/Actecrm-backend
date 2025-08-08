@@ -106,6 +106,76 @@ const getBatchTrack = async (request, response) => {
   }
 };
 
+const insertLead = async (request, response) => {
+  const {
+    user_id,
+    name,
+    phone_code,
+    phone,
+    whatsapp,
+    email,
+    country,
+    state,
+    district,
+    primary_course_id,
+    primary_fees,
+    price_category,
+    secondary_course_id,
+    secondary_fees,
+    training_mode_id,
+    priority_id,
+    lead_type_id,
+    lead_status_id,
+    response_status_id,
+    next_follow_up_date,
+    expected_join_date,
+    lead_quality_rating,
+    branch_id,
+    batch_track_id,
+    comments,
+    created_date,
+  } = request.body;
+  try {
+    const result = await LeadModel.insertLead(
+      user_id,
+      name,
+      phone_code,
+      phone,
+      whatsapp,
+      email,
+      country,
+      state,
+      district,
+      primary_course_id,
+      primary_fees,
+      price_category,
+      secondary_course_id,
+      secondary_fees,
+      training_mode_id,
+      priority_id,
+      lead_type_id,
+      lead_status_id,
+      response_status_id,
+      next_follow_up_date,
+      expected_join_date,
+      lead_quality_rating,
+      branch_id,
+      batch_track_id,
+      comments,
+      created_date
+    );
+    return response.status(200).send({
+      message: "Lead added successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while adding lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -114,4 +184,5 @@ module.exports = {
   getResponseStatus,
   getBranches,
   getBatchTrack,
+  insertLead,
 };
