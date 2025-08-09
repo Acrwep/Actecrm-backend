@@ -176,6 +176,22 @@ const insertLead = async (request, response) => {
   }
 };
 
+const getLeads = async (request, response) => {
+  const { name, start_date, end_date } = request.body;
+  try {
+    const leads = await LeadModel.getLeads(name, start_date, end_date);
+    return response.status(200).send({
+      message: "Leads fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching leads",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -185,4 +201,5 @@ module.exports = {
   getBranches,
   getBatchTrack,
   insertLead,
+  getLeads,
 };

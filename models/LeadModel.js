@@ -171,6 +171,59 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  getLeads: async (name, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT
+                        l.id,
+                        l.user_id,
+                        l.name,
+                        l.phone_code,
+                        l.phone,
+                        l.whatsapp,
+                        l.email,
+                        l.country,
+                        l.state,
+                        l.district,
+                        l.primary_course_id,
+                        l.primary_fees,
+                        l.price_category,
+                        l.secondary_course_id,
+                        l.secondary_fees,
+                        l.training_mode_id,
+                        l.priority_id,
+                        l.lead_type_id,
+                        l.lead_status_id,
+                        l.response_status_id,
+                        l.next_follow_up_date,
+                        l.expected_join_date,
+                        l.lead_quality_rating,
+                        l.branch_id,
+                        l.batch_track_id,
+                        l.comments,
+                        l.created_date
+                    FROM
+                        lead_master AS l WHERE 1 = 1`;
+      if (name) {
+        getQuery += ` AND l.name LIKE '%${name}%'`;
+      }
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
+        queryParams.push(start_date, end_date);
+      }
+
+      getQuery += ` ORDER BY l.created_date ASC`;
+
+      console.log("Query", getQuery);
+
+      const [result] = await pool.query(getQuery, queryParams);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;
