@@ -165,8 +165,22 @@ const LeadModel = {
         created_date,
       ];
 
+      // Insert into lead master table
       const [result] = await pool.query(insertQuery, values);
-      return result.affectedRows;
+
+      if (result.affectedRows <= 0)
+        throw new Error("Error while inserting lead");
+
+      // Insert lead follow up history
+      const [history] = await pool.query(
+        `INSERT INTO lead_follow_up_history(
+            lead_id,
+            next_follow_up_date
+        )
+        VALUES(?, ?)`,
+        [result.insertId, next_follow_up_date]
+      );
+      return history.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
