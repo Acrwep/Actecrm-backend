@@ -192,6 +192,22 @@ const getLeads = async (request, response) => {
   }
 };
 
+const getLeadFollowUps = async (request, response) => {
+  const { date_type } = request.query;
+  try {
+    const leads = await LeadModel.getLeadFollowUps(date_type);
+    return response.status(200).send({
+      message: "Follow up fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching follow ups",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -202,4 +218,5 @@ module.exports = {
   getBatchTrack,
   insertLead,
   getLeads,
+  getLeadFollowUps,
 };
