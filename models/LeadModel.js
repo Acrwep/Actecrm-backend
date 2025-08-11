@@ -234,7 +234,7 @@ const LeadModel = {
                   LEFT JOIN branches AS b ON
                     b.id = l.branch_id
                   LEFT JOIN batch_track AS bt ON
-                    bt.id = l.batch_track_id`;
+                    bt.id = l.batch_track_id WHERE 1 = 1`;
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }
