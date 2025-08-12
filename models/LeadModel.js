@@ -186,7 +186,7 @@ const LeadModel = {
     }
   },
 
-  getLeads: async (name, start_date, end_date) => {
+  getLeads: async (name, start_date, end_date, lead_status_id) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -253,6 +253,11 @@ const LeadModel = {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }
 
+      if (lead_status_id) {
+        getQuery += ` AND l.lead_status_id = ?`;
+        queryParams.push(lead_status_id);
+      }
+
       if (start_date && end_date) {
         getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
         queryParams.push(start_date, end_date);
@@ -271,6 +276,7 @@ const LeadModel = {
     try {
       let getQuery = `SELECT
                       l.id,
+                      lf.id AS lead_history_id,
                       l.user_id,
                       u.user_name,
                       l.name AS candidate_name,
@@ -361,6 +367,54 @@ const LeadModel = {
       );
 
       return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateFollowUp: async (
+    lead_history_id,
+    comments,
+    next_follow_up_date,
+    lead_status_id,
+    lead_id,
+    updated_by,
+    updated_date
+  ) => {
+    try {
+      let affectedRows = 0;
+      const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`;
+      const values = [comments, updated_by, updated_date, lead_history_id];
+      const [update_lead] = await pool.query(updateQuery, values);
+
+      affectedRows += update_lead.affectedRows;
+
+      if (next_follow_up_date) {
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date)`;
+        const [insert_follow_up] = await pool.query(insertQuery, [
+          lead_id,
+          next_follow_up_date,
+        ]);
+
+        affectedRows += insert_follow_up.affectedRows;
+      }
+
+      if (lead_status_id) {
+        const [get_lead_status] = await pool.query(
+          `SELECT id, name FROM lead_status WHERE id = ?`,
+          [lead_status_id]
+        );
+        if (get_lead_status[0].name === "Junk") {
+          const [update_lead_master] = await pool.query(
+            `UPDATE lead_master SET lead_status_id = ? WHERE id = ?`,
+            [lead_status_id, lead_id]
+          );
+
+          affectedRows += update_lead_master.affectedRows;
+        }
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -177,9 +177,14 @@ const insertLead = async (request, response) => {
 };
 
 const getLeads = async (request, response) => {
-  const { name, start_date, end_date } = request.body;
+  const { name, start_date, end_date, lead_status_id } = request.body;
   try {
-    const leads = await LeadModel.getLeads(name, start_date, end_date);
+    const leads = await LeadModel.getLeads(
+      name,
+      start_date,
+      end_date,
+      lead_status_id
+    );
     return response.status(200).send({
       message: "Leads fetched successfully",
       data: leads,
@@ -208,6 +213,38 @@ const getLeadFollowUps = async (request, response) => {
   }
 };
 
+const updateFollowUp = async (request, response) => {
+  const {
+    lead_history_id,
+    comments,
+    next_follow_up_date,
+    lead_status_id,
+    lead_id,
+    updated_by,
+    updated_date,
+  } = request.body;
+  try {
+    const result = await LeadModel.updateFollowUp(
+      lead_history_id,
+      comments,
+      next_follow_up_date,
+      lead_status_id,
+      lead_id,
+      updated_by,
+      updated_date
+    );
+    return response.status(200).send({
+      message: "Updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -219,4 +256,5 @@ module.exports = {
   insertLead,
   getLeads,
   getLeadFollowUps,
+  updateFollowUp,
 };

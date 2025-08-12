@@ -35,5 +35,6 @@ router.get("/getBatchTrack", verifyToken, LeadController.getBatchTrack);
 router.post("/insertLead", verifyToken, LeadController.insertLead);
 router.post("/getLeads", verifyToken, LeadController.getLeads);
 router.get("/getLeadFollowUps", verifyToken, LeadController.getLeadFollowUps);
+router.put("/updateFollowUp", verifyToken, LeadController.updateFollowUp);
 // Lead end
 module.exports = router;
