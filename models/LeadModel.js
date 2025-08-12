@@ -175,12 +175,25 @@ const LeadModel = {
       const [history] = await pool.query(
         `INSERT INTO lead_follow_up_history(
             lead_id,
+            next_follow_up_date,
+            comments,
+            updated_by,
+            updated_date,
+            is_updated
+        )
+        VALUES(?, ?, ?, ?, ?, ?)`,
+        [result.insertId, created_date, comments, user_id, created_date, 1]
+      );
+
+      const [next_follow_up] = await pool.query(
+        `INSERT INTO lead_follow_up_history(
+            lead_id,
             next_follow_up_date
         )
         VALUES(?, ?)`,
         [result.insertId, next_follow_up_date]
       );
-      return history.affectedRows;
+      return next_follow_up.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -353,7 +366,7 @@ const LeadModel = {
       const formattedResult = await Promise.all(
         follow_ups.map(async (item) => {
           const [history] = await pool.query(
-            `SELECT id, lead_id, next_follow_up_date, comments 
+            `SELECT id, lead_id, updated_date, comments 
                  FROM lead_follow_up_history 
                  WHERE is_updated = 1 AND lead_id = ? 
                  ORDER BY id ASC`,
@@ -383,6 +396,7 @@ const LeadModel = {
   ) => {
     try {
       let affectedRows = 0;
+
       const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`;
       const values = [comments, updated_by, updated_date, lead_history_id];
       const [update_lead] = await pool.query(updateQuery, values);
@@ -390,13 +404,19 @@ const LeadModel = {
       affectedRows += update_lead.affectedRows;
 
       if (next_follow_up_date) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date)`;
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date) VALUES (?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
         ]);
-
         affectedRows += insert_follow_up.affectedRows;
+
+        const [update_lead_master] = await pool.query(
+          `UPDATE lead_master SET next_follow_up_date = ? WHERE id = ?`,
+          [next_follow_up_date, lead_id]
+        );
+
+        affectedRows += update_lead_master.affectedRows;
       }
 
       if (lead_status_id) {

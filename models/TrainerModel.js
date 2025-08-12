@@ -83,7 +83,7 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
-        "PENDING",
+        "Pending",
       ];
 
       const [result] = await pool.query(insertQuery, values);
