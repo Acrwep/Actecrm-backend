@@ -36,5 +36,6 @@ router.post("/insertLead", verifyToken, LeadController.insertLead);
 router.post("/getLeads", verifyToken, LeadController.getLeads);
 router.get("/getLeadFollowUps", verifyToken, LeadController.getLeadFollowUps);
 router.put("/updateFollowUp", verifyToken, LeadController.updateFollowUp);
+router.put("/updateLead", verifyToken, LeadController.updateLead);
 // Lead end
 module.exports = router;

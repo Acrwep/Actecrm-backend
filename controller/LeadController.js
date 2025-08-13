@@ -245,6 +245,74 @@ const updateFollowUp = async (request, response) => {
   }
 };
 
+const updateLead = async (request, response) => {
+  const {
+    name,
+    phone_code,
+    phone,
+    whatsapp,
+    email,
+    country,
+    state,
+    district,
+    primary_course_id,
+    primary_fees,
+    price_category,
+    secondary_course_id,
+    secondary_fees,
+    training_mode_id,
+    priority_id,
+    lead_type_id,
+    lead_status_id,
+    response_status_id,
+    next_follow_up_date,
+    expected_join_date,
+    lead_quality_rating,
+    branch_id,
+    batch_track_id,
+    comments,
+    lead_id,
+  } = request.body;
+  try {
+    const result = await LeadModel.updateLead(
+      name,
+      phone_code,
+      phone,
+      whatsapp,
+      email,
+      country,
+      state,
+      district,
+      primary_course_id,
+      primary_fees,
+      price_category,
+      secondary_course_id,
+      secondary_fees,
+      training_mode_id,
+      priority_id,
+      lead_type_id,
+      lead_status_id,
+      response_status_id,
+      next_follow_up_date,
+      expected_join_date,
+      lead_quality_rating,
+      branch_id,
+      batch_track_id,
+      comments,
+      lead_id
+    );
+    return response.status(200).send({
+      message: "Updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -257,4 +325,5 @@ module.exports = {
   getLeads,
   getLeadFollowUps,
   updateFollowUp,
+  updateLead,
 };

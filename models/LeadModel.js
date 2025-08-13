@@ -439,6 +439,119 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  updateLead: async (
+    name,
+    phone_code,
+    phone,
+    whatsapp,
+    email,
+    country,
+    state,
+    district,
+    primary_course_id,
+    primary_fees,
+    price_category,
+    secondary_course_id,
+    secondary_fees,
+    training_mode_id,
+    priority_id,
+    lead_type_id,
+    lead_status_id,
+    response_status_id,
+    next_follow_up_date,
+    expected_join_date,
+    lead_quality_rating,
+    branch_id,
+    batch_track_id,
+    comments,
+    lead_id
+  ) => {
+    try {
+      const [isLeadExists] = await pool.query(
+        `SELECT id FROM lead_master WHERE id = ?`,
+        [lead_id]
+      );
+      if (isLeadExists.length <= 0) throw new Error("Invalid lead Id");
+      const updateQuery = `UPDATE
+                              lead_master
+                          SET
+                              name = ?,
+                              phone_code = ?,
+                              phone = ?,
+                              whatsapp = ?,
+                              email = ?,
+                              country = ?,
+                              state = ?,
+                              district = ?,
+                              primary_course_id = ?,
+                              primary_fees = ?,
+                              price_category = ?,
+                              secondary_course_id = ?,
+                              secondary_fees = ?,
+                              training_mode_id = ?,
+                              priority_id = ?,
+                              lead_type_id = ?,
+                              lead_status_id = ?,
+                              response_status_id = ?,
+                              next_follow_up_date = ?,
+                              expected_join_date = ?,
+                              lead_quality_rating = ?,
+                              branch_id = ?,
+                              batch_track_id = ?,
+                              comments = ?
+                          WHERE
+                              id = ?`;
+      const values = [
+        name,
+        phone_code,
+        phone,
+        whatsapp,
+        email,
+        country,
+        state,
+        district,
+        primary_course_id,
+        primary_fees,
+        price_category,
+        secondary_course_id,
+        secondary_fees,
+        training_mode_id,
+        priority_id,
+        lead_type_id,
+        lead_status_id,
+        response_status_id,
+        next_follow_up_date,
+        expected_join_date,
+        lead_quality_rating,
+        branch_id,
+        batch_track_id,
+        comments,
+        lead_id,
+      ];
+
+      // Update lead
+      const [updateLead] = await pool.query(updateQuery, values);
+      if (updateLead.affectedRows <= 0)
+        throw new Error("Error while updating lead");
+
+      // Get first lead history Id
+      const [lead_history_id] = await pool.query(
+        `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
+        [lead_id]
+      );
+
+      // Update lead history
+      const [update_lead_history] = await pool.query(
+        `UPDATE lead_follow_up_history SET comments = ? WHERE id = ?`,
+        [comments, lead_history_id[0].lead_history_id]
+      );
+
+      return update_lead_history.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;
