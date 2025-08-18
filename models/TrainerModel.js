@@ -263,10 +263,14 @@ const TrainerModel = {
         getQuery += ` AND t.email LIKE '%${email}%'`;
       }
       if (status) {
-        getQuery += ` AND t.status = ?`;
+        getQuery += ` AND t.status IN (?)`;
         queryParams.push(status);
       }
       getQuery += ` ORDER BY t.name`;
+
+      console.log("Query", getQuery);
+      console.log("Params", queryParams);
+
       const [trainers] = await pool.query(getQuery, queryParams);
 
       const [getStatus] = await pool.query(
