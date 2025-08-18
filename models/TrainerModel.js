@@ -268,9 +268,6 @@ const TrainerModel = {
       }
       getQuery += ` ORDER BY t.name`;
 
-      console.log("Query", getQuery);
-      console.log("Params", queryParams);
-
       const [trainers] = await pool.query(getQuery, queryParams);
 
       const [getStatus] = await pool.query(

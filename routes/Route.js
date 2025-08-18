@@ -6,6 +6,7 @@ const UserController = require("../controller/UserController");
 const TrainerController = require("../controller/TrainerController");
 const LeadController = require("../controller/LeadController");
 const PaymentController = require("../controller/PaymentController");
+const EmailController = require("../controller/EmailController");
 
 router.post("/login", LoginController.login);
 
@@ -43,4 +44,8 @@ router.put("/updateLead", verifyToken, LeadController.updateLead);
 // Payment start
 router.get("/getPaymentModes", verifyToken, PaymentController.getPaymentModes);
 // Payment end
+
+// Mail module start
+router.post("/sendMail", verifyToken, EmailController.sendMail);
+// Mail module end
 module.exports = router;
