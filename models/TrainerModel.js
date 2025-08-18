@@ -271,7 +271,7 @@ const TrainerModel = {
       const [trainers] = await pool.query(getQuery, queryParams);
 
       const [getStatus] = await pool.query(
-        `SELECT COUNT(CASE WHEN t.status = 'Form Pending' THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status = 'Verify Pending' THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
+        `SELECT COUNT(CASE WHEN t.status = 'Form Pending' THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending', 'Form Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
       );
 
       const formattedResult = trainers.map((item) => ({
