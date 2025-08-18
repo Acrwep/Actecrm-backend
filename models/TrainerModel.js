@@ -44,7 +44,15 @@ const TrainerModel = {
     availability_time,
     secondary_time,
     skills,
-    location
+    location,
+    profile_image,
+    account_holder_name,
+    account_number,
+    bank_name,
+    branche_name,
+    ifsc_code,
+    signature_image,
+    created_date
   ) => {
     try {
       const [isEmailOrMobileExists] = await pool.query(
@@ -67,9 +75,10 @@ const TrainerModel = {
                                 secondary_time,
                                 skills,
                                 location,
+                                profile_image,
                                 status
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         trainer_name,
         mobile,
@@ -83,11 +92,29 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
-        "Pending",
+        profile_image,
+        "Form Pending",
       ];
 
       const [result] = await pool.query(insertQuery, values);
-      return result.affectedRows;
+
+      if (result.affectedRows <= 0)
+        throw new Error("Error while inserting trainer");
+
+      const [insertBank] = await pool.query(
+        `INSERT INTO trainer_bank_accounts (trainer_id, account_holder_name, account_number, bank_name, branch_name, ifsc_code, signature_image, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          result.insertId,
+          account_holder_name,
+          account_number,
+          bank_name,
+          branche_name,
+          ifsc_code,
+          signature_image,
+          created_date,
+        ]
+      );
+      return insertBank.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -107,7 +134,14 @@ const TrainerModel = {
     skills,
     location,
     status,
-    id
+    id,
+    trainer_bank_id,
+    account_holder_name,
+    account_number,
+    bank_name,
+    branch_name,
+    ifsc_code,
+    signature_image
   ) => {
     try {
       const [isIdExists] = await pool.query(
@@ -146,45 +180,79 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
-        status,
+        "Verify Pending",
         id,
       ];
       const [result] = await pool.query(updateQuery, values);
-      return result.affectedRows;
+      if (result.affectedRows <= 0)
+        throw new Error("Error while updating trainer");
+      const [updateBank] = await pool.query(
+        `UPDATE
+            trainer_bank_accounts
+        SET
+            account_holder_name = ?,
+            account_number = ?,
+            bank_name = ?,
+            branch_name = ?,
+            ifsc_code = ?,
+            signature_image = ?
+        WHERE
+            id = ?`,
+        [
+          account_holder_name,
+          account_number,
+          bank_name,
+          branch_name,
+          ifsc_code,
+          signature_image,
+          trainer_bank_id,
+        ]
+      );
+      return updateBank.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  getTrainers: async (name, mobile, email) => {
+  getTrainers: async (name, mobile, email, status) => {
     try {
+      const queryParams = [];
       let getQuery = `SELECT
-                        t.id,
-                        t.name,
-                        t.mobile,
-                        t.email,
-                        t.whatsapp,
-                        t.technology_id,
-                        te.name AS technology,
-                        t.overall_exp_year,
-                        t.relavant_exp_year,
-                        t.batch_id,
-                        b.name AS batch,
-                        t.availability_time,
-                        t.secondary_time,
-                        t.skills,
-                        t.location,
-                        t.status,
-                        CASE WHEN t.is_active = 1 THEN 1 ELSE 0
-                    END AS is_active
-                    FROM
-                        trainer AS t
-                    INNER JOIN technologies te ON
-                        te.id = t.technology_id
-                    INNER JOIN batches b ON
-                        b.id = t.batch_id
-                    WHERE
-                        t.is_active = 1`;
+                          t.id,
+                          t.name,
+                          t.mobile,
+                          t.email,
+                          t.whatsapp,
+                          t.technology_id,
+                          te.name AS technology,
+                          t.overall_exp_year,
+                          t.relavant_exp_year,
+                          t.batch_id,
+                          b.name AS batch,
+                          t.availability_time,
+                          t.secondary_time,
+                          t.skills,
+                          t.location,
+                          t.status,
+                          CASE WHEN t.is_active = 1 THEN 1 ELSE 0
+                      END AS is_active,
+                          tb.id AS trainer_bank_id,
+                          tb.account_holder_name,
+                          tb.account_number,
+                          tb.bank_name,
+                          tb.branch_name,
+                          tb.ifsc_code,
+                          tb.signature_image
+                      FROM
+                          trainer AS t
+                      INNER JOIN technologies te ON
+                          te.id = t.technology_id
+                      INNER JOIN batches b ON
+                          b.id = t.batch_id
+                      LEFT JOIN trainer_bank_accounts AS tb ON
+                        tb.trainer_id = t.id
+                      WHERE
+                          t.is_active = 1`;
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
       }
@@ -194,14 +262,25 @@ const TrainerModel = {
       if (email) {
         getQuery += ` AND t.email LIKE '%${email}%'`;
       }
+      if (status) {
+        getQuery += ` AND t.status = ?`;
+        queryParams.push(status);
+      }
       getQuery += ` ORDER BY t.name`;
-      const [trainers] = await pool.query(getQuery);
+      const [trainers] = await pool.query(getQuery, queryParams);
+
+      const [getStatus] = await pool.query(
+        `SELECT COUNT(CASE WHEN t.status = 'Form Pending' THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status = 'Verify Pending' THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
+      );
 
       const formattedResult = trainers.map((item) => ({
         ...item,
         skills: JSON.parse(item.skills),
       }));
-      return formattedResult;
+      return {
+        trainers: formattedResult,
+        trainer_status_count: getStatus,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
