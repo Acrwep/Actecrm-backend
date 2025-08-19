@@ -134,6 +134,7 @@ const TrainerModel = {
     skills,
     location,
     status,
+    profile_image,
     id,
     trainer_bank_id,
     account_holder_name,
@@ -164,8 +165,9 @@ const TrainerModel = {
                                 secondary_time = ?,
                                 skills = ?,
                                 location = ?,
+                                profile_image = ?,
                                 status = ?,
-                                is_bank_updated
+                                is_bank_updated = ?
                             WHERE
                                 id = ?`;
       const values = [
@@ -181,6 +183,7 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
+        profile_image,
         status,
         1,
         id,
@@ -216,7 +219,7 @@ const TrainerModel = {
     }
   },
 
-  getTrainers: async (name, mobile, email, status) => {
+  getTrainers: async (name, mobile, email, status, is_form_sent) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -268,12 +271,16 @@ const TrainerModel = {
         getQuery += ` AND t.status IN (?)`;
         queryParams.push(status);
       }
+      if (is_form_sent != null || is_form_sent != undefined) {
+        getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
+        queryParams.push(is_form_sent);
+      }
       getQuery += ` ORDER BY t.name`;
 
       const [trainers] = await pool.query(getQuery, queryParams);
 
       const [getStatus] = await pool.query(
-        `SELECT COUNT(CASE WHEN t.status = 'Form Pending' THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending', 'Form Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
+        `SELECT COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
       );
 
       const formattedResult = trainers.map((item) => ({
@@ -302,6 +309,56 @@ const TrainerModel = {
         [status, trainer_id]
       );
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getTrainerById: async (trainer_id) => {
+    try {
+      let getQuery = `SELECT
+                          t.id,
+                          t.name,
+                          t.mobile,
+                          t.email,
+                          t.whatsapp,
+                          t.technology_id,
+                          te.name AS technology,
+                          t.overall_exp_year,
+                          t.relavant_exp_year,
+                          t.batch_id,
+                          b.name AS batch,
+                          t.availability_time,
+                          t.secondary_time,
+                          t.skills,
+                          t.location,
+                          t.status,
+                          CASE WHEN t.is_active = 1 THEN 1 ELSE 0
+                      END AS is_active,
+                          tb.id AS trainer_bank_id,
+                          tb.account_holder_name,
+                          tb.account_number,
+                          tb.bank_name,
+                          tb.branch_name,
+                          tb.ifsc_code,
+                          tb.signature_image
+                      FROM
+                          trainer AS t
+                      INNER JOIN technologies te ON
+                          te.id = t.technology_id
+                      INNER JOIN batches b ON
+                          b.id = t.batch_id
+                      LEFT JOIN trainer_bank_accounts AS tb ON
+                        tb.trainer_id = t.id
+                      WHERE
+                          t.is_active = 1 AND t.id = ?`;
+
+      const [trainers] = await pool.query(getQuery, [trainer_id]);
+
+      return {
+        ...trainers[0],
+        skills: JSON.parse(trainers[0].skills),
+      };
     } catch (error) {
       throw new Error(error.message);
     }

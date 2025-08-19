@@ -17,13 +17,14 @@ router.put("/updateUser", verifyToken, UserController.updateUser);
 // User end
 
 // Trainer start
-router.get("/getTechnologies", verifyToken, TrainerController.getTechnologies);
-router.get("/getBatches", verifyToken, TrainerController.getBatches);
+router.get("/getTechnologies", TrainerController.getTechnologies);
+router.get("/getBatches", TrainerController.getBatches);
 router.post("/addTrainer", verifyToken, TrainerController.addTrainer);
-router.put("/updateTrainer", verifyToken, TrainerController.updateTrainer);
+router.put("/updateTrainer", TrainerController.updateTrainer);
 router.post("/getTrainers", verifyToken, TrainerController.getTrainers);
-router.get("/getExperience", verifyToken, TrainerController.getExperience);
+router.get("/getExperience", TrainerController.getExperience);
 router.put("/updateStatus", verifyToken, TrainerController.updateStatus);
+router.get("/getTrainerById", TrainerController.getTrainerById);
 // Trainer end
 
 // Lead start

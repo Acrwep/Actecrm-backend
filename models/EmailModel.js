@@ -11,11 +11,19 @@ const transporter = nodemailer.createTransport({
 
 const sendMail = async (email, link, trainer_id) => {
   try {
+    // Check the trainer already exists
     const [isTrainerExists] = await pool.query(
       `SELECT id FROM trainer WHERE id = ?`,
       [trainer_id]
     );
     if (isTrainerExists.length <= 0) throw new Error("Trainer not exists");
+
+    // Check link already send to trainer
+    const [isLinkSent] = await pool.query(
+      `SELECT id FROM trainer WHERE id = ? AND is_form_sent = 1`,
+      [trainer_id]
+    );
+    if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
@@ -24,6 +32,13 @@ const sendMail = async (email, link, trainer_id) => {
       html: `<a href="${link}/${trainer_id}">Link</a>`,
     };
 
+    // Update trainer table
+    const [updateTrainer] = await pool.query(
+      `UPDATE trainer SET is_form_sent = 1 WHERE id = ?`,
+      [trainer_id]
+    );
+
+    // Send mail
     await transporter.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {

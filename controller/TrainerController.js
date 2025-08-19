@@ -120,6 +120,7 @@ const updateTrainer = async (request, response) => {
     skills,
     location,
     status,
+    profile_image,
     id,
     trainer_bank_id,
     account_holder_name,
@@ -145,6 +146,7 @@ const updateTrainer = async (request, response) => {
       formattedSkills,
       location,
       status,
+      profile_image,
       id,
       trainer_bank_id,
       account_holder_name,
@@ -167,13 +169,14 @@ const updateTrainer = async (request, response) => {
 };
 
 const getTrainers = async (request, response) => {
-  const { name, mobile, email, status } = request.body;
+  const { name, mobile, email, status, is_form_sent } = request.body;
   try {
     const trainers = await TrainerModel.getTrainers(
       name,
       mobile,
       email,
-      status
+      status,
+      is_form_sent
     );
     return response.status(200).send({
       message: "Trainer fetched successfully",
@@ -203,6 +206,22 @@ const updateStatus = async (request, response) => {
   }
 };
 
+const getTrainerById = async (request, response) => {
+  const { trainer_id } = request.query;
+  try {
+    const trainer = await TrainerModel.getTrainerById(trainer_id);
+    return response.status(200).send({
+      message: "Trainer fetched successfully",
+      data: trainer,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching trainer",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -211,4 +230,5 @@ module.exports = {
   getTrainers,
   getExperience,
   updateStatus,
+  getTrainerById,
 };
