@@ -31,7 +31,12 @@ const verifyToken = (req, res, next) => {
   });
 };
 
+const getCurrentYear = () => {
+  return new Date().getFullYear();
+};
+
 module.exports = {
   verifyToken,
   convertUTCDateToLocalDate,
+  getCurrentYear,
 };
