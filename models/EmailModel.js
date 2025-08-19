@@ -50,7 +50,7 @@ const sendMail = async (email, link, trainer_id) => {
             Please click the button below to access the registration form:
           </p>
           <p style="text-align: center; margin: 20px 0;">
-            <a href="https://actecrm.com/trainer-resgistration" target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
+            <a href=${link} target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
               Complete Registration
             </a>
           </p>
@@ -58,7 +58,7 @@ const sendMail = async (email, link, trainer_id) => {
             If the button above does not work, please copy and paste the following link into your browser:
           </p>
           <p style="word-break: break-all; color: #5b69ca; font-size: 14px;">
-            https://actecrm.com/trainer-resgistration
+            ${link}
           </p>
           <p>
             Thank you for joining us. We look forward to working with you!
