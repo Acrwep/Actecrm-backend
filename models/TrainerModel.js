@@ -93,7 +93,7 @@ const TrainerModel = {
         JSON.stringify(skills),
         location,
         profile_image,
-        "Form Pending",
+        "Verify Pending",
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -164,7 +164,8 @@ const TrainerModel = {
                                 secondary_time = ?,
                                 skills = ?,
                                 location = ?,
-                                status = ?
+                                status = ?,
+                                is_bank_updated
                             WHERE
                                 id = ?`;
       const values = [
@@ -180,7 +181,8 @@ const TrainerModel = {
         secondary_time,
         JSON.stringify(skills),
         location,
-        "Verify Pending",
+        status,
+        1,
         id,
       ];
       const [result] = await pool.query(updateQuery, values);

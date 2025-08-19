@@ -2,9 +2,9 @@ const { request, response } = require("express");
 const EmailModel = require("../models/EmailModel");
 
 const sendMail = async (request, response) => {
-  const { email } = request.body;
+  const { email, link } = request.body;
   try {
-    const result = await EmailModel.sendMail(email);
+    const result = await EmailModel.sendMail(email, link);
     return response.status(201).send({
       message: "Mail sent successfully",
       data: result,
