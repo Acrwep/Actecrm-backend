@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const moment = require("moment");
 
 const LeadModel = {
   getTrainingMode: async () => {
@@ -548,6 +549,28 @@ const LeadModel = {
       );
 
       return update_lead_history.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getLeadCount: async () => {
+    try {
+      const currentDate = new Date();
+      const formattedDate = moment(currentDate).format("YYYY-MM-DD");
+
+      const [getFollowupCount] = await pool.query(
+        `SELECT COUNT(id) AS follow_up_count FROM lead_follow_up_history WHERE CAST(updated_date AS DATE) = ?`,
+        formattedDate
+      );
+
+      const [getLeadCount] = await pool.query(
+        `SELECT COUNT(*) AS total_lead_count FROM lead_master WHERE created_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND created_date <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)`
+      );
+      return {
+        follow_up_count: getFollowupCount[0].follow_up_count,
+        total_lead_count: getLeadCount[0].total_lead_count,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

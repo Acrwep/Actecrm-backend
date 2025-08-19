@@ -239,6 +239,7 @@ const TrainerModel = {
                           t.skills,
                           t.location,
                           t.status,
+                          t.profile_image,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,
@@ -333,6 +334,7 @@ const TrainerModel = {
                           t.skills,
                           t.location,
                           t.status,
+                          t.profile_image,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,

@@ -313,6 +313,21 @@ const updateLead = async (request, response) => {
   }
 };
 
+const getLeadCount = async (request, response) => {
+  try {
+    const result = await LeadModel.getLeadCount();
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -326,4 +341,5 @@ module.exports = {
   getLeadFollowUps,
   updateFollowUp,
   updateLead,
+  getLeadCount,
 };
