@@ -240,6 +240,8 @@ const TrainerModel = {
                           t.location,
                           t.status,
                           t.profile_image,
+                          t.is_bank_updated,
+                          t.is_form_sent,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,
@@ -335,6 +337,8 @@ const TrainerModel = {
                           t.location,
                           t.status,
                           t.profile_image,
+                          t.is_bank_updated,
+                          t.is_form_sent,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,
