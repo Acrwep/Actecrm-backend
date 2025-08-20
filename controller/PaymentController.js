@@ -11,60 +11,60 @@ const getPaymentModes = async (request, response) => {
   } catch (error) {
     response.status(500).send({
       messages: "Error while fetching payment modes",
-      details: error.messages,
+      details: error.message,
     });
   }
 };
 
-// const createPayment = async (request, response) => {
-//   const {
-//     lead_id,
-//     // invoice_no,
-//     invoice_date,
-//     tax_type,
-//     discount,
-//     discount_amount,
-//     gst_percentage,
-//     gst_amount,
-//     total_amount,
-//     balance_amount,
-//     convenience_fees,
-//     payment_id,
-//     payment_screenshot,
-//     payment_status,
-//     created_date,
-//   } = request.body;
-//   try {
-//     const result = await PaymentModel.createPayment(
-//       lead_id,
-//       // invoice_no,
-//       invoice_date,
-//       tax_type,
-//       discount,
-//       discount_amount,
-//       gst_percentage,
-//       gst_amount,
-//       total_amount,
-//       balance_amount,
-//       convenience_fees,
-//       payment_id,
-//       payment_screenshot,
-//       payment_status,
-//       created_date
-//     );
-//     return response.status(201).send({
-//       messages: "Payment successfull",
-//       data: result,
-//     });
-//   } catch (error) {
-//     response.status(500).send({
-//       messages: "Error while making payment",
-//       details: error.messages,
-//     });
-//   }
-// };
+const createPayment = async (request, response) => {
+  const {
+    lead_id,
+    // invoice_no,
+    invoice_date,
+    tax_type,
+    discount,
+    discount_amount,
+    gst_percentage,
+    gst_amount,
+    total_amount,
+    convenience_fees,
+    paymode_id,
+    paid_amount,
+    payment_screenshot,
+    payment_status,
+    created_date,
+  } = request.body;
+  try {
+    const result = await PaymentModel.createPayment(
+      lead_id,
+      // invoice_no,
+      invoice_date,
+      tax_type,
+      discount,
+      discount_amount,
+      gst_percentage,
+      gst_amount,
+      total_amount,
+      convenience_fees,
+      paymode_id,
+      paid_amount,
+      payment_screenshot,
+      payment_status,
+      created_date
+    );
+    return response.status(201).send({
+      messages: "Payment successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while making payment",
+      details: error.message,
+    });
+  }
+};
 
 module.exports = {
   getPaymentModes,
-  // createPayment,
+  createPayment,
 };
