@@ -45,6 +45,7 @@ router.get("/getLeadCount", verifyToken, LeadController.getLeadCount);
 
 // Payment start
 router.get("/getPaymentModes", verifyToken, PaymentController.getPaymentModes);
+// router.post("/createPayment", verifyToken, PaymentController.createPayment);
 // Payment end
 
 // Mail module start

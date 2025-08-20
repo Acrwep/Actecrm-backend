@@ -560,7 +560,7 @@ const LeadModel = {
       const formattedDate = moment(currentDate).format("YYYY-MM-DD");
 
       const [getFollowupCount] = await pool.query(
-        `SELECT COUNT(id) AS follow_up_count FROM lead_follow_up_history WHERE CAST(updated_date AS DATE) = ?`,
+        `SELECT COUNT(id) AS follow_up_count FROM lead_follow_up_history WHERE CAST(next_follow_up_date AS DATE) = ?`,
         formattedDate
       );
 

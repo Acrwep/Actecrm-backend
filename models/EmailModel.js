@@ -14,7 +14,7 @@ const sendMail = async (email, link, trainer_id) => {
   try {
     // Check the trainer already exists
     const [isTrainerExists] = await pool.query(
-      `SELECT id FROM trainer WHERE id = ?`,
+      `SELECT id, name FROM trainer WHERE id = ?`,
       [trainer_id]
     );
     if (isTrainerExists.length <= 0) throw new Error("Trainer not exists");
@@ -44,7 +44,7 @@ const sendMail = async (email, link, trainer_id) => {
       </tr>
       <tr>
         <td style="padding: 0px 0px 20px 20px; color: #333333; font-size: 15px; line-height: 1.6;">
-          <p>Dear Trainer,</p>
+          <p>Hi ${isTrainerExists[0].name},</p>
           <p>
             We are excited to invite you to complete your registration as a trainer with us.  
             Please click the button below to access the registration form:
