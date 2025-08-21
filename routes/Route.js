@@ -56,6 +56,6 @@ router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
 
 // Customer module start
 router.put("/updateCustomer", verifyToken, CustomerController.updateCustomer);
-router.get("/getCustomers", verifyToken, CustomerController.getCustomers);
+router.post("/getCustomers", verifyToken, CustomerController.getCustomers);
 // Customer module end
 module.exports = router;
