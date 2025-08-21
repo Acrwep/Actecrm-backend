@@ -7,6 +7,7 @@ const TrainerController = require("../controller/TrainerController");
 const LeadController = require("../controller/LeadController");
 const PaymentController = require("../controller/PaymentController");
 const EmailController = require("../controller/EmailController");
+const CustomerController = require("../controller/CustomerController");
 
 router.post("/login", LoginController.login);
 
@@ -52,4 +53,9 @@ router.post("/createPayment", verifyToken, PaymentController.createPayment);
 router.post("/sendMail", verifyToken, EmailController.sendMail);
 router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
 // Mail module end
+
+// Customer module start
+router.put("/updateCustomer", verifyToken, CustomerController.updateCustomer);
+router.get("/getCustomers", verifyToken, CustomerController.getCustomers);
+// Customer module end
 module.exports = router;
