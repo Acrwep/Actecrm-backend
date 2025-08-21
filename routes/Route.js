@@ -50,5 +50,6 @@ router.post("/createPayment", verifyToken, PaymentController.createPayment);
 
 // Mail module start
 router.post("/sendMail", verifyToken, EmailController.sendMail);
+router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
 // Mail module end
 module.exports = router;
