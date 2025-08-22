@@ -71,7 +71,24 @@ const getCustomers = async (request, response) => {
   }
 };
 
+const getCustomerById = async (request, response) => {
+  const { customer_id } = request.query;
+  try {
+    const result = await CustomerModel.getCustomerById(customer_id);
+    return response.status(200).send({
+      message: "Customer fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching customer",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
+  getCustomerById,
 };

@@ -204,57 +204,65 @@ const LeadModel = {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-                            c.id,
-                            c.lead_id,
-                            c.name,
-                            c.student_id,
-                            c.email,
-                            c.phonecode,
-                            c.phone,
-                            c.whatsapp,
-                            c.date_of_birth,
-                            c.gender,
-                            c.date_of_joining,
-                            CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
-                            CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
-                            l.primary_fees,
-                            c.training_mode AS training_mode_id,
-                            tm.name AS training_mode,
-                            c.branch_id,
-                            b.name AS branch_name,
-                            c.batch_track_id,
-                            bt.name AS batch_tracking,
-                            c.batch_timing_id,
-                            bs.name AS batch_timing,
-                            c.current_location,
-                            c.signature_image,
-                            c.profile_image,
-                            c.placement_support,
-                            c.status,
-                            c.is_form_sent,
-                            c.is_customer_updated,
-                            c.created_date,
-                            l.user_id AS lead_by_id,
-                            u.user_name AS lead_by
-                        FROM
-                            customers AS c
-                        LEFT JOIN technologies AS t ON
-                            c.enrolled_course = t.id
-                        LEFT JOIN training_mode AS tm ON
-                            tm.id = c.training_mode
-                        LEFT JOIN branches AS b ON
-                            b.id = c.branch_id
-                        LEFT JOIN batch_track AS bt ON
-                            bt.id = c.batch_track_id
-                        LEFT JOIN batches AS bs ON
-                            bs.id = c.batch_timing_id
-                        LEFT JOIN lead_master AS l ON
-                        	l.id = c.lead_id
-                        LEFT JOIN technologies AS tg ON
-                        	l.primary_course_id = tg.id
-                        LEFT JOIN users AS u ON
-                        	u.user_id = l.user_id
-                        WHERE 1 = 1`;
+                      l.id,
+                      l.user_id,
+                      u.user_name,
+                      l.name,
+                      l.phone_code,
+                      l.phone,
+                      l.whatsapp,
+                      l.email,
+                      l.country,
+                      l.state,
+                      l.district,
+                      l.primary_course_id,
+                      pt.name AS primary_course,
+                      l.primary_fees,
+                      l.price_category,
+                      l.secondary_course_id,
+                      st.name AS secondary_course,
+                      l.secondary_fees,
+                      l.training_mode_id,
+                      tm.name AS training_mode,
+                      l.priority_id,
+                      p.name AS priority,
+                      l.lead_type_id,
+                      lt.name AS lead_type,
+                      l.lead_status_id,
+                      ls.name lead_status,
+                      l.response_status_id,
+                      rs.name AS response_status,
+                      l.next_follow_up_date,
+                      l.expected_join_date,
+                      l.lead_quality_rating,
+                      l.branch_id,
+                      b.name AS branche_name,
+                      l.batch_track_id,
+                      bt.name AS batch_track,
+                      l.comments,
+                      l.created_date
+                  FROM
+                      lead_master AS l
+                  LEFT JOIN users AS u ON
+                    u.user_id = l.user_id
+                  LEFT JOIN technologies AS pt ON
+                    pt.id = l.primary_course_id
+                  LEFT JOIN technologies AS st ON
+                    st.id = l.secondary_course_id
+                  LEFT JOIN training_mode AS tm ON
+                    l.training_mode_id = tm.id
+                  LEFT JOIN priority AS p ON
+                    p.id = l.priority_id
+                  LEFT JOIN lead_type AS lt ON
+                    lt.id = l.lead_type_id
+                  LEFT JOIN lead_status AS ls ON
+                    ls.id = l.lead_status_id
+                  LEFT JOIN response_status AS rs ON
+                    rs.id = l.response_status_id
+                  LEFT JOIN branches AS b ON
+                    b.id = l.branch_id
+                  LEFT JOIN batch_track AS bt ON
+                    bt.id = l.batch_track_id WHERE 1 = 1`;
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }
@@ -272,6 +280,7 @@ const LeadModel = {
       getQuery += ` ORDER BY l.created_date ASC`;
 
       const [result] = await pool.query(getQuery, queryParams);
+
       return result;
     } catch (error) {
       throw new Error(error.message);
