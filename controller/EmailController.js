@@ -17,6 +17,22 @@ const sendMail = async (request, response) => {
   }
 };
 
+const sendCustomerMail = async (request, response) => {
+  const { email, link, customer_id } = request.body;
+  try {
+    const result = await EmailModel.sendCustomerMail(email, link, customer_id);
+    return response.status(201).send({
+      message: "Mail sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while sending email",
+      details: error.message,
+    });
+  }
+};
+
 const sendInvoiceMail = async (req, res) => {
   try {
     const invoiceData = {
@@ -84,4 +100,5 @@ const sendInvoiceMail = async (req, res) => {
 module.exports = {
   sendMail,
   sendInvoiceMail,
+  sendCustomerMail,
 };

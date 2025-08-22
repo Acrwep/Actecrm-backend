@@ -52,10 +52,11 @@ router.post("/createPayment", verifyToken, PaymentController.createPayment);
 // Mail module start
 router.post("/sendMail", verifyToken, EmailController.sendMail);
 router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
+router.post("/sendCustomerMail", verifyToken, EmailController.sendCustomerMail);
 // Mail module end
 
 // Customer module start
-router.put("/updateCustomer", verifyToken, CustomerController.updateCustomer);
+router.put("/updateCustomer", CustomerController.updateCustomer);
 router.post("/getCustomers", verifyToken, CustomerController.getCustomers);
 // Customer module end
 module.exports = router;
