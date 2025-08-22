@@ -240,7 +240,8 @@ const LeadModel = {
                       l.batch_track_id,
                       bt.name AS batch_track,
                       l.comments,
-                      l.created_date
+                      l.created_date,
+                      CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg
                   FROM
                       lead_master AS l
                   LEFT JOIN users AS u ON
@@ -262,7 +263,10 @@ const LeadModel = {
                   LEFT JOIN branches AS b ON
                     b.id = l.branch_id
                   LEFT JOIN batch_track AS bt ON
-                    bt.id = l.batch_track_id WHERE 1 = 1`;
+                    bt.id = l.batch_track_id
+                  LEFT JOIN customers AS c ON
+                  	c.lead_id = l.id
+                  WHERE 1 = 1`;
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }
