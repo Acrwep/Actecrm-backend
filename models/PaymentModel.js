@@ -102,8 +102,10 @@ const PaymentModel = {
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
-
-      return insertCustomer.affectedRows;
+      return {
+        insertId: insertCustomer.insertId,
+        email: getCustomer[0].email,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

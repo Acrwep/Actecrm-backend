@@ -114,7 +114,10 @@ const TrainerModel = {
           created_date,
         ]
       );
-      return insertBank.affectedRows;
+      return {
+        insertId: result.insertId,
+        email: email,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
