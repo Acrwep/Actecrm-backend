@@ -78,7 +78,7 @@ const CustomerModel = {
     }
   },
 
-  getCustomers: async (from_date, to_date) => {
+  getCustomers: async (from_date, to_date, status, is_form_sent, name) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -139,6 +139,20 @@ const CustomerModel = {
         queryParams.push(from_date, to_date);
       }
 
+      if (status) {
+        getQuery += ` AND c.status = ?`;
+        queryParams.push(status);
+      }
+
+      if (name) {
+        getQuery += ` AND c.name LIKE '%${name}%'`;
+      }
+
+      if (is_form_sent != null || is_form_sent != undefined) {
+        getQuery += ` AND c.is_form_sent = ? AND c.is_customer_updated = 0`;
+        queryParams.push(is_form_sent);
+      }
+
       const [result] = await pool.query(getQuery, queryParams);
 
       const res = await Promise.all(
@@ -153,6 +167,14 @@ const CustomerModel = {
           };
         })
       );
+
+      const [getStatus] = await pool.query(
+        `SELECT COUNT(CASE WHEN c.is_form_sent = 1 AND c.is_customer_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance FROM customers AS c`
+      );
+      return {
+        customers: res,
+        customer_status_count: getStatus[0],
+      };
       return res;
     } catch (error) {
       throw new Error(error.message);
