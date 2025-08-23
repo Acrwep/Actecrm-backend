@@ -93,8 +93,31 @@ const getCustomerById = async (request, response) => {
   }
 };
 
+const verifyStudent = async (request, response) => {
+  const { customer_id, proof_communication, comments, is_satisfied } =
+    request.body;
+  try {
+    const result = await CustomerModel.verifyStudent(
+      customer_id,
+      proof_communication,
+      comments,
+      is_satisfied
+    );
+    return response.status(200).send({
+      message: "Verified successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while verifying",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
   getCustomerById,
+  verifyStudent,
 };

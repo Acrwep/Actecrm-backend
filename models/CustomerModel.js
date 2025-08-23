@@ -242,6 +242,28 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  verifyStudent: async (
+    customer_id,
+    proof_communication,
+    comments,
+    is_satisfied
+  ) => {
+    try {
+      const [is_verified_customer] = await pool.query(
+        `SELECT id FROM customers WHERE id = ? AND is_customer_verified = 1`,
+        [customer_id]
+      );
+      if (is_verified_customer.length > 0)
+        throw new Error("Student has already been verified");
+      const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1 WHERE id = ?`;
+      const values = [proof_communication, comments, is_satisfied, customer_id];
+      const [result] = await pool.query(updateQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = CustomerModel;
