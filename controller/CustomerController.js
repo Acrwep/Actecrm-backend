@@ -115,9 +115,102 @@ const verifyStudent = async (request, response) => {
   }
 };
 
+const trainerAssign = async (request, response) => {
+  const {
+    customer_id,
+    trainer_id,
+    commercial,
+    mode_of_class,
+    trainer_type,
+    proof_communication,
+    comments,
+    created_date,
+  } = request.body;
+  try {
+    const result = await CustomerModel.trainerAssign(
+      customer_id,
+      trainer_id,
+      commercial,
+      mode_of_class,
+      trainer_type,
+      proof_communication,
+      comments,
+      created_date
+    );
+    return response.status(200).send({
+      message: "Trainer assigned successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while assigning trainer",
+      details: error.message,
+    });
+  }
+};
+
+const verifyTrainer = async (request, response) => {
+  const { id, verified_date } = request.body;
+  try {
+    const result = await CustomerModel.verifyTrainer(id, verified_date);
+    return response.status(200).send({
+      message: "Trainer verified successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while verifying trainer",
+      details: error.message,
+    });
+  }
+};
+
+const rejectTrainer = async (request, response) => {
+  const { id, rejected_date, comments } = request.body;
+  try {
+    const result = await CustomerModel.rejectTrainer(
+      id,
+      rejected_date,
+      comments
+    );
+    return response.status(200).send({
+      message: "Trainer has been rejected",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while rejecting trainer",
+      details: error.message,
+    });
+  }
+};
+
+const updateCustomerStatus = async (request, response) => {
+  const { customer_id, status } = request.body;
+  try {
+    const result = await CustomerModel.updateCustomerStatus(
+      customer_id,
+      status
+    );
+    return response.status(200).send({
+      message: "Status updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating status",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
   getCustomerById,
   verifyStudent,
+  trainerAssign,
+  verifyTrainer,
+  rejectTrainer,
+  updateCustomerStatus,
 };

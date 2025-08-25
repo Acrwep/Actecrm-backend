@@ -113,7 +113,10 @@ const CustomerModel = {
                             c.is_customer_updated,
                             c.created_date,
                             l.user_id AS lead_by_id,
-                            u.user_name AS lead_by
+                            u.user_name AS lead_by,
+                            tr.name AS trainer_name,
+                            tr.mobile AS trainer_mobile,
+                            tr.email AS trainer_email
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -132,6 +135,10 @@ const CustomerModel = {
                         	l.primary_course_id = tg.id
                         LEFT JOIN users AS u ON
                         	u.user_id = l.user_id
+                        LEFT JOIN trainer_mapping AS map ON
+                        	map.customer_id = c.id
+                       	LEFT JOIN trainer AS tr ON
+                        	tr.id = map.trainer_id
                         WHERE 1 = 1`;
 
       if (from_date && to_date) {
@@ -161,9 +168,15 @@ const CustomerModel = {
             `SELECT SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ?`,
             [item.lead_id]
           );
+
+          const [getPayments] = await pool.query(
+            `SELECT pt.invoice_number, pt.invoice_date,pt.amount, m.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS m ON m.id = pt.paymode_id WHERE pm.lead_id = ? ORDER BY pt.created_date ASC LIMIT 1`,
+            [item.lead_id]
+          );
           return {
             ...item,
             balance_amount: item.primary_fees - getPaidAmount[0].paid_amount,
+            payments: getPayments[0],
           };
         })
       );
@@ -175,7 +188,6 @@ const CustomerModel = {
         customers: res,
         customer_status_count: getStatus[0],
       };
-      return res;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -215,7 +227,10 @@ const CustomerModel = {
                             c.is_customer_updated,
                             c.created_date,
                             l.user_id AS lead_by_id,
-                            u.user_name AS lead_by
+                            u.user_name AS lead_by,
+                            tr.name AS trainer_name,
+                            tr.mobile AS trainer_mobile,
+                            tr.email AS trainer_email
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -234,6 +249,10 @@ const CustomerModel = {
                         	l.primary_course_id = tg.id
                         LEFT JOIN users AS u ON
                         	u.user_id = l.user_id
+                        LEFT JOIN trainer_mapping AS map ON
+                        	map.customer_id = c.id
+                       	LEFT JOIN trainer AS tr ON
+                        	tr.id = map.trainer_id
                         WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);
@@ -259,6 +278,98 @@ const CustomerModel = {
       const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1 WHERE id = ?`;
       const values = [proof_communication, comments, is_satisfied, customer_id];
       const [result] = await pool.query(updateQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  trainerAssign: async (
+    customer_id,
+    trainer_id,
+    commercial,
+    mode_of_class,
+    trainer_type,
+    proof_communication,
+    comments,
+    created_date
+  ) => {
+    try {
+      const [isCusExists] = await pool.query(
+        `SELECT id FROM customers WHERE id = ?`,
+        [customer_id]
+      );
+      if (isCusExists.length <= 0) throw new Error("Invalid customer");
+
+      const [isTrainerExists] = await pool.query(
+        `SELECT id FROM trainer_mapping WHERE customer_id = ? AND is_rejected = 0`,
+        [customer_id]
+      );
+
+      if (isTrainerExists.length > 0)
+        throw new Error("Trainer has already been assigned this customer");
+      const insertQuery = `INSERT INTO trainer_mapping(
+                              customer_id,
+                              trainer_id,
+                              commercial,
+                              mode_of_class,
+                              trainer_type,
+                              proof_communication,
+                              comments,
+                              created_date
+                          )
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+      const values = [
+        customer_id,
+        trainer_id,
+        commercial,
+        mode_of_class,
+        trainer_type,
+        proof_communication,
+        comments,
+        created_date,
+      ];
+
+      const [result] = await pool.query(insertQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  verifyTrainer: async (id, verified_date) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE trainer_mapping SET is_verified = 1, verified_date = ? WHERE id = ?`,
+        [verified_date, id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  rejectTrainer: async (id, rejected_date, comments) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE trainer_mapping SET is_rejected = 1, comments = ?, rejected_date = ? WHERE id = ?`,
+        [comments, rejected_date, id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateCustomerStatus: async (customer_id, status) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE customers SET status = ? WHERE id = ?`,
+        [status, customer_id]
+      );
+
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
