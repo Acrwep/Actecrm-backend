@@ -401,11 +401,29 @@ const CustomerModel = {
     }
   },
 
-  classSchedule: async (customer_id, schedule_id) => {
+  classSchedule: async (customer_id, schedule_id, schedule_at) => {
     try {
       const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ? WHERE id = ?`,
-        [schedule_id, customer_id]
+        `UPDATE customers SET class_schedule_id = ?, class_scheduled_at = ? WHERE id = ?`,
+        [schedule_id, schedule_at, customer_id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateClassGiong: async (
+    customer_id,
+    schedule_id,
+    class_percentage,
+    class_comments
+  ) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ? WHERE id = ?`,
+        [schedule_id, class_percentage, class_comments, customer_id]
       );
 
       return result.affectedRows;

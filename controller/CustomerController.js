@@ -219,6 +219,48 @@ const getClassSchedules = async (request, response) => {
   }
 };
 
+const classSchedule = async (request, response) => {
+  const { customer_id, schedule_id, schedule_at } = request.body;
+  try {
+    const result = await CustomerModel.classSchedule(
+      customer_id,
+      schedule_id,
+      schedule_at
+    );
+    return response.status(200).send({
+      message: "Class scheduled successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while scheduling class",
+      details: error.message,
+    });
+  }
+};
+
+const updateClassGiong = async (request, response) => {
+  const { customer_id, schedule_id, class_percentage, class_comments } =
+    request.body;
+  try {
+    const result = await CustomerModel.updateClassGiong(
+      customer_id,
+      schedule_id,
+      class_percentage,
+      class_comments
+    );
+    return response.status(200).send({
+      message: "Percentage updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating percentage",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -229,4 +271,6 @@ module.exports = {
   rejectTrainer,
   updateCustomerStatus,
   getClassSchedules,
+  classSchedule,
+  updateClassGiong,
 };
