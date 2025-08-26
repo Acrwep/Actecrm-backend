@@ -68,5 +68,10 @@ router.put(
   verifyToken,
   CustomerController.updateCustomerStatus
 );
+router.get(
+  "/getClassSchedules",
+  verifyToken,
+  CustomerController.getClassSchedules
+);
 // Customer module end
 module.exports = router;

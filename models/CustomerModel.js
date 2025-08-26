@@ -116,7 +116,8 @@ const CustomerModel = {
                             u.user_name AS lead_by,
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
-                            tr.email AS trainer_email
+                            tr.email AS trainer_email,
+                            map.trainer_id
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -230,7 +231,8 @@ const CustomerModel = {
                             u.user_name AS lead_by,
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
-                            tr.email AS trainer_email
+                            tr.email AS trainer_email,
+                            map.trainer_id
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -371,6 +373,17 @@ const CustomerModel = {
       );
 
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getClassSchedules: async () => {
+    try {
+      const [result] = await pool.query(
+        `SELECT id, name FROM class_schedule WHERE is_deleted = 0`
+      );
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }
