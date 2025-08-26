@@ -123,7 +123,11 @@ const CustomerModel = {
                             map.mode_of_class,
                             map.trainer_type,
                             map.proof_communication,
-                            map.comments
+                            map.comments,
+                            map.is_verified AS is_trainer_verified,
+                            map.verified_date AS trainer_verified_date,
+                            map.is_rejected AS is_trainer_rejected,
+                            map.rejected_date AS trainer_rejected_date
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -245,7 +249,11 @@ const CustomerModel = {
                             map.mode_of_class,
                             map.trainer_type,
                             map.proof_communication,
-                            map.comments
+                            map.comments,
+                            map.is_verified AS is_trainer_verified,
+                            map.verified_date AS trainer_verified_date,
+                            map.is_rejected AS is_trainer_rejected,
+                            map.rejected_date AS trainer_rejected_date
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
