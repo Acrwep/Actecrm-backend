@@ -143,6 +143,7 @@ const CustomerModel = {
                         	u.user_id = l.user_id
                         LEFT JOIN trainer_mapping AS map ON
                         	map.customer_id = c.id
+                          AND map.is_rejected = 0
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
                         WHERE 1 = 1`;
@@ -263,6 +264,7 @@ const CustomerModel = {
                         	u.user_id = l.user_id
                         LEFT JOIN trainer_mapping AS map ON
                         	map.customer_id = c.id
+                          AND map.is_rejected = 0
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
                         WHERE c.id = ?`;
