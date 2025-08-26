@@ -117,7 +117,12 @@ const CustomerModel = {
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
-                            map.trainer_id
+                            map.trainer_id,
+                            map.commercial,
+                            map.mode_of_class,
+                            map.trainer_type,
+                            map.proof_communication,
+                            map.comments
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -232,7 +237,12 @@ const CustomerModel = {
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
-                            map.trainer_id
+                            map.trainer_id,
+                            map.commercial,
+                            map.mode_of_class,
+                            map.trainer_type,
+                            map.proof_communication,
+                            map.comments
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -384,6 +394,19 @@ const CustomerModel = {
         `SELECT id, name FROM class_schedule WHERE is_deleted = 0`
       );
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  classSchedule: async (customer_id, schedule_id) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE customers SET class_schedule_id = ? WHERE id = ?`,
+        [schedule_id, customer_id]
+      );
+
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
