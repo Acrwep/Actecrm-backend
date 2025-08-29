@@ -79,5 +79,7 @@ router.put(
   verifyToken,
   CustomerController.updateClassGiong
 );
+
+router.put("/updateReview", verifyToken, CustomerController.updateReview);
 // Customer module end
 module.exports = router;

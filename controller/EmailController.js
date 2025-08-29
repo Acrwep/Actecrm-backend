@@ -80,7 +80,7 @@ const sendInvoiceMail = async (req, res) => {
       received: 34100,
       balance: 0.0,
 
-      email: "hublogfrontend@gmail.com", // ✅ receiver
+      email: "hublogbackenddev@gmail.com", // ✅ receiver
     };
 
     const result = await EmailModel.sendInvoiceMail(invoiceData);

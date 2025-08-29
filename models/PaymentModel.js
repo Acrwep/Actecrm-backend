@@ -58,8 +58,11 @@ const PaymentModel = {
       if (masterInsert.affectedRows <= 0)
         throw new Error("Error while making payment");
 
+      const invoiceNo = generateInvoiceNumber();
+
       const paymentTransQuery = `INSERT INTO payment_trans(
                                       payment_master_id,
+                                      invoice_number,
                                       invoice_date,
                                       amount,
                                       balance_amount,
@@ -68,9 +71,10 @@ const PaymentModel = {
                                       payment_status,
                                       created_date
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
+        invoiceNo,
         invoice_date,
         paid_amount,
         total_amount - paid_amount,
@@ -111,5 +115,46 @@ const PaymentModel = {
     }
   },
 };
+
+function generateInvoiceNumber(date = new Date(), timeZone) {
+  const opts = timeZone ? { timeZone } : {};
+
+  // Day (DD)
+  const day = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    ...opts,
+  }).format(date);
+
+  // Month (MON - 3 letters uppercase)
+  const month = new Intl.DateTimeFormat("en-US", { month: "short", ...opts })
+    .format(date)
+    .toUpperCase();
+
+  // Year (YY - last 2 digits)
+  const yearFull = new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    ...opts,
+  }).format(date);
+  const year = yearFull.slice(-2);
+
+  // Hours, Minutes, Seconds (24-hour format)
+  const hours = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    hour12: false,
+    ...opts,
+  })
+    .format(date)
+    .padStart(2, "0");
+  const minutes = new Intl.DateTimeFormat("en-GB", {
+    minute: "2-digit",
+    ...opts,
+  }).format(date);
+  const seconds = new Intl.DateTimeFormat("en-GB", {
+    second: "2-digit",
+    ...opts,
+  }).format(date);
+
+  return `${day}${month}${year}${hours}${minutes}${seconds}`;
+}
 
 module.exports = PaymentModel;

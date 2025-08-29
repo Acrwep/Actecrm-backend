@@ -261,6 +261,36 @@ const updateClassGiong = async (request, response) => {
   }
 };
 
+const updateReview = async (request, response) => {
+  const {
+    customer_id,
+    linkedin_review,
+    google_review,
+    course_duration,
+    course_completed_date,
+    review_updated_date,
+  } = request.body;
+  try {
+    const result = await CustomerModel.updateReview(
+      customer_id,
+      linkedin_review,
+      google_review,
+      course_duration,
+      course_completed_date,
+      review_updated_date
+    );
+    return response.status(200).send({
+      message: "review updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating review",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -273,4 +303,5 @@ module.exports = {
   getClassSchedules,
   classSchedule,
   updateClassGiong,
+  updateReview,
 };

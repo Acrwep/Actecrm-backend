@@ -193,7 +193,7 @@ const sendInvoiceMail = async (invoiceData) => {
 
     // ---------- HEADER ----------
     const logoPath = path.join(
-      "C:\\Users\\ADMIN PRAKASH\\Documents\\GitHub\\Actecrm-backend",
+      "C:\\Users\\hublo\\Documents\\GitHub\\Actecrm-backend",
       "acte-logo.png" // <-- replace with your actual logo file name
     );
     doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size

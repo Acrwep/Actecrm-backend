@@ -127,7 +127,17 @@ const CustomerModel = {
                             map.is_verified AS is_trainer_verified,
                             map.verified_date AS trainer_verified_date,
                             map.is_rejected AS is_trainer_rejected,
-                            map.rejected_date AS trainer_rejected_date
+                            map.rejected_date AS trainer_rejected_date,
+                            c.class_schedule_id,
+                            cs.name AS class_schedule_name,
+                            c.class_scheduled_at,
+                            c.class_percentage,
+                            c.class_comments,
+                            c.linkedin_review,
+                            c.google_review,
+                            c.course_duration,
+                            c.course_completion_date,
+                            c.review_updated_date
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -151,6 +161,8 @@ const CustomerModel = {
                           AND map.is_rejected = 0
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
+                        LEFT JOIN class_schedule AS cs ON
+                          c.class_schedule_id = cs.id
                         WHERE 1 = 1`;
 
       if (from_date && to_date) {
@@ -253,7 +265,17 @@ const CustomerModel = {
                             map.is_verified AS is_trainer_verified,
                             map.verified_date AS trainer_verified_date,
                             map.is_rejected AS is_trainer_rejected,
-                            map.rejected_date AS trainer_rejected_date
+                            map.rejected_date AS trainer_rejected_date,
+                            c.class_schedule_id,
+                            cs.name AS class_schedule_name,
+                            c.class_scheduled_at,
+                            c.class_percentage,
+                            c.class_comments,
+                            c.linkedin_review,
+                            c.google_review,
+                            c.course_duration,
+                            c.course_completion_date,
+                            c.review_updated_date
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -277,6 +299,8 @@ const CustomerModel = {
                           AND map.is_rejected = 0
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
+                        LEFT JOIN class_schedule AS cs ON
+                          c.class_schedule_id = cs.id
                         WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);
@@ -436,6 +460,31 @@ const CustomerModel = {
         [schedule_id, class_percentage, class_comments, customer_id]
       );
 
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateReview: async (
+    customer_id,
+    linkedin_review,
+    google_review,
+    course_duration,
+    course_completed_date,
+    review_updated_date
+  ) => {
+    try {
+      const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_complted_date = ?, review_updated_date = ? WHERE id = ?`;
+      const values = [
+        linkedin_review,
+        google_review,
+        course_duration,
+        course_completed_date,
+        review_updated_date,
+        customer_id,
+      ];
+      const result = await pool.query(updateQuery, values);
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
