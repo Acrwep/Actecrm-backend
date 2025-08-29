@@ -34,6 +34,25 @@ const sendCustomerMail = async (request, response) => {
 };
 
 const sendInvoiceMail = async (req, res) => {
+  const {
+    email,
+    name,
+    mobile,
+    convenience_fees,
+    discount,
+    discount_amount,
+    gst_amount,
+    gst_percentage,
+    invoice_date,
+    invoice_number,
+    paid_amount,
+    balance_amount,
+    payment_mode,
+    tax_type,
+    total_amount,
+    course_name,
+    sub_total,
+  } = req.body;
   try {
     const invoiceData = {
       invoiceNumber: "INV-1001",
@@ -83,7 +102,25 @@ const sendInvoiceMail = async (req, res) => {
       email: "hublogbackenddev@gmail.com", // ✅ receiver
     };
 
-    const result = await EmailModel.sendInvoiceMail(invoiceData);
+    const result = await EmailModel.sendInvoiceMail(
+      email,
+      name,
+      mobile,
+      convenience_fees,
+      discount,
+      discount_amount,
+      gst_amount,
+      gst_percentage,
+      invoice_date,
+      invoice_number,
+      paid_amount,
+      balance_amount,
+      payment_mode,
+      tax_type,
+      total_amount,
+      course_name,
+      sub_total
+    );
 
     res.status(201).send({
       message: "Mail sent successfully with invoice",

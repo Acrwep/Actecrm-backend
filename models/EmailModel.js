@@ -181,7 +181,25 @@ const sendCustomerMail = async (email, link, customer_id) => {
   }
 };
 
-const sendInvoiceMail = async (invoiceData) => {
+const sendInvoiceMail = async (
+  email,
+  name,
+  mobile,
+  convenience_fees,
+  discount,
+  discount_amount,
+  gst_amount,
+  gst_percentage,
+  invoice_date,
+  invoice_number,
+  paid_amount,
+  balance_amount,
+  payment_mode,
+  tax_type,
+  total_amount,
+  course_name,
+  sub_total
+) => {
   const pdfPath = path.join(__dirname, "../invoices/invoice.pdf");
   fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
 
@@ -193,7 +211,7 @@ const sendInvoiceMail = async (invoiceData) => {
 
     // ---------- HEADER ----------
     const logoPath = path.join(
-      "C:\\Users\\hublo\\Documents\\GitHub\\Actecrm-backend",
+      "C:\\Users\\ADMIN PRAKASH\\Documents\\GitHub\\Actecrm-backend",
       "acte-logo.png" // <-- replace with your actual logo file name
     );
     doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size
@@ -227,10 +245,10 @@ const sendInvoiceMail = async (invoiceData) => {
     // ---------- INVOICE INFO ----------
     doc
       .fontSize(10)
-      .text(`Invoice Number: ${invoiceData.invoiceNumber}`, 50, 120, {
+      .text(`Invoice Number: ${invoice_number}`, 50, 120, {
         lineGap: 3,
       })
-      .text(`Invoice Date: ${invoiceData.invoiceDate}`, 50, 135, {
+      .text(`Invoice Date: ${invoice_date}`, 50, 135, {
         lineGap: 3,
       });
 
@@ -239,10 +257,9 @@ const sendInvoiceMail = async (invoiceData) => {
       .fontSize(12)
       .text("Bill To:", 50, 170)
       .fontSize(10)
-      .text(`Name: ${invoiceData.customerName}`, 50, 190, { lineGap: 3 })
-      .text(`Email: ${invoiceData.customerEmail}`, 50, 205, { lineGap: 3 })
-      .text(`Mobile: ${invoiceData.customerPhone}`, 50, 220, { lineGap: 3 })
-      .text(`ID No: ${invoiceData.customerId}`, 50, 235, { lineGap: 3 });
+      .text(`Name: ${name}`, 50, 190, { lineGap: 3 })
+      .text(`Email: ${email}`, 50, 205, { lineGap: 3 })
+      .text(`Mobile: ${mobile}`, 50, 220, { lineGap: 3 });
 
     // ---------- DETAILS & AMOUNTS TABLE ----------
     const tableTop = 270;
@@ -269,11 +286,11 @@ const sendInvoiceMail = async (invoiceData) => {
     // Table Row (example with one product)
     doc.font("Helvetica").fontSize(10);
     const rowY = tableTop + 25;
-    doc.text(invoiceData.course, col1X, rowY);
-    doc.text(invoiceData.paidAmount || "10000", col2X, rowY);
-    doc.text(invoiceData.discount || "4%", col3X, rowY);
-    doc.text(invoiceData.gstAmount || "1000", col4X, rowY);
-    doc.text(invoiceData.convenienceFee || "200", col5X, rowY);
+    doc.text(course_name || "-", col1X, rowY);
+    doc.text(paid_amount || "-", col2X, rowY);
+    doc.text(discount + "%" || "-", col3X, rowY);
+    doc.text(gst_percentage + "%" || "-", col4X, rowY);
+    doc.text(convenience_fees || "-", col5X, rowY);
 
     // Draw a line below row
     doc
@@ -292,18 +309,24 @@ const sendInvoiceMail = async (invoiceData) => {
     const valueX = 480;
 
     function addTotalRow(label, value) {
+      if (label === "Paid:") {
+        doc.font("Helvetica-Bold");
+      } else {
+        doc.font("Helvetica");
+      }
       doc.text(label, labelX, currentY, { width: 120, align: "left" });
       doc.text(value, valueX, currentY, { width: 60, align: "right" });
       currentY += rowGap; // add extra gap before next row
     }
 
     // Add totals with consistent spacing
-    addTotalRow("Sub Total:", invoiceData.subtotal);
-    addTotalRow("GST:", invoiceData.totalGst);
-    addTotalRow("Convenience Charges:", invoiceData.convenienceFee);
-    addTotalRow("Total Fee:", invoiceData.totalFee);
-    addTotalRow("Received:", invoiceData.received);
-    addTotalRow("Balance:", invoiceData.balance);
+    addTotalRow("Sub Total:", sub_total);
+    addTotalRow("Discount:", discount_amount);
+    addTotalRow("GST:", gst_amount);
+    addTotalRow("Convenience Charges:", convenience_fees);
+    addTotalRow("Total Fee:", total_amount);
+    addTotalRow("Paid:", paid_amount);
+    addTotalRow("Balance:", balance_amount);
 
     // ---------- NOTES ----------
     const totalsY = rowY + 20;
@@ -315,24 +338,21 @@ const sendInvoiceMail = async (invoiceData) => {
       .fontSize(9)
       .text("Note:", 50, notesY)
       .text(
-        "1) All Cheques / Drafts / Online Transfers to be made in favour of BDreamz Global Solutions Pvt Ltd",
+        "1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd",
         { width: 500 }
       )
       .text("2) The refund requisition will not be accepted", { width: 500 })
       .text(
-        "3) BDreamz Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.",
+        "3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.",
         { width: 500 }
       )
       .moveDown();
 
     doc
       .fontSize(8)
-      .text(
-        "BDreamz Technologies is a division of BDreamz Global Solutions Private Limited",
-        50,
-        700,
-        { align: "center" }
-      );
+      .text("Happy Learning...!Thanks for choosing us...!!", 50, 700, {
+        align: "center",
+      });
 
     doc.end();
 
@@ -351,7 +371,7 @@ const sendInvoiceMail = async (invoiceData) => {
 
   return transporter.sendMail({
     from: process.env.SMTP_FROM,
-    to: invoiceData.email,
+    to: email,
     subject: "Your Invoice",
     text: "Please find your invoice attached.",
     attachments: [{ filename: "invoice.pdf", path: pdfPath }],
