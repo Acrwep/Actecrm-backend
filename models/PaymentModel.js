@@ -106,9 +106,18 @@ const PaymentModel = {
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
+
+      const [getInvoiceDetails] = await pool.query(
+        `SELECT pm.tax_type, pm.discount, pm.discount_amount, pm.gst_percentage, pm.gst_amount, pm.total_amount, pm.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
+        [transInsert.insertId]
+      );
       return {
         insertId: insertCustomer.insertId,
         email: getCustomer[0].email,
+        name: getCustomer[0].name,
+        phone_code: getCustomer[0].phone_code,
+        phone: getCustomer[0].phone,
+        invoice_details: getInvoiceDetails[0],
       };
     } catch (error) {
       throw new Error(error.message);
