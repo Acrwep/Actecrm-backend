@@ -206,11 +206,36 @@ const CustomerModel = {
       );
 
       const [getStatus] = await pool.query(
-        `SELECT COUNT(CASE WHEN c.is_form_sent = 1 AND c.is_customer_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance FROM customers AS c`
+        `SELECT COUNT(CASE WHEN c.is_form_sent = 1 AND c.is_customer_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Awaiting Feedback' THEN 1 END) AS awaiting_feedback, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
+        [from_date, to_date]
       );
+
+      const [fees_pending_count] = await pool.query(
+        `SELECT 
+            COUNT(CASE WHEN latest.balance_amount > 0 THEN 1 ELSE 0 END) AS fees_pending_count
+        FROM (
+            SELECT pt.balance_amount
+            FROM customers AS c
+            INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
+            INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id
+            WHERE c.created_date >= ?
+              AND c.created_date <=  ?
+            ORDER BY pt.id DESC
+            LIMIT 1
+        ) AS latest;
+        `,
+        [from_date, to_date]
+      );
+
+      // ✅ merge them into one object
+      const customerStatusCount = {
+        ...getStatus[0],
+        ...fees_pending_count[0],
+      };
+
       return {
         customers: res,
-        customer_status_count: getStatus[0],
+        customer_status_count: customerStatusCount,
       };
     } catch (error) {
       throw new Error(error.message);
