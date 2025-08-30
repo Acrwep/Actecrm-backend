@@ -222,6 +222,22 @@ const getTrainerById = async (request, response) => {
   }
 };
 
+const getTrainerHistory = async (request, response) => {
+  const { customer_id } = request.query;
+  try {
+    const history = await TrainerModel.getTrainerHistory(customer_id);
+    return response.status(200).send({
+      message: "Trainer history successfully",
+      data: history,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching trainer history",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -231,4 +247,5 @@ module.exports = {
   getExperience,
   updateStatus,
   getTrainerById,
+  getTrainerHistory,
 };

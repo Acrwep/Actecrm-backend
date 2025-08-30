@@ -372,6 +372,17 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+
+  getTrainerHistory: async (customer_id) => {
+    try {
+      const getQuery = `SELECT tm.id, tm.trainer_id, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id WHERE tm.customer_id = 2 ORDER BY tm.id ASC`;
+
+      const [history] = await pool.query(getQuery, [customer_id]);
+      return history;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = TrainerModel;

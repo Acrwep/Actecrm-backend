@@ -26,6 +26,11 @@ router.post("/getTrainers", verifyToken, TrainerController.getTrainers);
 router.get("/getExperience", TrainerController.getExperience);
 router.put("/updateStatus", verifyToken, TrainerController.updateStatus);
 router.get("/getTrainerById", TrainerController.getTrainerById);
+router.get(
+  "/getTrainerHistory",
+  verifyToken,
+  TrainerController.getTrainerHistory
+);
 // Trainer end
 
 // Lead start
