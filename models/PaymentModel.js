@@ -129,6 +129,18 @@ const PaymentModel = {
       throw new Error(error.message);
     }
   },
+
+  verifyPayment: async (payment_trans_id, verified_date) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE payment_trans SET status = 'Verified', verified_date = ? WHERE id = ?`,
+        [verified_date, payment_trans_id]
+      );
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function generateInvoiceNumber(date = new Date(), timeZone) {

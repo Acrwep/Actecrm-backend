@@ -64,7 +64,27 @@ const createPayment = async (request, response) => {
   }
 };
 
+const verifyPayment = async (request, response) => {
+  const { payment_trans_id, verified_date } = request.body;
+  try {
+    const result = await PaymentModel.verifyPayment(
+      payment_trans_id,
+      verified_date
+    );
+    return response.status(200).send({
+      messages: "Payment verified successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while verifying payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
+  verifyPayment,
 };
