@@ -513,7 +513,7 @@ const CustomerModel = {
     review_updated_date
   ) => {
     try {
-      const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_complted_date = ?, review_updated_date = ? WHERE id = ?`;
+      const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_completed_date = ?, review_updated_date = ? WHERE id = ?`;
       const values = [
         linkedin_review,
         google_review,
