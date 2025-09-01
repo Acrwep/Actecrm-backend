@@ -213,7 +213,7 @@ const CustomerModel = {
       );
 
       // Filter if pending fees
-      if (pending_fees) {
+      if (pending_fees === "Pending Fees") {
         res = res.filter((item) => item.balance_amount > 0);
       }
 
