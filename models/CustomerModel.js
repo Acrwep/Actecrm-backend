@@ -78,7 +78,14 @@ const CustomerModel = {
     }
   },
 
-  getCustomers: async (from_date, to_date, status, is_form_sent, name) => {
+  getCustomers: async (
+    from_date,
+    to_date,
+    status,
+    is_form_sent,
+    name,
+    pending_fees
+  ) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -186,7 +193,7 @@ const CustomerModel = {
 
       const [result] = await pool.query(getQuery, queryParams);
 
-      const res = await Promise.all(
+      let res = await Promise.all(
         result.map(async (item) => {
           const [getPaidAmount] = await pool.query(
             `SELECT SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ?`,
@@ -204,6 +211,11 @@ const CustomerModel = {
           };
         })
       );
+
+      // Filter if pending fees
+      if (pending_fees) {
+        res = res.filter((item) => item.balance_amount > 0);
+      }
 
       const [getStatus] = await pool.query(
         `SELECT COUNT(CASE WHEN c.is_form_sent = 1 AND c.is_customer_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Awaiting Feedback' THEN 1 END) AS awaiting_feedback, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
