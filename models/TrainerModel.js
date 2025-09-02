@@ -222,7 +222,14 @@ const TrainerModel = {
     }
   },
 
-  getTrainers: async (name, mobile, email, status, is_form_sent) => {
+  getTrainers: async (
+    name,
+    mobile,
+    email,
+    status,
+    is_form_sent,
+    is_onboarding
+  ) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -245,6 +252,7 @@ const TrainerModel = {
                           t.profile_image,
                           t.is_bank_updated,
                           t.is_form_sent,
+                          t.is_onboarding,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,
@@ -280,6 +288,11 @@ const TrainerModel = {
       if (is_form_sent != null || is_form_sent != undefined) {
         getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
         queryParams.push(is_form_sent);
+      }
+
+      if (is_onboarding != null || is_onboarding != undefined) {
+        getQuery += " AND t.is_onboarding = ?";
+        queryParams.push(is_onboarding);
       }
       getQuery += ` ORDER BY t.name`;
 
@@ -342,6 +355,7 @@ const TrainerModel = {
                           t.profile_image,
                           t.is_bank_updated,
                           t.is_form_sent,
+                          t.is_onboarding,
                           CASE WHEN t.is_active = 1 THEN 1 ELSE 0
                       END AS is_active,
                           tb.id AS trainer_bank_id,

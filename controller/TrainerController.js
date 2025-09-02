@@ -169,14 +169,16 @@ const updateTrainer = async (request, response) => {
 };
 
 const getTrainers = async (request, response) => {
-  const { name, mobile, email, status, is_form_sent } = request.body;
+  const { name, mobile, email, status, is_form_sent, is_onboarding } =
+    request.body;
   try {
     const trainers = await TrainerModel.getTrainers(
       name,
       mobile,
       email,
       status,
-      is_form_sent
+      is_form_sent,
+      is_onboarding
     );
     return response.status(200).send({
       message: "Trainer fetched successfully",
