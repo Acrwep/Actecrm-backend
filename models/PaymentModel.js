@@ -101,7 +101,7 @@ const PaymentModel = {
         getCustomer[0].phone_code,
         getCustomer[0].phone,
         getCustomer[0].whatsapp,
-        "Awaiting Finance",
+        "Form Pending",
         created_date,
       ];
 
