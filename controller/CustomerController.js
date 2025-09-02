@@ -293,6 +293,26 @@ const updateReview = async (request, response) => {
   }
 };
 
+const insertCusTrack = async (request, response) => {
+  const { customer_id, status, status_date } = request.body;
+  try {
+    const result = await CustomerModel.insertCusTrack(
+      customer_id,
+      status,
+      status_date
+    );
+    return response.status(201).send({
+      message: "Inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -306,4 +326,5 @@ module.exports = {
   classSchedule,
   updateClassGiong,
   updateReview,
+  insertCusTrack,
 };

@@ -206,8 +206,14 @@ const CustomerModel = {
           );
           return {
             ...item,
-            balance_amount:
-              getPaidAmount[0].total_amount - getPaidAmount[0].paid_amount,
+            balance_amount: parseFloat(
+              (
+                getPaidAmount[0].total_amount - getPaidAmount[0].paid_amount
+              ).toFixed(2)
+            ),
+            commercial_percentage: parseFloat(
+              ((item.commercial / item.primary_fees) * 100).toFixed(2)
+            ),
             payments: getPayments[0],
           };
         })
@@ -524,6 +530,22 @@ const CustomerModel = {
       ];
       const result = await pool.query(updateQuery, values);
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  insertCusTrack: async (customer_id, status, status_date) => {
+    try {
+      const insertQuery = `INSERT INTO customer_track(
+                              customer_id,
+                              status,
+                              status_date
+                          )
+                          VALUES(?, ?, ?)`;
+      const values = [customer_id, status, status_date];
+      const [res] = await pool.query(insertQuery, values);
+      return res.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -378,7 +378,21 @@ const TrainerModel = {
       const getQuery = `SELECT tm.id, tm.trainer_id, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id WHERE tm.customer_id = ? ORDER BY tm.id ASC`;
 
       const [history] = await pool.query(getQuery, [customer_id]);
-      return history;
+
+      const [primary_fees] = await pool.query(
+        `SELECT lm.primary_fees FROM customers AS c INNER JOIN lead_master AS lm ON c.lead_id = lm.id WHERE c.id = ?`,
+        [customer_id]
+      );
+
+      console.log("fees", primary_fees[0]);
+
+      const formattedResult = history.map((item) => ({
+        ...item,
+        commercial_percentage: parseFloat(
+          ((item.commercial / primary_fees[0].primary_fees) * 100).toFixed(2)
+        ),
+      }));
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
