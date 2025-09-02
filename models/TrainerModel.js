@@ -384,15 +384,25 @@ const TrainerModel = {
         [customer_id]
       );
 
-      console.log("fees", primary_fees[0]);
-
-      const formattedResult = history.map((item) => ({
-        ...item,
-        commercial_percentage: parseFloat(
-          ((item.commercial / primary_fees[0].primary_fees) * 100).toFixed(2)
-        ),
-      }));
-      return formattedResult;
+      const result = await Promise.all(
+        history.map(async (item) => {
+          const [student_count] = await pool.query(
+            `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
+            [item.trainer_id]
+          );
+          return {
+            ...item,
+            commercial_percentage: parseFloat(
+              ((item.commercial / primary_fees[0].primary_fees) * 100).toFixed(
+                2
+              )
+            ),
+            ongoing_student_count: student_count[0].on_going_student,
+            completed_student_count: student_count[0].completed_student_count,
+          };
+        })
+      );
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -56,16 +56,13 @@ const updateCustomer = async (request, response) => {
 };
 
 const getCustomers = async (request, response) => {
-  const { from_date, to_date, status, is_form_sent, name, pending_fees } =
-    request.body;
+  const { from_date, to_date, status, name } = request.body;
   try {
     const result = await CustomerModel.getCustomers(
       from_date,
       to_date,
       status,
-      is_form_sent,
-      name,
-      pending_fees
+      name
     );
     return response.status(200).send({
       message: "Customers fetched successfully",
@@ -222,11 +219,13 @@ const getClassSchedules = async (request, response) => {
 };
 
 const classSchedule = async (request, response) => {
-  const { customer_id, schedule_id, schedule_at } = request.body;
+  const { customer_id, schedule_id, class_start_date, schedule_at } =
+    request.body;
   try {
     const result = await CustomerModel.classSchedule(
       customer_id,
       schedule_id,
+      class_start_date,
       schedule_at
     );
     return response.status(200).send({

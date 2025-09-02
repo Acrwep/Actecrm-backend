@@ -78,14 +78,7 @@ const CustomerModel = {
     }
   },
 
-  getCustomers: async (
-    from_date,
-    to_date,
-    status,
-    is_form_sent,
-    name,
-    pending_fees
-  ) => {
+  getCustomers: async (from_date, to_date, status, name) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -118,6 +111,7 @@ const CustomerModel = {
                             c.status,
                             c.is_form_sent,
                             c.is_customer_updated,
+                            c.class_start_date,
                             c.created_date,
                             l.user_id AS lead_by_id,
                             u.user_name AS lead_by,
@@ -186,11 +180,6 @@ const CustomerModel = {
         getQuery += ` AND c.name LIKE '%${name}%'`;
       }
 
-      if (is_form_sent != null || is_form_sent != undefined) {
-        getQuery += ` AND c.is_form_sent = ? AND c.is_customer_updated = 0`;
-        queryParams.push(is_form_sent);
-      }
-
       const [result] = await pool.query(getQuery, queryParams);
 
       let res = await Promise.all(
@@ -204,6 +193,11 @@ const CustomerModel = {
             `SELECT pt.invoice_number, pt.invoice_date,pt.amount, m.name AS payment_mode, pt.payment_screenshot, pt.id AS payment_trans_id FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS m ON m.id = pt.paymode_id WHERE pm.lead_id = ? ORDER BY pt.created_date ASC LIMIT 1`,
             [item.lead_id]
           );
+
+          const [student_count] = await pool.query(
+            `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
+            [item.trainer_id]
+          );
           return {
             ...item,
             balance_amount: parseFloat(
@@ -215,14 +209,12 @@ const CustomerModel = {
               ((item.commercial / item.primary_fees) * 100).toFixed(2)
             ),
             payments: getPayments[0],
+            ongoing_student_count: student_count[0]?.on_going_student ?? 0,
+            completed_student_count:
+              student_count[0]?.completed_student_count ?? 0,
           };
         })
       );
-
-      // Filter if pending fees
-      if (pending_fees === "Pending Fees") {
-        res = res.filter((item) => item.balance_amount > 0);
-      }
 
       const [getStatus] = await pool.query(
         `SELECT COUNT(CASE WHEN c.is_form_sent = 1 AND c.is_customer_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Awaiting Feedback' THEN 1 END) AS awaiting_feedback, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
@@ -294,6 +286,7 @@ const CustomerModel = {
                             c.is_form_sent,
                             c.is_customer_updated,
                             c.created_date,
+                            c.class_start_date,
                             l.user_id AS lead_by_id,
                             u.user_name AS lead_by,
                             tr.name AS trainer_name,
@@ -479,11 +472,16 @@ const CustomerModel = {
     }
   },
 
-  classSchedule: async (customer_id, schedule_id, schedule_at) => {
+  classSchedule: async (
+    customer_id,
+    schedule_id,
+    class_start_date,
+    schedule_at
+  ) => {
     try {
       const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ?, class_scheduled_at = ? WHERE id = ?`,
-        [schedule_id, schedule_at, customer_id]
+        `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ? WHERE id = ?`,
+        [schedule_id, class_start_date, schedule_at, customer_id]
       );
 
       return result.affectedRows;
