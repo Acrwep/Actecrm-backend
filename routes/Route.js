@@ -59,6 +59,11 @@ router.put("/verifyPayment", verifyToken, PaymentController.verifyPayment);
 router.post("/sendMail", verifyToken, EmailController.sendMail);
 router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
 router.post("/sendCustomerMail", verifyToken, EmailController.sendCustomerMail);
+router.post(
+  "/sendCustomerCertificate",
+  verifyToken,
+  EmailController.sendCourseCertificate
+);
 // Mail module end
 
 // Customer module start

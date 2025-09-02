@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const puppeteer = require("puppeteer");
 const pool = require("../config/dbconfig");
 const { getCurrentYear } = require("../validation/Validation");
 const PDFDocument = require("pdfkit");
@@ -378,8 +379,348 @@ const sendInvoiceMail = async (
   });
 };
 
+const sendCourseCertificate = async (email) => {
+  const pdfPath = path.join(process.cwd(), "certificate.pdf");
+
+  // 1. HTML Template
+  const htmlContent = `
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ACTE Certificate</title>
+    <style>
+      @page {
+        margin: 0; /* removes default white margins */
+      }
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: transparent; /* no white background */
+        font-family: 'Times New Roman', serif;
+      }
+    </style>
+  </head>
+  <body>
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      bgcolor="transparent"
+    >
+      <tr>
+        <td align="center" style="padding: 20px">
+          <!-- Outer Blue Border -->
+          <table
+            width="800"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              border: 27px solid #0a4682;
+              border-radius: 80px;
+              background: #fff;
+            "
+          >
+            <tr>
+              <td>
+                <!-- Gold Middle Border -->
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="
+                    border: 10px solid #f49f20;
+                    border-radius: 50px;
+                    padding: 7px;
+                  "
+                >
+                  <tr>
+                    <td>
+                      <!-- Inner Thin Blue Border -->
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        border="0"
+                        style="border: 3px solid #0a4682; border-radius: 40px"
+                      >
+                        <tr>
+                          <td style="padding: 40px; text-align: center">
+                            <!-- Header -->
+                            <h1
+                              style="
+                                margin: 0;
+                                font-size: 40px;
+                                color: #0a4682;
+                                font-weight: bold;
+                                letter-spacing: 1px;
+                              "
+                            >
+                              ACTE
+                            </h1>
+                            <h2
+                              style="
+                                margin: 5px 0 20px;
+                                font-size: 22px;
+                                color: #0a4682;
+                                letter-spacing: 2px;
+                              "
+                            >
+                              TECHNOLOGIES
+                            </h2>
+
+                            <!-- Content -->
+                            <p style="margin: 10px 0; font-size: 18px">
+                              The Academic Council of ACTE
+                            </p>
+                            <p style="margin: 10px 0; font-size: 18px">
+                              Having Duly Examined
+                            </p>
+
+                            <h3
+                              style="
+                                margin: 20px 0 10px;
+                                font-size: 24px;
+                                font-weight: bold;
+                              "
+                            >
+                              SUDARSAIN R
+                            </h3>
+
+                            <p
+                              style="
+                                margin: 10px 0;
+                                font-size: 18px;
+                                line-height: 1.6;
+                              "
+                            >
+                              During and After 2 months of Study on the
+                              Specified Curriculum<br />
+                              And having found the Candidate's Performance to be
+                            </p>
+
+                            <h3
+                              style="
+                                margin: 20px 0 10px;
+                                font-size: 26px;
+                                font-weight: bold;
+                                color: #0a4682;
+                              "
+                            >
+                              EXCELLENT
+                            </h3>
+
+                            <p style="margin: 10px 0; font-size: 18px">
+                              Have Pleasure in Recognizing this Attainment with
+                              the Title of
+                            </p>
+
+                            <h4
+                              style="
+                                margin: 15px 0;
+                                font-size: 28px;
+                                font-weight: bold;
+                                color: #0a4682;
+                              "
+                            >
+                              SAP MM
+                            </h4>
+
+                            <p
+                              style="
+                                margin: 10px 0;
+                                font-size: 18px;
+                                line-height: 1.6;
+                              "
+                            >
+                              Given under our hand and Seal on<br />
+                              the month of August-2025<br />
+                              At Chennai, India
+                            </p>
+
+                            <!-- Signatures -->
+                            <table
+                              width="100%"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              style="margin-top: 40px"
+                            >
+                              <tr>
+                                <td
+                                  align="center"
+                                  style="width: 33%; padding: 0 10px"
+                                >
+                                  <div
+                                    style="
+                                      border-top: 1px solid #000;
+                                      margin-bottom: 8px;
+                                    "
+                                  ></div>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Chairman
+                                  </p>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Of the Academic Council
+                                  </p>
+                                </td>
+                                <td
+                                  align="center"
+                                  style="width: 33%; padding: 0 10px"
+                                >
+                                  <div
+                                    style="
+                                      border-top: 1px solid #000;
+                                      margin-bottom: 8px;
+                                    "
+                                  ></div>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Vice-Chairman
+                                  </p>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Of the Academic Council
+                                  </p>
+                                </td>
+                                <td
+                                  align="center"
+                                  style="width: 33%; padding: 0 10px"
+                                >
+                                  <div
+                                    style="
+                                      border-top: 1px solid #000;
+                                      margin-bottom: 8px;
+                                    "
+                                  ></div>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Member
+                                  </p>
+                                  <p style="margin: 0; font-size: 14px">
+                                    Of the Academic Council
+                                  </p>
+                                </td>
+                              </tr>
+                            </table>
+
+                            <!-- Footer -->
+                            <table
+                              width="100%"
+                              cellpadding="0"
+                              cellspacing="0"
+                              border="0"
+                              style="
+                                margin-top: 30px;
+                                border-top: 1px solid #000;
+                                padding-top: 10px;
+                              "
+                            >
+                              <tr>
+                                <td align="left" style="font-size: 13px">
+                                  Registration No.: R08111111706037
+                                </td>
+                                <td align="right" style="font-size: 13px">
+                                  Certificate No.: 15CBZZZZZ8523
+                                </td>
+                              </tr>
+                            </table>
+
+                            <!-- Legend -->
+                           <div
+  style="
+    margin-top: 20px;
+    display: inline-block;
+    border: 1px solid #000;
+    padding: 10px 15px;
+    font-size: 12px;
+    text-align: left;
+  "
+>
+  <strong style="display: block; margin-bottom: 5px; text-align: center;">
+    LEGEND
+  </strong>
+  <table style="border-collapse: collapse; font-size: 12px;">
+    <tr>
+      <td style="padding-right: 10px;">50-59.9</td>
+      <td>: Satisfactory</td>
+    </tr>
+    <tr>
+      <td style="padding-right: 10px;">60-69.9</td>
+      <td>: Fair</td>
+    </tr>
+    <tr>
+      <td style="padding-right: 10px;">70-79.9</td>
+      <td>: Good</td>
+    </tr>
+    <tr>
+      <td style="padding-right: 10px;">80-100</td>
+      <td>: Excellent</td>
+    </tr>
+  </table>
+</div>
+
+
+                            <!-- Watermark -->
+                            <p
+                              style="
+                                margin-top: 20px;
+                                font-size: 10px;
+                                color: #666;
+                              "
+                            >
+                              RD5 -11117 | www.acte.in
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+  `;
+
+  // 2. Launch Puppeteer and create PDF
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+  await page.pdf({
+    path: pdfPath,
+    format: "A4",
+    printBackground: true, // ensures colors are kept
+    margin: { top: 0, right: 0, bottom: 0, left: 0 }, // removes white border
+  });
+  await browser.close();
+
+  // 3. Send mail with attachment
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  return transporter.sendMail({
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Your Course Certificate",
+    text: "Please find your course certificate attached.",
+    attachments: [{ filename: "certificate.pdf", path: pdfPath }],
+  });
+};
+
 module.exports = {
   sendMail,
   sendInvoiceMail,
   sendCustomerMail,
+  sendCourseCertificate,
 };
