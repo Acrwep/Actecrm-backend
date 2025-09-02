@@ -74,11 +74,7 @@ router.put("/verifyStudent", verifyToken, CustomerController.verifyStudent);
 router.post("/trainerAssign", verifyToken, CustomerController.trainerAssign);
 router.put("/verifyTrainer", verifyToken, CustomerController.verifyTrainer);
 router.put("/rejectTrainer", verifyToken, CustomerController.rejectTrainer);
-router.put(
-  "/updateCustomerStatus",
-  verifyToken,
-  CustomerController.updateCustomerStatus
-);
+router.put("/updateCustomerStatus", CustomerController.updateCustomerStatus);
 router.get(
   "/getClassSchedules",
   verifyToken,
