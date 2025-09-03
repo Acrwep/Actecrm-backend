@@ -184,7 +184,8 @@ const PaymentModel = {
                       tr.id AS trainer_id,
                       tr.name AS trainer_name,
                       tr.mobile AS trainer_mobile,
-                      tr.email AS trainer_email
+                      tr.email AS trainer_email,
+                      pt.next_due_date
                   FROM
                       payment_master AS pm
                   INNER JOIN customers AS c ON
@@ -200,7 +201,8 @@ const PaymentModel = {
                   LEFT JOIN trainer_mapping AS tm ON
                       c.id = tm.customer_id
                   LEFT JOIN trainer AS tr ON
-                      tm.trainer_id = tr.id WHERE 1 = 1`;
+                      tm.trainer_id = tr.id
+                  WHERE 1 = 1`;
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(pt.next_due_date AS DATE) BETWEEN ? AND ?`;
