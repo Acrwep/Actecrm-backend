@@ -89,5 +89,6 @@ router.put(
 
 router.put("/updateReview", verifyToken, CustomerController.updateReview);
 router.post("/insertCusTrack", verifyToken, CustomerController.insertCusTrack);
+router.get("/pendingFeesList", verifyToken, PaymentController.pendingFeesList);
 // Customer module end
 module.exports = router;

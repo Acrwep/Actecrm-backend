@@ -27,7 +27,8 @@ const PaymentModel = {
     paid_amount,
     payment_screenshot,
     payment_status,
-    created_date
+    created_date,
+    next_due_date
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -69,9 +70,10 @@ const PaymentModel = {
                                       paymode_id,
                                       payment_screenshot,
                                       payment_status,
+                                      next_due_date,
                                       created_date
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
         invoiceNo,
@@ -81,6 +83,7 @@ const PaymentModel = {
         paymode_id,
         payment_screenshot,
         payment_status,
+        next_due_date,
         created_date,
       ];
 
@@ -147,6 +150,67 @@ const PaymentModel = {
         [verified_date, payment_trans_id]
       );
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  pendingFeesList: async (from_date, to_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT
+                      c.id AS customer_id,
+                      c.name,
+                      c.email,
+                      c.phonecode,
+                      c.phone,
+                      t.name AS course_name,
+                      c.date_of_joining,
+                      pm.id AS payment_master_id,
+                      pm.tax_type,
+                      pm.gst_percentage,
+                      pm.gst_amount,
+                      pm.discount,
+                      pm.discount_amount,
+                      pm.convenience_fees,
+                      lm.primary_fees AS course_fees,
+                      pm.total_amount,
+                      SUM(pt.amount) AS paid_amount,
+                      (
+                          pm.total_amount - SUM(pt.amount)
+                      ) AS balance_amount,
+                      u.id AS lead_by_id,
+                      u.user_name AS lead_by,
+                      tr.id AS trainer_id,
+                      tr.name AS trainer_name,
+                      tr.mobile AS trainer_mobile,
+                      tr.email AS trainer_email
+                  FROM
+                      payment_master AS pm
+                  INNER JOIN customers AS c ON
+                      pm.lead_id = c.lead_id
+                  INNER JOIN lead_master AS lm ON
+                      c.lead_id = lm.id
+                  INNER JOIN users AS u ON
+                      lm.user_id = u.user_id
+                  INNER JOIN payment_trans AS pt ON
+                      pm.id = pt.payment_master_id
+                  LEFT JOIN technologies AS t ON
+                      c.enrolled_course = t.id
+                  LEFT JOIN trainer_mapping AS tm ON
+                      c.id = tm.customer_id
+                  LEFT JOIN trainer AS tr ON
+                      tm.trainer_id = tr.id WHERE 1 = 1`;
+
+      if (from_date && to_date) {
+        getQuery += ` AND CAST(pt.next_due_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(from_date, to_date);
+      }
+
+      getQuery += ` GROUP BY pm.id`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }

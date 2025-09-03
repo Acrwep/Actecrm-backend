@@ -33,6 +33,7 @@ const createPayment = async (request, response) => {
     payment_screenshot,
     payment_status,
     created_date,
+    next_due_date,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -50,7 +51,8 @@ const createPayment = async (request, response) => {
       paid_amount,
       payment_screenshot,
       payment_status,
-      created_date
+      created_date,
+      next_due_date
     );
     return response.status(201).send({
       messages: "Payment successfull",
@@ -83,8 +85,25 @@ const verifyPayment = async (request, response) => {
   }
 };
 
+const pendingFeesList = async (request, response) => {
+  const { from_date, to_date } = request.query;
+  try {
+    const result = await PaymentModel.pendingFeesList(from_date, to_date);
+    return response.status(200).send({
+      messages: "Fees pending data successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching fees pending data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
   verifyPayment,
+  pendingFeesList,
 };

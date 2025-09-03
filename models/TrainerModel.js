@@ -228,7 +228,8 @@ const TrainerModel = {
     email,
     status,
     is_form_sent,
-    is_onboarding
+    is_onboarding,
+    ongoing
   ) => {
     try {
       const queryParams = [];
@@ -296,11 +297,24 @@ const TrainerModel = {
       }
       getQuery += ` ORDER BY t.name`;
 
-      const [trainers] = await pool.query(getQuery, queryParams);
+      let [trainers] = await pool.query(getQuery, queryParams);
 
+      // Get counts of trainers based on status
       const [getStatus] = await pool.query(
         `SELECT COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
       );
+
+      const [getOngoing] = await pool.query(
+        `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 GROUP BY tm.trainer_id`
+      );
+
+      // filter from trainers only ongoing trainers
+      if (ongoing === "Ongoing") {
+        const ongoingTrainerIds = getOngoing.map((row) => row.trainer_id);
+        trainers = trainers.filter((item) =>
+          ongoingTrainerIds.includes(item.id)
+        );
+      }
 
       const formattedResult = trainers.map((item) => ({
         ...item,
