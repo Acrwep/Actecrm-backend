@@ -12,6 +12,7 @@ const CustomerModel = {
     date_of_joining,
     enrolled_course,
     training_mode,
+    region_id,
     branch_id,
     batch_track_id,
     batch_timing_id,
@@ -47,7 +48,8 @@ const CustomerModel = {
                                 signature_image = ?,
                                 profile_image = ?,
                                 placement_support = ?,
-                                is_customer_updated = 1
+                                is_customer_updated = 1,
+                                region_id = ?
                             WHERE
                                 id = ?`;
       const values = [
@@ -68,6 +70,7 @@ const CustomerModel = {
         signature_image,
         profile_image,
         palcement_support,
+        region_id,
         id,
       ];
 
