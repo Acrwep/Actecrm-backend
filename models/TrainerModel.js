@@ -436,9 +436,9 @@ const TrainerModel = {
     }
   },
 
-  getCusByTrainer: async (trainer_id) => {
+  getCusByTrainer: async (trainer_id, is_class_taken) => {
     try {
-      const getQuery = `SELECT
+      let getQuery = `SELECT
                           tm.trainer_id,
                           tm.customer_id,
                           c.name AS cus_name,
@@ -472,6 +472,10 @@ const TrainerModel = {
                       WHERE
                           tm.is_verified = 1
                           AND tm.trainer_id = ?`;
+      getQuery +=
+        is_class_taken === 1
+          ? ` AND c.class_percentage = 100`
+          : ` AND c.class_percentage < 100`;
       const [result] = await pool.query(getQuery, [trainer_id]);
       return result;
     } catch (error) {

@@ -242,9 +242,12 @@ const getTrainerHistory = async (request, response) => {
 };
 
 const getCusByTrainer = async (request, response) => {
-  const { trainer_id } = request.query;
+  const { trainer_id, is_class_taken } = request.query;
   try {
-    const result = await TrainerModel.getCusByTrainer(trainer_id);
+    const result = await TrainerModel.getCusByTrainer(
+      trainer_id,
+      is_class_taken
+    );
     return response.status(200).send({
       message: "Data fetched successfully",
       data: result,
