@@ -21,6 +21,7 @@ const updateCustomer = async (request, response) => {
     profile_image,
     palcement_support,
     id,
+    region_id,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -34,6 +35,7 @@ const updateCustomer = async (request, response) => {
       date_of_joining,
       enrolled_course,
       training_mode,
+      region_id,
       branch_id,
       batch_track_id,
       batch_timing_id,
