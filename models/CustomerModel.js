@@ -81,7 +81,15 @@ const CustomerModel = {
     }
   },
 
-  getCustomers: async (from_date, to_date, status, name) => {
+  getCustomers: async (
+    from_date,
+    to_date,
+    status,
+    name,
+    email,
+    mobile,
+    course
+  ) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -185,6 +193,18 @@ const CustomerModel = {
 
       if (name) {
         getQuery += ` AND c.name LIKE '%${name}%'`;
+      }
+
+      if (email) {
+        getQuery += ` AND c.email LIKE '%${email}%'`;
+      }
+
+      if (mobile) {
+        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND tg.name LIKE '%${course}%'`;
       }
 
       const [result] = await pool.query(getQuery, queryParams);
