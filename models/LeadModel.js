@@ -57,10 +57,11 @@ const LeadModel = {
     }
   },
 
-  getBranches: async () => {
+  getBranches: async (region_id) => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM branches WHERE is_active = 1`
+        `SELECT id, name FROM branches WHERE is_active = 1 AND region_id = ?`,
+        [region_id]
       );
       return result;
     } catch (error) {
@@ -98,14 +99,13 @@ const LeadModel = {
     priority_id,
     lead_type_id,
     lead_status_id,
-    response_status_id,
     next_follow_up_date,
     expected_join_date,
-    lead_quality_rating,
     branch_id,
     batch_track_id,
     comments,
-    created_date
+    created_date,
+    region_id
   ) => {
     try {
       const insertQuery = `INSERT INTO lead_master(
@@ -127,16 +127,15 @@ const LeadModel = {
                             priority_id,
                             lead_type_id,
                             lead_status_id,
-                            response_status_id,
                             next_follow_up_date,
                             expected_join_date,
-                            lead_quality_rating,
                             branch_id,
                             batch_track_id,
                             comments,
-                            created_date
+                            created_date,
+                            region_id
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         name,
@@ -156,14 +155,13 @@ const LeadModel = {
         priority_id,
         lead_type_id,
         lead_status_id,
-        response_status_id,
         next_follow_up_date,
         expected_join_date,
-        lead_quality_rating,
         branch_id,
         batch_track_id,
         comments,
         created_date,
+        region_id,
       ];
 
       // Insert into lead master table
@@ -230,18 +228,17 @@ const LeadModel = {
                       lt.name AS lead_type,
                       l.lead_status_id,
                       ls.name lead_status,
-                      l.response_status_id,
                       rs.name AS response_status,
                       l.next_follow_up_date,
                       l.expected_join_date,
-                      l.lead_quality_rating,
                       l.branch_id,
                       b.name AS branche_name,
                       l.batch_track_id,
                       bt.name AS batch_track,
                       l.comments,
                       l.created_date,
-                      CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg
+                      CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
+                      r.name AS region_name
                   FROM
                       lead_master AS l
                   LEFT JOIN users AS u ON
@@ -258,8 +255,8 @@ const LeadModel = {
                     lt.id = l.lead_type_id
                   LEFT JOIN lead_status AS ls ON
                     ls.id = l.lead_status_id
-                  LEFT JOIN response_status AS rs ON
-                    rs.id = l.response_status_id
+                  LEFT JOIN region AS r ON
+                    r.id = l.region_id
                   LEFT JOIN branches AS b ON
                     b.id = l.branch_id
                   LEFT JOIN batch_track AS bt ON
@@ -321,17 +318,16 @@ const LeadModel = {
                       lt.name AS lead_type,
                       l.lead_status_id,
                       ls.name lead_status,
-                      l.response_status_id,
                       rs.name AS response_status,
                       l.next_follow_up_date,
                       l.expected_join_date,
-                      l.lead_quality_rating,
                       l.branch_id,
                       b.name AS branche_name,
                       l.batch_track_id,
                       bt.name AS batch_track,
                       l.comments,
-                      l.created_date
+                      l.created_date,
+                      r.name AS region_name
                   FROM
                       lead_master AS l
                   INNER JOIN lead_follow_up_history AS lf ON
@@ -350,8 +346,8 @@ const LeadModel = {
                       lt.id = l.lead_type_id
                   LEFT JOIN lead_status AS ls ON
                       ls.id = l.lead_status_id
-                  LEFT JOIN response_status AS rs ON
-                      rs.id = l.response_status_id
+                  LEFT JOIN region AS r ON
+                    r.id = l.region_id
                   LEFT JOIN branches AS b ON
                       b.id = l.branch_id
                   LEFT JOIN batch_track AS bt ON
@@ -464,14 +460,13 @@ const LeadModel = {
     priority_id,
     lead_type_id,
     lead_status_id,
-    response_status_id,
     next_follow_up_date,
     expected_join_date,
-    lead_quality_rating,
     branch_id,
     batch_track_id,
     comments,
-    lead_id
+    lead_id,
+    region_id
   ) => {
     try {
       const [isLeadExists] = await pool.query(
@@ -499,13 +494,12 @@ const LeadModel = {
                               priority_id = ?,
                               lead_type_id = ?,
                               lead_status_id = ?,
-                              response_status_id = ?,
                               next_follow_up_date = ?,
                               expected_join_date = ?,
-                              lead_quality_rating = ?,
                               branch_id = ?,
                               batch_track_id = ?,
-                              comments = ?
+                              comments = ?,
+                              region_id = ?
                           WHERE
                               id = ?`;
       const values = [
@@ -526,13 +520,12 @@ const LeadModel = {
         priority_id,
         lead_type_id,
         lead_status_id,
-        response_status_id,
         next_follow_up_date,
         expected_join_date,
-        lead_quality_rating,
         branch_id,
         batch_track_id,
         comments,
+        region_id,
         lead_id,
       ];
 
@@ -576,6 +569,17 @@ const LeadModel = {
         follow_up_count: getFollowupCount[0].follow_up_count,
         total_lead_count: getLeadCount[0].total_lead_count,
       };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRegion: async () => {
+    try {
+      const [region] = await pool.query(
+        `SELECT id, name FROM region WHERE is_active = 1`
+      );
+      return region;
     } catch (error) {
       throw new Error(error.message);
     }

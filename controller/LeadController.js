@@ -77,8 +77,9 @@ const getResponseStatus = async (request, response) => {
 };
 
 const getBranches = async (request, response) => {
+  const { region_id } = request.query;
   try {
-    const result = await LeadModel.getBranches();
+    const result = await LeadModel.getBranches(region_id);
     return response.status(200).send({
       message: "Branches fetched successfully",
       result,
@@ -126,14 +127,13 @@ const insertLead = async (request, response) => {
     priority_id,
     lead_type_id,
     lead_status_id,
-    response_status_id,
     next_follow_up_date,
     expected_join_date,
-    lead_quality_rating,
     branch_id,
     batch_track_id,
     comments,
     created_date,
+    region_id,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -155,14 +155,13 @@ const insertLead = async (request, response) => {
       priority_id,
       lead_type_id,
       lead_status_id,
-      response_status_id,
       next_follow_up_date,
       expected_join_date,
-      lead_quality_rating,
       branch_id,
       batch_track_id,
       comments,
-      created_date
+      created_date,
+      region_id
     );
     return response.status(200).send({
       message: "Lead added successfully",
@@ -264,14 +263,13 @@ const updateLead = async (request, response) => {
     priority_id,
     lead_type_id,
     lead_status_id,
-    response_status_id,
     next_follow_up_date,
     expected_join_date,
-    lead_quality_rating,
     branch_id,
     batch_track_id,
     comments,
     lead_id,
+    region_id,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -292,14 +290,13 @@ const updateLead = async (request, response) => {
       priority_id,
       lead_type_id,
       lead_status_id,
-      response_status_id,
       next_follow_up_date,
       expected_join_date,
-      lead_quality_rating,
       branch_id,
       batch_track_id,
       comments,
-      lead_id
+      lead_id,
+      region_id
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -328,6 +325,21 @@ const getLeadCount = async (request, response) => {
   }
 };
 
+const getRegion = async (request, response) => {
+  try {
+    const result = await LeadModel.getRegion();
+    return response.status(200).send({
+      message: "Region fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching region",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTrainingMode,
   getPriority,
@@ -342,4 +354,5 @@ module.exports = {
   updateFollowUp,
   updateLead,
   getLeadCount,
+  getRegion,
 };
