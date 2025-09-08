@@ -89,11 +89,11 @@ const PaymentModel = {
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
       const [getCustomer] = await pool.query(
-        `SELECT id, name, phone_code, phone, whatsapp, email FROM lead_master WHERE id = ?`,
+        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id, training_mode_id FROM lead_master WHERE id = ?`,
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, training_mode, region_id, branch_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -103,6 +103,9 @@ const PaymentModel = {
         getCustomer[0].whatsapp,
         "Form Pending",
         created_date,
+        getCustomer[0].training_mode_id,
+        getCustomer[0].region_id,
+        getCustomer[0].branch_id,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
