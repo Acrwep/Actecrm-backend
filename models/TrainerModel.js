@@ -473,10 +473,13 @@ const TrainerModel = {
                       WHERE
                           tm.is_verified = 1
                           AND tm.trainer_id = ?`;
-      getQuery +=
-        is_class_taken === 1
-          ? ` AND c.class_percentage = 100`
-          : ` AND c.class_percentage < 100`;
+
+      if (is_class_taken >= 1) {
+        getQuery += ` AND c.class_percentage = 100`;
+      } else {
+        getQuery += ` AND c.class_percentage < 100`;
+      }
+
       const [result] = await pool.query(getQuery, [trainer_id]);
       return result;
     } catch (error) {
