@@ -68,9 +68,10 @@ const PaymentModel = {
                                       payment_screenshot,
                                       payment_status,
                                       next_due_date,
-                                      created_date
+                                      created_date,
+                                      paid_date
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
         invoiceNo,
@@ -82,6 +83,7 @@ const PaymentModel = {
         payment_status,
         next_due_date,
         created_date,
+        paid_date,
       ];
 
       const [transInsert] = await pool.query(paymentTransQuery, transValues);

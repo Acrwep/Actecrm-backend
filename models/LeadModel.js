@@ -237,7 +237,8 @@ const LeadModel = {
                       l.comments,
                       l.created_date,
                       CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
-                      r.name AS region_name
+                      r.name AS region_name,
+                      r.id AS region_id
                   FROM
                       lead_master AS l
                   LEFT JOIN users AS u ON
@@ -325,7 +326,8 @@ const LeadModel = {
                       bt.name AS batch_track,
                       l.comments,
                       l.created_date,
-                      r.name AS region_name
+                      r.name AS region_name,
+                      r.id AS region_id
                   FROM
                       lead_master AS l
                   INNER JOIN lead_follow_up_history AS lf ON

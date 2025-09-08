@@ -22,8 +22,6 @@ const createPayment = async (request, response) => {
     // invoice_no,
     invoice_date,
     tax_type,
-    discount,
-    discount_amount,
     gst_percentage,
     gst_amount,
     total_amount,
@@ -34,6 +32,7 @@ const createPayment = async (request, response) => {
     payment_status,
     created_date,
     next_due_date,
+    paid_date,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -41,8 +40,6 @@ const createPayment = async (request, response) => {
       // invoice_no,
       invoice_date,
       tax_type,
-      discount,
-      discount_amount,
       gst_percentage,
       gst_amount,
       total_amount,
@@ -52,7 +49,8 @@ const createPayment = async (request, response) => {
       payment_screenshot,
       payment_status,
       created_date,
-      next_due_date
+      next_due_date,
+      paid_date
     );
     return response.status(201).send({
       messages: "Payment successfull",
