@@ -454,7 +454,8 @@ const TrainerModel = {
                           t.name AS course_name,
                           tmd.id AS training_mode_id,
                           tmd.name AS training_mode,
-                          c.class_percentage
+                          c.class_percentage,
+                          lm.primary_fees
                       FROM
                           trainer_mapping AS tm
                       INNER JOIN customers AS c ON
