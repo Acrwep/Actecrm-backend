@@ -17,8 +17,6 @@ const PaymentModel = {
     // invoice_no,
     invoice_date,
     tax_type,
-    discount,
-    discount_amount,
     gst_percentage,
     gst_amount,
     total_amount,
@@ -28,21 +26,20 @@ const PaymentModel = {
     payment_screenshot,
     payment_status,
     created_date,
-    next_due_date
+    next_due_date,
+    paid_date
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
                               lead_id,
                               tax_type,
-                              discount,
-                              discount_amount,
                               gst_percentage,
                               gst_amount,
                               total_amount,
                               convenience_fees,
                               created_date
                           )
-                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                          VALUES(?, ?, ?, ?, ?, ?, ?)`;
       const masterValues = [
         lead_id,
         tax_type,
