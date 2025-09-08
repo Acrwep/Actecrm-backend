@@ -241,6 +241,22 @@ const getTrainerHistory = async (request, response) => {
   }
 };
 
+const getCusByTrainer = async (request, response) => {
+  const { trainer_id } = request.query;
+  try {
+    const result = await TrainerModel.getCusByTrainer(trainer_id);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -251,4 +267,5 @@ module.exports = {
   updateStatus,
   getTrainerById,
   getTrainerHistory,
+  getCusByTrainer,
 };

@@ -435,6 +435,49 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+
+  getCusByTrainer: async (trainer_id) => {
+    try {
+      const getQuery = `SELECT
+                          tm.trainer_id,
+                          tm.customer_id,
+                          c.name AS cus_name,
+                          c.phonecode AS cus_phonecode,
+                          c.phone AS cus_phone,
+                          c.email AS cus_email,
+                          tm.commercial,
+                          r.id AS region_id,
+                          r.name AS region_name,
+                          b.id AS branch_id,
+                          b.name AS branch_name,
+                          t.id AS course_id,
+                          t.name AS course_name,
+                          tmd.id AS training_mode_id,
+                          tmd.name AS training_mode,
+                          c.class_percentage
+                      FROM
+                          trainer_mapping AS tm
+                      INNER JOIN customers AS c ON
+                          c.id = tm.customer_id
+                      LEFT JOIN lead_master AS lm ON
+                        c.lead_id = lm.id
+                      LEFT JOIN region AS r ON
+                        r.id = lm.region_id
+                      LEFT JOIN branches AS b ON
+                        b.id = lm.branch_id
+                      LEFT JOIN technologies AS t ON
+                        t.id = c.enrolled_course
+                      LEFT JOIN training_mode AS tmd ON
+                        tmd.id = c.training_mode
+                      WHERE
+                          tm.is_verified = 1
+                          AND tm.trainer_id = ?`;
+      const [result] = await pool.query(getQuery, [trainer_id]);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = TrainerModel;

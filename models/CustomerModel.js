@@ -141,13 +141,17 @@ const CustomerModel = {
                             c.google_review,
                             c.course_duration,
                             c.course_completion_date,
-                            c.review_updated_date
+                            c.review_updated_date,
+                            r.name AS region_name,
+                            r.id AS region_id
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
                         LEFT JOIN training_mode AS tm ON
                             tm.id = c.training_mode
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
                         LEFT JOIN branches AS b ON
                             b.id = c.branch_id
                         LEFT JOIN batch_track AS bt ON
@@ -315,13 +319,17 @@ const CustomerModel = {
                             c.google_review,
                             c.course_duration,
                             c.course_completion_date,
-                            c.review_updated_date
+                            c.review_updated_date,
+                            r.name AS region_name,
+                            r.id AS region_id
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
                         LEFT JOIN training_mode AS tm ON
                             tm.id = c.training_mode
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
                         LEFT JOIN branches AS b ON
                             b.id = c.branch_id
                         LEFT JOIN batch_track AS bt ON
