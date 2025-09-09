@@ -84,9 +84,16 @@ const verifyPayment = async (request, response) => {
 };
 
 const pendingFeesList = async (request, response) => {
-  const { from_date, to_date } = request.query;
+  const { from_date, to_date, name, mobile, email, course } = request.body;
   try {
-    const result = await PaymentModel.pendingFeesList(from_date, to_date);
+    const result = await PaymentModel.pendingFeesList(
+      from_date,
+      to_date,
+      name,
+      mobile,
+      email,
+      course
+    );
     return response.status(200).send({
       messages: "Fees pending data successfull",
       data: result,

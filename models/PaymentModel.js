@@ -155,17 +155,68 @@ const PaymentModel = {
     }
   },
 
-  pendingFeesList: async (from_date, to_date) => {
+  pendingFeesList: async (from_date, to_date, name, mobile, email, course) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-                      c.id AS customer_id,
+                      c.id,
+                      c.lead_id,
                       c.name,
+                      c.student_id,
                       c.email,
                       c.phonecode,
                       c.phone,
-                      t.name AS course_name,
+                      c.whatsapp,
+                      c.date_of_birth,
+                      c.gender,
                       c.date_of_joining,
+                      c.enrolled_course,
+                      t.name AS course_name,
+                      c.training_mode AS training_mode_id,
+                      tmd.name AS training_mode,
+                      c.branch_id,
+                      b.name AS branch_name,
+                      c.batch_track_id,
+                      bt.name AS batch_tracking,
+                      c.batch_timing_id,
+                      bs.name AS batch_timing,
+                      c.current_location,
+                      c.signature_image,
+                      c.profile_image,
+                      c.placement_support,
+                      c.status,
+                      c.is_form_sent,
+                      c.is_customer_updated,
+                      c.class_start_date,
+                      c.created_date,
+                      lm.user_id AS lead_by_id,
+                      u.user_name AS lead_by,
+                      tr.name AS trainer_name,
+                      tr.mobile AS trainer_mobile,
+                      tr.email AS trainer_email,
+                      tm.id AS trainer_map_id,
+                      tm.trainer_id,
+                      tm.commercial,
+                      tm.mode_of_class,
+                      tm.trainer_type,
+                      tm.proof_communication,
+                      tm.comments,
+                      tm.is_verified AS is_trainer_verified,
+                      tm.verified_date AS trainer_verified_date,
+                      tm.is_rejected AS is_trainer_rejected,
+                      tm.rejected_date AS trainer_rejected_date,
+                      c.class_schedule_id,
+                      cs.name AS class_schedule_name,
+                    c.class_scheduled_at,
+                    c.class_percentage,
+                    c.class_comments,
+                    c.linkedin_review,
+                    c.google_review,
+                    c.course_duration,
+                    c.course_completion_date,
+                    c.review_updated_date,
+                    r.name AS region_name,
+                    r.id AS region_id,
                       pm.id AS payment_master_id,
                       pm.tax_type,
                       pm.gst_percentage,
@@ -176,17 +227,19 @@ const PaymentModel = {
                       (
                           pm.total_amount - SUM(pt.amount)
                       ) AS balance_amount,
-                      u.id AS lead_by_id,
-                      u.user_name AS lead_by,
-                      tr.id AS trainer_id,
-                      tr.name AS trainer_name,
-                      tr.mobile AS trainer_mobile,
-                      tr.email AS trainer_email,
                       pt.next_due_date
                   FROM
                       payment_master AS pm
                   INNER JOIN customers AS c ON
                       pm.lead_id = c.lead_id
+                  LEFT JOIN training_mode AS tmd ON
+                    tmd.id = c.training_mode
+                  LEFT JOIN branches AS b ON
+                    b.id = c.branch_id
+                  LEFT JOIN batch_track AS bt ON
+                    bt.id = c.batch_track_id
+                  LEFT JOIN batches AS bs ON
+                    bs.id = c.batch_timing_id
                   INNER JOIN lead_master AS lm ON
                       c.lead_id = lm.id
                   INNER JOIN users AS u ON
@@ -199,11 +252,32 @@ const PaymentModel = {
                       c.id = tm.customer_id
                   LEFT JOIN trainer AS tr ON
                       tm.trainer_id = tr.id
-                  WHERE 1 = 1`;
+                  LEFT JOIN class_schedule AS cs ON
+                    cs.id = c.class_schedule_id
+                  LEFT JOIN region AS r ON
+                    r.id = c.region_id
+                  WHERE
+                      1 = 1`;
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(pt.next_due_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
+      }
+
+      if (name) {
+        getQuery += ` AND c.name LIKE '%${name}%'`;
+      }
+
+      if (email) {
+        getQuery += ` AND c.email LIKE '%${email}%'`;
+      }
+
+      if (mobile) {
+        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND t.name LIKE '%${course}%'`;
       }
 
       getQuery += ` GROUP BY pm.id`;

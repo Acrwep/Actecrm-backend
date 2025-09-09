@@ -305,7 +305,12 @@ const TrainerModel = {
       );
 
       const [getOnBoarding] = await pool.query(
-        `SELECT COUNT(CASE WHEN c.class_percentage = 100 THEN 1 END) AS on_boarding_count, COUNT(CASE WHEN c.class_percentage < 100 THEN 1 END) AS on_going_count FROM trainer AS t INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id INNER JOIN customers AS c ON tm.customer_id = c.id`
+        `SELECT
+          COUNT(DISTINCT CASE WHEN c.class_percentage = 100 THEN t.id END) AS on_boarding_count,
+          COUNT(DISTINCT CASE WHEN c.class_percentage < 100 THEN t.id END) AS on_going_count
+        FROM trainer AS t
+        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id
+        INNER JOIN customers AS c ON tm.customer_id = c.id;`
       );
 
       const [getOngoing] = await pool.query(
