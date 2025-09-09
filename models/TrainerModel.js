@@ -304,6 +304,10 @@ const TrainerModel = {
         `SELECT COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
       );
 
+      const [getOnBoarding] = await pool.query(
+        `SELECT COUNT(CASE WHEN c.class_percentage = 100 THEN 1 END) AS on_boarding_count, COUNT(CASE WHEN c.class_percentage < 100 THEN 1 END) AS on_going_count FROM trainer AS t INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id INNER JOIN customers AS c ON tm.customer_id = c.id`
+      );
+
       const [getOngoing] = await pool.query(
         `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 GROUP BY tm.trainer_id`
       );
@@ -323,6 +327,8 @@ const TrainerModel = {
       return {
         trainers: formattedResult,
         trainer_status_count: getStatus,
+        on_boarding: getOnBoarding[0].on_boarding_count,
+        on_going: getOnBoarding[0].on_going_count,
       };
     } catch (error) {
       throw new Error(error.message);
