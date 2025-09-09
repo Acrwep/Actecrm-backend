@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const CommonModel = require("../models/CommonModel");
 
 const CustomerModel = {
   updateCustomer: async (
@@ -216,11 +217,6 @@ const CustomerModel = {
             [item.lead_id]
           );
 
-          const [getPayments] = await pool.query(
-            `SELECT pt.invoice_number, pt.invoice_date,pt.amount, m.name AS payment_mode, pt.payment_screenshot, pt.id AS payment_trans_id FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS m ON m.id = pt.paymode_id WHERE pm.lead_id = ? ORDER BY pt.created_date ASC LIMIT 1`,
-            [item.lead_id]
-          );
-
           const [student_count] = await pool.query(
             `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
             [item.trainer_id]
@@ -235,7 +231,7 @@ const CustomerModel = {
             commercial_percentage: parseFloat(
               ((item.commercial / item.primary_fees) * 100).toFixed(2)
             ),
-            payments: getPayments[0],
+            payments: await CommonModel.getPaymentHistory(item.lead_id),
             ongoing_student_count: student_count[0]?.on_going_student ?? 0,
             completed_student_count:
               student_count[0]?.completed_student_count ?? 0,

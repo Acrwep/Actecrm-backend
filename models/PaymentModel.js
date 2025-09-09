@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const CommonModel = require("../models/CommonModel");
 
 const PaymentModel = {
   getPaymentModes: async () => {
@@ -283,7 +284,16 @@ const PaymentModel = {
       getQuery += ` GROUP BY pm.id`;
 
       const [result] = await pool.query(getQuery, queryParams);
-      return result;
+
+      const formattedResult = await Promise.all(
+        result.map(async (item) => {
+          return {
+            ...item,
+            payment: await CommonModel.getPaymentHistory(item.lead_id),
+          };
+        })
+      );
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
