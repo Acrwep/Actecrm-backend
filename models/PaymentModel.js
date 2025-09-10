@@ -339,6 +339,67 @@ const PaymentModel = {
       throw new Error(error.message);
     }
   },
+
+  partPayment: async (
+    payment_master_id,
+    invoice_date,
+    paid_amount,
+    convenience_fees,
+    balance_amount,
+    paymode_id,
+    payment_screenshot,
+    payment_status,
+    next_due_date,
+    created_date,
+    paid_date
+  ) => {
+    try {
+      const [getPendingFees] = await pool.query(
+        `SELECT pm.lead_id, pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status = 'Verified' AND pm.id = ? GROUP BY pm.lead_id`,
+        [payment_master_id]
+      );
+
+      if (paid_amount > getPendingFees[0].balance_amount)
+        throw new Error("Amount should be equal to or less then pending fees");
+
+      const invoiceNo = generateInvoiceNumber();
+      const paymentTransQuery = `INSERT INTO payment_trans(
+                                      payment_master_id,
+                                      invoice_number,
+                                      invoice_date,
+                                      amount,
+                                      convenience_fees,
+                                      balance_amount,
+                                      paymode_id,
+                                      payment_screenshot,
+                                      payment_status,
+                                      next_due_date,
+                                      created_date,
+                                      paid_date
+                                  )
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const transValues = [
+        payment_master_id,
+        invoiceNo,
+        invoice_date,
+        paid_amount,
+        convenience_fees,
+        balance_amount,
+        paymode_id,
+        payment_screenshot,
+        payment_status,
+        next_due_date,
+        created_date,
+        paid_date,
+      ];
+
+      const [transInsert] = await pool.query(paymentTransQuery, transValues);
+
+      return transInsert.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function generateInvoiceNumber(date = new Date(), timeZone) {

@@ -1,5 +1,6 @@
 const { request, response } = require("express");
 const CustomerModel = require("../models/CustomerModel");
+const CommonModel = require("../models/CommonModel");
 
 const updateCustomer = async (request, response) => {
   const {
@@ -318,6 +319,22 @@ const insertCusTrack = async (request, response) => {
   }
 };
 
+const generateCertificate = async (request, response) => {
+  const { customer_id } = request.body;
+  try {
+    const result = await CommonModel.generateCertificate(customer_id);
+    return response.status(201).send({
+      message: "Inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -332,4 +349,5 @@ module.exports = {
   updateClassGiong,
   updateReview,
   insertCusTrack,
+  generateCertificate,
 };

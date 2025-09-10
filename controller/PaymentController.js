@@ -120,10 +120,52 @@ const getPendingFeesCount = async (request, response) => {
   }
 };
 
+const partPayment = async (request, response) => {
+  const {
+    payment_master_id,
+    invoice_date,
+    paid_amount,
+    convenience_fees,
+    balance_amount,
+    paymode_id,
+    payment_screenshot,
+    payment_status,
+    next_due_date,
+    created_date,
+    paid_date,
+  } = request.body;
+  try {
+    const result = await PaymentModel.partPayment(
+      payment_master_id,
+      invoice_date,
+      paid_amount,
+      convenience_fees,
+      balance_amount,
+      paymode_id,
+      payment_screenshot,
+      payment_status,
+      next_due_date,
+      created_date,
+      paid_date
+    );
+
+    return response.status(201).send({
+      messages: "Payment successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while making payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
   verifyPayment,
   pendingFeesList,
   getPendingFeesCount,
+  partPayment,
 };

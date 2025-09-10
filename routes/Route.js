@@ -99,4 +99,10 @@ router.get(
   verifyToken,
   PaymentController.getPendingFeesCount
 );
+router.post(
+  "/generateCertificate",
+  verifyToken,
+  CustomerController.generateCertificate
+);
+router.post("/partPayment", verifyToken, PaymentController.partPayment);
 module.exports = router;

@@ -21,6 +21,70 @@ const CommonModel = {
       throw new Error(error.message);
     }
   },
+
+  generateCertificate: async (customer_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM certificates WHERE customer_id = ?`,
+        [customer_id]
+      );
+
+      if (isExists.length > 0)
+        throw new Error("Certificates has already been generated");
+
+      // Generate the unique numbers
+      const regNumber = await getNextUniqueNumber("REG");
+      // You can generate the cert number now, or later when the certificate is awarded
+      const certNumber = await getNextUniqueNumber("CERT");
+
+      const sql = `INSERT INTO certificates (customer_id, register_number, certificate_number) VALUES (?, ?, ?)`;
+      const values = [customer_id, regNumber, certNumber];
+
+      const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
+
+async function getNextUniqueNumber(sequenceType) {
+  // 1. Validate input
+  if (!["REG", "CERT"].includes(sequenceType)) {
+    throw new Error('sequenceType must be either "REG" or "CERT"');
+  }
+
+  // 2. Calculate the Year-Month code (YYMM)
+  const now = new Date();
+  const year = now.getFullYear().toString().slice(-2); // Get last 2 digits of year
+  const month = (now.getMonth() + 1).toString().padStart(2, "0"); // Months are 0-indexed
+  const yearMonth = year + month; // e.g., "2509"
+
+  const upsertQuery = `
+      INSERT INTO unique_number_sequence (sequence_type, yearmonth , last_sequence)
+      VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE last_sequence = last_sequence + 1;
+    `;
+  await pool.query(upsertQuery, [sequenceType, yearMonth]);
+
+  // 4. Fetch the updated sequence value we just claimed
+  const selectQuery = `
+      SELECT last_sequence FROM unique_number_sequence
+      WHERE sequence_type = ? AND yearmonth  = ?;
+    `;
+  const [rows] = await pool.query(selectQuery, [sequenceType, yearMonth]);
+
+  if (rows.length === 0) {
+    throw new Error("Failed to generate sequence number");
+  }
+
+  const newSequence = rows[0].last_sequence;
+
+  // 5. Format the final number: REG250900001
+  const paddedSequence = newSequence.toString().padStart(5, "0");
+  const uniqueNumber = `${sequenceType}${yearMonth}${paddedSequence}`;
+
+  return uniqueNumber;
+}
 
 module.exports = CommonModel;
