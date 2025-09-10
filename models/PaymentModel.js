@@ -15,7 +15,6 @@ const PaymentModel = {
 
   createPayment: async (
     lead_id,
-    // invoice_no,
     invoice_date,
     tax_type,
     gst_percentage,

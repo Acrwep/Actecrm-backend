@@ -19,7 +19,6 @@ const getPaymentModes = async (request, response) => {
 const createPayment = async (request, response) => {
   const {
     lead_id,
-    // invoice_no,
     invoice_date,
     tax_type,
     gst_percentage,
@@ -37,7 +36,6 @@ const createPayment = async (request, response) => {
   try {
     const result = await PaymentModel.createPayment(
       lead_id,
-      // invoice_no,
       invoice_date,
       tax_type,
       gst_percentage,

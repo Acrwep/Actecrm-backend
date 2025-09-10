@@ -9,7 +9,7 @@ const CommonModel = {
       );
 
       const [getPaymentTrans] = await pool.query(
-        `SELECT id, payment_master_id, invoice_number, invoice_date, amount, convenience_fees, balance_amount, paymode_id, payment_screenshot, payment_status, paid_date, verified_date, next_due_date, created_date FROM payment_trans WHERE payment_master_id = ? ORDER BY id DESC`,
+        `SELECT pt.id, pt.payment_master_id, pt.invoice_number, pt.invoice_date, pt.amount, pt.convenience_fees, pt.balance_amount, pt.paymode_id, pm.name AS payment_mode, pt.payment_screenshot, pt.payment_status, pt.paid_date, pt.verified_date, pt.next_due_date, pt.created_date FROM payment_trans AS pt INNER JOIN payment_mode AS pm ON pt.paymode_id = pm.id WHERE pt.payment_master_id = ? ORDER BY pt.id DESC`,
         [getPaymentMaster[0].id]
       );
 
