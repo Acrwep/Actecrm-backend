@@ -106,9 +106,26 @@ const pendingFeesList = async (request, response) => {
   }
 };
 
+const getPendingFeesCount = async (request, response) => {
+  const { from_date, to_date } = request.query;
+  try {
+    const result = await PaymentModel.getPendingFeesCount(from_date, to_date);
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
   verifyPayment,
   pendingFeesList,
+  getPendingFeesCount,
 };

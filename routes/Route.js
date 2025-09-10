@@ -93,4 +93,10 @@ router.post("/insertCusTrack", verifyToken, CustomerController.insertCusTrack);
 router.post("/pendingFeesList", verifyToken, PaymentController.pendingFeesList);
 router.get("/getCusByTrainer", verifyToken, TrainerController.getCusByTrainer);
 // Customer module end
+
+router.get(
+  "/getPendingFeesCount",
+  verifyToken,
+  PaymentController.getPendingFeesCount
+);
 module.exports = router;

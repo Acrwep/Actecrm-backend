@@ -298,6 +298,48 @@ const PaymentModel = {
       throw new Error(error.message);
     }
   },
+
+  getPendingFeesCount: async (from_date, to_date) => {
+    try {
+      const [getOverall] = await pool.query(
+        `SELECT COUNT(DISTINCT pm.lead_id) AS overall_pending_count
+          FROM payment_master AS pm
+          WHERE (pm.total_amount - (
+                  SELECT COALESCE(SUM(pt_amount.amount), 0)
+                  FROM payment_trans pt_amount
+                  WHERE pt_amount.payment_master_id = pm.id
+              )) > 0
+          AND EXISTS (
+              SELECT 1
+              FROM payment_trans pt_date
+              WHERE pt_date.payment_master_id = pm.id
+              AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
+          );`,
+        [from_date, to_date]
+      );
+
+      const [getToday] =
+        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS todays_pending_count
+                          FROM payment_master AS pm
+                          WHERE (pm.total_amount - (
+                                  SELECT COALESCE(SUM(pt_amount.amount), 0)
+                                  FROM payment_trans pt_amount
+                                  WHERE pt_amount.payment_master_id = pm.id
+                              )) > 0
+                          AND EXISTS (
+                              SELECT 1
+                              FROM payment_trans pt_date
+                              WHERE pt_date.payment_master_id = pm.id
+                              AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
+                          );`);
+      return {
+        today_count: getToday[0].todays_pending_count,
+        overall_count: getOverall[0].overall_pending_count,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function generateInvoiceNumber(date = new Date(), timeZone) {
