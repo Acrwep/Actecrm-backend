@@ -226,14 +226,15 @@ const getClassSchedules = async (request, response) => {
 };
 
 const classSchedule = async (request, response) => {
-  const { customer_id, schedule_id, class_start_date, schedule_at } =
+  const { customer_id, schedule_id, class_start_date, schedule_at, comments } =
     request.body;
   try {
     const result = await CustomerModel.classSchedule(
       customer_id,
       schedule_id,
       class_start_date,
-      schedule_at
+      schedule_at,
+      comments
     );
     return response.status(200).send({
       message: "Class scheduled successfully",
@@ -248,14 +249,20 @@ const classSchedule = async (request, response) => {
 };
 
 const updateClassGiong = async (request, response) => {
-  const { customer_id, schedule_id, class_percentage, class_comments } =
-    request.body;
+  const {
+    customer_id,
+    schedule_id,
+    class_percentage,
+    class_comments,
+    class_attachment,
+  } = request.body;
   try {
     const result = await CustomerModel.updateClassGiong(
       customer_id,
       schedule_id,
       class_percentage,
-      class_comments
+      class_comments,
+      class_attachment
     );
     return response.status(200).send({
       message: "Percentage updated successfully",

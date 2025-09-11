@@ -144,6 +144,7 @@ const CustomerModel = {
                             c.class_scheduled_at,
                             c.class_percentage,
                             c.class_comments,
+                            c.class_attachment,
                             c.linkedin_review,
                             c.google_review,
                             c.course_duration,
@@ -209,7 +210,7 @@ const CustomerModel = {
       let res = await Promise.all(
         result.map(async (item) => {
           const [getPaidAmount] = await pool.query(
-            `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? GROUP BY pm.total_amount`,
+            `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? AND pt.payment_status = 'Verified' GROUP BY pm.total_amount`,
             [item.lead_id]
           );
 
@@ -325,6 +326,7 @@ const CustomerModel = {
                             c.class_scheduled_at,
                             c.class_percentage,
                             c.class_comments,
+                            c.class_attachment,
                             c.linkedin_review,
                             c.google_review,
                             c.course_duration,
@@ -495,12 +497,13 @@ const CustomerModel = {
     customer_id,
     schedule_id,
     class_start_date,
-    schedule_at
+    schedule_at,
+    comments
   ) => {
     try {
       const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ? WHERE id = ?`,
-        [schedule_id, class_start_date, schedule_at, customer_id]
+        `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ?, class_comments = ? WHERE id = ?`,
+        [schedule_id, class_start_date, schedule_at, comments, customer_id]
       );
 
       return result.affectedRows;
@@ -513,12 +516,19 @@ const CustomerModel = {
     customer_id,
     schedule_id,
     class_percentage,
-    class_comments
+    class_comments,
+    class_attachment
   ) => {
     try {
       const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ? WHERE id = ?`,
-        [schedule_id, class_percentage, class_comments, customer_id]
+        `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ?, class_attachment = ? WHERE id = ?`,
+        [
+          schedule_id,
+          class_percentage,
+          class_comments,
+          class_attachment,
+          customer_id,
+        ]
       );
 
       const [getTrainer] = await pool.query(
