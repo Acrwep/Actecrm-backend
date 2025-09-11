@@ -469,7 +469,7 @@ const TrainerModel = {
                           lm.primary_fees
                       FROM
                           trainer_mapping AS tm
-                      INNER JOIN customers AS c ON
+                      LEFT JOIN customers AS c ON
                           c.id = tm.customer_id
                       LEFT JOIN lead_master AS lm ON
                         c.lead_id = lm.id
@@ -487,11 +487,12 @@ const TrainerModel = {
 
       if (is_class_taken >= 1) {
         getQuery += ` AND c.class_percentage = 100`;
-      } else {
+      } else if (is_class_taken == 0) {
         getQuery += ` AND c.class_percentage < 100`;
       }
 
       const [result] = await pool.query(getQuery, [trainer_id]);
+
       return result;
     } catch (error) {
       throw new Error(error.message);
