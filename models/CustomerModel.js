@@ -108,8 +108,6 @@ const CustomerModel = {
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,
-                            c.training_mode AS training_mode_id,
-                            tm.name AS training_mode,
                             c.branch_id,
                             b.name AS branch_name,
                             c.batch_track_id,
@@ -157,8 +155,6 @@ const CustomerModel = {
                             customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
-                        LEFT JOIN training_mode AS tm ON
-                            tm.id = c.training_mode
                         LEFT JOIN region AS r ON
                             r.id = c.region_id
                         LEFT JOIN branches AS b ON
@@ -293,8 +289,6 @@ const CustomerModel = {
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,
-                            c.training_mode AS training_mode_id,
-                            tm.name AS training_mode,
                             c.branch_id,
                             b.name AS branch_name,
                             c.batch_track_id,
@@ -342,8 +336,6 @@ const CustomerModel = {
                             customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
-                        LEFT JOIN training_mode AS tm ON
-                            tm.id = c.training_mode
                         LEFT JOIN region AS r ON
                             r.id = c.region_id
                         LEFT JOIN branches AS b ON

@@ -95,8 +95,6 @@ const LeadModel = {
     price_category,
     secondary_course_id,
     secondary_fees,
-    training_mode_id,
-    priority_id,
     lead_type_id,
     lead_status_id,
     next_follow_up_date,
@@ -123,8 +121,6 @@ const LeadModel = {
                             price_category,
                             secondary_course_id,
                             secondary_fees,
-                            training_mode_id,
-                            priority_id,
                             lead_type_id,
                             lead_status_id,
                             next_follow_up_date,
@@ -151,8 +147,6 @@ const LeadModel = {
         price_category,
         secondary_course_id,
         secondary_fees,
-        training_mode_id,
-        priority_id,
         lead_type_id,
         lead_status_id,
         next_follow_up_date,
@@ -220,10 +214,6 @@ const LeadModel = {
                       l.secondary_course_id,
                       st.name AS secondary_course,
                       l.secondary_fees,
-                      l.training_mode_id,
-                      tm.name AS training_mode,
-                      l.priority_id,
-                      p.name AS priority,
                       l.lead_type_id,
                       lt.name AS lead_type,
                       l.lead_status_id,
@@ -247,10 +237,6 @@ const LeadModel = {
                     pt.id = l.primary_course_id
                   LEFT JOIN technologies AS st ON
                     st.id = l.secondary_course_id
-                  LEFT JOIN training_mode AS tm ON
-                    l.training_mode_id = tm.id
-                  LEFT JOIN priority AS p ON
-                    p.id = l.priority_id
                   LEFT JOIN lead_type AS lt ON
                     lt.id = l.lead_type_id
                   LEFT JOIN lead_status AS ls ON
@@ -310,10 +296,6 @@ const LeadModel = {
                       l.secondary_course_id,
                       st.name AS secondary_course,
                       l.secondary_fees,
-                      l.training_mode_id,
-                      tm.name AS training_mode,
-                      l.priority_id,
-                      p.name AS priority,
                       l.lead_type_id,
                       lt.name AS lead_type,
                       l.lead_status_id,
@@ -338,10 +320,6 @@ const LeadModel = {
                       pt.id = l.primary_course_id
                   LEFT JOIN technologies AS st ON
                       st.id = l.secondary_course_id
-                  LEFT JOIN training_mode AS tm ON
-                      l.training_mode_id = tm.id
-                  LEFT JOIN priority AS p ON
-                      p.id = l.priority_id
                   LEFT JOIN lead_type AS lt ON
                       lt.id = l.lead_type_id
                   LEFT JOIN lead_status AS ls ON
@@ -456,8 +434,6 @@ const LeadModel = {
     price_category,
     secondary_course_id,
     secondary_fees,
-    training_mode_id,
-    priority_id,
     lead_type_id,
     lead_status_id,
     next_follow_up_date,
@@ -490,8 +466,6 @@ const LeadModel = {
                               price_category = ?,
                               secondary_course_id = ?,
                               secondary_fees = ?,
-                              training_mode_id = ?,
-                              priority_id = ?,
                               lead_type_id = ?,
                               lead_status_id = ?,
                               next_follow_up_date = ?,
@@ -516,8 +490,6 @@ const LeadModel = {
         price_category,
         secondary_course_id,
         secondary_fees,
-        training_mode_id,
-        priority_id,
         lead_type_id,
         lead_status_id,
         next_follow_up_date,
