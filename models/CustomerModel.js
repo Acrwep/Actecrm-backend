@@ -210,7 +210,7 @@ const CustomerModel = {
       let res = await Promise.all(
         result.map(async (item) => {
           const [getPaidAmount] = await pool.query(
-            `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? AND pt.payment_status = 'Verified' GROUP BY pm.total_amount`,
+            `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? GROUP BY pm.total_amount`,
             [item.lead_id]
           );
 
