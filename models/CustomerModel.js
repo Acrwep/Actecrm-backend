@@ -184,9 +184,13 @@ const CustomerModel = {
         queryParams.push(from_date, to_date);
       }
 
-      if (status) {
+      if (status && status != "Others") {
         getQuery += ` AND c.status = ?`;
         queryParams.push(status);
+      }
+
+      if (status === "Others") {
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
       }
 
       if (name) {
@@ -204,15 +208,26 @@ const CustomerModel = {
       if (course) {
         getQuery += ` AND tg.name LIKE '%${course}%'`;
       }
+      console.log("Query", getQuery);
 
       const [result] = await pool.query(getQuery, queryParams);
 
       let res = await Promise.all(
         result.map(async (item) => {
           const [getPaidAmount] = await pool.query(
-            `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? GROUP BY pm.total_amount`,
+            `SELECT 
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(SUM(pt.amount), 0) AS paid_amount 
+            FROM payment_master AS pm 
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+            WHERE pm.lead_id = ?
+            GROUP BY pm.total_amount`,
             [item.lead_id]
           );
+
+          // Now you can safely access the values
+          const totalAmount = getPaidAmount[0]?.total_amount || 0;
+          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
 
           const [student_count] = await pool.query(
             `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
@@ -220,11 +235,7 @@ const CustomerModel = {
           );
           return {
             ...item,
-            balance_amount: parseFloat(
-              (
-                getPaidAmount[0].total_amount - getPaidAmount[0].paid_amount
-              ).toFixed(2)
-            ),
+            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
             commercial_percentage: parseFloat(
               ((item.commercial / item.primary_fees) * 100).toFixed(2)
             ),
