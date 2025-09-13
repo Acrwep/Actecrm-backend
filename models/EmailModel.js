@@ -871,7 +871,7 @@ const sendWelcomeMail = async (email, name) => {
     // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
-      [trainer_id]
+      [email]
     );
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
@@ -1020,7 +1020,7 @@ const sendPaymentMail = async (email, name) => {
     // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
-      [trainer_id]
+      [email]
     );
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
