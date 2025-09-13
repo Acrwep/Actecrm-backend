@@ -187,8 +187,6 @@ const sendInvoiceMail = async (
   name,
   mobile,
   convenience_fees,
-  discount,
-  discount_amount,
   gst_amount,
   gst_percentage,
   invoice_date,
@@ -274,7 +272,7 @@ const sendInvoiceMail = async (
     doc.font("Helvetica-Bold").fontSize(10);
     doc.text("Product", col1X, tableTop);
     doc.text("Paid", col2X, tableTop);
-    doc.text("Discount", col3X, tableTop);
+    doc.text("Payment Mode", col3X, tableTop);
     doc.text("GST", col4X, tableTop);
     doc.text("Convenience Fee", col5X, tableTop);
 
@@ -289,7 +287,7 @@ const sendInvoiceMail = async (
     const rowY = tableTop + 25;
     doc.text(course_name || "-", col1X, rowY);
     doc.text(paid_amount || "-", col2X, rowY);
-    doc.text(discount + "%" || "-", col3X, rowY);
+    doc.text(payment_mode || "-", col3X, rowY);
     doc.text(gst_percentage + "%" || "-", col4X, rowY);
     doc.text(convenience_fees || "-", col5X, rowY);
 
@@ -322,7 +320,7 @@ const sendInvoiceMail = async (
 
     // Add totals with consistent spacing
     addTotalRow("Sub Total:", sub_total);
-    addTotalRow("Discount:", discount_amount);
+    addTotalRow("Payment Mode:", payment_mode);
     addTotalRow("GST:", gst_amount);
     addTotalRow("Convenience Charges:", convenience_fees);
     addTotalRow("Total Fee:", total_amount);
@@ -376,6 +374,156 @@ const sendInvoiceMail = async (
     subject: "Your Invoice",
     text: "Please find your invoice attached.",
     attachments: [{ filename: "invoice.pdf", path: pdfPath }],
+  });
+};
+
+const generateInvoicePdf = (
+  email,
+  name,
+  mobile,
+  convenience_fees,
+  gst_amount,
+  gst_percentage,
+  invoice_date,
+  invoice_number,
+  paid_amount,
+  balance_amount,
+  payment_mode,
+  tax_type,
+  total_amount,
+  course_name,
+  sub_total
+) => {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50 });
+    let buffers = [];
+
+    doc.on("data", buffers.push.bind(buffers));
+    doc.on("end", () => {
+      const pdfData = Buffer.concat(buffers);
+      resolve(pdfData);
+    });
+
+    // ---------- HEADER ----------
+    const logoPath = path.join(
+      "C:\\Users\\ADMIN PRAKASH\\Documents\\GitHub\\Actecrm-backend",
+      "acte-logo.png" // <-- replace with your actual logo file name
+    );
+    doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size
+
+    // Move cursor down a bit so text doesn’t overlap the logo
+    doc.moveDown(1);
+
+    doc.font("Helvetica-Bold").fontSize(20).text("Invoice", 50, 85);
+
+    doc
+      .font("Helvetica")
+      .fontSize(10)
+      .text("Acte Technologies Private Limited", 350, 50, { align: "right" })
+      .text("No 1A Sai Adhithya Building, Taramani Link Rd,", {
+        align: "right",
+      })
+      .text("Velachery, Chennai, Tamil Nadu 600042", { align: "right" })
+      .text("Phone: +91 89259 09207", { align: "right" })
+      .text("GST No: 33AAQCA617L1Z9", { align: "right" })
+      .moveDown();
+
+    // ---------- INVOICE INFO ----------
+    doc
+      .fontSize(10)
+      .text(`Invoice Number: ${invoice_number}`, 50, 120)
+      .text(`Invoice Date: ${invoice_date}`, 50, 135);
+
+    // ---------- BILL TO ----------
+    doc
+      .fontSize(12)
+      .text("Bill To:", 50, 170)
+      .fontSize(10)
+      .text(`Name: ${name}`, 50, 190)
+      .text(`Email: ${email}`, 50, 205)
+      .text(`Mobile: ${mobile}`, 50, 220);
+
+    // ---------- TABLE ----------
+    const tableTop = 270;
+    const col1X = 50;
+    const col2X = 200;
+    const col3X = 280;
+    const col4X = 360;
+    const col5X = 440;
+
+    doc.font("Helvetica-Bold").fontSize(10);
+    doc.text("Product", col1X, tableTop);
+    doc.text("Paid", col2X, tableTop);
+    doc.text("Payment Mode", col3X, tableTop);
+    doc.text("GST", col4X, tableTop);
+    doc.text("Convenience Fee", col5X, tableTop);
+
+    doc
+      .moveTo(50, tableTop + 15)
+      .lineTo(550, tableTop + 15)
+      .stroke();
+
+    doc.font("Helvetica").fontSize(10);
+    const rowY = tableTop + 25;
+    doc.text(course_name || "-", col1X, rowY);
+    doc.text(paid_amount || "-", col2X, rowY);
+    doc.text(payment_mode || "-", col3X, rowY);
+    doc.text(gst_percentage ? `${gst_percentage}%` : "-", col4X, rowY);
+    doc.text(convenience_fees || "-", col5X, rowY);
+
+    doc
+      .moveTo(50, rowY + 15)
+      .lineTo(550, rowY + 15)
+      .stroke();
+
+    // ---------- TOTALS ----------
+    let currentY = rowY + 30;
+    const rowGap = 18;
+    const labelX = 380;
+    const valueX = 480;
+
+    function addTotalRow(label, value, bold = false) {
+      doc.font(bold ? "Helvetica-Bold" : "Helvetica");
+      doc.text(label, labelX, currentY, { width: 120, align: "left" });
+      doc.text(value, valueX, currentY, { width: 60, align: "right" });
+      currentY += rowGap;
+    }
+
+    addTotalRow("Sub Total:", sub_total);
+    addTotalRow("Payment Mode:", payment_mode);
+    addTotalRow("GST:", gst_amount);
+    addTotalRow("Convenience Charges:", convenience_fees);
+    addTotalRow("Total Fee:", total_amount, true);
+    addTotalRow("Paid:", paid_amount, true);
+    addTotalRow("Balance:", balance_amount);
+
+    // ---------- NOTES ----------
+    doc
+      .moveDown()
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text("Notes:", 50, currentY + 40);
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .text(
+        "1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd",
+        { width: 500 }
+      );
+    doc.text("2) The refund requisition will not be accepted", { width: 500 });
+    doc.text(
+      "3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.",
+      { width: 500 }
+    );
+
+    doc
+      .moveDown()
+      .fontSize(8)
+      .text("Happy Learning...! Thanks for choosing us...!!", 50, 720, {
+        align: "center",
+      });
+
+    doc.end();
   });
 };
 
@@ -732,7 +880,124 @@ const sendWelcomeMail = async (email, name) => {
       to: email,
       subject: "Registration From",
       text: `Click the below link to complete the registration.`,
-      html: ``,
+      html: `<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Welcome to ACTE</title>
+</head>
+
+<body
+    style="margin:0;padding:0;background-color:#f3f4f6;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;">
+    <!-- Preheader -->
+    <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">
+        Welcome to ACTE Technologies — your premium learning journey begins.
+    </div>
+
+    <!-- Outer wrapper -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f3f4f6"
+        style="padding:8px 16px;">
+        <tr>
+            <td align="center">
+                <!-- Main container -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                    style="max-width:700px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;box-shadow:0 6px 30px rgba(0,0,0,0.1);overflow:hidden;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td
+                            style="background:linear-gradient(135deg,#004ecc 0%,#0066ff 100%);padding:32px 40px;text-align:center;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <div style="font-size:34px;font-weight:700;color:#ffffff;letter-spacing:1px;">
+                                            ACTE Technologies</div>
+                                        <div
+                                            style="color:#dbeafe;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-top:6px;">
+                                            Learning • Growth • Opportunity
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:48px 40px;background:#ffffff;">
+                            <h1
+                                style="color:#111827;margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
+                                Welcome to Your Learning Journey 🚀
+                            </h1>
+
+                            <p style="color:#4b5563;font-size:16px;margin:0 0 16px;">Dear Candidate,</p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
+                                We’re delighted to welcome you to our premium learning community. Prepare yourself for a
+                                transformative journey filled with knowledge, skills, and growth. Our dedicated team is
+                                committed to guiding you every step of the way.
+                            </p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
+                                <strong style="color:#111827;">We're here to help!</strong> Whenever you need
+                                clarification, guidance, or support, our experts are just a message away — because your
+                                success is our mission.
+                            </p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 28px;">
+                                Let’s celebrate every milestone you achieve with ACTE. Stay curious. Keep learning. Keep
+                                growing.
+                            </p>
+
+                            <!-- CTA -->
+                            <div style="margin:30px 0;text-align:center;">
+                                <a href="#" target="_blank"
+                                    style="display:inline-block;padding:16px 36px;border-radius:10px;background:linear-gradient(135deg,#0066ff 0%,#004ecc 100%);color:#ffffff;font-weight:600;font-size:17px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 6px 14px rgba(0,102,255,0.35);">
+                                    Begin Your Journey
+                                </a>
+                            </div>
+
+                            <!-- Signature -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td
+                                        style="background:#f9fafb;padding:24px;border-radius:12px;border-left:5px solid #0066ff;">
+                                        <p style="margin:0;font-size:16px;color:#111827;font-weight:600;">Best Regards,
+                                        </p>
+                                        <p style="margin:8px 0 0;color:#6b7280;font-size:14px;">Relationship
+                                            Associate<br>ACTE Technologies</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:28px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="left" style="color:#9ca3af;font-size:13px;">
+                                        &copy; 2025 ACTE Technologies. All rights reserved.
+                                    </td>
+                                    <td align="right" style="color:#9ca3af;font-size:13px;">
+                                        Need help? <a href="#"
+                                            style="color:#4b5563;text-decoration:none;font-weight:500;">Contact
+                                            Support</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>`,
       attachments: [
         {
           filename: "logo.png", // name of the file
@@ -789,4 +1054,5 @@ module.exports = {
   sendCourseCertificate,
   sendWelcomeMail,
   sendPaymentMail,
+  generateInvoicePdf,
 };
