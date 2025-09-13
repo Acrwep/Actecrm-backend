@@ -720,7 +720,7 @@ const sendCourseCertificate = async (email) => {
 
 const sendWelcomeMail = async (email, name) => {
   try {
-    // Check the trainer already exists
+    // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
       [trainer_id]
@@ -752,7 +752,7 @@ const sendWelcomeMail = async (email, name) => {
 
 const sendPaymentMail = async (email, name) => {
   try {
-    // Check the trainer already exists
+    // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
       [trainer_id]
