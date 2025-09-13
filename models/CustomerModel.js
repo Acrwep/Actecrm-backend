@@ -184,11 +184,6 @@ const CustomerModel = {
         queryParams.push(from_date, to_date);
       }
 
-      // if (status && status !== "Others") {
-      //   getQuery += ` AND c.status = ?`;
-      //   queryParams.push(status);
-      // }
-
       if (status && status.length > 0) {
         // If status is an array
         if (Array.isArray(status)) {
