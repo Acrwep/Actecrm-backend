@@ -184,9 +184,22 @@ const CustomerModel = {
         queryParams.push(from_date, to_date);
       }
 
-      if (status && status != "Others") {
-        getQuery += ` AND c.status = ?`;
-        queryParams.push(status);
+      // if (status && status !== "Others") {
+      //   getQuery += ` AND c.status = ?`;
+      //   queryParams.push(status);
+      // }
+
+      if (status && status.length > 0) {
+        // If status is an array
+        if (Array.isArray(status)) {
+          const placeholders = status.map(() => "?").join(", "); // "?, ?, ?"
+          getQuery += ` AND c.status IN (${placeholders})`;
+          queryParams.push(...status); // push all statuses
+        } else if (status !== "Others") {
+          // If it's a single value
+          getQuery += ` AND c.status = ?`;
+          queryParams.push(status);
+        }
       }
 
       if (status === "Others") {
@@ -247,7 +260,7 @@ const CustomerModel = {
       );
 
       const [getStatus] = await pool.query(
-        `SELECT COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund') THEN 1 END) AS Others FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
+        `SELECT COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund') THEN 1 END) AS Others FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
         [from_date, to_date]
       );
 
