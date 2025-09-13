@@ -105,9 +105,45 @@ const sendCourseCertificate = async (req, res) => {
   }
 };
 
+const sendWelcomeMail = async (req, res) => {
+  const { email, name } = req.body;
+  try {
+    const result = await EmailModel.sendWelcomeMail(email, name);
+
+    res.status(201).send({
+      message: "Mail sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending email",
+      details: error.message,
+    });
+  }
+};
+
+const sendPaymentMail = async (req, res) => {
+  const { email, name } = req.body;
+  try {
+    const result = await EmailModel.sendPaymentMail(email, name);
+
+    res.status(201).send({
+      message: "Mail sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending email",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendInvoiceMail,
   sendCustomerMail,
   sendCourseCertificate,
+  sendWelcomeMail,
+  sendPaymentMail,
 };

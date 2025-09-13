@@ -718,9 +718,75 @@ const sendCourseCertificate = async (email) => {
   });
 };
 
+const sendWelcomeMail = async (email, name) => {
+  try {
+    // Check the trainer already exists
+    const [isEmailExists] = await pool.query(
+      `SELECT id, name FROM customers WHERE email = ?`,
+      [trainer_id]
+    );
+    if (isEmailExists.length <= 0) throw new Error("Email not exists");
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Registration From",
+      text: `Click the below link to complete the registration.`,
+      html: ``,
+      attachments: [
+        {
+          filename: "logo.png", // name of the file
+          path: "./acte-logo.png", // local path of your logo file
+          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+        },
+      ],
+    };
+
+    // Send mail
+    await transporter.sendMail(mailOptions);
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+const sendPaymentMail = async (email, name) => {
+  try {
+    // Check the trainer already exists
+    const [isEmailExists] = await pool.query(
+      `SELECT id, name FROM customers WHERE email = ?`,
+      [trainer_id]
+    );
+    if (isEmailExists.length <= 0) throw new Error("Email not exists");
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Registration From",
+      text: `Click the below link to complete the registration.`,
+      html: ``,
+      attachments: [
+        {
+          filename: "logo.png", // name of the file
+          path: "./acte-logo.png", // local path of your logo file
+          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+        },
+      ],
+    };
+
+    // Send mail
+    await transporter.sendMail(mailOptions);
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 module.exports = {
   sendMail,
   sendInvoiceMail,
   sendCustomerMail,
   sendCourseCertificate,
+  sendWelcomeMail,
+  sendPaymentMail,
 };
