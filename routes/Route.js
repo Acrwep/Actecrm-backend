@@ -105,4 +105,7 @@ router.post(
   CustomerController.generateCertificate
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
+router.get("/getAreas", CustomerController.getAreas);
+router.post("/sendWelcomeMail", EmailController.sendWelcomeMail);
+router.post("/sendPaymentMail", EmailController.sendPaymentMail);
 module.exports = router;
