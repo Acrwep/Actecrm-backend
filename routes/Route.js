@@ -65,6 +65,8 @@ router.post(
   verifyToken,
   EmailController.sendCourseCertificate
 );
+router.post("/sendWelcomeMail", EmailController.sendWelcomeMail);
+router.post("/sendPaymentMail", EmailController.sendPaymentMail);
 // Mail module end
 
 // Customer module start
@@ -106,6 +108,4 @@ router.post(
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
 router.get("/getAreas", CustomerController.getAreas);
-router.post("/sendWelcomeMail", EmailController.sendWelcomeMail);
-router.post("/sendPaymentMail", EmailController.sendPaymentMail);
 module.exports = router;
