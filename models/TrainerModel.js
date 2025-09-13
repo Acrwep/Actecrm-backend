@@ -325,10 +325,48 @@ const TrainerModel = {
         );
       }
 
-      const formattedResult = trainers.map((item) => ({
-        ...item,
-        skills: JSON.parse(item.skills),
-      }));
+      const formattedResult = await Promise.all(
+        trainers.map(async (item) => {
+          const [student_count] = await pool.query(
+            `SELECT 
+              COALESCE(SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END), 0) AS not_started_student,
+              COALESCE(SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END), 0) AS on_going_student,
+              COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
+            FROM trainer_mapping AS tm
+            LEFT JOIN customers AS c ON tm.customer_id = c.id
+            WHERE tm.trainer_id = ?`,
+            [item.id]
+          );
+
+          console.log("sss", student_count);
+
+          const not_started =
+            parseInt(student_count[0]?.not_started_student) || 0;
+          const on_going = parseInt(student_count[0]?.on_going_student) || 0;
+          const completed =
+            parseInt(student_count[0]?.completed_student_count) || 0;
+
+          let trainer_type;
+          if (not_started > 0 && on_going === 0 && completed === 0) {
+            trainer_type = "New"; // Only not started
+          } else if (completed > 0 && on_going === 0) {
+            trainer_type = "Existing"; // Only completed
+          } else if (on_going > 0) {
+            trainer_type = "On-Going"; // At least one ongoing
+          } else {
+            trainer_type = "New";
+          }
+
+          return {
+            ...item,
+            skills: JSON.parse(item.skills),
+            trainer_type,
+            on_going_count: on_going,
+            on_boarding_count: completed,
+          };
+        })
+      );
+
       return {
         trainers: formattedResult,
         trainer_status_count: getStatus,
