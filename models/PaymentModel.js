@@ -89,7 +89,7 @@ const PaymentModel = {
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
       const [getCustomer] = await pool.query(
-        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id, training_mode_id FROM lead_master WHERE id = ?`,
+        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id FROM lead_master WHERE id = ?`,
         [lead_id]
       );
 
@@ -103,7 +103,6 @@ const PaymentModel = {
         getCustomer[0].whatsapp,
         "Form Pending",
         created_date,
-        getCustomer[0].training_mode_id,
         getCustomer[0].region_id,
         getCustomer[0].branch_id,
       ];
@@ -180,8 +179,6 @@ const PaymentModel = {
                           c.date_of_joining,
                           c.enrolled_course,
                           t.name AS course_name,
-                          c.training_mode AS training_mode_id,
-                          tmd.name AS training_mode,
                           c.branch_id,
                           b.name AS branch_name,
                           c.batch_track_id,
@@ -239,8 +236,6 @@ const PaymentModel = {
                           payment_master AS pm
                       INNER JOIN customers AS c ON
                           pm.lead_id = c.lead_id
-                      LEFT JOIN training_mode AS tmd ON
-                          tmd.id = c.training_mode
                       LEFT JOIN branches AS b ON
                           b.id = c.branch_id
                       LEFT JOIN batch_track AS bt ON
@@ -433,6 +428,23 @@ const PaymentModel = {
       const [transInsert] = await pool.query(paymentTransQuery, transValues);
 
       return transInsert.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  paymentReject: async (payment_trans_id, rejected_date) => {
+    try {
+      const [isIdExists] = await pool.query(
+        `SELECT id FROM payment_trans WHERE id = ?`,
+        [payment_trans_id]
+      );
+      if (isIdExists.length <= 0) throw new Error("Invalid payment Id");
+      const [result] = await pool.query(
+        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ? WHERE id = ?`,
+        [rejected_date, payment_trans_id]
+      );
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

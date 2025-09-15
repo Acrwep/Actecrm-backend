@@ -163,6 +163,25 @@ const partPayment = async (request, response) => {
   }
 };
 
+const paymentReject = async (request, response) => {
+  const { payment_trans_id, rejected_date } = request.body;
+  try {
+    const result = await PaymentModel.paymentReject(
+      payment_trans_id,
+      rejected_date
+    );
+    return response.status(201).send({
+      messages: "Payment has been rejected",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while rejecting payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -170,4 +189,5 @@ module.exports = {
   pendingFeesList,
   getPendingFeesCount,
   partPayment,
+  paymentReject,
 };

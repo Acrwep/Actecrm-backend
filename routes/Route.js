@@ -54,6 +54,7 @@ router.get("/getRegion", LeadController.getRegion);
 router.get("/getPaymentModes", verifyToken, PaymentController.getPaymentModes);
 router.post("/createPayment", verifyToken, PaymentController.createPayment);
 router.put("/verifyPayment", verifyToken, PaymentController.verifyPayment);
+router.put("/paymentReject", verifyToken, PaymentController.paymentReject);
 // Payment end
 
 // Mail module start
@@ -107,5 +108,4 @@ router.post(
   CustomerController.generateCertificate
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
-// router.get("/getAreas", CustomerController.getAreas);
 module.exports = router;
