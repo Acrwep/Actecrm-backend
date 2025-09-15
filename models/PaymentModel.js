@@ -119,6 +119,11 @@ const PaymentModel = {
         [insertCustomer.insertId, "Customer created", created_date]
       );
 
+      const [cusProgressTrack] = await pool.query(
+        `INSERT INTO customer_progress_tracking(customer_id) VALUES(?)`,
+        [insertCustomer.insertId]
+      );
+
       const [getInvoiceDetails] = await pool.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, pt.balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
         [transInsert.insertId]
