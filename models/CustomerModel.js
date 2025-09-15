@@ -596,28 +596,7 @@ const CustomerModel = {
     }
   },
 
-  insertCusTrack: async (
-    customer_id,
-    status,
-    status_date,
-    updated_by,
-    finance_verify,
-    finance_reject,
-    student_verify,
-    trainer_assign,
-    trainer_verify,
-    trainer_reject,
-    waiting_class,
-    class_scheduled,
-    class_going,
-    passed_out_process,
-    escalated,
-    hold,
-    partially_closed,
-    discontinued,
-    refund,
-    demo
-  ) => {
+  insertCusTrack: async (customer_id, status, status_date, updated_by) => {
     try {
       const insertQuery = `INSERT INTO customer_track(
                               customer_id,
@@ -628,49 +607,7 @@ const CustomerModel = {
                           VALUES(?, ?, ?, ?)`;
       const values = [customer_id, status, status_date, updated_by];
       const [res] = await pool.query(insertQuery, values);
-
-      const sql = `UPDATE
-                        customer_progress_tracking
-                    SET
-                        finance_verify = ?,
-                        finance_reject = ?,
-                        student_verify = ?,
-                        trainer_assign = ?,
-                        trainer_verify = ?,
-                        trainer_reject = ?,
-                        waiting_class = ?,
-                        class_scheduled = ?,
-                        class_going = ?,
-                        passed_out_process = ?,
-                        escalated = ?,
-                        hold = ?,
-                        partially_closed = ?,
-                        discontinued = ?,
-                        refund = ?,
-                        demo = ?,
-                    WHERE
-                        customer_id = ?`;
-      const track_values = [
-        finance_verify,
-        finance_reject,
-        student_verify,
-        trainer_assign,
-        trainer_verify,
-        trainer_reject,
-        waiting_class,
-        class_scheduled,
-        class_going,
-        passed_out_process,
-        escalated,
-        hold,
-        partially_closed,
-        discontinued,
-        refund,
-        demo,
-        customer_id,
-      ];
-      const [result] = await pool.query(sql, track_values);
-      return result.affectedRows;
+      return res.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -338,8 +338,6 @@ const TrainerModel = {
             [item.id]
           );
 
-          console.log("sss", student_count);
-
           const not_started =
             parseInt(student_count[0]?.not_started_student) || 0;
           const on_going = parseInt(student_count[0]?.on_going_student) || 0;
@@ -502,8 +500,6 @@ const TrainerModel = {
                           b.name AS branch_name,
                           t.id AS course_id,
                           t.name AS course_name,
-                          tmd.id AS training_mode_id,
-                          tmd.name AS training_mode,
                           c.class_percentage,
                           lm.primary_fees
                       FROM
@@ -518,8 +514,6 @@ const TrainerModel = {
                         b.id = lm.branch_id
                       LEFT JOIN technologies AS t ON
                         t.id = c.enrolled_course
-                      LEFT JOIN training_mode AS tmd ON
-                        tmd.id = c.training_mode
                       WHERE
                           tm.is_verified = 1
                           AND tm.trainer_id = ?`;
@@ -542,6 +536,24 @@ const TrainerModel = {
         on_going_count: student_count[0].on_going_student,
         on_boarding_count: student_count[0].completed_student_count,
       };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  addTechnologies: async (course_name) => {
+    try {
+      const [isNameExists] = await pool.query(
+        `SELECT id FROM technologies WHERE name = ? AND is_active = 1`,
+        [course_name]
+      );
+      if (isNameExists.length > 0)
+        throw new Error("The course name already exists");
+
+      const [result] = await pool.query(
+        `INSERT INTO technologies(name) VALUES(?)`,
+        [course_name]
+      );
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

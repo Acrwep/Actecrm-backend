@@ -108,4 +108,5 @@ router.post(
   CustomerController.generateCertificate
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
+router.post("/addTechnologies", verifyToken, TrainerController.addTechnologies);
 module.exports = router;

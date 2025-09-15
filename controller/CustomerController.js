@@ -305,50 +305,13 @@ const updateReview = async (request, response) => {
 };
 
 const insertCusTrack = async (request, response) => {
-  const {
-    customer_id,
-    status,
-    status_date,
-    updated_by,
-    finance_verify,
-    finance_reject,
-    student_verify,
-    trainer_assign,
-    trainer_verify,
-    trainer_reject,
-    waiting_class,
-    class_scheduled,
-    class_going,
-    passed_out_process,
-    escalated,
-    hold,
-    partially_closed,
-    discontinued,
-    refund,
-    demo,
-  } = request.body;
+  const { customer_id, status, status_date, updated_by } = request.body;
   try {
     const result = await CustomerModel.insertCusTrack(
       customer_id,
       status,
       status_date,
-      updated_by,
-      finance_verify,
-      finance_reject,
-      student_verify,
-      trainer_assign,
-      trainer_verify,
-      trainer_reject,
-      waiting_class,
-      class_scheduled,
-      class_going,
-      passed_out_process,
-      escalated,
-      hold,
-      partially_closed,
-      discontinued,
-      refund,
-      demo
+      updated_by
     );
     return response.status(201).send({
       message: "Inserted successfully",

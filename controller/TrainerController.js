@@ -260,6 +260,22 @@ const getCusByTrainer = async (request, response) => {
   }
 };
 
+const addTechnologies = async (request, response) => {
+  const { course_name } = request.query;
+  try {
+    const result = await TrainerModel.addTechnologies(course_name);
+    return response.status(201).send({
+      message: "Course added successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while adding course",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -271,4 +287,5 @@ module.exports = {
   getTrainerById,
   getTrainerHistory,
   getCusByTrainer,
+  addTechnologies,
 };
