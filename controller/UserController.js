@@ -39,9 +39,9 @@ const getUsers = async (request, response) => {
 };
 
 const updateUser = async (request, response) => {
-  const { id, user_id, user_name } = request.body;
+  const { id, user_id, user_name, password } = request.body;
   try {
-    const users = await userModel.updateUser(id, user_id, user_name);
+    const users = await userModel.updateUser(id, user_id, user_name, password);
     response.status(200).json({
       message: "User updated successfully",
       data: users,

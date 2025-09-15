@@ -44,7 +44,7 @@ const UserModel = {
     }
   },
 
-  updateUser: async (id, user_id, user_name) => {
+  updateUser: async (id, user_id, user_name, password) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM users WHERE id = ?`,
@@ -53,8 +53,8 @@ const UserModel = {
       if (isIdExists.length <= 0) {
         throw new Error("Invalid Id");
       }
-      const updateQuery = `UPDATE users SET user_id = ?, user_name = ? WHERE id = ?`;
-      const values = [user_id, user_name, id];
+      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, password = ? WHERE id = ?`;
+      const values = [user_id, user_name, password, id];
       const [result] = await pool.query(updateQuery, values);
       return result.affectedRows;
     } catch (error) {
