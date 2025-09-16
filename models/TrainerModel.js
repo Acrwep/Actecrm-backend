@@ -309,12 +309,12 @@ const TrainerModel = {
           COUNT(DISTINCT CASE WHEN c.class_percentage = 100 THEN t.id END) AS on_boarding_count,
           COUNT(DISTINCT CASE WHEN c.class_percentage < 100 THEN t.id END) AS on_going_count
         FROM trainer AS t
-        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id
+        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id AND tm.is_rejected = 0
         INNER JOIN customers AS c ON tm.customer_id = c.id;`
       );
 
       const [getOngoing] = await pool.query(
-        `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 GROUP BY tm.trainer_id`
+        `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 AND tm.is_rejected = 0 GROUP BY tm.trainer_id`
       );
 
       // filter from trainers only ongoing trainers
@@ -329,12 +329,12 @@ const TrainerModel = {
         trainers.map(async (item) => {
           const [student_count] = await pool.query(
             `SELECT 
-              COALESCE(SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END), 0) AS not_started_student,
-              COALESCE(SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END), 0) AS on_going_student,
+              SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END) AS not_started_student,
+              SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
               COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
             FROM trainer_mapping AS tm
             LEFT JOIN customers AS c ON tm.customer_id = c.id
-            WHERE tm.trainer_id = ?`,
+            WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
             [item.id]
           );
 
@@ -462,7 +462,7 @@ const TrainerModel = {
       const result = await Promise.all(
         history.map(async (item) => {
           const [student_count] = await pool.query(
-            `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
+            `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
             [item.trainer_id]
           );
           return {
@@ -528,7 +528,7 @@ const TrainerModel = {
 
       // Get on-going and on-boarding students count by trainer
       const [student_count] = await pool.query(
-        `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ?`,
+        `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.trainer_id = ?`,
         [trainer_id]
       );
       return {
