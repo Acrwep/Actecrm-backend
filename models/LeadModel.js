@@ -345,7 +345,7 @@ const LeadModel = {
       const formattedResult = await Promise.all(
         follow_ups.map(async (item) => {
           const [history] = await pool.query(
-            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date FROM lead_follow_up_history AS lh LEFT JOIN users AS u WHERE lh.is_updated = 1 AND lh.lead_id = ? ORDER BY lh.id ASC`,
+            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date FROM lead_follow_up_history AS lh LEFT JOIN users AS u ON lh.updated_by = u.user_id WHERE lh.is_updated = 1 AND lh.lead_id = ? ORDER BY lh.id ASC`,
             [item.id]
           );
           return {
