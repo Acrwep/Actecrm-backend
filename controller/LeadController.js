@@ -1,36 +1,6 @@
 const { request, response } = require("express");
 const LeadModel = require("../models/LeadModel");
 
-const getTrainingMode = async (request, response) => {
-  try {
-    const result = await LeadModel.getTrainingMode();
-    return response.status(200).send({
-      message: "Training modes fetched successfully",
-      result,
-    });
-  } catch (error) {
-    response.status(500).send({
-      message: "Error while fetching training modes",
-      details: error.message,
-    });
-  }
-};
-
-const getPriority = async (request, response) => {
-  try {
-    const result = await LeadModel.getPriority();
-    return response.status(200).send({
-      message: "Priority fetched successfully",
-      result,
-    });
-  } catch (error) {
-    response.status(500).send({
-      message: "Error while fetching priority",
-      details: error.message,
-    });
-  }
-};
-
 const getLeadType = async (request, response) => {
   try {
     const result = await LeadModel.getLeadType();
@@ -56,6 +26,21 @@ const getStatus = async (request, response) => {
   } catch (error) {
     response.status(500).send({
       message: "Error while fetching status",
+      details: error.message,
+    });
+  }
+};
+
+const getLeadAction = async (request, response) => {
+  try {
+    const result = await LeadModel.getLeadAction();
+    return response.status(200).send({
+      message: "Lead action fetched successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching lead action",
       details: error.message,
     });
   }
@@ -333,8 +318,6 @@ const getRegion = async (request, response) => {
 };
 
 module.exports = {
-  getTrainingMode,
-  getPriority,
   getLeadType,
   getStatus,
   getResponseStatus,
@@ -347,4 +330,5 @@ module.exports = {
   updateLead,
   getLeadCount,
   getRegion,
+  getLeadAction,
 };

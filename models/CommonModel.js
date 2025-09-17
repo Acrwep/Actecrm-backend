@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const fetch = require("node-fetch");
 
 const CommonModel = {
   getPaymentHistory: async (lead_id) => {
@@ -9,13 +10,24 @@ const CommonModel = {
       );
 
       const [getPaymentTrans] = await pool.query(
-        `SELECT pt.id, pt.payment_master_id, pt.invoice_number, pt.invoice_date, pt.amount, pt.convenience_fees, pt.balance_amount, pt.paymode_id, pm.name AS payment_mode, pt.payment_screenshot, pt.payment_status, pt.paid_date, pt.verified_date, pt.next_due_date, pt.created_date FROM payment_trans AS pt INNER JOIN payment_mode AS pm ON pt.paymode_id = pm.id WHERE pt.payment_master_id = ? ORDER BY pt.id DESC`,
+        `SELECT pt.id, pt.payment_master_id, pt.invoice_number, pt.invoice_date, pt.amount, pt.convenience_fees, pt.paymode_id, pm.name AS payment_mode, pt.payment_screenshot, pt.payment_status, pt.paid_date, pt.verified_date, pt.next_due_date, pt.is_second_due, pt.created_date, pt.reason FROM payment_trans AS pt INNER JOIN payment_mode AS pm ON pt.paymode_id = pm.id WHERE pt.payment_master_id = ? ORDER BY pt.id ASC`,
         [getPaymentMaster[0].id]
+      );
+
+      let paid_amount = 0;
+      const formattedResult = await Promise.all(
+        getPaymentTrans.map(async (item) => {
+          paid_amount += item.amount;
+          return {
+            ...item,
+            balance_amount: getPaymentMaster[0].total_amount - paid_amount,
+          };
+        })
       );
 
       return {
         ...getPaymentMaster[0],
-        payment_trans: getPaymentTrans,
+        payment_trans: formattedResult.reverse(),
       };
     } catch (error) {
       throw new Error(error.message);

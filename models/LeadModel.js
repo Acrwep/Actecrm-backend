@@ -2,28 +2,6 @@ const pool = require("../config/dbconfig");
 const moment = require("moment");
 
 const LeadModel = {
-  getTrainingMode: async () => {
-    try {
-      const [result] = await pool.query(
-        `SELECT id, name FROM training_mode WHERE is_active = 1`
-      );
-      return result;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
-  getPriority: async () => {
-    try {
-      const [result] = await pool.query(
-        `SELECT id, name FROM priority WHERE is_active = 1`
-      );
-      return result;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
   getLeadType: async () => {
     try {
       const [result] = await pool.query(
@@ -39,6 +17,17 @@ const LeadModel = {
     try {
       const [result] = await pool.query(
         `SELECT id, name FROM lead_status WHERE is_active = 1`
+      );
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getLeadAction: async () => {
+    try {
+      const [result] = await pool.query(
+        `SELECT id, name FROM lead_action WHERE is_active = 1`
       );
       return result;
     } catch (error) {
@@ -356,10 +345,7 @@ const LeadModel = {
       const formattedResult = await Promise.all(
         follow_ups.map(async (item) => {
           const [history] = await pool.query(
-            `SELECT id, lead_id, updated_date, comments 
-                 FROM lead_follow_up_history 
-                 WHERE is_updated = 1 AND lead_id = ? 
-                 ORDER BY id ASC`,
+            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date FROM lead_follow_up_history AS lh LEFT JOIN users AS u WHERE lh.is_updated = 1 AND lh.lead_id = ? ORDER BY lh.id ASC`,
             [item.id]
           );
           return {

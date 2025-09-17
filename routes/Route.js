@@ -34,8 +34,6 @@ router.get(
 // Trainer end
 
 // Lead start
-router.get("/getTrainingMode", verifyToken, LeadController.getTrainingMode);
-router.get("/getPriority", verifyToken, LeadController.getPriority);
 router.get("/getLeadType", verifyToken, LeadController.getLeadType);
 router.get("/getStatus", verifyToken, LeadController.getStatus);
 router.get("/getResponseStatus", verifyToken, LeadController.getResponseStatus);
@@ -48,6 +46,7 @@ router.put("/updateFollowUp", verifyToken, LeadController.updateFollowUp);
 router.put("/updateLead", verifyToken, LeadController.updateLead);
 router.get("/getLeadCount", verifyToken, LeadController.getLeadCount);
 router.get("/getRegion", LeadController.getRegion);
+router.get("/getLeadAction", LeadController.getLeadAction);
 // Lead end
 
 // Payment start
@@ -55,6 +54,12 @@ router.get("/getPaymentModes", verifyToken, PaymentController.getPaymentModes);
 router.post("/createPayment", verifyToken, PaymentController.createPayment);
 router.put("/verifyPayment", verifyToken, PaymentController.verifyPayment);
 router.put("/paymentReject", verifyToken, PaymentController.paymentReject);
+router.put("/updatePayment", verifyToken, PaymentController.updatePayment);
+router.put(
+  "/updatePaymentMaster",
+  verifyToken,
+  PaymentController.updatePaymentMaster
+);
 // Payment end
 
 // Mail module start

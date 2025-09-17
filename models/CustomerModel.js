@@ -256,32 +256,9 @@ const CustomerModel = {
         [from_date, to_date]
       );
 
-      const [fees_pending_count] = await pool.query(
-        `SELECT 
-            COUNT(CASE WHEN latest.balance_amount > 0 THEN 1 ELSE 0 END) AS fees_pending_count
-        FROM (
-            SELECT pt.balance_amount
-            FROM customers AS c
-            INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
-            INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id
-            WHERE c.created_date >= ?
-              AND c.created_date <=  ?
-            ORDER BY pt.id DESC
-            LIMIT 1
-        ) AS latest;
-        `,
-        [from_date, to_date]
-      );
-
-      // ✅ merge them into one object
-      const customerStatusCount = {
-        ...getStatus[0],
-        ...fees_pending_count[0],
-      };
-
       return {
         customers: res,
-        customer_status_count: customerStatusCount,
+        customer_status_count: getStatus[0],
       };
     } catch (error) {
       throw new Error(error.message);

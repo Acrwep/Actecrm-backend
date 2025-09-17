@@ -32,6 +32,7 @@ const createPayment = async (request, response) => {
     created_date,
     next_due_date,
     paid_date,
+    updated_by,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -48,7 +49,8 @@ const createPayment = async (request, response) => {
       payment_status,
       created_date,
       next_due_date,
-      paid_date
+      paid_date,
+      updated_by
     );
     return response.status(201).send({
       messages: "Payment successfull",
@@ -128,7 +130,6 @@ const partPayment = async (request, response) => {
     invoice_date,
     paid_amount,
     convenience_fees,
-    balance_amount,
     paymode_id,
     payment_screenshot,
     payment_status,
@@ -142,7 +143,6 @@ const partPayment = async (request, response) => {
       invoice_date,
       paid_amount,
       convenience_fees,
-      balance_amount,
       paymode_id,
       payment_screenshot,
       payment_status,
@@ -164,11 +164,12 @@ const partPayment = async (request, response) => {
 };
 
 const paymentReject = async (request, response) => {
-  const { payment_trans_id, rejected_date } = request.body;
+  const { payment_trans_id, rejected_date, reason } = request.body;
   try {
     const result = await PaymentModel.paymentReject(
       payment_trans_id,
-      rejected_date
+      rejected_date,
+      reason
     );
     return response.status(201).send({
       messages: "Payment has been rejected",
@@ -182,6 +183,68 @@ const paymentReject = async (request, response) => {
   }
 };
 
+const updatePayment = async (request, response) => {
+  const {
+    invoice_date,
+    amount,
+    convenience_fees,
+    paymode_id,
+    payment_screenshot,
+    paid_date,
+    next_due_date,
+    payment_trans_id,
+  } = request.body;
+  try {
+    const result = await PaymentModel.updatePayment(
+      invoice_date,
+      amount,
+      convenience_fees,
+      paymode_id,
+      payment_screenshot,
+      paid_date,
+      next_due_date,
+      payment_trans_id
+    );
+    return response.status(200).send({
+      messages: "Payment updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while updating payment",
+      details: error.message,
+    });
+  }
+};
+
+const updatePaymentMaster = async (request, response) => {
+  const {
+    tax_type,
+    gst_percentage,
+    gst_amount,
+    total_amount,
+    payment_master_id,
+  } = request.body;
+  try {
+    const result = await PaymentModel.updatePaymentMaster(
+      tax_type,
+      gst_percentage,
+      gst_amount,
+      total_amount,
+      payment_master_id
+    );
+    return response.status(200).send({
+      messages: "Payment updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while updating payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -190,4 +253,6 @@ module.exports = {
   getPendingFeesCount,
   partPayment,
   paymentReject,
+  updatePayment,
+  updatePaymentMaster,
 };

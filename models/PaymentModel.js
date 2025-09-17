@@ -27,7 +27,8 @@ const PaymentModel = {
     payment_status,
     created_date,
     next_due_date,
-    paid_date
+    paid_date,
+    updated_by
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -60,7 +61,6 @@ const PaymentModel = {
                                       invoice_date,
                                       amount,
                                       convenience_fees,
-                                      balance_amount,
                                       paymode_id,
                                       payment_screenshot,
                                       payment_status,
@@ -68,14 +68,13 @@ const PaymentModel = {
                                       created_date,
                                       paid_date
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
         invoiceNo,
         invoice_date,
         paid_amount,
         convenience_fees,
-        total_amount - paid_amount,
         paymode_id,
         payment_screenshot,
         payment_status,
@@ -113,14 +112,15 @@ const PaymentModel = {
         `INSERT INTO customer_track(
             customer_id,
             status,
-            status_date
+            status_date,
+            updated_by
         )
-        VALUES(?, ?, ?)`,
-        [insertCustomer.insertId, "Customer created", created_date]
+        VALUES(?, ?, ?, ?)`,
+        [insertCustomer.insertId, "Customer created", created_date, updated_by]
       );
 
       const [getInvoiceDetails] = await pool.query(
-        `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, pt.balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
+        `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
         [transInsert.insertId]
       );
 
@@ -166,100 +166,107 @@ const PaymentModel = {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-        c.id,
-        c.lead_id,
-        c.name,
-        c.student_id,
-        c.email,
-        c.phonecode,
-        c.phone,
-        c.whatsapp,
-        c.date_of_birth,
-        c.gender,
-        c.date_of_joining,
-        c.enrolled_course,
-        t.name AS course_name,
-        c.branch_id,
-        b.name AS branch_name,
-        c.batch_track_id,
-        bt.name AS batch_tracking,
-        c.batch_timing_id,
-        bs.name AS batch_timing,
-        c.current_location,
-        c.signature_image,
-        c.profile_image,
-        c.placement_support,
-        c.status,
-        c.is_form_sent,
-        c.is_customer_updated,
-        c.class_start_date,
-        c.created_date,
-        lm.user_id AS lead_by_id,
-        u.user_name AS lead_by,
-        tr.name AS trainer_name,
-        tr.mobile AS trainer_mobile,
-        tr.email AS trainer_email,
-        tm.id AS trainer_map_id,
-        tm.trainer_id,
-        tm.commercial,
-        tm.mode_of_class,
-        tm.trainer_type,
-        tm.proof_communication,
-        tm.comments,
-        tm.is_verified AS is_trainer_verified,
-        tm.verified_date AS trainer_verified_date,
-        tm.is_rejected AS is_trainer_rejected,
-        tm.rejected_date AS trainer_rejected_date,
-        c.class_schedule_id,
-        cs.name AS class_schedule_name,
-        c.class_scheduled_at,
-        c.class_percentage,
-        c.class_comments,
-        c.class_attachment,
-        c.linkedin_review,
-        c.google_review,
-        c.course_duration,
-        c.course_completion_date,
-        c.review_updated_date,
-        r.name AS region_name,
-        r.id AS region_id,
-        pm.id AS payment_master_id,
-        pm.tax_type,
-        pm.gst_percentage,
-        pm.gst_amount,
-        lm.primary_fees AS course_fees,
-        pm.total_amount,
-        SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
-        (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
-        MAX(pt.next_due_date) AS next_due_date
-    FROM
-        payment_master AS pm
-    INNER JOIN customers AS c ON
-        pm.lead_id = c.lead_id
-    LEFT JOIN branches AS b ON
-        b.id = c.branch_id
-    LEFT JOIN batch_track AS bt ON
-        bt.id = c.batch_track_id
-    LEFT JOIN batches AS bs ON
-        bs.id = c.batch_timing_id
-    INNER JOIN lead_master AS lm ON
-        c.lead_id = lm.id
-    INNER JOIN users AS u ON
-        lm.user_id = u.user_id
-    LEFT JOIN payment_trans AS pt ON
-        pm.id = pt.payment_master_id
-    LEFT JOIN technologies AS t ON
-        c.enrolled_course = t.id
-    LEFT JOIN trainer_mapping AS tm ON
-        c.id = tm.customer_id
-        AND tm.is_rejected = 0
-    LEFT JOIN trainer AS tr ON
-        tm.trainer_id = tr.id
-    LEFT JOIN class_schedule AS cs ON
-        cs.id = c.class_schedule_id
-    LEFT JOIN region AS r ON
-        r.id = c.region_id
-    WHERE 1 = 1`;
+                        c.id,
+                        c.lead_id,
+                        c.name,
+                        c.student_id,
+                        c.email,
+                        c.phonecode,
+                        c.phone,
+                        c.whatsapp,
+                        c.date_of_birth,
+                        c.gender,
+                        c.date_of_joining,
+                        c.enrolled_course,
+                        t.name AS course_name,
+                        c.branch_id,
+                        b.name AS branch_name,
+                        c.batch_track_id,
+                        bt.name AS batch_tracking,
+                        c.batch_timing_id,
+                        bs.name AS batch_timing,
+                        c.current_location,
+                        c.signature_image,
+                        c.profile_image,
+                        c.placement_support,
+                        c.status,
+                        c.is_form_sent,
+                        c.is_customer_updated,
+                        c.class_start_date,
+                        c.created_date,
+                        lm.user_id AS lead_by_id,
+                        u.user_name AS lead_by,
+                        tr.name AS trainer_name,
+                        tr.mobile AS trainer_mobile,
+                        tr.email AS trainer_email,
+                        tm.id AS trainer_map_id,
+                        tm.trainer_id,
+                        tm.commercial,
+                        tm.mode_of_class,
+                        tm.trainer_type,
+                        tm.proof_communication,
+                        tm.comments,
+                        tm.is_verified AS is_trainer_verified,
+                        tm.verified_date AS trainer_verified_date,
+                        tm.is_rejected AS is_trainer_rejected,
+                        tm.rejected_date AS trainer_rejected_date,
+                        c.class_schedule_id,
+                        cs.name AS class_schedule_name,
+                        c.class_scheduled_at,
+                        c.class_percentage,
+                        c.class_comments,
+                        c.class_attachment,
+                        c.linkedin_review,
+                        c.google_review,
+                        c.course_duration,
+                        c.course_completion_date,
+                        c.review_updated_date,
+                        r.name AS region_name,
+                        r.id AS region_id,
+                        pm.id AS payment_master_id,
+                        pm.tax_type,
+                        pm.gst_percentage,
+                        pm.gst_amount,
+                        lm.primary_fees AS course_fees,
+                        pm.total_amount,
+                        payment_summary.paid_amount,
+                        payment_summary.balance_amount,
+                      payment_summary.next_due_date
+                    FROM
+                        customers AS c
+                    INNER JOIN payment_master AS pm ON
+                        pm.lead_id = c.lead_id
+                    LEFT JOIN branches AS b ON
+                        b.id = c.branch_id
+                    LEFT JOIN batch_track AS bt ON
+                        bt.id = c.batch_track_id
+                    LEFT JOIN batches AS bs ON
+                        bs.id = c.batch_timing_id
+                    INNER JOIN lead_master AS lm ON
+                        c.lead_id = lm.id
+                    INNER JOIN users AS u ON
+                        lm.user_id = u.user_id
+                    LEFT JOIN payment_trans AS pt ON
+                        pm.id = pt.payment_master_id
+                    LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                    LEFT JOIN trainer_mapping AS tm ON
+                        c.id = tm.customer_id AND tm.is_rejected = 0
+                    LEFT JOIN trainer AS tr ON
+                        tm.trainer_id = tr.id
+                    LEFT JOIN class_schedule AS cs ON
+                        cs.id = c.class_schedule_id
+                    LEFT JOIN region AS r ON
+                        r.id = c.region_id
+                    INNER JOIN (
+                      SELECT pt.payment_master_id, SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
+                        (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
+                        MAX(pt.next_due_date) AS next_due_date
+                        FROM payment_trans AS pt
+                        INNER JOIN payment_master AS pm	ON pt.payment_master_id = pm.id
+                        GROUP BY pt.payment_master_id, pm.total_amount
+                    ) AS payment_summary ON payment_summary.payment_master_id = pm.id
+                    WHERE payment_summary.balance_amount > 0`;
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(pt.next_due_date AS DATE) BETWEEN ? AND ?`;
@@ -267,7 +274,7 @@ const PaymentModel = {
       }
 
       if (urgent_due === "Urgent Due") {
-        getQuery += ` AND c.class_percentage > 30`;
+        getQuery += ` AND c.class_percentage >= 30`;
       }
 
       if (name) {
@@ -289,22 +296,6 @@ const PaymentModel = {
         getQuery += ` AND t.name LIKE ?`;
         queryParams.push(`%${course}%`);
       }
-
-      getQuery += ` GROUP BY 
-        c.id, c.lead_id, c.name, c.student_id, c.email, c.phonecode, c.phone, 
-        c.whatsapp, c.date_of_birth, c.gender, c.date_of_joining, c.enrolled_course, 
-        t.name, c.branch_id, b.name, c.batch_track_id, bt.name, c.batch_timing_id, 
-        bs.name, c.current_location, c.signature_image, c.profile_image, 
-        c.placement_support, c.status, c.is_form_sent, c.is_customer_updated, 
-        c.class_start_date, c.created_date, lm.user_id, u.user_name, tr.name, 
-        tr.mobile, tr.email, tm.id, tm.trainer_id, tm.commercial, tm.mode_of_class, 
-        tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, 
-        tm.verified_date, tm.is_rejected, tm.rejected_date, c.class_schedule_id, 
-        cs.name, c.class_scheduled_at, c.class_percentage, c.class_comments, 
-        c.class_attachment, c.linkedin_review, c.google_review, c.course_duration, 
-        c.course_completion_date, c.review_updated_date, r.name, r.id, pm.id, 
-        pm.tax_type, pm.gst_percentage, pm.gst_amount, lm.primary_fees, pm.total_amount
-    HAVING balance_amount > 0`;
 
       const [result] = await pool.query(getQuery, queryParams);
 
@@ -364,7 +355,7 @@ const PaymentModel = {
         `SELECT COUNT(DISTINCT c.id) AS customer_count
           FROM customers c
           INNER JOIN payment_master pm ON c.lead_id = pm.lead_id
-          WHERE c.class_percentage > 30
+          WHERE c.class_percentage >= 30
           AND (
               pm.total_amount - (
                   SELECT COALESCE(SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END), 0)
@@ -395,7 +386,6 @@ const PaymentModel = {
     invoice_date,
     paid_amount,
     convenience_fees,
-    balance_amount,
     paymode_id,
     payment_screenshot,
     payment_status,
@@ -404,6 +394,14 @@ const PaymentModel = {
     paid_date
   ) => {
     try {
+      // Check whether the previous payment is still pending stage
+      const [isPaymentCheck] = await pool.query(
+        `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status = 'Verify Pending' AND is_rejected = 0`,
+        [payment_master_id]
+      );
+      if (isPaymentCheck[0].pending_count > 0)
+        throw new Error("Kindly verify the previous payment");
+
       const [getPendingFees] = await pool.query(
         `SELECT pm.lead_id, pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status = 'Verified' AND pm.id = ? GROUP BY pm.lead_id`,
         [payment_master_id]
@@ -419,7 +417,6 @@ const PaymentModel = {
                                       invoice_date,
                                       amount,
                                       convenience_fees,
-                                      balance_amount,
                                       paymode_id,
                                       payment_screenshot,
                                       payment_status,
@@ -427,14 +424,13 @@ const PaymentModel = {
                                       created_date,
                                       paid_date
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         payment_master_id,
         invoiceNo,
         invoice_date,
         paid_amount,
         convenience_fees,
-        balance_amount,
         paymode_id,
         payment_screenshot,
         payment_status,
@@ -451,7 +447,7 @@ const PaymentModel = {
     }
   },
 
-  paymentReject: async (payment_trans_id, rejected_date) => {
+  paymentReject: async (payment_trans_id, rejected_date, reason) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM payment_trans WHERE id = ?`,
@@ -459,9 +455,90 @@ const PaymentModel = {
       );
       if (isIdExists.length <= 0) throw new Error("Invalid payment Id");
       const [result] = await pool.query(
-        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ? WHERE id = ?`,
-        [rejected_date, payment_trans_id]
+        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ? WHERE id = ?`,
+        [rejected_date, reason, payment_trans_id]
       );
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updatePayment: async (
+    invoice_date,
+    amount,
+    convenience_fees,
+    paymode_id,
+    payment_screenshot,
+    paid_date,
+    next_due_date,
+    payment_trans_id
+  ) => {
+    try {
+      const sql = `UPDATE
+                      payment_trans
+                  SET
+                      invoice_date = ?,
+                      amount = ?,
+                      convenience_fees = ?,
+                      paymode_id = ?,
+                      payment_screenshot = ?,
+                      payment_status = "Verify Pending",
+                      paid_date = ?,
+                      next_due_date = ?
+                  WHERE
+                      id = ?`;
+
+      const values = [
+        invoice_date,
+        amount,
+        convenience_fees,
+        paymode_id,
+        payment_screenshot,
+        paid_date,
+        next_due_date,
+        payment_trans_id,
+      ];
+
+      // Update payment details
+      const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updatePaymentMaster: async (
+    tax_type,
+    gst_percentage,
+    gst_amount,
+    total_amount,
+    payment_master_id
+  ) => {
+    try {
+      const [isIdExists] = await pool.query(
+        `SELECT id FROM payment_master WHERE id = ?`,
+        [payment_master_id]
+      );
+      if (isIdExists.length <= 0) throw new Error("Invalid Id");
+      const sql = `UPDATE
+                      payment_master
+                  SET
+                      tax_type = ?,
+                      gst_percentage = ?,
+                      gst_amount = ?,
+                      total_amount = ?
+                  WHERE
+                      id = ?`;
+      const values = [
+        tax_type,
+        gst_percentage,
+        gst_amount,
+        total_amount,
+        payment_master_id,
+      ];
+
+      const [result] = await pool.query(sql, values);
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
