@@ -44,13 +44,20 @@ const CommonModel = {
       if (isExists.length > 0)
         throw new Error("Certificates has already been generated");
 
-      // Generate the unique numbers
-      const regNumber = await getNextUniqueNumber("REG");
-      // You can generate the cert number now, or later when the certificate is awarded
-      const certNumber = await getNextUniqueNumber("CERT");
+      const [getLocation] = await pool.query(
+        `SELECT c.region_id, r.name AS region_name FROM customers AS c INNER JOIN region AS r ON c.region_id = r.id WHERE c.id = ?`,
+        [customer_id]
+      );
 
-      const sql = `INSERT INTO certificates (customer_id, register_number, certificate_number) VALUES (?, ?, ?)`;
-      const values = [customer_id, regNumber, certNumber];
+      const location = getLocation[0].region_name.substring(0, 3).toUpperCase();
+
+      // Generate the unique numbers
+      // const regNumber = await getNextUniqueNumber("REG", location);
+      // You can generate the cert number now, or later when the certificate is awarded
+      const certNumber = await getNextUniqueNumber("CERT", location);
+
+      const sql = `INSERT INTO certificates (customer_id, certificate_number) VALUES (?, ?)`;
+      const values = [customer_id, certNumber];
 
       const [result] = await pool.query(sql, values);
       return result.affectedRows;
@@ -60,10 +67,10 @@ const CommonModel = {
   },
 };
 
-async function getNextUniqueNumber(sequenceType) {
+async function getNextUniqueNumber(sequenceType, location) {
   // 1. Validate input
-  if (!["REG", "CERT"].includes(sequenceType)) {
-    throw new Error('sequenceType must be either "REG" or "CERT"');
+  if (!["CERT"].includes(sequenceType)) {
+    throw new Error('SequenceType must be "CERT"');
   }
 
   // 2. Calculate the Year-Month code (YYMM)
@@ -92,9 +99,9 @@ async function getNextUniqueNumber(sequenceType) {
 
   const newSequence = rows[0].last_sequence;
 
-  // 5. Format the final number: REG250900001
+  // 5. Format the final number: 0005BAN2509
   const paddedSequence = newSequence.toString().padStart(5, "0");
-  const uniqueNumber = `${sequenceType}${yearMonth}${paddedSequence}`;
+  const uniqueNumber = `${paddedSequence}${location}${yearMonth}`;
 
   return uniqueNumber;
 }
