@@ -400,7 +400,7 @@ const PaymentModel = {
     try {
       // Check whether the previous payment is still pending stage
       const [isPaymentCheck] = await pool.query(
-        `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status IN ('Verify Pending', 'Rejected')`,
+        `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status IN ('Verify Pending', 'Rejected') AND payment_master_id = ?`,
         [payment_master_id]
       );
       if (isPaymentCheck[0].pending_count > 0)
