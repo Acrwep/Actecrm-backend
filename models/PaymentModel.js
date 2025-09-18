@@ -460,7 +460,7 @@ const PaymentModel = {
       );
       if (isIdExists.length <= 0) throw new Error("Invalid payment Id");
       const [result] = await pool.query(
-        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ? WHERE id = ?`,
+        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ?, is_second_due = 0 WHERE id = ?`,
         [rejected_date, reason, payment_trans_id]
       );
       return result.affectedRows;
