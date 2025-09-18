@@ -102,6 +102,7 @@ const CustomerModel = {
                             c.date_of_birth,
                             c.gender,
                             c.date_of_joining,
+                            c.is_certificate_generated,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,
@@ -148,7 +149,12 @@ const CustomerModel = {
                             c.course_completion_date,
                             c.review_updated_date,
                             r.name AS region_name,
-                            r.id AS region_id
+                            r.id AS region_id,
+                            cer.customer_name AS cer_customer_name,
+                            cer.course_name AS cer_course_name,
+                            cer.course_duration AS cer_course_duration,
+                            cer.course_completion_month AS cer_course_completion_month,
+                            cer.certificate_number
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -174,6 +180,8 @@ const CustomerModel = {
                         	tr.id = map.trainer_id
                         LEFT JOIN class_schedule AS cs ON
                           c.class_schedule_id = cs.id
+                        LEFT JOIN certificates AS cer ON
+                          cer.customer_id = c.id
                         WHERE 1 = 1`;
 
       if (from_date && to_date) {
@@ -279,6 +287,7 @@ const CustomerModel = {
                             c.date_of_birth,
                             c.gender,
                             c.date_of_joining,
+                            c.is_certificate_generated,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,
@@ -325,7 +334,12 @@ const CustomerModel = {
                             c.course_completion_date,
                             c.review_updated_date,
                             r.name AS region_name,
-                            r.id AS region_id
+                            r.id AS region_id,
+                            cer.customer_name AS cer_customer_name,
+                            cer.course_name AS cer_course_name,
+                            cer.course_duration AS cer_course_duration,
+                            cer.course_completion_month AS cer_course_completion_month,
+                            cer.certificate_number
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -351,6 +365,8 @@ const CustomerModel = {
                         	tr.id = map.trainer_id
                         LEFT JOIN class_schedule AS cs ON
                           c.class_schedule_id = cs.id
+                        LEFT JOIN certificates AS cer ON
+                          cer.customer_id = c.id
                         WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);

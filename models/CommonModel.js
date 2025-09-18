@@ -1,5 +1,4 @@
 const pool = require("../config/dbconfig");
-const fetch = require("node-fetch");
 
 const CommonModel = {
   getPaymentHistory: async (lead_id) => {
@@ -34,7 +33,13 @@ const CommonModel = {
     }
   },
 
-  generateCertificate: async (customer_id) => {
+  generateCertificate: async (
+    customer_id,
+    customer_name,
+    course_name,
+    course_duration,
+    course_completion_month
+  ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM certificates WHERE customer_id = ?`,
@@ -51,16 +56,34 @@ const CommonModel = {
 
       const location = getLocation[0].region_name.substring(0, 3).toUpperCase();
 
+      let affectedRows = 0;
+
       // Generate the unique numbers
       // const regNumber = await getNextUniqueNumber("REG", location);
       // You can generate the cert number now, or later when the certificate is awarded
       const certNumber = await getNextUniqueNumber("CERT", location);
 
-      const sql = `INSERT INTO certificates (customer_id, certificate_number) VALUES (?, ?)`;
-      const values = [customer_id, certNumber];
+      const sql = `INSERT INTO certificates (customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number) VALUES (?, ?, ?, ?, ?, ?)`;
+      const values = [
+        customer_id,
+        customer_name,
+        course_name,
+        course_duration,
+        course_completion_month,
+        certNumber,
+      ];
 
       const [result] = await pool.query(sql, values);
-      return result.affectedRows;
+
+      affectedRows += result.affectedRows;
+
+      const [updateCustomer] = await pool.query(
+        `UPDATE customers SET is_certificate_generated = 1 WHERE id = ?`,
+        [customer_id]
+      );
+
+      affectedRows += updateCustomer.affectedRows;
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

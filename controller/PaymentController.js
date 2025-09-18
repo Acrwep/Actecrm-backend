@@ -33,6 +33,8 @@ const createPayment = async (request, response) => {
     next_due_date,
     paid_date,
     updated_by,
+    batch_timing_id,
+    palcement_support,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -50,7 +52,9 @@ const createPayment = async (request, response) => {
       created_date,
       next_due_date,
       paid_date,
-      updated_by
+      updated_by,
+      batch_timing_id,
+      palcement_support
     );
     return response.status(201).send({
       messages: "Payment successfull",

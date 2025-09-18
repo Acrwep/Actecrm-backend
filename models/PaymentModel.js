@@ -28,7 +28,9 @@ const PaymentModel = {
     created_date,
     next_due_date,
     paid_date,
-    updated_by
+    updated_by,
+    batch_timing_id,
+    palcement_support
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -92,7 +94,7 @@ const PaymentModel = {
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, palcement_support) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -104,6 +106,8 @@ const PaymentModel = {
         created_date,
         getCustomer[0].region_id,
         getCustomer[0].branch_id,
+        batch_timing_id,
+        palcement_support,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
@@ -396,7 +400,7 @@ const PaymentModel = {
     try {
       // Check whether the previous payment is still pending stage
       const [isPaymentCheck] = await pool.query(
-        `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status = 'Verify Pending' AND is_rejected = 0`,
+        `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status IN ('Verify Pending', 'Rejected')`,
         [payment_master_id]
       );
       if (isPaymentCheck[0].pending_count > 0)

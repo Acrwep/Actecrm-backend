@@ -326,9 +326,21 @@ const insertCusTrack = async (request, response) => {
 };
 
 const generateCertificate = async (request, response) => {
-  const { customer_id } = request.body;
+  const {
+    customer_id,
+    customer_name,
+    course_name,
+    course_duration,
+    course_completion_month,
+  } = request.body;
   try {
-    const result = await CommonModel.generateCertificate(customer_id);
+    const result = await CommonModel.generateCertificate(
+      customer_id,
+      customer_name,
+      course_name,
+      course_duration,
+      course_completion_month
+    );
     return response.status(201).send({
       message: "Inserted successfully",
       data: result,
