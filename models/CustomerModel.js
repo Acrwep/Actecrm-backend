@@ -203,7 +203,7 @@ const CustomerModel = {
       }
 
       if (status === "Others") {
-        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Class')`;
       }
 
       if (name) {
@@ -245,6 +245,11 @@ const CustomerModel = {
             `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
             [item.trainer_id]
           );
+
+          const [getIsSecond] = await pool.query(
+            `SELECT pt.is_second_due FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? ORDER BY pt.id DESC LIMIT 1`,
+            item.lead_id
+          );
           return {
             ...item,
             balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
@@ -255,6 +260,7 @@ const CustomerModel = {
             ongoing_student_count: student_count[0]?.on_going_student ?? 0,
             completed_student_count:
               student_count[0]?.completed_student_count ?? 0,
+            is_second_due: getIsSecond[0].is_second_due,
           };
         })
       );

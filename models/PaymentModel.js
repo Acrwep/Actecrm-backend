@@ -426,9 +426,10 @@ const PaymentModel = {
                                       payment_status,
                                       next_due_date,
                                       created_date,
-                                      paid_date
+                                      paid_date,
+                                      is_second_due
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`;
       const transValues = [
         payment_master_id,
         invoiceNo,
