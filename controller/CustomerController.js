@@ -353,6 +353,22 @@ const generateCertificate = async (request, response) => {
   }
 };
 
+const getCertificate = async (request, response) => {
+  const { customer_id } = request.query;
+  try {
+    const result = await CommonModel.getCertificate(customer_id);
+    return response.status(200).send({
+      message: "Certificate fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching certificate",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -368,4 +384,5 @@ module.exports = {
   updateReview,
   insertCusTrack,
   generateCertificate,
+  getCertificate,
 };

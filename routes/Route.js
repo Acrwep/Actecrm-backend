@@ -114,4 +114,5 @@ router.post(
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
 router.post("/addTechnologies", verifyToken, TrainerController.addTechnologies);
+router.get("/getCertificate", verifyToken, CustomerController.getCertificate);
 module.exports = router;
