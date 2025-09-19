@@ -30,7 +30,9 @@ const PaymentModel = {
     paid_date,
     updated_by,
     batch_timing_id,
-    palcement_support
+    palcement_support,
+    batch_track_id,
+    enrolled_course
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -94,7 +96,7 @@ const PaymentModel = {
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, palcement_support) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, palcement_support, enrolled_course, batch_track_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -108,6 +110,8 @@ const PaymentModel = {
         getCustomer[0].branch_id,
         batch_timing_id,
         palcement_support,
+        enrolled_course,
+        batch_track_id,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
@@ -460,7 +464,7 @@ const PaymentModel = {
       );
       if (isIdExists.length <= 0) throw new Error("Invalid payment Id");
       const [result] = await pool.query(
-        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ?, is_second_due = 0 WHERE id = ?`,
+        `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ?, is_second_due = 0, is_last_pay_rejected = 1 WHERE id = ?`,
         [rejected_date, reason, payment_trans_id]
       );
       return result.affectedRows;

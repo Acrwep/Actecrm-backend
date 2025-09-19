@@ -35,6 +35,8 @@ const createPayment = async (request, response) => {
     updated_by,
     batch_timing_id,
     palcement_support,
+    batch_track_id,
+    enrolled_course,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -54,7 +56,9 @@ const createPayment = async (request, response) => {
       paid_date,
       updated_by,
       batch_timing_id,
-      palcement_support
+      palcement_support,
+      batch_track_id,
+      enrolled_course
     );
     return response.status(201).send({
       messages: "Payment successfull",
