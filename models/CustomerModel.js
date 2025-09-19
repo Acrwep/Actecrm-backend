@@ -247,7 +247,7 @@ const CustomerModel = {
           );
 
           const [getIsSecond] = await pool.query(
-            `SELECT pt.is_second_due FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? ORDER BY pt.id DESC LIMIT 1`,
+            `SELECT pt.is_second_due, pt.is_last_pay_rejected FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? ORDER BY pt.id DESC LIMIT 1`,
             item.lead_id
           );
           return {
@@ -261,6 +261,7 @@ const CustomerModel = {
             completed_student_count:
               student_count[0]?.completed_student_count ?? 0,
             is_second_due: getIsSecond[0].is_second_due,
+            is_last_pay_rejected: getIsSecond[0].is_last_pay_rejected,
           };
         })
       );

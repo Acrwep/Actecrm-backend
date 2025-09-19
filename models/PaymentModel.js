@@ -484,7 +484,16 @@ const PaymentModel = {
     payment_trans_id
   ) => {
     try {
-      const sql = `UPDATE
+      const [isIdExists] = await pool.query(
+        `SELECT payment_master_id FROM payment_trans WHERE id = ?`,
+        [payment_trans_id]
+      );
+      if (isIdExists.length <= 0) throw new Error("Invalid Id");
+      const [getCount] = await pool.query(
+        `SELECT COUNT(id) AS payment_count FROM payment_trans WHERE payment_master_id = ?`,
+        [isIdExists[0].payment_master_id]
+      );
+      let sql = `UPDATE
                       payment_trans
                   SET
                       invoice_date = ?,
@@ -494,9 +503,15 @@ const PaymentModel = {
                       payment_screenshot = ?,
                       payment_status = "Verify Pending",
                       paid_date = ?,
-                      next_due_date = ?
-                  WHERE
-                      id = ?`;
+                      next_due_date = ?,
+                      is_last_pay_rejected = 0`;
+
+      sql +=
+        getCount[0].payment_count > 1
+          ? `, is_second_due = 1`
+          : `, is_second_due = 0`;
+
+      sql += ` WHERE id = ?`;
 
       const values = [
         invoice_date,
