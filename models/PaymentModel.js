@@ -267,12 +267,21 @@ const PaymentModel = {
                     LEFT JOIN region AS r ON
                         r.id = c.region_id
                     INNER JOIN (
-                      SELECT pt.payment_master_id, SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
-                        (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
-                        MAX(pt.next_due_date) AS next_due_date
-                        FROM payment_trans AS pt
-                        INNER JOIN payment_master AS pm	ON pt.payment_master_id = pm.id
-                        GROUP BY pt.payment_master_id, pm.total_amount
+                      SELECT 
+                          pt.payment_master_id,
+                          SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
+                          (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
+                          (
+                              SELECT p2.next_due_date
+                              FROM payment_trans p2
+                              WHERE p2.payment_master_id = pt.payment_master_id
+                                AND p2.payment_status = 'Verified'
+                              ORDER BY p2.id DESC
+                              LIMIT 1
+                          ) AS next_due_date
+                      FROM payment_trans AS pt
+                      INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id
+                      GROUP BY pt.payment_master_id, pm.total_amount
                     ) AS payment_summary ON payment_summary.payment_master_id = pm.id
                     WHERE payment_summary.balance_amount > 0`;
 
