@@ -271,9 +271,19 @@ const CustomerModel = {
         [from_date, to_date]
       );
 
+      const [paymentStatus] = await pool.query(
+        `SELECT COUNT(id) awaiting_finance FROM payment_trans WHERE is_second_due = 1 AND payment_status = 'Verify Pending'`
+      );
+
+      const cusStatusCount = {
+        ...getStatus[0],
+        awaiting_finance:
+          getStatus[0].awaiting_finance + paymentStatus[0].awaiting_finance,
+      };
+
       return {
         customers: res,
-        customer_status_count: getStatus[0],
+        customer_status_count: cusStatusCount,
       };
     } catch (error) {
       throw new Error(error.message);
