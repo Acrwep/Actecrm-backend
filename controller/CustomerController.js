@@ -19,7 +19,7 @@ const updateCustomer = async (request, response) => {
     current_location,
     signature_image,
     profile_image,
-    palcement_support,
+    placement_support,
     id,
     region_id,
   } = request.body;
@@ -41,7 +41,7 @@ const updateCustomer = async (request, response) => {
       current_location,
       signature_image,
       profile_image,
-      palcement_support,
+      placement_support,
       id
     );
     return response.status(200).send({

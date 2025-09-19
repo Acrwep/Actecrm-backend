@@ -19,7 +19,7 @@ const CustomerModel = {
     current_location,
     signature_image,
     profile_image,
-    palcement_support,
+    placement_support,
     id
   ) => {
     try {
@@ -67,7 +67,7 @@ const CustomerModel = {
         current_location,
         signature_image,
         profile_image,
-        palcement_support,
+        placement_support,
         region_id,
         id,
       ];
