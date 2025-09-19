@@ -30,7 +30,7 @@ const PaymentModel = {
     paid_date,
     updated_by,
     batch_timing_id,
-    palcement_support,
+    placement_support,
     batch_track_id,
     enrolled_course
   ) => {
@@ -96,7 +96,7 @@ const PaymentModel = {
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, palcement_support, enrolled_course, batch_track_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -109,7 +109,7 @@ const PaymentModel = {
         getCustomer[0].region_id,
         getCustomer[0].branch_id,
         batch_timing_id,
-        palcement_support,
+        placement_support,
         enrolled_course,
         batch_track_id,
       ];

@@ -34,7 +34,7 @@ const createPayment = async (request, response) => {
     paid_date,
     updated_by,
     batch_timing_id,
-    palcement_support,
+    placement_support,
     batch_track_id,
     enrolled_course,
   } = request.body;
@@ -56,7 +56,7 @@ const createPayment = async (request, response) => {
       paid_date,
       updated_by,
       batch_timing_id,
-      palcement_support,
+      placement_support,
       batch_track_id,
       enrolled_course
     );
