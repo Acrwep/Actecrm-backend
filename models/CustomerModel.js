@@ -183,12 +183,6 @@ const CustomerModel = {
                           c.class_schedule_id = cs.id
                         LEFT JOIN certificates AS cer ON
                           cer.customer_id = c.id
-                        LEFT JOIN (
-                            SELECT pm.lead_id, MAX(pt.is_second_due) as has_second_due
-                            FROM payment_master pm 
-                            LEFT JOIN payment_trans pt ON pm.id = pt.payment_master_id
-                            GROUP BY pm.lead_id
-                        ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       if (from_date && to_date) {
@@ -197,11 +191,8 @@ const CustomerModel = {
       }
 
       if (status && status.length > 0) {
-        if (status === "Awaiting Finance") {
-          // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
-          queryParams.push(status);
-        } else if (Array.isArray(status)) {
+        // If status is an array
+        if (Array.isArray(status)) {
           const placeholders = status.map(() => "?").join(", ");
           getQuery += ` AND c.status IN (${placeholders})`;
           queryParams.push(...status);
