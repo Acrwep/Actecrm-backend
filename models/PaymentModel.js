@@ -302,6 +302,7 @@ const PaymentModel = {
                             FROM payment_trans AS pt
                             INNER JOIN payment_master AS pm 
                                 ON pt.payment_master_id = pm.id
+                            WHERE pt.payment_status = 'Verified'
                             GROUP BY pt.payment_master_id, pm.total_amount
                         ) AS payment_summary 
                             ON payment_summary.payment_master_id = pm.id
