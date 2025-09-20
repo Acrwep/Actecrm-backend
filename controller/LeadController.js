@@ -317,6 +317,37 @@ const getRegion = async (request, response) => {
   }
 };
 
+const getAreas = async (request, response) => {
+  try {
+    const result = await LeadModel.getAreas();
+    return response.status(200).send({
+      message: "Areas fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching areas",
+      details: error.message,
+    });
+  }
+};
+
+const insertArea = async (request, response) => {
+  const { area_name } = request.body;
+  try {
+    const result = await LeadModel.insertArea(area_name);
+    return response.status(201).send({
+      message: "Area inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting area",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -331,4 +362,6 @@ module.exports = {
   getLeadCount,
   getRegion,
   getLeadAction,
+  getAreas,
+  insertArea,
 };

@@ -115,4 +115,6 @@ router.post(
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
 router.post("/addTechnologies", verifyToken, TrainerController.addTechnologies);
 router.get("/getCertificate", verifyToken, CustomerController.getCertificate);
+router.get("/getAreas", LeadController.getAreas);
+router.post("/insertArea", LeadController.insertArea);
 module.exports = router;

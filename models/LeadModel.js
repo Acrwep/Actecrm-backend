@@ -577,6 +577,38 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  getAreas: async () => {
+    try {
+      const [areas] = await pool.query(
+        `SELECT id, name FROM areas WHERE is_active = 1`
+      );
+      return areas;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  insertArea: async (area_name) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM areas WHERE name = ? AND is_active = 1`,
+        [area_name]
+      );
+
+      console.log("length", isExists.length);
+
+      if (isExists.length > 0)
+        throw new Error("Area already exists in the database");
+
+      const [result] = await pool.query(`INSERT INTO areas(name) VALUES (?)`, [
+        area_name,
+      ]);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;
