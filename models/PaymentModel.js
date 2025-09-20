@@ -175,150 +175,178 @@ const PaymentModel = {
   ) => {
     try {
       const queryParams = [];
-      let getQuery = `SELECT
-                        c.id,
-                        c.lead_id,
-                        c.name,
-                        c.student_id,
-                        c.email,
-                        c.phonecode,
-                        c.phone,
-                        c.whatsapp,
-                        c.date_of_birth,
-                        c.gender,
-                        c.date_of_joining,
-                        c.enrolled_course,
-                        t.name AS course_name,
-                        c.branch_id,
-                        b.name AS branch_name,
-                        c.batch_track_id,
-                        bt.name AS batch_tracking,
-                        c.batch_timing_id,
-                        bs.name AS batch_timing,
-                        c.current_location,
-                        c.signature_image,
-                        c.profile_image,
-                        c.placement_support,
-                        c.status,
-                        c.is_form_sent,
-                        c.is_customer_updated,
-                        c.is_server_required,
-                        c.class_start_date,
-                        c.created_date,
-                        lm.user_id AS lead_by_id,
-                        u.user_name AS lead_by,
-                        tr.name AS trainer_name,
-                        tr.mobile AS trainer_mobile,
-                        tr.email AS trainer_email,
-                        tm.id AS trainer_map_id,
-                        tm.trainer_id,
-                        tm.commercial,
-                        tm.mode_of_class,
-                        tm.trainer_type,
-                        tm.proof_communication,
-                        tm.comments,
-                        tm.is_verified AS is_trainer_verified,
-                        tm.verified_date AS trainer_verified_date,
-                        tm.is_rejected AS is_trainer_rejected,
-                        tm.rejected_date AS trainer_rejected_date,
-                        c.class_schedule_id,
-                        cs.name AS class_schedule_name,
-                        c.class_scheduled_at,
-                        c.class_percentage,
-                        c.class_comments,
-                        c.class_attachment,
-                        c.linkedin_review,
-                        c.google_review,
-                        c.course_duration,
-                        c.course_completion_date,
-                        c.review_updated_date,
-                        r.name AS region_name,
-                        r.id AS region_id,
-                        pm.id AS payment_master_id,
-                        pm.tax_type,
-                        pm.gst_percentage,
-                        pm.gst_amount,
-                        lm.primary_fees AS course_fees,
-                        pm.total_amount,
-                        payment_summary.paid_amount,
-                        payment_summary.balance_amount,
-                      payment_summary.next_due_date
-                    FROM
-                        customers AS c
-                    INNER JOIN payment_master AS pm ON
-                        pm.lead_id = c.lead_id
-                    LEFT JOIN branches AS b ON
-                        b.id = c.branch_id
-                    LEFT JOIN batch_track AS bt ON
-                        bt.id = c.batch_track_id
-                    LEFT JOIN batches AS bs ON
-                        bs.id = c.batch_timing_id
-                    INNER JOIN lead_master AS lm ON
-                        c.lead_id = lm.id
-                    INNER JOIN users AS u ON
-                        lm.user_id = u.user_id
-                    LEFT JOIN payment_trans AS pt ON
-                        pm.id = pt.payment_master_id
-                    LEFT JOIN technologies AS t ON
-                        c.enrolled_course = t.id
-                    LEFT JOIN trainer_mapping AS tm ON
-                        c.id = tm.customer_id AND tm.is_rejected = 0
-                    LEFT JOIN trainer AS tr ON
-                        tm.trainer_id = tr.id
-                    LEFT JOIN class_schedule AS cs ON
-                        cs.id = c.class_schedule_id
-                    LEFT JOIN region AS r ON
-                        r.id = c.region_id
-                    INNER JOIN (
-                      SELECT 
-                          pt.payment_master_id,
-                          SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
-                          (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
-                          (
-                              SELECT p2.next_due_date
-                              FROM payment_trans p2
-                              WHERE p2.payment_master_id = pt.payment_master_id
-                                AND p2.payment_status = 'Verified'
-                              ORDER BY p2.id DESC
-                              LIMIT 1
-                          ) AS next_due_date
-                      FROM payment_trans AS pt
-                      INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id
-                      GROUP BY pt.payment_master_id, pm.total_amount
-                    ) AS payment_summary ON payment_summary.payment_master_id = pm.id
-                    WHERE payment_summary.balance_amount > 0`;
+      let getQuery = `
+                        SELECT
+                            c.id,
+                            c.lead_id,
+                            c.name,
+                            c.student_id,
+                            c.email,
+                            c.phonecode,
+                            c.phone,
+                            c.whatsapp,
+                            c.date_of_birth,
+                            c.gender,
+                            c.date_of_joining,
+                            c.enrolled_course,
+                            t.name AS course_name,
+                            c.branch_id,
+                            b.name AS branch_name,
+                            c.batch_track_id,
+                            bt.name AS batch_tracking,
+                            c.batch_timing_id,
+                            bs.name AS batch_timing,
+                            c.current_location,
+                            c.signature_image,
+                            c.profile_image,
+                            c.placement_support,
+                            c.status,
+                            c.is_form_sent,
+                            c.is_customer_updated,
+                            c.is_server_required,
+                            c.class_start_date,
+                            c.created_date,
+                            lm.user_id AS lead_by_id,
+                            u.user_name AS lead_by,
+                            tr.name AS trainer_name,
+                            tr.mobile AS trainer_mobile,
+                            tr.email AS trainer_email,
+                            tm.id AS trainer_map_id,
+                            tm.trainer_id,
+                            tm.commercial,
+                            tm.mode_of_class,
+                            tm.trainer_type,
+                            tm.proof_communication,
+                            tm.comments,
+                            tm.is_verified AS is_trainer_verified,
+                            tm.verified_date AS trainer_verified_date,
+                            tm.is_rejected AS is_trainer_rejected,
+                            tm.rejected_date AS trainer_rejected_date,
+                            c.class_schedule_id,
+                            cs.name AS class_schedule_name,
+                            c.class_scheduled_at,
+                            c.class_percentage,
+                            c.class_comments,
+                            c.class_attachment,
+                            c.linkedin_review,
+                            c.google_review,
+                            c.course_duration,
+                            c.course_completion_date,
+                            c.review_updated_date,
+                            r.name AS region_name,
+                            r.id AS region_id,
+                            pm.id AS payment_master_id,
+                            pm.tax_type,
+                            pm.gst_percentage,
+                            pm.gst_amount,
+                            lm.primary_fees AS course_fees,
+                            pm.total_amount,
+                            payment_summary.paid_amount,
+                            payment_summary.balance_amount,
+                            IFNULL(payment_summary.next_due_date, '') AS next_due_date,
+                            IFNULL(payment_summary.is_second_due, 0) AS is_second_due,
+                            IFNULL(payment_summary.is_last_pay_rejected, 0) AS is_last_pay_rejected
+                        FROM
+                            customers AS c
+                        INNER JOIN payment_master AS pm 
+                            ON pm.lead_id = c.lead_id
+                        LEFT JOIN branches AS b 
+                            ON b.id = c.branch_id
+                        LEFT JOIN batch_track AS bt 
+                            ON bt.id = c.batch_track_id
+                        LEFT JOIN batches AS bs 
+                            ON bs.id = c.batch_timing_id
+                        INNER JOIN lead_master AS lm 
+                            ON c.lead_id = lm.id
+                        INNER JOIN users AS u 
+                            ON lm.user_id = u.user_id
+                        LEFT JOIN technologies AS t 
+                            ON c.enrolled_course = t.id
+                        LEFT JOIN trainer_mapping AS tm 
+                            ON c.id = tm.customer_id AND tm.is_rejected = 0
+                        LEFT JOIN trainer AS tr 
+                            ON tm.trainer_id = tr.id
+                        LEFT JOIN class_schedule AS cs 
+                            ON cs.id = c.class_schedule_id
+                        LEFT JOIN region AS r 
+                            ON r.id = c.region_id
+                        INNER JOIN (
+                            SELECT 
+                                pt.payment_master_id,
+                                SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
+                                (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
+                                (
+                                    SELECT p2.next_due_date
+                                    FROM payment_trans p2
+                                    WHERE p2.payment_master_id = pt.payment_master_id
+                                      AND p2.payment_status = 'Verified'
+                                    ORDER BY p2.id DESC
+                                    LIMIT 1
+                                ) AS next_due_date,
+                                (
+                                  SELECT p2.is_second_due
+                                  FROM payment_trans p2
+                                  WHERE p2.payment_master_id = pt.payment_master_id
+                                    AND p2.payment_status = 'Verified'
+                                  ORDER BY p2.id DESC
+                                  LIMIT 1
+                                ) AS is_second_due,
+                                (
+                                  SELECT p2.is_last_pay_rejected
+                                  FROM payment_trans p2
+                                  WHERE p2.payment_master_id = pt.payment_master_id
+                                    AND p2.payment_status = 'Verified'
+                                  ORDER BY p2.id DESC
+                                  LIMIT 1
+                                ) AS is_last_pay_rejected
+                            FROM payment_trans AS pt
+                            INNER JOIN payment_master AS pm 
+                                ON pt.payment_master_id = pm.id
+                            GROUP BY pt.payment_master_id, pm.total_amount
+                        ) AS payment_summary 
+                            ON payment_summary.payment_master_id = pm.id
+                        WHERE payment_summary.balance_amount > 0
+                      `;
 
+      // Date filter
       if (from_date && to_date) {
-        getQuery += ` AND CAST(pt.next_due_date AS DATE) BETWEEN ? AND ?`;
+        getQuery += ` AND CAST(payment_summary.next_due_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
       }
 
+      // Urgent due condition
       if (urgent_due === "Urgent Due") {
         getQuery += ` AND c.class_percentage >= 30`;
       }
 
+      // Name filter
       if (name) {
         getQuery += ` AND c.name LIKE ?`;
         queryParams.push(`%${name}%`);
       }
 
+      // Email filter
       if (email) {
         getQuery += ` AND c.email LIKE ?`;
         queryParams.push(`%${email}%`);
       }
 
+      // Mobile filter
       if (mobile) {
         getQuery += ` AND c.phone LIKE ?`;
         queryParams.push(`%${mobile}%`);
       }
 
+      // Course filter
       if (course) {
         getQuery += ` AND t.name LIKE ?`;
         queryParams.push(`%${course}%`);
       }
 
+      // Run query
       const [result] = await pool.query(getQuery, queryParams);
 
+      // Add payment history
       const formattedResult = await Promise.all(
         result.map(async (item) => {
           return {
@@ -327,12 +355,12 @@ const PaymentModel = {
           };
         })
       );
+
       return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
   },
-
   getPendingFeesCount: async (from_date, to_date) => {
     try {
       const [getOverall] = await pool.query(
