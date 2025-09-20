@@ -103,6 +103,7 @@ const CustomerModel = {
                             c.gender,
                             c.date_of_joining,
                             c.is_certificate_generated,
+                            c.is_server_required,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,
@@ -182,10 +183,12 @@ const CustomerModel = {
                           c.class_schedule_id = cs.id
                         LEFT JOIN certificates AS cer ON
                           cer.customer_id = c.id
-                        LEFT JOIN payment_master AS pm ON
-                          pm.lead_id = c.lead_id
-                        LEFT JOIN payment_trans AS pt ON
-                          pt.payment_master_id = pm.id
+                        LEFT JOIN (
+                            SELECT pm.lead_id, MAX(pt.is_second_due) as has_second_due
+                            FROM payment_master pm 
+                            LEFT JOIN payment_trans pt ON pm.id = pt.payment_master_id
+                            GROUP BY pm.lead_id
+                        ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       if (from_date && to_date) {
@@ -196,7 +199,7 @@ const CustomerModel = {
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR pt.is_second_due = 1)`;
+          getQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
           queryParams.push(status);
         } else if (Array.isArray(status)) {
           const placeholders = status.map(() => "?").join(", ");
@@ -311,6 +314,7 @@ const CustomerModel = {
                             c.gender,
                             c.date_of_joining,
                             c.is_certificate_generated,
+                            c.is_server_required,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                             l.primary_fees,

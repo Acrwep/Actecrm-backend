@@ -32,7 +32,8 @@ const PaymentModel = {
     batch_timing_id,
     placement_support,
     batch_track_id,
-    enrolled_course
+    enrolled_course,
+    is_server_required
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -96,7 +97,7 @@ const PaymentModel = {
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -112,6 +113,7 @@ const PaymentModel = {
         placement_support,
         enrolled_course,
         batch_track_id,
+        is_server_required,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
