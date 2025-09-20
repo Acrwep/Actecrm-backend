@@ -262,7 +262,7 @@ const CommonModel = {
                               "
                             >
                               Given under our hand and Seal on<br />
-                              the month of ${result[0].course_completion_month}-2025<br />
+                              the month of ${result[0].course_completion_month}<br />
                               At Chennai, India
                             </p>
 
