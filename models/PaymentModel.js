@@ -202,6 +202,7 @@ const PaymentModel = {
                         c.status,
                         c.is_form_sent,
                         c.is_customer_updated,
+                        c.is_server_required,
                         c.class_start_date,
                         c.created_date,
                         lm.user_id AS lead_by_id,
