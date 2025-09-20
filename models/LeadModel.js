@@ -219,7 +219,8 @@ const LeadModel = {
                           l.email,
                           l.country,
                           l.state,
-                          l.district,
+                          l.district AS area_id,
+                          a.name AS district,
                           l.primary_course_id,
                           pt.name AS primary_course,
                           l.primary_fees,
@@ -256,6 +257,7 @@ const LeadModel = {
                       LEFT JOIN branches AS b ON b.id = l.branch_id
                       LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
                       LEFT JOIN customers AS c ON c.lead_id = l.id
+                      LEFT JOIN areas AS a ON a.id = l.district
                       LEFT JOIN (
                           SELECT 
                               lh1.lead_id,
@@ -309,7 +311,8 @@ const LeadModel = {
                       l.email,
                       l.country,
                       l.state,
-                      l.district,
+                      l.district AS area_id,
+                      a.name AS district,
                       l.primary_course_id,
                       pt.name AS primary_course,
                       l.primary_fees,
@@ -351,6 +354,8 @@ const LeadModel = {
                       b.id = l.branch_id
                   LEFT JOIN batch_track AS bt ON
                       bt.id = l.batch_track_id
+                  LEFT JOIN areas AS a ON
+                      a.id = l.district
                   WHERE
                       lf.is_updated = 0 `;
       if (date_type === "Today") {
