@@ -275,35 +275,31 @@ const PaymentModel = {
                                 pt.payment_master_id,
                                 SUM(pt.amount) AS paid_amount,
                                 (pm.total_amount - SUM(pt.amount)) AS balance_amount,
-                                (
-                                    SELECT p2.next_due_date
-                                    FROM payment_trans p2
-                                    WHERE p2.payment_master_id = pt.payment_master_id
-                                      AND p2.payment_status = 'Verified'
-                                    ORDER BY p2.id DESC
-                                    LIMIT 1
-                                ) AS next_due_date,
-                                (
-                                  SELECT p2.is_second_due
-                                  FROM payment_trans p2
-                                  WHERE p2.payment_master_id = pt.payment_master_id
-                                    AND p2.payment_status = 'Verified'
-                                  ORDER BY p2.id DESC
-                                  LIMIT 1
-                                ) AS is_second_due,
-                                (
-                                  SELECT p2.is_last_pay_rejected
-                                  FROM payment_trans p2
-                                  WHERE p2.payment_master_id = pt.payment_master_id
-                                    AND p2.payment_status = 'Verified'
-                                  ORDER BY p2.id DESC
-                                  LIMIT 1
-                                ) AS is_last_pay_rejected
+                                latest.next_due_date,
+                                latest.is_second_due,
+                                latest.is_last_pay_rejected
                             FROM payment_trans AS pt
                             INNER JOIN payment_master AS pm 
                                 ON pt.payment_master_id = pm.id
+                            INNER JOIN (
+                                SELECT p1.payment_master_id, 
+                                      p1.next_due_date,
+                                      p1.is_second_due,
+                                      p1.is_last_pay_rejected
+                                FROM payment_trans p1
+                                INNER JOIN (
+                                    SELECT payment_master_id, MAX(id) AS max_id
+                                    FROM payment_trans
+                                    WHERE payment_status = 'Verified'
+                                    GROUP BY payment_master_id
+                                ) p2 
+                                    ON p1.payment_master_id = p2.payment_master_id 
+                                  AND p1.id = p2.max_id
+                            ) AS latest
+                                ON pt.payment_master_id = latest.payment_master_id
                             WHERE pt.payment_status = 'Verified'
-                            GROUP BY pt.payment_master_id, pm.total_amount
+                            GROUP BY pt.payment_master_id, pm.total_amount,
+                                    latest.next_due_date, latest.is_second_due, latest.is_last_pay_rejected
                         ) AS payment_summary 
                             ON payment_summary.payment_master_id = pm.id
                         WHERE payment_summary.balance_amount > 0
