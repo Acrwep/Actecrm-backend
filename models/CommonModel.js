@@ -346,7 +346,7 @@ const CommonModel = {
                                   Registration No.: R08111111706037
                                 </td>
                                 <td align="right" style="font-size: 13px">
-                                  Certificate No.: 15CBZZZZZ8523
+                                  Certificate No.: ${result[0].certificate_number}
                                 </td>
                               </tr>
                             </table>

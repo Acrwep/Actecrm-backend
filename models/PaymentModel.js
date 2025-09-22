@@ -273,8 +273,8 @@ const PaymentModel = {
                         INNER JOIN (
                             SELECT 
                                 pt.payment_master_id,
-                                SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END) AS paid_amount,
-                                (pm.total_amount - SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END)) AS balance_amount,
+                                SUM(pt.amount) AS paid_amount,
+                                (pm.total_amount - SUM(pt.amount)) AS balance_amount,
                                 (
                                     SELECT p2.next_due_date
                                     FROM payment_trans p2
@@ -369,36 +369,50 @@ const PaymentModel = {
           FROM payment_master AS pm
           WHERE (
               pm.total_amount - (
-                  SELECT COALESCE(SUM(CASE WHEN pt_amount.payment_status = 'Verified' THEN pt_amount.amount ELSE 0 END), 0)
+                  SELECT COALESCE(SUM(pt_amount.amount), 0)
                   FROM payment_trans pt_amount
-                  WHERE pt_amount.payment_master_id = pm.id
+                  WHERE pt_amount.payment_master_id = pm.id 
+                    AND pt_amount.payment_status = 'Verified'
               )
           ) > 0
           AND EXISTS (
               SELECT 1
               FROM payment_trans pt_date
-              WHERE pt_date.payment_master_id = pm.id
+              WHERE pt_date.id = (
+                  SELECT MAX(p2.id)
+                  FROM payment_trans p2
+                  WHERE p2.payment_master_id = pm.id
+                    AND p2.payment_status = 'Verified'
+              )
               AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
-          )`,
+          );
+          `,
         [from_date, to_date]
       );
 
       const [getToday] =
-        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS todays_pending_count
+        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS overall_pending_count
                           FROM payment_master AS pm
                           WHERE (
                               pm.total_amount - (
-                                  SELECT COALESCE(SUM(CASE WHEN pt_amount.payment_status = 'Verified' THEN pt_amount.amount ELSE 0 END), 0)
+                                  SELECT COALESCE(SUM(pt_amount.amount), 0)
                                   FROM payment_trans pt_amount
-                                  WHERE pt_amount.payment_master_id = pm.id
+                                  WHERE pt_amount.payment_master_id = pm.id 
+                                    AND pt_amount.payment_status = 'Verified'
                               )
                           ) > 0
                           AND EXISTS (
                               SELECT 1
                               FROM payment_trans pt_date
-                              WHERE pt_date.payment_master_id = pm.id
+                              WHERE pt_date.id = (
+                                  SELECT MAX(p2.id)
+                                  FROM payment_trans p2
+                                  WHERE p2.payment_master_id = pm.id
+                                    AND p2.payment_status = 'Verified'
+                              )
                               AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
-                          )`);
+                          );
+                          `);
 
       const [getUrgentDue] = await pool.query(
         `SELECT COUNT(DISTINCT c.id) AS customer_count
@@ -407,9 +421,9 @@ const PaymentModel = {
           WHERE c.class_percentage >= 30
           AND (
               pm.total_amount - (
-                  SELECT COALESCE(SUM(CASE WHEN pt.payment_status = 'Verified' THEN pt.amount ELSE 0 END), 0)
+                  SELECT COALESCE(SUM(pt.amount), 0)
                   FROM payment_trans pt
-                  WHERE pt.payment_master_id = pm.id
+                  WHERE pt.payment_master_id = pm.id AND pt.payment_status = 'Verified'
               )
           ) > 0
           AND EXISTS (
@@ -417,6 +431,7 @@ const PaymentModel = {
               FROM payment_trans pt_date
               WHERE pt_date.payment_master_id = pm.id
               AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
+              AND pt_date.payment_status = 'Verified'
           )`,
         [from_date, to_date]
       );
