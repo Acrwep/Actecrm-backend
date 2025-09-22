@@ -136,10 +136,9 @@ const generateInvoicePdf = async (req, res) => {
 };
 
 const sendCourseCertificate = async (req, res) => {
+  const { email, customer_id } = req.body;
   try {
-    const result = await EmailModel.sendCourseCertificate(
-      "hublogfrontend@gmail.com"
-    );
+    const result = await EmailModel.sendCourseCertificate(email, customer_id);
 
     res.status(201).send({
       message: "Mail sent successfully with certificate",

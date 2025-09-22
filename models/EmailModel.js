@@ -660,7 +660,21 @@ const generateInvoicePdf = (
   });
 };
 
-const sendCourseCertificate = async (email) => {
+const sendCourseCertificate = async (email, customer_id) => {
+  const sql = `SELECT
+                      id,
+                      customer_id,
+                      customer_name,
+                      course_name,
+                      course_duration,
+                      course_completion_month,
+                      certificate_number,
+                      created_at
+                  FROM
+                      certificates
+                  WHERE
+                      customer_id = ?`;
+  const [result] = await pool.query(sql, [customer_id]);
   const pdfPath = path.join(process.cwd(), "certificate.pdf");
 
   // Helper to read image and convert to Base64
@@ -707,17 +721,25 @@ const sendCourseCertificate = async (email) => {
                           <h2 style="margin:5px 0 20px; font-size:22px; color:#0a4682; letter-spacing:2px;">TECHNOLOGIES</h2>
                           <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
                           <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
-                          <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">SUDARSAIN R</h3>
+                          <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">${
+                            result[0].customer_name
+                          }</h3>
                           <p style="margin:10px 0; font-size:18px; line-height:1.6;">
-                            During and After 2 months of Study on the Specified Curriculum<br />
+                            During and After ${
+                              result[0].course_duration
+                            } months of Study on the Specified Curriculum<br />
                             And having found the Candidate's Performance to be
                           </p>
                           <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
                           <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
-                          <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">SAP MM</h4>
+                          <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">${
+                            result[0].course_name
+                          }</h4>
                           <p style="margin:10px 0; font-size:18px; line-height:1.6;">
                             Given under our hand and Seal on<br />
-                            the month of August-2025<br />
+                            the month of ${
+                              result[0].course_completion_month
+                            }<br />
                             At Chennai, India
                           </p>
 
@@ -763,8 +785,9 @@ const sendCourseCertificate = async (email) => {
                           <!-- Footer -->
                           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
                             <tr>
-                              <td align="left" style="font-size:13px">Registration No.: R08111111706037</td>
-                              <td align="right" style="font-size:13px">Certificate No.: 15CBZZZZZ8523</td>
+                              <td align="right" style="font-size:13px">Certificate No.: ${
+                                result[0].certificate_number
+                              }</td>
                             </tr>
                           </table>
 

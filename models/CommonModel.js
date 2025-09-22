@@ -330,8 +330,9 @@ const CommonModel = {
                           <!-- Footer -->
                           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
                             <tr>
-                              <td align="left" style="font-size:13px">Registration No.: R08111111706037</td>
-                              <td align="right" style="font-size:13px">Certificate No.: 15CBZZZZZ8523</td>
+                              <td align="right" style="font-size:13px">Certificate No.: ${
+                                result[0].certificate_number
+                              }</td>
                             </tr>
                           </table>
 
