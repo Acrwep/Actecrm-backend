@@ -14,6 +14,141 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const sendWelcomeMail = async (email, name) => {
+  try {
+    // Check the email already exists
+    const [isEmailExists] = await pool.query(
+      `SELECT id, name FROM customers WHERE email = ?`,
+      [email]
+    );
+    if (isEmailExists.length <= 0) throw new Error("Email not exists");
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Welcome to ACTE",
+      text: `Click the below link to complete the registration.`,
+      html: `<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Welcome to ACTE</title>
+</head>
+
+<body
+    style="margin:0;padding:0;background-color:#f3f4f6;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;">
+    <!-- Preheader -->
+    <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">
+        Welcome to ACTE Technologies — your premium learning journey begins.
+    </div>
+
+    <!-- Outer wrapper -->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f3f4f6"
+        style="padding:8px 16px;">
+        <tr>
+            <td align="center">
+                <!-- Main container -->
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                    style="max-width:700px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;box-shadow:0 6px 30px rgba(0,0,0,0.1);overflow:hidden;">
+
+                    <!-- Header -->
+                      <tr>
+        <td style="padding: 24px 12px 12px 12px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px;">
+          <img src="cid:companyLogo" alt="Company Logo" width="110" style="display: block; margin: 0 auto;" />
+        </td>
+
+         <tr>
+  <td style="padding: 0 10px;">
+    <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
+  </td>
+</tr>
+
+        <tr>
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:12px 40px 48px 40px;background:#ffffff;">
+                            <h1
+                                style="color:#111827;margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
+                                Welcome to Your Learning Journey 🚀
+                            </h1>
+
+                            <p style="color:#4b5563;font-size:16px;margin:0 0 16px;">Dear ${name},</p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
+                                We’re delighted to welcome you to our premium learning community. Prepare yourself for a
+                                transformative journey filled with knowledge, skills, and growth. Our dedicated team is
+                                committed to guiding you every step of the way.
+                            </p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
+                                <strong style="color:#111827;">We're here to help!</strong> Whenever you need
+                                clarification, guidance, or support, our experts are just a message away — because your
+                                success is our mission.
+                            </p>
+
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 28px;">
+                                Let’s celebrate every milestone you achieve with ACTE. Stay curious. Keep learning. Keep
+                                growing.
+                            </p>
+
+                            <!-- Signature -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td
+                                        style="background:#f9fafb;padding:24px;border-radius:12px;border-left:5px solid #0066ff;">
+                                        <p style="margin:0;font-size:16px;color:#111827;font-weight:600;">Best Regards,
+                                        </p>
+                                        <p style="margin:8px 0 0;color:#6b7280;font-size:14px;">Relationship
+                                            Associate<br>ACTE Technologies</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding:28px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="left" style="color:#9ca3af;font-size:13px;">
+                                        &copy; 2025 ACTE Technologies. All rights reserved.
+                                    </td>
+                                    <td align="right" style="color:#9ca3af;font-size:13px;">
+                                        Need help? <a href="#"
+                                            style="color:#4b5563;text-decoration:none;font-weight:500;">Contact
+                                            Support</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>`,
+      attachments: [
+        {
+          filename: "logo.png", // name of the file
+          path: "./acte-logo.png", // local path of your logo file
+          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+        },
+      ],
+    };
+
+    // Send mail
+    await transporter.sendMail(mailOptions);
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 const sendMail = async (email, link, trainer_id) => {
   try {
     // Check the trainer already exists
@@ -32,7 +167,7 @@ const sendMail = async (email, link, trainer_id) => {
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "Registration From",
+      subject: "ACTE Registration From",
       text: `Click the below link to complete the registration.`,
       html: ` <table align="center" width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px;">
       <tr>
@@ -209,10 +344,8 @@ const sendInvoiceMail = async (
     doc.pipe(stream);
 
     // ---------- HEADER ----------
-    const logoPath = path.join(
-      "C:\\Users\\ADMIN PRAKASH\\Documents\\GitHub\\Actecrm-backend",
-      "acte-logo.png" // <-- replace with your actual logo file name
-    );
+    const logoPath = process.env.LOGO_PATH;
+
     doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size
 
     // Move cursor down a bit so text doesn’t overlap the logo
@@ -530,252 +663,112 @@ const generateInvoicePdf = (
 const sendCourseCertificate = async (email) => {
   const pdfPath = path.join(process.cwd(), "certificate.pdf");
 
+  // Helper to read image and convert to Base64
+  const getBase64Image = (filePath) => {
+    if (!fs.existsSync(filePath)) return "";
+    const data = fs.readFileSync(filePath, { encoding: "base64" });
+    return `data:image/png;base64,${data}`;
+  };
+
+  const chairmanSignBase64 = getBase64Image(
+    process.env.CHAIRMAN_SIGNATURE_PATH
+  );
+  const viceChairmanSignBase64 = getBase64Image(
+    process.env.VICE_CHAIRMAN_SIGNATURE_PATH
+  );
+  const memberSignBase64 = getBase64Image(process.env.MEMBER_SIGNATURE_PATH);
+
   // 1. HTML Template
   const htmlContent = `
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>ACTE Certificate</title>
-    <style>
-      @page {
-        margin: 0; /* removes default white margins */
-      }
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background: transparent; /* no white background */
-        font-family: 'Times New Roman', serif;
-      }
-    </style>
-  </head>
-  <body>
-    <table
-      width="100%"
-      cellpadding="0"
-      cellspacing="0"
-      border="0"
-      bgcolor="transparent"
-    >
-      <tr>
-        <td align="center" style="padding: 20px">
-          <!-- Outer Blue Border -->
-          <table
-            width="800"
-            cellpadding="0"
-            cellspacing="0"
-            border="0"
-            style="
-              border: 27px solid #0a4682;
-              border-radius: 80px;
-              background: #fff;
-            "
-          >
-            <tr>
-              <td>
-                <!-- Gold Middle Border -->
-                <table
-                  width="100%"
-                  cellpadding="0"
-                  cellspacing="0"
-                  border="0"
-                  style="
-                    border: 10px solid #f49f20;
-                    border-radius: 50px;
-                    padding: 7px;
-                  "
-                >
-                  <tr>
-                    <td>
-                      <!-- Inner Thin Blue Border -->
-                      <table
-                        width="100%"
-                        cellpadding="0"
-                        cellspacing="0"
-                        border="0"
-                        style="border: 3px solid #0a4682; border-radius: 40px"
-                      >
-                        <tr>
-                          <td style="padding: 40px; text-align: center">
-                            <!-- Header -->
-                            <h1
-                              style="
-                                margin: 0;
-                                font-size: 40px;
-                                color: #0a4682;
-                                font-weight: bold;
-                                letter-spacing: 1px;
-                              "
-                            >
-                              ACTE
-                            </h1>
-                            <h2
-                              style="
-                                margin: 5px 0 20px;
-                                font-size: 22px;
-                                color: #0a4682;
-                                letter-spacing: 2px;
-                              "
-                            >
-                              TECHNOLOGIES
-                            </h2>
+<head>
+  <meta charset="UTF-8" />
+  <title>ACTE Certificate</title>
+  <style>
+    @page { margin: 0; }
+    html, body { width:100%; height:100%; margin:0; padding:0; font-family:'Times New Roman', serif; }
+  </style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="transparent">
+    <tr>
+      <td align="center" style="padding:20px">
+        <table width="800" cellpadding="0" cellspacing="0" border="0" style="border:27px solid #0a4682; border-radius:80px; background:transparent;">
+          <tr>
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:10px solid #f49f20; border-radius:50px; padding:7px;">
+                <tr>
+                  <td>
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:3px solid #0a4682; border-radius:40px;">
+                      <tr>
+                        <td style="padding:40px; text-align:center;">
+                          <!-- Header -->
+                          <h1 style="margin:0; font-size:40px; color:#0a4682; font-weight:bold; letter-spacing:1px;">ACTE</h1>
+                          <h2 style="margin:5px 0 20px; font-size:22px; color:#0a4682; letter-spacing:2px;">TECHNOLOGIES</h2>
+                          <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
+                          <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
+                          <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">SUDARSAIN R</h3>
+                          <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                            During and After 2 months of Study on the Specified Curriculum<br />
+                            And having found the Candidate's Performance to be
+                          </p>
+                          <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
+                          <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
+                          <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">SAP MM</h4>
+                          <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                            Given under our hand and Seal on<br />
+                            the month of August-2025<br />
+                            At Chennai, India
+                          </p>
 
-                            <!-- Content -->
-                            <p style="margin: 10px 0; font-size: 18px">
-                              The Academic Council of ACTE
-                            </p>
-                            <p style="margin: 10px 0; font-size: 18px">
-                              Having Duly Examined
-                            </p>
+                          <!-- Signatures -->
+                          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                            <tr>
+                              ${[
+                                {
+                                  name: "Chairman",
+                                  title: "Of the Academic Council",
+                                  img: chairmanSignBase64,
+                                },
+                                {
+                                  name: "Vice-Chairman",
+                                  title: "Of the Academic Council",
+                                  img: viceChairmanSignBase64,
+                                },
+                                {
+                                  name: "Member",
+                                  title: "Of the Academic Council",
+                                  img: memberSignBase64,
+                                },
+                              ]
+                                .map(
+                                  (sig) => `
+<td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    ${
+      sig.img
+        ? `<img src="${sig.img}" style="width:80px; height:auto; display:block; margin-bottom:4px;" />`
+        : ""
+    }
+    <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
+    <p style="margin:0; font-size:14px;">${sig.name}</p>
+    <p style="margin:0; font-size:14px;">${sig.title}</p>
+  </div>
+</td>`
+                                )
+                                .join("")}
+                            </tr>
+                          </table>
 
-                            <h3
-                              style="
-                                margin: 20px 0 10px;
-                                font-size: 24px;
-                                font-weight: bold;
-                              "
-                            >
-                              SUDARSAIN R
-                            </h3>
+                          <!-- Footer -->
+                          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+                            <tr>
+                              <td align="left" style="font-size:13px">Registration No.: R08111111706037</td>
+                              <td align="right" style="font-size:13px">Certificate No.: 15CBZZZZZ8523</td>
+                            </tr>
+                          </table>
 
-                            <p
-                              style="
-                                margin: 10px 0;
-                                font-size: 18px;
-                                line-height: 1.6;
-                              "
-                            >
-                              During and After 2 months of Study on the
-                              Specified Curriculum<br />
-                              And having found the Candidate's Performance to be
-                            </p>
-
-                            <h3
-                              style="
-                                margin: 20px 0 10px;
-                                font-size: 26px;
-                                font-weight: bold;
-                                color: #0a4682;
-                              "
-                            >
-                              EXCELLENT
-                            </h3>
-
-                            <p style="margin: 10px 0; font-size: 18px">
-                              Have Pleasure in Recognizing this Attainment with
-                              the Title of
-                            </p>
-
-                            <h4
-                              style="
-                                margin: 15px 0;
-                                font-size: 28px;
-                                font-weight: bold;
-                                color: #0a4682;
-                              "
-                            >
-                              SAP MM
-                            </h4>
-
-                            <p
-                              style="
-                                margin: 10px 0;
-                                font-size: 18px;
-                                line-height: 1.6;
-                              "
-                            >
-                              Given under our hand and Seal on<br />
-                              the month of August-2025<br />
-                              At Chennai, India
-                            </p>
-
-                            <!-- Signatures -->
-                            <table
-                              width="100%"
-                              cellpadding="0"
-                              cellspacing="0"
-                              border="0"
-                              style="margin-top: 40px"
-                            >
-                              <tr>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Chairman
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Vice-Chairman
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Member
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                              </tr>
-                            </table>
-
-                            <!-- Footer -->
-                            <table
-                              width="100%"
-                              cellpadding="0"
-                              cellspacing="0"
-                              border="0"
-                              style="
-                                margin-top: 30px;
-                                border-top: 1px solid #000;
-                                padding-top: 10px;
-                              "
-                            >
-                              <tr>
-                                <td align="left" style="font-size: 13px">
-                                  Registration No.: R08111111706037
-                                </td>
-                                <td align="right" style="font-size: 13px">
-                                  Certificate No.: 15CBZZZZZ8523
-                                </td>
-                              </tr>
-                            </table>
-
-                            <!-- Legend -->
+                             <!-- Legend -->
                            <div
   style="
     margin-top: 20px;
@@ -809,8 +802,7 @@ const sendCourseCertificate = async (email) => {
   </table>
 </div>
 
-
-                            <!-- Watermark -->
+     <!-- Watermark -->
                             <p
                               style="
                                 margin-top: 20px;
@@ -820,36 +812,40 @@ const sendCourseCertificate = async (email) => {
                             >
                               RD5 -11117 | www.acte.in
                             </p>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>
   `;
 
   // 2. Launch Puppeteer and create PDF
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
   await page.setContent(htmlContent, { waitUntil: "networkidle0" });
   await page.pdf({
     path: pdfPath,
     format: "A4",
-    printBackground: true, // ensures colors are kept
-    margin: { top: 0, right: 0, bottom: 0, left: 0 }, // removes white border
+    printBackground: true,
+    margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    omitBackground: true,
   });
   await browser.close();
 
-  // 3. Send mail with attachment
-  let transporter = nodemailer.createTransport({
+  // 3. Send mail
+  const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
       user: process.env.SMTP_USER,
@@ -866,7 +862,7 @@ const sendCourseCertificate = async (email) => {
   });
 };
 
-const sendWelcomeMail = async (email, name) => {
+const sendPaymentMail = async (email, name) => {
   try {
     // Check the email already exists
     const [isEmailExists] = await pool.query(
@@ -878,21 +874,21 @@ const sendWelcomeMail = async (email, name) => {
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "Registration From",
+      subject: "ACTE Payment Verification",
       text: `Click the below link to complete the registration.`,
       html: `<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Welcome to ACTE</title>
+    <title>ACTE Payment Verification</title>
 </head>
 
 <body
     style="margin:0;padding:0;background-color:#f3f4f6;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.6;">
     <!-- Preheader -->
     <div style="display:none;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">
-        Welcome to ACTE Technologies — your premium learning journey begins.
+        Your payment verification is in process. You’ll receive your invoice shortly. Thank you for your patience.
     </div>
 
     <!-- Outer wrapper -->
@@ -905,58 +901,52 @@ const sendWelcomeMail = async (email, name) => {
                     style="max-width:700px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e5e7eb;box-shadow:0 6px 30px rgba(0,0,0,0.1);overflow:hidden;">
 
                     <!-- Header -->
-                    <tr>
-                        <td
-                            style="background:linear-gradient(135deg,#004ecc 0%,#0066ff 100%);padding:32px 40px;text-align:center;">
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                <tr>
-                                    <td align="center">
-                                        <div style="font-size:34px;font-weight:700;color:#ffffff;letter-spacing:1px;">
-                                            ACTE Technologies</div>
-                                        <div
-                                            style="color:#dbeafe;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin-top:6px;">
-                                            Learning • Growth • Opportunity
-                                        </div>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
+                      <tr>
+        <td style="padding: 24px 12px 12px 12px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px;">
+          <img src="cid:companyLogo" alt="Company Logo" width="110" style="display: block; margin: 0 auto;" />
+        </td>
+
+         <tr>
+  <td style="padding: 0 10px;">
+    <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
+  </td>
+</tr>
 
                     <!-- Body -->
                     <tr>
-                        <td style="padding:48px 40px;background:#ffffff;">
+                        <td style="padding:12px 40px 48px 40px;background:#ffffff;">
                             <h1
-                                style="color:#111827;margin:0 0 20px;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
-                                Welcome to Your Learning Journey 🚀
+                                style="color:#111827;margin:0 0 20px;font-size:26px;font-weight:700;letter-spacing:-0.5px;">
+                                Payment Verification in Progress 🧾
                             </h1>
 
-                            <p style="color:#4b5563;font-size:16px;margin:0 0 16px;">Dear Candidate,</p>
+                            <p style="color:#4b5563;font-size:16px;margin:0 0 18px;">👋 Dear ${name},</p>
 
                             <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
-                                We’re delighted to welcome you to our premium learning community. Prepare yourself for a
-                                transformative journey filled with knowledge, skills, and growth. Our dedicated team is
-                                committed to guiding you every step of the way.
+                                💡 Greetings from <strong>ACTE Technologies!</strong><br>
+                                We are delighted to welcome you as part of our learning community. 🎓✨
                             </p>
 
+                            <div
+                                style="margin:26px 0;padding:22px;border-radius:12px;background:#f9fafb;border-left:5px solid #0066ff;">
+                                <p style="margin:0;color:#111827;font-size:16px;line-height:1.7;">
+                                    🧾 Your <strong>payment verification</strong> is currently in process.<br>
+                                    Once it is successfully completed, you will receive your invoice shortly.
+                                </p>
+                            </div>
+
                             <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 20px;">
-                                <strong style="color:#111827;">We're here to help!</strong> Whenever you need
-                                clarification, guidance, or support, our experts are just a message away — because your
-                                success is our mission.
+                                ⏳ We truly appreciate your patience and understanding during this short waiting period.
                             </p>
 
                             <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 28px;">
-                                Let’s celebrate every milestone you achieve with ACTE. Stay curious. Keep learning. Keep
-                                growing.
+                                🤝 Please don’t hesitate to reach out if you require any additional information or
+                                assistance — we are here to support you at every step of your journey. 🌟
                             </p>
 
-                            <!-- CTA -->
-                            <div style="margin:30px 0;text-align:center;">
-                                <a href="#" target="_blank"
-                                    style="display:inline-block;padding:16px 36px;border-radius:10px;background:linear-gradient(135deg,#0066ff 0%,#004ecc 100%);color:#ffffff;font-weight:600;font-size:17px;text-decoration:none;letter-spacing:0.5px;box-shadow:0 6px 14px rgba(0,102,255,0.35);">
-                                    Begin Your Journey
-                                </a>
-                            </div>
+                            <p style="color:#4b5563;font-size:16px;line-height:1.7;margin:0 0 28px;">
+                                🌈 Here’s to your learning and success with ACTE! 🚀
+                            </p>
 
                             <!-- Signature -->
                             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -965,8 +955,7 @@ const sendWelcomeMail = async (email, name) => {
                                         style="background:#f9fafb;padding:24px;border-radius:12px;border-left:5px solid #0066ff;">
                                         <p style="margin:0;font-size:16px;color:#111827;font-weight:600;">Best Regards,
                                         </p>
-                                        <p style="margin:8px 0 0;color:#6b7280;font-size:14px;">Relationship
-                                            Associate<br>ACTE Technologies</p>
+                                        <p style="margin:8px 0 0;color:#6b7280;font-size:14px;">ACTE Technologies</p>
                                     </td>
                                 </tr>
                             </table>
@@ -998,38 +987,6 @@ const sendWelcomeMail = async (email, name) => {
 </body>
 
 </html>`,
-      attachments: [
-        {
-          filename: "logo.png", // name of the file
-          path: "./acte-logo.png", // local path of your logo file
-          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
-        },
-      ],
-    };
-
-    // Send mail
-    await transporter.sendMail(mailOptions);
-    return { success: true, message: "Mail sent successfully" };
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
-
-const sendPaymentMail = async (email, name) => {
-  try {
-    // Check the email already exists
-    const [isEmailExists] = await pool.query(
-      `SELECT id, name FROM customers WHERE email = ?`,
-      [email]
-    );
-    if (isEmailExists.length <= 0) throw new Error("Email not exists");
-
-    const mailOptions = {
-      from: process.env.SMTP_FROM,
-      to: email,
-      subject: "Registration From",
-      text: `Click the below link to complete the registration.`,
-      html: ``,
       attachments: [
         {
           filename: "logo.png", // name of the file

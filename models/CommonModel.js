@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const fs = require("fs");
 
 const CommonModel = {
   getPaymentHistory: async (lead_id) => {
@@ -105,6 +106,23 @@ const CommonModel = {
                   WHERE
                       customer_id = ?`;
       const [result] = await pool.query(sql, [customer_id]);
+
+      // Helper to read image and convert to Base64
+      const getBase64Image = (filePath) => {
+        if (!fs.existsSync(filePath)) return "";
+        const data = fs.readFileSync(filePath, { encoding: "base64" });
+        return `data:image/png;base64,${data}`;
+      };
+
+      const chairmanSignBase64 = getBase64Image(
+        process.env.CHAIRMAN_SIGNATURE_PATH
+      );
+      const viceChairmanSignBase64 = getBase64Image(
+        process.env.VICE_CHAIRMAN_SIGNATURE_PATH
+      );
+      const memberSignBase64 = getBase64Image(
+        process.env.MEMBER_SIGNATURE_PATH
+      );
 
       // 1. HTML Template
       const htmlContent = `
@@ -222,7 +240,9 @@ const CommonModel = {
                                 line-height: 1.6;
                               "
                             >
-                              During and After ${result[0].course_duration} months of Study on the
+                              During and After ${
+                                result[0].course_duration
+                              } months of Study on the
                               Specified Curriculum<br />
                               And having found the Candidate's Performance to be
                             </p>
@@ -262,94 +282,58 @@ const CommonModel = {
                               "
                             >
                               Given under our hand and Seal on<br />
-                              the month of ${result[0].course_completion_month}<br />
+                              the month of ${
+                                result[0].course_completion_month
+                              }<br />
                               At Chennai, India
                             </p>
 
                             <!-- Signatures -->
-                            <table
-                              width="100%"
-                              cellpadding="0"
-                              cellspacing="0"
-                              border="0"
-                              style="margin-top: 40px"
-                            >
-                              <tr>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Chairman
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Vice-Chairman
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                                <td
-                                  align="center"
-                                  style="width: 33%; padding: 0 10px"
-                                >
-                                  <div
-                                    style="
-                                      border-top: 1px solid #000;
-                                      margin-bottom: 8px;
-                                    "
-                                  ></div>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Member
-                                  </p>
-                                  <p style="margin: 0; font-size: 14px">
-                                    Of the Academic Council
-                                  </p>
-                                </td>
-                              </tr>
-                            </table>
+                          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                            <tr>
+                              ${[
+                                {
+                                  name: "Chairman",
+                                  title: "Of the Academic Council",
+                                  img: chairmanSignBase64,
+                                },
+                                {
+                                  name: "Vice-Chairman",
+                                  title: "Of the Academic Council",
+                                  img: viceChairmanSignBase64,
+                                },
+                                {
+                                  name: "Member",
+                                  title: "Of the Academic Council",
+                                  img: memberSignBase64,
+                                },
+                              ]
+                                .map(
+                                  (sig) => `
+<td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    ${
+      sig.img
+        ? `<img src="${sig.img}" style="width:80px; height:auto; display:block; margin-bottom:4px;" />`
+        : ""
+    }
+    <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
+    <p style="margin:0; font-size:14px;">${sig.name}</p>
+    <p style="margin:0; font-size:14px;">${sig.title}</p>
+  </div>
+</td>`
+                                )
+                                .join("")}
+                            </tr>
+                          </table>
 
-                            <!-- Footer -->
-                            <table
-                              width="100%"
-                              cellpadding="0"
-                              cellspacing="0"
-                              border="0"
-                              style="
-                                margin-top: 30px;
-                                border-top: 1px solid #000;
-                                padding-top: 10px;
-                              "
-                            >
-                              <tr>
-                                <td align="left" style="font-size: 13px">
-                                  Registration No.: R08111111706037
-                                </td>
-                                <td align="right" style="font-size: 13px">
-                                  Certificate No.: ${result[0].certificate_number}
-                                </td>
-                              </tr>
-                            </table>
+                          <!-- Footer -->
+                          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+                            <tr>
+                              <td align="left" style="font-size:13px">Registration No.: R08111111706037</td>
+                              <td align="right" style="font-size:13px">Certificate No.: 15CBZZZZZ8523</td>
+                            </tr>
+                          </table>
 
                             <!-- Legend -->
                            <div

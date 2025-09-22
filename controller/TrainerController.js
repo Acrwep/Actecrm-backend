@@ -261,7 +261,7 @@ const getCusByTrainer = async (request, response) => {
 };
 
 const addTechnologies = async (request, response) => {
-  const { course_name } = request.query;
+  const { course_name } = request.body;
   try {
     const result = await TrainerModel.addTechnologies(course_name);
     return response.status(201).send({
