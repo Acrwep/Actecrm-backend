@@ -603,8 +603,7 @@ const LeadModel = {
 
       console.log("length", isExists.length);
 
-      if (isExists.length > 0)
-        throw new Error("Area already exists in the database");
+      if (isExists.length > 0) throw new Error("Area already exists.");
 
       const [result] = await pool.query(`INSERT INTO areas(name) VALUES (?)`, [
         area_name,
