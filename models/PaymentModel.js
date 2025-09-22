@@ -391,7 +391,7 @@ const PaymentModel = {
       );
 
       const [getToday] =
-        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS overall_pending_count
+        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS todays_pending_count
                           FROM payment_master AS pm
                           WHERE (
                               pm.total_amount - (
@@ -417,22 +417,29 @@ const PaymentModel = {
       const [getUrgentDue] = await pool.query(
         `SELECT COUNT(DISTINCT c.id) AS customer_count
           FROM customers c
-          INNER JOIN payment_master pm ON c.lead_id = pm.lead_id
+          INNER JOIN payment_master pm 
+              ON c.lead_id = pm.lead_id
           WHERE c.class_percentage >= 30
-          AND (
-              pm.total_amount - (
-                  SELECT COALESCE(SUM(pt.amount), 0)
-                  FROM payment_trans pt
-                  WHERE pt.payment_master_id = pm.id AND pt.payment_status = 'Verified'
-              )
-          ) > 0
-          AND EXISTS (
-              SELECT 1
-              FROM payment_trans pt_date
-              WHERE pt_date.payment_master_id = pm.id
-              AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
-              AND pt_date.payment_status = 'Verified'
-          )`,
+            AND (
+                pm.total_amount - (
+                    SELECT COALESCE(SUM(pt.amount), 0)
+                    FROM payment_trans pt
+                    WHERE pt.payment_master_id = pm.id 
+                      AND pt.payment_status = 'Verified'
+                )
+            ) > 0
+            AND EXISTS (
+                SELECT 1
+                FROM payment_trans pt_date
+                WHERE pt_date.id = (
+                    SELECT MAX(p2.id)
+                    FROM payment_trans p2
+                    WHERE p2.payment_master_id = pm.id
+                      AND p2.payment_status = 'Verified'
+                )
+                AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
+            );
+          `,
         [from_date, to_date]
       );
       return {
