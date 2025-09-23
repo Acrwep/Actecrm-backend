@@ -33,10 +33,7 @@ const PaymentModel = {
     placement_support,
     batch_track_id,
     enrolled_course,
-    is_server_required,
-    country,
-    state,
-    area
+    is_server_required
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -96,7 +93,7 @@ const PaymentModel = {
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
       const [getCustomer] = await pool.query(
-        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id FROM lead_master WHERE id = ?`,
+        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id, country, state, district FROM lead_master WHERE id = ?`,
         [lead_id]
       );
 
@@ -117,9 +114,9 @@ const PaymentModel = {
         enrolled_course,
         batch_track_id,
         is_server_required,
-        country,
-        state,
-        area,
+        getCustomer[0].country,
+        getCustomer[0].state,
+        getCustomer[0].district,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
