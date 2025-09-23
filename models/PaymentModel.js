@@ -33,7 +33,10 @@ const PaymentModel = {
     placement_support,
     batch_track_id,
     enrolled_course,
-    is_server_required
+    is_server_required,
+    country,
+    state,
+    area
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -97,7 +100,7 @@ const PaymentModel = {
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -114,6 +117,9 @@ const PaymentModel = {
         enrolled_course,
         batch_track_id,
         is_server_required,
+        country,
+        state,
+        area,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
@@ -196,7 +202,9 @@ const PaymentModel = {
                             bt.name AS batch_tracking,
                             c.batch_timing_id,
                             bs.name AS batch_timing,
-                            c.current_location,
+                            CASE WHEN c.country IS NOT NULL THEN c.country ELSE lm.country END AS country,
+                            CASE WHEN c.state IS NOT NULL THEN c.state ELSE lm.state END AS state,
+                            CASE WHEN c.current_location IS NOT NULL THEN c.current_location ELSE lm.district END AS current_location,
                             c.signature_image,
                             c.profile_image,
                             c.placement_support,

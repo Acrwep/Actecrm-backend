@@ -22,6 +22,9 @@ const updateCustomer = async (request, response) => {
     placement_support,
     id,
     region_id,
+    country,
+    state,
+    area,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -42,7 +45,10 @@ const updateCustomer = async (request, response) => {
       signature_image,
       profile_image,
       placement_support,
-      id
+      id,
+      country,
+      state,
+      area
     );
     return response.status(200).send({
       message: "Customer updated successfully",

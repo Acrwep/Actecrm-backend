@@ -20,7 +20,10 @@ const CustomerModel = {
     signature_image,
     profile_image,
     placement_support,
-    id
+    id,
+    country,
+    state,
+    area
   ) => {
     try {
       const [isCusExists] = await pool.query(
@@ -48,7 +51,10 @@ const CustomerModel = {
                                 profile_image = ?,
                                 placement_support = ?,
                                 is_customer_updated = 1,
-                                region_id = ?
+                                region_id = ?,
+                                country = ?,
+                                state = ?,
+                                current_location = ?
                             WHERE
                                 id = ?`;
       const values = [
@@ -69,6 +75,9 @@ const CustomerModel = {
         profile_image,
         placement_support,
         region_id,
+        country,
+        state,
+        area,
         id,
       ];
 
@@ -113,7 +122,9 @@ const CustomerModel = {
                             bt.name AS batch_tracking,
                             c.batch_timing_id,
                             bs.name AS batch_timing,
-                            c.current_location,
+                            CASE WHEN c.country IS NOT NULL THEN c.country ELSE l.country END AS country,
+                            CASE WHEN c.state IS NOT NULL THEN c.state ELSE l.state END AS state,
+                            CASE WHEN c.current_location IS NOT NULL THEN c.current_location ELSE l.district END AS current_location,
                             c.signature_image,
                             c.profile_image,
                             c.placement_support,
@@ -324,7 +335,9 @@ const CustomerModel = {
                             bt.name AS batch_tracking,
                             c.batch_timing_id,
                             bs.name AS batch_timing,
-                            c.current_location,
+                            CASE WHEN c.country IS NOT NULL THEN c.country ELSE l.country END AS country,
+                            CASE WHEN c.state IS NOT NULL THEN c.state ELSE l.state END AS state,
+                            CASE WHEN c.current_location IS NOT NULL THEN c.current_location ELSE l.district END AS current_location,
                             c.signature_image,
                             c.profile_image,
                             c.placement_support,
