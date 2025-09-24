@@ -645,6 +645,32 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  getCustomerHistory: async (customer_id) => {
+    try {
+      const sql = `SELECT
+                      ct.id,
+                      ct.customer_id,
+                      c.name AS customer_name,
+                      ct.status,
+                      ct.status_date,
+                      ct.updated_by AS updated_by_id,
+                      u.user_name AS updated_by
+                  FROM
+                      customer_track AS ct
+                  INNER JOIN customers AS c ON
+                    c.id = ct.customer_id
+                  INNER JOIN users AS u ON
+                    ct.updated_by = u.user_id
+                  WHERE
+                      ct.customer_id = ?
+                  ORDER BY ct.id ASC`;
+      const [result] = await pool.query(sql, [customer_id]);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = CustomerModel;

@@ -375,6 +375,22 @@ const getCertificate = async (request, response) => {
   }
 };
 
+const getCustomerHistory = async (request, response) => {
+  const { customer_id } = request.query;
+  try {
+    const result = await CustomerModel.getCustomerHistory(customer_id);
+    return response.status(200).send({
+      message: "Customer history fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching customer history",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -391,4 +407,5 @@ module.exports = {
   insertCusTrack,
   generateCertificate,
   getCertificate,
+  getCustomerHistory,
 };

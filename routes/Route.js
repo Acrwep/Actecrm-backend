@@ -117,4 +117,9 @@ router.post("/addTechnologies", verifyToken, TrainerController.addTechnologies);
 router.get("/getCertificate", verifyToken, CustomerController.getCertificate);
 router.get("/getAreas", LeadController.getAreas);
 router.post("/insertArea", LeadController.insertArea);
+router.get(
+  "/getCustomerHistory",
+  verifyToken,
+  CustomerController.getCustomerHistory
+);
 module.exports = router;
