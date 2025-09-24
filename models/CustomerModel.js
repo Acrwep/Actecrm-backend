@@ -629,16 +629,29 @@ const CustomerModel = {
     }
   },
 
-  insertCusTrack: async (customer_id, status, status_date, updated_by) => {
+  insertCusTrack: async (
+    customer_id,
+    status,
+    status_date,
+    updated_by,
+    details
+  ) => {
     try {
       const insertQuery = `INSERT INTO customer_track(
                               customer_id,
                               status,
                               status_date,
+                              details,
                               updated_by
                           )
-                          VALUES(?, ?, ?, ?)`;
-      const values = [customer_id, status, status_date, updated_by];
+                          VALUES(?, ?, ?, ?, ?)`;
+      const values = [
+        customer_id,
+        status,
+        status_date,
+        JSON.stringify(details),
+        updated_by,
+      ];
       const [res] = await pool.query(insertQuery, values);
       return res.affectedRows;
     } catch (error) {
@@ -654,6 +667,7 @@ const CustomerModel = {
                       c.name AS customer_name,
                       ct.status,
                       ct.status_date,
+                      ct.details,
                       ct.updated_by AS updated_by_id,
                       u.user_name AS updated_by
                   FROM
@@ -666,7 +680,14 @@ const CustomerModel = {
                       ct.customer_id = ?
                   ORDER BY ct.id ASC`;
       const [result] = await pool.query(sql, [customer_id]);
-      return result;
+
+      const formattedResult = result.map((item) => {
+        return {
+          ...item,
+          details: JSON.parse(item.details),
+        };
+      });
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
