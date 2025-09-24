@@ -160,7 +160,7 @@ const CommonModel = {
                     <!-- Header -->
                    <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
                     
-                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:70px auto 10px auto;" />
+                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
                     <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
                     <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
                     <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
@@ -209,7 +209,7 @@ const CommonModel = {
   <div style="display:flex; flex-direction:column; align-items:center;">
     ${
       sig.img
-        ? `<img src="${sig.img}" style="width:80px; height:auto; display:block; margin-bottom:4px;" />`
+        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block; margin-bottom:4px;" />`
         : ""
     }
     <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
@@ -226,9 +226,11 @@ const CommonModel = {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" 
                            style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
                       <tr>
-                        <td align="right" style="font-size:13px">
-                          Certificate No.: ${result[0].certificate_number}
-                        </td>
+                       <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
+                      <strong>Certificate No.:</strong> ${
+                        result[0].certificate_number
+                      }
+                      </td>
                       </tr>
                     </table>
 
