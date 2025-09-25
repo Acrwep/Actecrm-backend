@@ -8,6 +8,7 @@ const LeadController = require("../controller/LeadController");
 const PaymentController = require("../controller/PaymentController");
 const EmailController = require("../controller/EmailController");
 const CustomerController = require("../controller/CustomerController");
+const PageAccessController = require("../controller/PageAccessController");
 
 router.post("/login", LoginController.login);
 
@@ -122,4 +123,7 @@ router.get(
   verifyToken,
   CustomerController.getCustomerHistory
 );
+
+router.get("/getFeatures", PageAccessController.getFeatures);
+router.post("/insertFeature", PageAccessController.insertFeature);
 module.exports = router;

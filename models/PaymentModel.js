@@ -121,6 +121,13 @@ const PaymentModel = {
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
 
+      const statuses = [
+        ["Customer created", created_date, updated_by],
+        ["Down Payment", created_date, updated_by],
+        ["Awaiting Finance", created_date, updated_by],
+      ];
+
+      const values = statuses.map((s) => [insertCustomer.insertId, ...s]);
       const [cusTrack] = await pool.query(
         `INSERT INTO customer_track(
             customer_id,
@@ -129,7 +136,7 @@ const PaymentModel = {
             updated_by
         )
         VALUES(?, ?, ?, ?)`,
-        [insertCustomer.insertId, "Customer created", created_date, updated_by]
+        values
       );
 
       const [getInvoiceDetails] = await pool.query(
