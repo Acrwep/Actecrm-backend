@@ -186,6 +186,56 @@ const sendPaymentMail = async (req, res) => {
   }
 };
 
+const viewInvoicePdf = async (req, res) => {
+  const {
+    email,
+    name,
+    mobile,
+    convenience_fees,
+    gst_amount,
+    gst_percentage,
+    invoice_date,
+    invoice_number,
+    paid_amount,
+    balance_amount,
+    payment_mode,
+    tax_type,
+    total_amount,
+    course_name,
+    sub_total,
+  } = req.body;
+
+  try {
+    const result = await EmailModel.viewInvoicePdf(
+      email,
+      name,
+      mobile,
+      convenience_fees,
+      gst_amount,
+      gst_percentage,
+      invoice_date,
+      invoice_number,
+      paid_amount,
+      balance_amount,
+      payment_mode,
+      tax_type,
+      total_amount,
+      course_name,
+      sub_total
+    );
+
+    res.status(201).send({
+      message: "Mail sent successfully with invoice",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending invoice",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendInvoiceMail,
@@ -194,4 +244,5 @@ module.exports = {
   sendWelcomeMail,
   sendPaymentMail,
   generateInvoicePdf,
+  viewInvoicePdf,
 };
