@@ -182,7 +182,14 @@ const LeadModel = {
             is_updated
         )
         VALUES(?, ?, ?, ?, ?, ?)`,
-          [result.insertId, created_date, comments, user_id, created_date, 1]
+          [
+            result.insertId,
+            getLeadAction[0].id,
+            comments,
+            user_id,
+            created_date,
+            1,
+          ]
         );
 
         affectedRows += history.affectedRows;
