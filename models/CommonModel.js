@@ -130,138 +130,162 @@ const CommonModel = {
       );
 
       // 1. HTML Template
-      const htmlContent = `
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>ACTE Certificate</title>
-   <!-- Add Google Fonts link -->
-  <style>
-  <style>
-    @page { margin: 0; }
-    html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
-    body { display:flex; justify-content:center; align-items:center; }
-    table { border-collapse:collapse; }
-  </style>
-</head>
-<body>
-  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
-         style="border:35px solid #03396c; border-radius:0; background:transparent; border-collapse:collapse;">
-    <tr>
-      <td style="padding:0; margin:0;background-color:#03396c">
-  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
-       style="border:10px solid #f49f20; border-radius:60px; border-collapse: separate; overflow: hidden;background-color:white">
-          <tr>
-            <td style="padding:3; margin:0;">
-              <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
-       style="border:3px solid #03396c; border-radius:50px; border-collapse: separate; overflow: hidden;background-color:white">
-                <tr>
-                  <td style="padding:16px 40px 40px 40px; text-align:center;">
-                    <!-- Header -->
-                   <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
-                    
-                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
-                    <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
-                    <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
-                    <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
-                      ${result[0].customer_name}
-                    </h3>
-                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
-                      During and After ${
-                        result[0].course_duration
-                      } months of Study on the Specified Curriculum<br />
-                      And having found the Candidate's Performance to be
-                    </p>
-                    <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
-                    <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
-                    <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">
-                      ${result[0].course_name}
-                    </h4>
-                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
-                      Given under our hand and Seal on<br />
-                      the month of ${result[0].course_completion_month}<br />
-                      At Chennai, India
-                    </p>
-
-                    <!-- Signatures -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
-                      <tr>
-                        ${[
-                          {
-                            name: "Chairman",
-                            title: "Of the Academic Council",
-                            img: chairmanSignBase64,
-                          },
-                          {
-                            name: "Vice-Chairman",
-                            title: "Of the Academic Council",
-                            img: viceChairmanSignBase64,
-                          },
-                          {
-                            name: "Member",
-                            title: "Of the Academic Council",
-                            img: memberSignBase64,
-                          },
-                        ]
-                          .map(
-                            (sig) => `
-<td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
-  <div style="display:flex; flex-direction:column; align-items:center;">
-    ${
-      sig.img
-        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block; margin-bottom:4px;" />`
-        : ""
-    }
-    <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
-    <p style="margin:0; font-size:14px;">${sig.name}</p>
-    <p style="margin:0; font-size:14px;">${sig.title}</p>
-  </div>
-</td>`
-                          )
-                          .join("")}
-                      </tr>
-                    </table>
-
-                    <!-- Footer -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" 
-                           style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
-                      <tr>
-                       <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
-                      <strong>Certificate No.:</strong> ${
-                        result[0].certificate_number
-                      }
-                      </td>
-                      </tr>
-                    </table>
-
-                    <!-- Legend -->
-                    <div style="margin-top: 20px; display:inline-block; border: 1px solid #000;
-                                padding: 10px 15px; font-size: 12px; text-align: left;">
-                      <strong style="display:block; margin-bottom:5px; text-align:center;">LEGEND</strong>
-                      <table style="border-collapse: collapse; font-size: 12px;">
-                        <tr><td style="padding-right:10px;">50-59.9</td><td>: Satisfactory</td></tr>
-                        <tr><td style="padding-right:10px;">60-69.9</td><td>: Fair</td></tr>
-                        <tr><td style="padding-right:10px;">70-79.9</td><td>: Good</td></tr>
-                        <tr><td style="padding-right:10px;">80-100</td><td>: Excellent</td></tr>
-                      </table>
-                    </div>
-
-                    <!-- Watermark -->
-                    <p style="margin-top:20px; font-size:10px; color:#666;">
-                      RD5 -11117 | www.acte.in
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
+      const htmlContent = `<html>
+                            <head>
+                                <meta charset="UTF-8" />
+                                <title>ACTE Certificate</title>
+                                <!-- Add Google Fonts link -->
+                                <style>
+                                <style>
+                                  @page { margin: 0; }
+                                  html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
+                                  body { display:flex; justify-content:center; align-items:center; }
+                                  table { border-collapse:collapse; }
+                                </style>
+                            </head>
+                            <body>
+                                <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+                                  style="border:35px solid #03396c; border-radius:0; background:transparent; border-collapse:collapse;">
+                                  <tr>
+                                      <td style="padding:0; margin:0;background-color:#03396c">
+                                        <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+                                            style="border:10px solid #f49f20; border-radius:60px; border-collapse: separate; overflow: hidden;background-color:white">
+                                            <tr>
+                                              <td style="padding:3; margin:0;">
+                                                  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+                                                    style="border:3px solid #03396c; border-radius:50px; border-collapse: separate; overflow: hidden;background-color:white">
+                                                    <tr>
+                                                        <td style="padding:16px 40px 40px 40px; text-align:center;">
+                                                          <!-- Header -->
+                                                          <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
+                                                          <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
+                                                          <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
+                                                          <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
+                                                          <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
+                                                              ${
+                                                                result[0]
+                                                                  .customer_name
+                                                              }
+                                                          </h3>
+                                                          <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                                                              During and After ${
+                                                                result[0]
+                                                                  .course_duration
+                                                              } months of Study on the Specified Curriculum<br />
+                                                              And having found the Candidate's Performance to be
+                                                          </p>
+                                                          <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
+                                                          <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
+                                                          <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">
+                                                              ${
+                                                                result[0]
+                                                                  .course_name
+                                                              }
+                                                          </h4>
+                                                          <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                                                              Given under our hand and Seal on<br />
+                                                              the month of ${
+                                                                result[0]
+                                                                  .course_completion_month
+                                                              }<br />
+                                                              At Chennai, India
+                                                          </p>
+                                                          <!-- Signatures -->
+                                                          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                                                              <tr>
+                                                                ${[
+                                                                  {
+                                                                    name: "Chairman",
+                                                                    title:
+                                                                      "Of the Academic Council",
+                                                                    img: chairmanSignBase64,
+                                                                  },
+                                                                  {
+                                                                    name: "Vice-Chairman",
+                                                                    title:
+                                                                      "Of the Academic Council",
+                                                                    img: viceChairmanSignBase64,
+                                                                  },
+                                                                  {
+                                                                    name: "Member",
+                                                                    title:
+                                                                      "Of the Academic Council",
+                                                                    img: memberSignBase64,
+                                                                  },
+                                                                ]
+                                                                  .map(
+                                                                    (sig) => `
+                                                                <td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
+                                                                    <div style="display:flex; flex-direction:column; align-items:center;">
+                                                                      ${
+                                                                        sig.img
+                                                                          ? `<img src="${sig.img}" style="width:160px; height:auto; display:block; margin-bottom:4px;" />`
+                                                                          : ""
+                                                                      }
+                                                                      <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
+                                                                      <p style="margin:0; font-size:14px;">${
+                                                                        sig.name
+                                                                      }</p>
+                                                                      <p style="margin:0; font-size:14px;">${
+                                                                        sig.title
+                                                                      }</p>
+                                                                    </div>
+                                                                </td>
+                                                                `
+                                                                  )
+                                                                  .join("")}
+                                                              </tr>
+                                                          </table>
+                                                          <!-- Footer -->
+                                                          <table width="100%" cellpadding="0" cellspacing="0" border="0" 
+                                                              style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+                                                              <tr>
+                                                                <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
+                                                                    <strong>Certificate No.:</strong> ${
+                                                                      result[0]
+                                                                        .certificate_number
+                                                                    }
+                                                                </td>
+                                                              </tr>
+                                                          </table>
+                                                          <!-- Legend -->
+                                                          <div style="margin-top: 20px; display:inline-block; border: 1px solid #000;
+                                                              padding: 10px 15px; font-size: 12px; text-align: left;">
+                                                              <strong style="display:block; margin-bottom:5px; text-align:center;">LEGEND</strong>
+                                                              <table style="border-collapse: collapse; font-size: 12px;">
+                                                                <tr>
+                                                                    <td style="padding-right:10px;">50-59.9</td>
+                                                                    <td>: Satisfactory</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td style="padding-right:10px;">60-69.9</td>
+                                                                    <td>: Fair</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td style="padding-right:10px;">70-79.9</td>
+                                                                    <td>: Good</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td style="padding-right:10px;">80-100</td>
+                                                                    <td>: Excellent</td>
+                                                                </tr>
+                                                              </table>
+                                                          </div>
+                                                          <!-- Watermark -->
+                                                          <p style="margin-top:20px; font-size:10px; color:#666;">
+                                                              RD5 -11117 | www.acte.in
+                                                          </p>
+                                                        </td>
+                                                    </tr>
+                                                  </table>
+                                              </td>
+                                            </tr>
+                                        </table>
+                                      </td>
+                                  </tr>
+                                </table>
+                            </body>
+                          </html>`;
 
       return {
         ...result[0],
