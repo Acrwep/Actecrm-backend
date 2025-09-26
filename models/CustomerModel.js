@@ -223,7 +223,7 @@ const CustomerModel = {
       }
 
       if (status === "Others") {
-        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Class')`;
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed')`;
       }
 
       if (name) {

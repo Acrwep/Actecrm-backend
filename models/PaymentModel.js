@@ -316,7 +316,7 @@ const PaymentModel = {
                             GROUP BY pt.payment_master_id, pm.total_amount
                         ) AS payment_summary 
                             ON payment_summary.payment_master_id = pm.id
-                        WHERE payment_summary.balance_amount > 0
+                        WHERE payment_summary.balance_amount > 0 AND c.status <> 'Demo Completed'
                       `;
 
       // Date filter
