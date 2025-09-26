@@ -186,7 +186,7 @@ const sendPaymentMail = async (req, res) => {
   }
 };
 
-const viewInvoicePdf = async (req, res) => {
+const sendInvoicePdf = async (req, res) => {
   const {
     email,
     name,
@@ -199,14 +199,13 @@ const viewInvoicePdf = async (req, res) => {
     paid_amount,
     balance_amount,
     payment_mode,
-    tax_type,
     total_amount,
     course_name,
     sub_total,
   } = req.body;
 
   try {
-    const result = await EmailModel.viewInvoicePdf(
+    const result = await EmailModel.sendInvoicePdf(
       email,
       name,
       mobile,
@@ -218,7 +217,6 @@ const viewInvoicePdf = async (req, res) => {
       paid_amount,
       balance_amount,
       payment_mode,
-      tax_type,
       total_amount,
       course_name,
       sub_total
@@ -244,5 +242,5 @@ module.exports = {
   sendWelcomeMail,
   sendPaymentMail,
   generateInvoicePdf,
-  viewInvoicePdf,
+  sendInvoicePdf,
 };

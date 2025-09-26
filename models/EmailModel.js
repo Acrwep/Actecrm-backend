@@ -1008,7 +1008,7 @@ const sendPaymentMail = async (email, name) => {
   }
 };
 
-const viewInvoicePdf = async (
+const sendInvoicePdf = async (
   email,
   name,
   mobile,
@@ -1020,11 +1020,12 @@ const viewInvoicePdf = async (
   paid_amount,
   balance_amount,
   payment_mode,
-  tax_type,
   total_amount,
   course_name,
   sub_total
 ) => {
+  const pdfPath = path.join(process.cwd(), "invoice.pdf");
+
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
                         <html lang="en">
@@ -1209,6 +1210,7 @@ const viewInvoicePdf = async (
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    executablePath: puppeteer.executablePath(), // ✅ use Puppeteer's bundled Chromium
   });
   const page = await browser.newPage();
   await page.setContent(htmlContent, { waitUntil: "networkidle0" });
@@ -1233,9 +1235,9 @@ const viewInvoicePdf = async (
   return transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Your Course Certificate",
-    text: "Please find your course certificate attached.",
-    attachments: [{ filename: "certificate.pdf", path: pdfPath }],
+    subject: "Your Payment Invoice",
+    text: "Please find your invoice attached.",
+    attachments: [{ filename: "invoice.pdf", path: pdfPath }],
   });
 };
 
@@ -1247,5 +1249,5 @@ module.exports = {
   sendWelcomeMail,
   sendPaymentMail,
   generateInvoicePdf,
-  viewInvoicePdf,
+  sendInvoicePdf,
 };

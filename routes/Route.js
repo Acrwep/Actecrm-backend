@@ -74,7 +74,7 @@ router.post(
 );
 router.post("/sendWelcomeMail", EmailController.sendWelcomeMail);
 router.post("/sendPaymentMail", EmailController.sendPaymentMail);
-router.post("/viewInvoicePdf", EmailController.viewInvoicePdf);
+router.post("/sendInvoicePdf", EmailController.sendInvoicePdf);
 // Mail module end
 
 // Customer module start
