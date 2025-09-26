@@ -234,6 +234,54 @@ const sendInvoicePdf = async (req, res) => {
   }
 };
 
+const viewInvoicePdf = async (req, res) => {
+  const {
+    email,
+    name,
+    mobile,
+    convenience_fees,
+    gst_amount,
+    gst_percentage,
+    invoice_date,
+    invoice_number,
+    paid_amount,
+    balance_amount,
+    payment_mode,
+    total_amount,
+    course_name,
+    sub_total,
+  } = req.body;
+
+  try {
+    const result = await EmailModel.viewInvoicePdf(
+      email,
+      name,
+      mobile,
+      convenience_fees,
+      gst_amount,
+      gst_percentage,
+      invoice_date,
+      invoice_number,
+      paid_amount,
+      balance_amount,
+      payment_mode,
+      total_amount,
+      course_name,
+      sub_total
+    );
+
+    res.status(200).send({
+      message: "Invoice data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching invoice details",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendInvoiceMail,
@@ -243,4 +291,5 @@ module.exports = {
   sendPaymentMail,
   generateInvoicePdf,
   sendInvoicePdf,
+  viewInvoicePdf,
 };
