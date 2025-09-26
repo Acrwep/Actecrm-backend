@@ -902,7 +902,6 @@ const sendInvoicePdf = async (
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    executablePath: puppeteer.executablePath(), // ✅ use Puppeteer's bundled Chromium
   });
   const page = await browser.newPage();
   await page.setContent(htmlContent, { waitUntil: "networkidle0" });
