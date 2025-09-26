@@ -777,10 +777,9 @@ const sendCourseCertificate = async (email, customer_id) => {
   <div style="display:flex; flex-direction:column; align-items:center;">
     ${
       sig.img
-        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block; margin-bottom:4px;" />`
+        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
         : ""
     }
-    <div style="width:80px; border-top:1px solid #000; margin-bottom:8px;"></div>
     <p style="margin:0; font-size:14px;">${sig.name}</p>
     <p style="margin:0; font-size:14px;">${sig.title}</p>
   </div>
@@ -1026,6 +1025,12 @@ const sendInvoicePdf = async (
 ) => {
   const pdfPath = path.join(process.cwd(), "invoice.pdf");
 
+  const getBase64Image = (filePath) => {
+    if (!fs.existsSync(filePath)) return "";
+    const data = fs.readFileSync(filePath, { encoding: "base64" });
+    return `data:image/png;base64,${data}`;
+  };
+  const acteLogoBase64 = getBase64Image(process.env.LOGO_PATH);
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
                         <html lang="en">
@@ -1038,14 +1043,12 @@ const sendInvoicePdf = async (
                                 font-size: 14px;
                                 margin: 0;
                                 padding: 20px;
-                                color: #333;
+                                background-color: #fff;
                                 }
                                 .invoice-box {
                                 max-width: 800px;
                                 margin: auto;
                                 padding: 20px;
-                                border: 1px solid #eee;
-                                box-shadow: 0 0 10px rgba(0,0,0,0.15);
                                 }
                                 .invoice-header {
                                 display: flex;
@@ -1057,19 +1060,21 @@ const sendInvoicePdf = async (
                                 }
                                 .invoice-header .company {
                                 text-align: right;
+                                line-height: 22px;
                                 }
                                 .invoice-title {
                                 font-size: 24px;
                                 font-weight: bold;
-                                margin-top: 20px;
                                 margin-bottom: 10px;
                                 }
                                 .invoice-info {
                                 margin-bottom: 20px;
+                                line-height: 22px;
                                 }
                                 .bill-to {
                                 margin-top: 10px;
                                 margin-bottom: 20px;
+                                line-height: 22px;
                                 }
                                 table {
                                 width: 100%;
@@ -1087,10 +1092,15 @@ const sendInvoicePdf = async (
                                 .totals {
                                 width: 300px;
                                 float: right;
-                                margin-top: 20px;
+                                margin-top: -12px;
+                                }
+                                .totals,
+                                .totals td,
+                                .totals th {
+                                border: none;
                                 }
                                 .totals td {
-                                padding: 8px;
+                                padding: 6px;
                                 }
                                 .totals tr td:first-child {
                                 text-align: left;
@@ -1101,12 +1111,14 @@ const sendInvoicePdf = async (
                                 .notes {
                                 margin-top: 60px;
                                 font-size: 12px;
+                                font-weight: 600;
+                                line-height: 22px;
                                 }
                                 .footer {
                                 margin-top: 30px;
                                 text-align: center;
                                 font-size: 11px;
-                                color: #666;
+                                font-weight: 700;
                                 }
                               </style>
                           </head>
@@ -1115,7 +1127,7 @@ const sendInvoicePdf = async (
                                 <!-- HEADER -->
                                 <div class="invoice-header">
                                     <div>
-                                      <img src="{{logoPath}}" alt="Logo" />
+                                    <img src="${acteLogoBase64}" style="width:140px; height:auto;" />
                                     </div>
                                     <div class="company">
                                       <strong>Acte Technologies Private Limited</strong><br />
@@ -1152,10 +1164,10 @@ const sendInvoicePdf = async (
                                     <tbody>
                                       <tr>
                                           <td>${course_name}</td>
-                                          <td>${paid_amount}</td>
+                                          <td>₹${paid_amount}</td>
                                           <td>${payment_mode}</td>
                                           <td>${gst_percentage}%</td>
-                                          <td>${convenience_fees}</td>
+                                          <td>₹${convenience_fees}</td>
                                       </tr>
                                     </tbody>
                                 </table>
@@ -1163,7 +1175,7 @@ const sendInvoicePdf = async (
                                 <table class="totals">
                                     <tr>
                                       <td>Sub Total:</td>
-                                      <td>${sub_total}</td>
+                                      <td>₹${sub_total}</td>
                                     </tr>
                                     <tr>
                                       <td>Payment Mode:</td>
@@ -1171,23 +1183,23 @@ const sendInvoicePdf = async (
                                     </tr>
                                     <tr>
                                       <td>GST:</td>
-                                      <td>${gst_amount}</td>
+                                      <td>₹${gst_amount}</td>
                                     </tr>
                                     <tr>
                                       <td>Convenience Charges:</td>
-                                      <td>${convenience_fees}</td>
+                                      <td>₹${convenience_fees}</td>
                                     </tr>
                                     <tr>
                                       <td><strong>Total Fee:</strong></td>
-                                      <td><strong>${total_amount}</strong></td>
+                                      <td><strong>₹${total_amount}</strong></td>
                                     </tr>
                                     <tr>
                                       <td><strong>Paid:</strong></td>
-                                      <td><strong>${paid_amount}</strong></td>
+                                      <td><strong>₹${paid_amount}</strong></td>
                                     </tr>
                                     <tr>
                                       <td>Balance:</td>
-                                      <td>${balance_amount}</td>
+                                      <td>₹${balance_amount}</td>
                                     </tr>
                                 </table>
                                 <div style="clear: both;"></div>
