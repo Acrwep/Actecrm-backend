@@ -65,7 +65,6 @@ router.put(
 
 // Mail module start
 router.post("/sendMail", verifyToken, EmailController.sendMail);
-router.post("/sendInvoice", verifyToken, EmailController.sendInvoiceMail);
 router.post("/sendCustomerMail", verifyToken, EmailController.sendCustomerMail);
 router.post(
   "/sendCustomerCertificate",

@@ -317,349 +317,6 @@ const sendCustomerMail = async (email, link, customer_id) => {
   }
 };
 
-const sendInvoiceMail = async (
-  email,
-  name,
-  mobile,
-  convenience_fees,
-  gst_amount,
-  gst_percentage,
-  invoice_date,
-  invoice_number,
-  paid_amount,
-  balance_amount,
-  payment_mode,
-  tax_type,
-  total_amount,
-  course_name,
-  sub_total
-) => {
-  const pdfPath = path.join(__dirname, "../invoices/invoice.pdf");
-  fs.mkdirSync(path.dirname(pdfPath), { recursive: true });
-
-  // --- Generate Invoice PDF ---
-  await new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50 });
-    const stream = fs.createWriteStream(pdfPath);
-    doc.pipe(stream);
-
-    // ---------- HEADER ----------
-    const logoPath = process.env.LOGO_PATH;
-
-    doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size
-
-    // Move cursor down a bit so text doesn’t overlap the logo
-    doc.moveDown(1);
-
-    doc.font("Helvetica-Bold").fontSize(20).text("Invoice", 50, 90);
-
-    doc
-      .font("Helvetica")
-      .fontSize(10)
-      .text("Acte Technologies Private Limited", 350, 50, {
-        align: "right",
-        lineGap: 3, // spacing between lines
-      })
-      .text("No 1A Sai Adhithya Building, Taramani Link Rd,", {
-        align: "right",
-        lineGap: 3,
-      })
-      .text("Velachery, Chennai, Tamil Nadu 600042", {
-        align: "right",
-        lineGap: 3,
-      })
-      .text("Phone: +91 89259 09207", { align: "right", lineGap: 3 })
-      .text("GST No: 33AAQCA617L1Z9", { align: "right", lineGap: 3 })
-      .moveDown();
-
-    doc.moveDown();
-
-    // ---------- INVOICE INFO ----------
-    doc
-      .fontSize(10)
-      .text(`Invoice Number: ${invoice_number}`, 50, 120, {
-        lineGap: 3,
-      })
-      .text(`Invoice Date: ${invoice_date}`, 50, 135, {
-        lineGap: 3,
-      });
-
-    // ---------- BILL TO ----------
-    doc
-      .fontSize(12)
-      .text("Bill To:", 50, 170)
-      .fontSize(10)
-      .text(`Name: ${name}`, 50, 190, { lineGap: 3 })
-      .text(`Email: ${email}`, 50, 205, { lineGap: 3 })
-      .text(`Mobile: ${mobile}`, 50, 220, { lineGap: 3 });
-
-    // ---------- DETAILS & AMOUNTS TABLE ----------
-    const tableTop = 270;
-    const col1X = 50; // Product
-    const col2X = 200; // Paid
-    const col3X = 280; // Discount
-    const col4X = 360; // GST
-    const col5X = 440; // Convenience Fee
-
-    // Table Header
-    doc.font("Helvetica-Bold").fontSize(10);
-    doc.text("Product", col1X, tableTop);
-    doc.text("Paid", col2X, tableTop);
-    doc.text("Payment Mode", col3X, tableTop);
-    doc.text("GST", col4X, tableTop);
-    doc.text("Convenience Fee", col5X, tableTop);
-
-    // Draw a line below header
-    doc
-      .moveTo(50, tableTop + 15)
-      .lineTo(550, tableTop + 15)
-      .stroke();
-
-    // Table Row (example with one product)
-    doc.font("Helvetica").fontSize(10);
-    const rowY = tableTop + 25;
-    doc.text(course_name || "-", col1X, rowY);
-    doc.text(paid_amount || "-", col2X, rowY);
-    doc.text(payment_mode || "-", col3X, rowY);
-    doc.text(gst_percentage + "%" || "-", col4X, rowY);
-    doc.text(convenience_fees || "-", col5X, rowY);
-
-    // Draw a line below row
-    doc
-      .moveTo(50, rowY + 15)
-      .lineTo(550, rowY + 15)
-      .stroke();
-
-    // ---------- TOTALS ----------
-    let currentY = rowY + 20; // start position after table
-    const rowGap = 18; // adjust this to increase/decrease spacing
-
-    doc.font("Helvetica-Bold").fontSize(10);
-
-    // define label + value X positions
-    const labelX = 380;
-    const valueX = 480;
-
-    function addTotalRow(label, value) {
-      if (label === "Paid:") {
-        doc.font("Helvetica-Bold");
-      } else {
-        doc.font("Helvetica");
-      }
-      doc.text(label, labelX, currentY, { width: 120, align: "left" });
-      doc.text(value, valueX, currentY, { width: 60, align: "right" });
-      currentY += rowGap; // add extra gap before next row
-    }
-
-    // Add totals with consistent spacing
-    addTotalRow("Sub Total:", sub_total);
-    addTotalRow("Payment Mode:", payment_mode);
-    addTotalRow("GST:", gst_amount);
-    addTotalRow("Convenience Charges:", convenience_fees);
-    addTotalRow("Total Fee:", total_amount);
-    addTotalRow("Paid:", paid_amount);
-    addTotalRow("Balance:", balance_amount);
-
-    // ---------- NOTES ----------
-    const totalsY = rowY + 20;
-    doc.font("Helvetica-Bold").fontSize(10);
-
-    let notesY = totalsY + 120; // push a bit further
-    doc
-      .moveDown()
-      .fontSize(9)
-      .text("Note:", 50, notesY)
-      .text(
-        "1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd",
-        { width: 500 }
-      )
-      .text("2) The refund requisition will not be accepted", { width: 500 })
-      .text(
-        "3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.",
-        { width: 500 }
-      )
-      .moveDown();
-
-    doc
-      .fontSize(8)
-      .text("Happy Learning...!Thanks for choosing us...!!", 50, 700, {
-        align: "center",
-      });
-
-    doc.end();
-
-    stream.on("finish", resolve);
-    stream.on("error", reject);
-  });
-
-  // --- Send Mail with Attachment ---
-  let transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS, // Gmail app password
-    },
-  });
-
-  return transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to: email,
-    subject: "Your Invoice",
-    text: "Please find your invoice attached.",
-    attachments: [{ filename: "invoice.pdf", path: pdfPath }],
-  });
-};
-
-const generateInvoicePdf = (
-  email,
-  name,
-  mobile,
-  convenience_fees,
-  gst_amount,
-  gst_percentage,
-  invoice_date,
-  invoice_number,
-  paid_amount,
-  balance_amount,
-  payment_mode,
-  tax_type,
-  total_amount,
-  course_name,
-  sub_total
-) => {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 50 });
-    let buffers = [];
-
-    doc.on("data", buffers.push.bind(buffers));
-    doc.on("end", () => {
-      const pdfData = Buffer.concat(buffers);
-      resolve(pdfData);
-    });
-
-    // ---------- HEADER ----------
-    const logoPath = path.join(
-      "C:\\Users\\ADMIN PRAKASH\\Documents\\GitHub\\Actecrm-backend",
-      "acte-logo.png" // <-- replace with your actual logo file name
-    );
-    doc.image(logoPath, 50, 40, { width: 95 }); // X, Y, size
-
-    // Move cursor down a bit so text doesn’t overlap the logo
-    doc.moveDown(1);
-
-    doc.font("Helvetica-Bold").fontSize(20).text("Invoice", 50, 85);
-
-    doc
-      .font("Helvetica")
-      .fontSize(10)
-      .text("Acte Technologies Private Limited", 350, 50, { align: "right" })
-      .text("No 1A Sai Adhithya Building, Taramani Link Rd,", {
-        align: "right",
-      })
-      .text("Velachery, Chennai, Tamil Nadu 600042", { align: "right" })
-      .text("Phone: +91 89259 09207", { align: "right" })
-      .text("GST No: 33AAQCA617L1Z9", { align: "right" })
-      .moveDown();
-
-    // ---------- INVOICE INFO ----------
-    doc
-      .fontSize(10)
-      .text(`Invoice Number: ${invoice_number}`, 50, 120)
-      .text(`Invoice Date: ${invoice_date}`, 50, 135);
-
-    // ---------- BILL TO ----------
-    doc
-      .fontSize(12)
-      .text("Bill To:", 50, 170)
-      .fontSize(10)
-      .text(`Name: ${name}`, 50, 190)
-      .text(`Email: ${email}`, 50, 205)
-      .text(`Mobile: ${mobile}`, 50, 220);
-
-    // ---------- TABLE ----------
-    const tableTop = 270;
-    const col1X = 50;
-    const col2X = 200;
-    const col3X = 280;
-    const col4X = 360;
-    const col5X = 440;
-
-    doc.font("Helvetica-Bold").fontSize(10);
-    doc.text("Product", col1X, tableTop);
-    doc.text("Paid", col2X, tableTop);
-    doc.text("Payment Mode", col3X, tableTop);
-    doc.text("GST", col4X, tableTop);
-    doc.text("Convenience Fee", col5X, tableTop);
-
-    doc
-      .moveTo(50, tableTop + 15)
-      .lineTo(550, tableTop + 15)
-      .stroke();
-
-    doc.font("Helvetica").fontSize(10);
-    const rowY = tableTop + 25;
-    doc.text(course_name || "-", col1X, rowY);
-    doc.text(paid_amount || "-", col2X, rowY);
-    doc.text(payment_mode || "-", col3X, rowY);
-    doc.text(gst_percentage ? `${gst_percentage}%` : "-", col4X, rowY);
-    doc.text(convenience_fees || "-", col5X, rowY);
-
-    doc
-      .moveTo(50, rowY + 15)
-      .lineTo(550, rowY + 15)
-      .stroke();
-
-    // ---------- TOTALS ----------
-    let currentY = rowY + 30;
-    const rowGap = 18;
-    const labelX = 380;
-    const valueX = 480;
-
-    function addTotalRow(label, value, bold = false) {
-      doc.font(bold ? "Helvetica-Bold" : "Helvetica");
-      doc.text(label, labelX, currentY, { width: 120, align: "left" });
-      doc.text(value, valueX, currentY, { width: 60, align: "right" });
-      currentY += rowGap;
-    }
-
-    addTotalRow("Sub Total:", sub_total);
-    addTotalRow("Payment Mode:", payment_mode);
-    addTotalRow("GST:", gst_amount);
-    addTotalRow("Convenience Charges:", convenience_fees);
-    addTotalRow("Total Fee:", total_amount, true);
-    addTotalRow("Paid:", paid_amount, true);
-    addTotalRow("Balance:", balance_amount);
-
-    // ---------- NOTES ----------
-    doc
-      .moveDown()
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .text("Notes:", 50, currentY + 40);
-    doc
-      .font("Helvetica")
-      .fontSize(9)
-      .text(
-        "1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd",
-        { width: 500 }
-      );
-    doc.text("2) The refund requisition will not be accepted", { width: 500 });
-    doc.text(
-      "3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.",
-      { width: 500 }
-    );
-
-    doc
-      .moveDown()
-      .fontSize(8)
-      .text("Happy Learning...! Thanks for choosing us...!!", 50, 720, {
-        align: "center",
-      });
-
-    doc.end();
-  });
-};
-
 const sendCourseCertificate = async (email, customer_id) => {
   const sql = `SELECT
                       id,
@@ -859,7 +516,7 @@ const sendCourseCertificate = async (email, customer_id) => {
   return transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Your Course Certificate",
+    subject: "Acte Course Certificate",
     text: "Please find your course certificate attached.",
     attachments: [{ filename: "certificate.pdf", path: pdfPath }],
   });
@@ -1033,190 +690,213 @@ const sendInvoicePdf = async (
   const acteLogoBase64 = getBase64Image(process.env.LOGO_PATH);
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
-                        <html lang="en">
-                          <head>
-                              <meta charset="UTF-8" />
-                              <title>Invoice</title>
-                              <style>
-                                body {
-                                font-family: Arial, sans-serif;
-                                font-size: 14px;
-                                margin: 0;
-                                padding: 20px;
-                                background-color: #fff;
-                                }
-                                .invoice-box {
-                                max-width: 800px;
-                                margin: auto;
-                                padding: 20px;
-                                }
-                                .invoice-header {
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                }
-                                .invoice-header img {
-                                width: 120px;
-                                }
-                                .invoice-header .company {
-                                text-align: right;
-                                line-height: 22px;
-                                }
-                                .invoice-title {
-                                font-size: 24px;
-                                font-weight: bold;
-                                margin-bottom: 10px;
-                                }
-                                .invoice-info {
-                                margin-bottom: 20px;
-                                line-height: 22px;
-                                }
-                                .bill-to {
-                                margin-top: 10px;
-                                margin-bottom: 20px;
-                                line-height: 22px;
-                                }
-                                table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                margin-bottom: 15px;
-                                }
-                                table th, table td {
-                                border: 1px solid #ddd;
-                                padding: 8px;
-                                text-align: center;
-                                }
-                                table th {
-                                background: #f4f4f4;
-                                }
-                                .totals {
-                                width: 300px;
-                                float: right;
-                                margin-top: -12px;
-                                }
-                                .totals,
-                                .totals td,
-                                .totals th {
-                                border: none;
-                                }
-                                .totals td {
-                                padding: 6px;
-                                }
-                                .totals tr td:first-child {
-                                text-align: left;
-                                }
-                                .totals tr td:last-child {
-                                text-align: right;
-                                }
-                                .notes {
-                                margin-top: 60px;
-                                font-size: 12px;
-                                font-weight: 600;
-                                line-height: 22px;
-                                }
-                                .footer {
-                                margin-top: 30px;
-                                text-align: center;
-                                font-size: 11px;
-                                font-weight: 700;
-                                }
-                              </style>
-                          </head>
-                          <body>
-                              <div class="invoice-box">
-                                <!-- HEADER -->
-                                <div class="invoice-header">
-                                    <div>
-                                    <img src="${acteLogoBase64}" style="width:140px; height:auto;" />
-                                    </div>
-                                    <div class="company">
-                                      <strong>Acte Technologies Private Limited</strong><br />
-                                      No 1A Sai Adhithya Building, Taramani Link Rd,<br />
-                                      Velachery, Chennai, Tamil Nadu 600042<br />
-                                      Phone: +91 89259 09207<br />
-                                      GST No: 33AAQCA617L1Z9
-                                    </div>
-                                </div>
-                                <div class="invoice-title">Invoice</div>
-                                <!-- INVOICE INFO -->
-                                <div class="invoice-info">
-                                    <strong>Invoice Number:</strong> ${invoice_number}<br />
-                                    <strong>Invoice Date:</strong> ${invoice_date}
-                                </div>
-                                <!-- BILL TO -->
-                                <div class="bill-to">
-                                    <strong>Bill To:</strong><br />
-                                    Name: ${name}<br />
-                                    Email: ${email}<br />
-                                    Mobile: ${mobile}
-                                </div>
-                                <!-- TABLE -->
-                                <table>
-                                    <thead>
-                                      <tr>
-                                          <th>Product</th>
-                                          <th>Paid</th>
-                                          <th>Payment Mode</th>
-                                          <th>GST</th>
-                                          <th>Convenience Fee</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                          <td>${course_name}</td>
-                                          <td>₹${paid_amount}</td>
-                                          <td>${payment_mode}</td>
-                                          <td>${gst_percentage}%</td>
-                                          <td>₹${convenience_fees}</td>
-                                      </tr>
-                                    </tbody>
-                                </table>
-                                <!-- TOTALS -->
-                                <table class="totals">
-                                    <tr>
-                                      <td>Sub Total:</td>
-                                      <td>₹${sub_total}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>Payment Mode:</td>
-                                      <td>${payment_mode}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>GST:</td>
-                                      <td>₹${gst_amount}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>Convenience Charges:</td>
-                                      <td>₹${convenience_fees}</td>
-                                    </tr>
-                                    <tr>
-                                      <td><strong>Total Fee:</strong></td>
-                                      <td><strong>₹${total_amount}</strong></td>
-                                    </tr>
-                                    <tr>
-                                      <td><strong>Paid:</strong></td>
-                                      <td><strong>₹${paid_amount}</strong></td>
-                                    </tr>
-                                    <tr>
-                                      <td>Balance:</td>
-                                      <td>₹${balance_amount}</td>
-                                    </tr>
-                                </table>
-                                <div style="clear: both;"></div>
-                                <!-- NOTES -->
-                                <div class="notes">
-                                    <strong>Note:</strong><br />
-                                    1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
-                                    2) The refund requisition will not be accepted<br />
-                                    3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.
-                                </div>
-                                <!-- FOOTER -->
-                                <div class="footer">
-                                    Happy Learning...! Thanks for choosing us...!!
-                                </div>
-                              </div>
-                          </body>
-                        </html>`;
+<html lang="en">
+  <head>
+      <meta charset="UTF-8" />
+      <title>Invoice</title>
+      <style>
+        /* Invoice styles scoped under .invoice-box */
+        .invoice-box {
+          max-width: 800px;
+          margin: auto;
+          padding: 20px 30px;
+          font-family: Arial, sans-serif;
+          font-size: 14px;
+          background-color: #fff;
+          color: #000;
+        }
+
+        .invoice-box .invoice-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .invoice-box .invoice-header img {
+          width: 140px;
+          height: auto;
+        }
+
+        .invoice-box .invoice-header .company {
+          text-align: right;
+          line-height: 22px;
+        }
+
+        .invoice-box .invoice-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 10px 0;
+        }
+
+        .invoice-box .invoice-info,
+        .invoice-box .bill-to {
+          margin-bottom: 20px;
+          line-height: 22px;
+        }
+
+        .invoice-box .invoice-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 15px;
+        }
+
+        .invoice-box .invoice-table th,
+        .invoice-box .invoice-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: center;
+        }
+
+        .invoice-box .invoice-table th {
+          background: #f4f4f4;
+        }
+
+        /* Totals table */
+        .invoice-box .totals-container {
+          margin-top: 20px;
+          text-align: right;
+        }
+
+        .invoice-box .totals {
+          display: inline-block;
+          width: max-content;
+          border-collapse: collapse;
+          padding-right: 12px;
+        }
+
+        .invoice-box .totals td {
+          padding: 6px;
+        }
+
+        .invoice-box .totals tr td:first-child {
+          text-align: left;
+        }
+
+        .invoice-box .totals tr td:last-child {
+          text-align: right;
+        }
+
+        /* Notes section */
+        .invoice-box .notes {
+          margin-top: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 22px;
+          clear: both;
+        }
+
+        .invoice-box .footer {
+          margin-top: 30px;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 700;
+        }
+      </style>
+  </head>
+  <body>
+      <div class="invoice-box">
+        <!-- HEADER -->
+        <div class="invoice-header">
+            <div>
+              <img src="${acteLogoBase64}" alt="Acte Logo" />
+            </div>
+            <div class="company">
+              <strong>Acte Technologies Private Limited</strong><br />
+              No 1A Sai Adhithya Building, Taramani Link Rd,<br />
+              Velachery, Chennai, Tamil Nadu 600042<br />
+              Phone: +91 89259 09207<br />
+              GST No: 33AAQCA617L1Z9
+            </div>
+        </div>
+
+        <div class="invoice-title">Invoice</div>
+
+        <!-- INVOICE INFO -->
+        <div class="invoice-info">
+            <strong>Invoice Number:</strong> ${invoice_number}<br />
+            <strong>Invoice Date:</strong> ${invoice_date}
+        </div>
+
+        <!-- BILL TO -->
+        <div class="bill-to">
+            <strong>Bill To:</strong><br />
+            Name: ${name}<br />
+            Email: ${email}<br />
+            Mobile: ${mobile}
+        </div>
+
+     <!-- PRODUCT TABLE -->
+<table class="invoice-table">
+    <thead>
+      <tr>
+          <th>Product</th>
+          <th>Paid</th>
+          <th>Payment Mode</th>
+          <th>GST</th>
+          <th>Convenience Fee</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+          <td>${course_name}</td>
+          <td>₹${paid_amount}</td>
+          <td>${payment_mode}</td>
+          <td>${gst_percentage}%</td>
+          <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+    </tbody>
+</table>
+
+<!-- TOTALS TABLE (right-aligned below product table) -->
+<div class="totals-container" style="width: max-content; margin-left: auto; margin-top: -12px">
+  <table class="totals">
+      <tr>
+        <td>Sub Total:</td>
+        <td>₹${sub_total}</td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
+      </tr>
+      <tr>
+        <td>GST:</td>
+        <td>₹${gst_amount}</td>
+      </tr>
+      <tr>
+        <td>Convenience Charges:</td>
+        <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+      <tr>
+        <td><strong>Total Fee:</strong></td>
+        <td><strong>₹${total_amount}</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Paid:</strong></td>
+        <td><strong>₹${paid_amount}</strong></td>
+      </tr>
+      <tr>
+        <td>Balance:</td>
+        <td>₹${balance_amount}</td>
+      </tr>
+  </table>
+</div>
+
+        <!-- NOTES SECTION -->
+        <div class="notes">
+            <strong>Note:</strong><br />
+            1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
+            2) The refund requisition will not be accepted<br />
+            3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            Happy Learning...! Thanks for choosing us...!!
+        </div>
+      </div>
+  </body>
+</html>
+`;
 
   // 2. Launch Puppeteer and create PDF
   const browser = await puppeteer.launch({
@@ -1247,7 +927,7 @@ const sendInvoicePdf = async (
   return transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: email,
-    subject: "Your Payment Invoice",
+    subject: "Acte Payment Invoice",
     text: "Please find your invoice attached.",
     attachments: [{ filename: "invoice.pdf", path: pdfPath }],
   });
@@ -1269,196 +949,231 @@ const viewInvoicePdf = async (
   course_name,
   sub_total
 ) => {
+  const getBase64Image = (filePath) => {
+    if (!fs.existsSync(filePath)) return "";
+    const data = fs.readFileSync(filePath, { encoding: "base64" });
+    return `data:image/png;base64,${data}`;
+  };
+  const acteLogoBase64 = getBase64Image(process.env.LOGO_PATH);
+
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
-                        <html lang="en">
-                          <head>
-                              <meta charset="UTF-8" />
-                              <title>Invoice</title>
-                              <style>
-                                body {
-                                font-family: Arial, sans-serif;
-                                font-size: 14px;
-                                margin: 0;
-                                padding: 20px;
-                                color: #333;
-                                }
-                                .invoice-box {
-                                max-width: 800px;
-                                margin: auto;
-                                padding: 20px;
-                                border: 1px solid #eee;
-                                box-shadow: 0 0 10px rgba(0,0,0,0.15);
-                                }
-                                .invoice-header {
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                }
-                                .invoice-header img {
-                                width: 120px;
-                                }
-                                .invoice-header .company {
-                                text-align: right;
-                                }
-                                .invoice-title {
-                                font-size: 24px;
-                                font-weight: bold;
-                                margin-top: 20px;
-                                margin-bottom: 10px;
-                                }
-                                .invoice-info {
-                                margin-bottom: 20px;
-                                }
-                                .bill-to {
-                                margin-top: 10px;
-                                margin-bottom: 20px;
-                                }
-                                table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                margin-bottom: 15px;
-                                }
-                                table th, table td {
-                                border: 1px solid #ddd;
-                                padding: 8px;
-                                text-align: center;
-                                }
-                                table th {
-                                background: #f4f4f4;
-                                }
-                                .totals {
-                                width: 300px;
-                                float: right;
-                                margin-top: 20px;
-                                }
-                                .totals td {
-                                padding: 8px;
-                                }
-                                .totals tr td:first-child {
-                                text-align: left;
-                                }
-                                .totals tr td:last-child {
-                                text-align: right;
-                                }
-                                .notes {
-                                margin-top: 60px;
-                                font-size: 12px;
-                                }
-                                .footer {
-                                margin-top: 30px;
-                                text-align: center;
-                                font-size: 11px;
-                                color: #666;
-                                }
-                              </style>
-                          </head>
-                          <body>
-                              <div class="invoice-box">
-                                <!-- HEADER -->
-                                <div class="invoice-header">
-                                    <div>
-                                      <img src="{{logoPath}}" alt="Logo" />
-                                    </div>
-                                    <div class="company">
-                                      <strong>Acte Technologies Private Limited</strong><br />
-                                      No 1A Sai Adhithya Building, Taramani Link Rd,<br />
-                                      Velachery, Chennai, Tamil Nadu 600042<br />
-                                      Phone: +91 89259 09207<br />
-                                      GST No: 33AAQCA617L1Z9
-                                    </div>
-                                </div>
-                                <div class="invoice-title">Invoice</div>
-                                <!-- INVOICE INFO -->
-                                <div class="invoice-info">
-                                    <strong>Invoice Number:</strong> ${invoice_number}<br />
-                                    <strong>Invoice Date:</strong> ${invoice_date}
-                                </div>
-                                <!-- BILL TO -->
-                                <div class="bill-to">
-                                    <strong>Bill To:</strong><br />
-                                    Name: ${name}<br />
-                                    Email: ${email}<br />
-                                    Mobile: ${mobile}
-                                </div>
-                                <!-- TABLE -->
-                                <table>
-                                    <thead>
-                                      <tr>
-                                          <th>Product</th>
-                                          <th>Paid</th>
-                                          <th>Payment Mode</th>
-                                          <th>GST</th>
-                                          <th>Convenience Fee</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      <tr>
-                                          <td>${course_name}</td>
-                                          <td>${paid_amount}</td>
-                                          <td>${payment_mode}</td>
-                                          <td>${gst_percentage}%</td>
-                                          <td>${convenience_fees}</td>
-                                      </tr>
-                                    </tbody>
-                                </table>
-                                <!-- TOTALS -->
-                                <table class="totals">
-                                    <tr>
-                                      <td>Sub Total:</td>
-                                      <td>${sub_total}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>Payment Mode:</td>
-                                      <td>${payment_mode}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>GST:</td>
-                                      <td>${gst_amount}</td>
-                                    </tr>
-                                    <tr>
-                                      <td>Convenience Charges:</td>
-                                      <td>${convenience_fees}</td>
-                                    </tr>
-                                    <tr>
-                                      <td><strong>Total Fee:</strong></td>
-                                      <td><strong>${total_amount}</strong></td>
-                                    </tr>
-                                    <tr>
-                                      <td><strong>Paid:</strong></td>
-                                      <td><strong>${paid_amount}</strong></td>
-                                    </tr>
-                                    <tr>
-                                      <td>Balance:</td>
-                                      <td>${balance_amount}</td>
-                                    </tr>
-                                </table>
-                                <div style="clear: both;"></div>
-                                <!-- NOTES -->
-                                <div class="notes">
-                                    <strong>Note:</strong><br />
-                                    1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
-                                    2) The refund requisition will not be accepted<br />
-                                    3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.
-                                </div>
-                                <!-- FOOTER -->
-                                <div class="footer">
-                                    Happy Learning...! Thanks for choosing us...!!
-                                </div>
-                              </div>
-                          </body>
-                        </html>`;
+<html lang="en">
+  <head>
+      <meta charset="UTF-8" />
+      <title>Invoice</title>
+      <style>
+        /* Invoice styles scoped under .invoice-box */
+        .invoice-box {
+          max-width: 800px;
+          margin: auto;
+          padding: 20px 30px;
+          font-family: Arial, sans-serif;
+          font-size: 14px;
+          background-color: #fff;
+          color: #000;
+        }
+
+        .invoice-box .invoice-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .invoice-box .invoice-header img {
+          width: 140px;
+          height: auto;
+        }
+
+        .invoice-box .invoice-header .company {
+          text-align: right;
+          line-height: 22px;
+        }
+
+        .invoice-box .invoice-title {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 10px 0;
+        }
+
+        .invoice-box .invoice-info,
+        .invoice-box .bill-to {
+          margin-bottom: 20px;
+          line-height: 22px;
+        }
+
+        .invoice-box .invoice-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 15px;
+        }
+
+        .invoice-box .invoice-table th,
+        .invoice-box .invoice-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: center;
+        }
+
+        .invoice-box .invoice-table th {
+          background: #f4f4f4;
+        }
+
+        /* Totals table */
+        .invoice-box .totals-container {
+          margin-top: 20px;
+          text-align: right;
+        }
+
+        .invoice-box .totals {
+          display: inline-block;
+          width: max-content;
+          border-collapse: collapse;
+          padding-right: 12px;
+        }
+
+        .invoice-box .totals td {
+          padding: 6px;
+        }
+
+        .invoice-box .totals tr td:first-child {
+          text-align: left;
+        }
+
+        .invoice-box .totals tr td:last-child {
+          text-align: right;
+        }
+
+        /* Notes section */
+        .invoice-box .notes {
+          margin-top: 20px;
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 22px;
+          clear: both;
+        }
+
+        .invoice-box .footer {
+          margin-top: 30px;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 700;
+        }
+      </style>
+  </head>
+  <body>
+      <div class="invoice-box">
+        <!-- HEADER -->
+        <div class="invoice-header">
+            <div>
+              <img src="${acteLogoBase64}" alt="Acte Logo" />
+            </div>
+            <div class="company">
+              <strong>Acte Technologies Private Limited</strong><br />
+              No 1A Sai Adhithya Building, Taramani Link Rd,<br />
+              Velachery, Chennai, Tamil Nadu 600042<br />
+              Phone: +91 89259 09207<br />
+              GST No: 33AAQCA617L1Z9
+            </div>
+        </div>
+
+        <div class="invoice-title">Invoice</div>
+
+        <!-- INVOICE INFO -->
+        <div class="invoice-info">
+            <strong>Invoice Number:</strong> ${invoice_number}<br />
+            <strong>Invoice Date:</strong> ${invoice_date}
+        </div>
+
+        <!-- BILL TO -->
+        <div class="bill-to">
+            <strong>Bill To:</strong><br />
+            Name: ${name}<br />
+            Email: ${email}<br />
+            Mobile: ${mobile}
+        </div>
+
+     <!-- PRODUCT TABLE -->
+<table class="invoice-table">
+    <thead>
+      <tr>
+          <th>Product</th>
+          <th>Paid</th>
+          <th>Payment Mode</th>
+          <th>GST</th>
+          <th>Convenience Fee</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+          <td>${course_name}</td>
+          <td>₹${paid_amount}</td>
+          <td>${payment_mode}</td>
+          <td>${gst_percentage}%</td>
+          <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+    </tbody>
+</table>
+
+<!-- TOTALS TABLE (right-aligned below product table) -->
+<div class="totals-container" style="width: max-content; margin-left: auto; margin-top: -12px">
+  <table class="totals">
+      <tr>
+        <td>Sub Total:</td>
+        <td>₹${sub_total}</td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
+      </tr>
+      <tr>
+        <td>GST:</td>
+        <td>₹${gst_amount}</td>
+      </tr>
+      <tr>
+        <td>Convenience Charges:</td>
+        <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+      <tr>
+        <td><strong>Total Fee:</strong></td>
+        <td><strong>₹${total_amount}</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Paid:</strong></td>
+        <td><strong>₹${paid_amount}</strong></td>
+      </tr>
+      <tr>
+        <td>Balance:</td>
+        <td>₹${balance_amount}</td>
+      </tr>
+  </table>
+</div>
+
+        <!-- NOTES SECTION -->
+        <div class="notes">
+            <strong>Note:</strong><br />
+            1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
+            2) The refund requisition will not be accepted<br />
+            3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            Happy Learning...! Thanks for choosing us...!!
+        </div>
+      </div>
+  </body>
+</html>
+`;
   return htmlContent;
 };
 
 module.exports = {
   sendMail,
-  sendInvoiceMail,
   sendCustomerMail,
   sendCourseCertificate,
   sendWelcomeMail,
   sendPaymentMail,
-  generateInvoicePdf,
   sendInvoicePdf,
   viewInvoicePdf,
 };
