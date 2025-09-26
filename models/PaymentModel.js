@@ -129,14 +129,14 @@ const PaymentModel = {
 
       const values = statuses.map((s) => [insertCustomer.insertId, ...s]);
       const [cusTrack] = await pool.query(
-        `INSERT INTO customer_track(
+        `INSERT INTO customer_track (
             customer_id,
             status,
             status_date,
             updated_by
         )
-        VALUES(?, ?, ?, ?)`,
-        values
+        VALUES ?`, // 👈 VALUES ? is the right syntax for bulk insert
+        [values]
       );
 
       const [getInvoiceDetails] = await pool.query(
