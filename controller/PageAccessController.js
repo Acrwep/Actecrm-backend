@@ -94,6 +94,40 @@ const insertGroups = async (request, response) => {
   }
 };
 
+const getRolePermissions = async (request, response) => {
+  try {
+    const result = await PageAccessModel.getRolePermissions();
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const insertRolePermissions = async (request, response) => {
+  const { role_id, permission_id } = request.body;
+  try {
+    const result = await PageAccessModel.insertRolePermissions(
+      role_id,
+      permission_id
+    );
+    return response.status(201).send({
+      massage: "Data inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   insertPermission,
@@ -101,4 +135,6 @@ module.exports = {
   insertRoles,
   getGroups,
   insertGroups,
+  getRolePermissions,
+  insertRolePermissions,
 };

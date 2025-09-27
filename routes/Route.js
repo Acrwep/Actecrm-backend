@@ -131,4 +131,14 @@ router.get("/getRoles", verifyToken, PageAccessController.getRoles);
 router.post("/insertRoles", verifyToken, PageAccessController.insertRoles);
 router.get("/getGroups", verifyToken, PageAccessController.getGroups);
 router.post("/insertGroups", verifyToken, PageAccessController.insertGroups);
+router.get(
+  "/getRolePermissions",
+  verifyToken,
+  PageAccessController.getRolePermissions
+);
+router.post(
+  "/insertRolePermissions",
+  verifyToken,
+  PageAccessController.insertRolePermissions
+);
 module.exports = router;

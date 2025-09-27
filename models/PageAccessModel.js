@@ -71,12 +71,39 @@ const PageAccessModel = {
   insertGroups: async (group_name, description) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT id FROM groups WHERE group_name = ? AND is_active = 1`,
+        `SELECT group_id FROM groups WHERE group_name = ? AND is_active = 1`,
         [group_name]
       );
-      if (isExists.length > 0) throw new Error("The role name already exists");
+      if (isExists.length > 0) throw new Error("The group name already exists");
       const sql = `INSERT INTO groups(group_name, description) VALUES(?, ?)`;
       const values = [group_name, description];
+      const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRolePermissions: async () => {
+    try {
+      const sql = `SELECT role_id, permission_id FROM role_permissions`;
+      const [result] = await pool.query(sql);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  insertRolePermissions: async (role_id, permission_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM role_permissions WHERE role_id = ? AND permission_id = ?`,
+        [role_id, permission_id]
+      );
+      if (isExists.length > 0)
+        throw new Error("Permission has already been mapped this role");
+      const sql = `INSERT INTO role_permissions(role_id, permission_id) VALUES(?, ?)`;
+      const values = [role_id, permission_id];
       const [result] = await pool.query(sql, values);
       return result.affectedRows;
     } catch (error) {
