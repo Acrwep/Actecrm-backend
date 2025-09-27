@@ -48,9 +48,13 @@ const getRoles = async (request, response) => {
 };
 
 const insertRoles = async (request, response) => {
-  const { role_name } = request.body;
+  const { role_name, background_color, text_color } = request.body;
   try {
-    const result = await PageAccessModel.insertRoles(role_name);
+    const result = await PageAccessModel.insertRoles(
+      role_name,
+      background_color,
+      text_color
+    );
     return response.status(201).send({
       massage: "Role inserted successfully",
       data: result,

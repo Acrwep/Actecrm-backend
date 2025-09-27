@@ -29,7 +29,7 @@ const PageAccessModel = {
 
   getRoles: async () => {
     try {
-      const sql = `SELECT role_id, role_name, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY id ASC`;
+      const sql = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY id ASC`;
       const [result] = await pool.query(sql);
       return result;
     } catch (error) {
@@ -37,15 +37,15 @@ const PageAccessModel = {
     }
   },
 
-  insertRoles: async (role_name) => {
+  insertRoles: async (role_name, background_color, text_color) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM roles WHERE role_name = ? AND is_active = 1`,
         [role_name]
       );
       if (isExists.length > 0) throw new Error("The role name already exists");
-      const sql = `INSERT INTO roles(role_name) VALUES(?)`;
-      const values = [role_name];
+      const sql = `INSERT INTO roles(role_name, background_color, text_color) VALUES(?, ?, ?)`;
+      const values = [role_name, background_color, text_color];
       const [result] = await pool.query(sql, values);
       return result.affectedRows;
     } catch (error) {
