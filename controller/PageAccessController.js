@@ -84,7 +84,7 @@ const updateRole = async (request, response) => {
 };
 
 const deleteRole = async (request, response) => {
-  const { role_id } = request.body;
+  const { role_id } = request.query;
   try {
     const result = await PageAccessModel.deleteRole(role_id);
     return response.status(200).send({
@@ -157,7 +157,7 @@ const updateGroup = async (request, response) => {
 };
 
 const deleteGroup = async (request, response) => {
-  const { group_id } = request.body;
+  const { group_id } = request.query;
   try {
     const result = await PageAccessModel.deleteGroup(group_id);
     return response.status(200).send({
