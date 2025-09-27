@@ -60,6 +60,13 @@ const PageAccessModel = {
         [role_id]
       );
       if (isExists.length <= 0) throw new Error("Invalid role Id");
+
+      const [isNameExists] = await pool.query(
+        `SELECT role_id FROM roles WHERE role_name = ? AND role_id <> ?`,
+        [role_name, role_id]
+      );
+
+      if (isNameExists.length > 0) throw new Error("Role name already exists");
       const sql = `UPDATE
                       roles
                   SET
@@ -145,6 +152,13 @@ const PageAccessModel = {
         [group_id]
       );
       if (isExists.length <= 0) throw new Error("Invalid group Id");
+
+      const [isNameExists] = await pool.query(
+        `SELECT group_id FROM groups WHERE group_name = ? AND group_id <> ?`,
+        [group_name, group_id]
+      );
+
+      if (isNameExists.length > 0) throw new Error("Role name already exists");
       const sql = `UPDATE
                       groups
                   SET
