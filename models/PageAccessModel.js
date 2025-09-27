@@ -53,6 +53,53 @@ const PageAccessModel = {
     }
   },
 
+  updateRole: async (role_name, role_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT role_id FROM roles WHERE role_id = ? AND is_active = 1`,
+        [role_id]
+      );
+      if (isExists.length <= 0) throw new Error("Invalid role Id");
+      const sql = `UPDATE
+                      roles
+                  SET
+                      role_name = ?
+                  WHERE
+                      role_id = ?`;
+      const values = [role_name, role_id];
+      const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  deleteRole: async (role_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT role_id FROM roles WHERE role_id = ? AND is_active = 1`,
+        [role_id]
+      );
+      if (isExists.length <= 0) throw new Error("Invalid role Id");
+
+      const [isRoleMapped] = await pool.query(
+        `SELECT COUNT(id) AS count FROM role_permissions WHERE role_id = ?`,
+        [role_id]
+      );
+      if (isRoleMapped[0].count > 0)
+        throw new Error(
+          "Can't be able to delete this role, kindly un-map from role_permissions table"
+        );
+
+      const [result] = await pool.query(`DELETE FROM roles WHERE role_id = ?`, [
+        role_id,
+      ]);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getGroups: async () => {
     try {
       const sql = `SELECT

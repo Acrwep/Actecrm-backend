@@ -67,6 +67,38 @@ const insertRoles = async (request, response) => {
   }
 };
 
+const updateRole = async (request, response) => {
+  const { role_name, role_id } = request.body;
+  try {
+    const result = await PageAccessModel.updateRole(role_name, role_id);
+    return response.status(200).send({
+      massage: "Role updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating role",
+      details: error.message,
+    });
+  }
+};
+
+const deleteRole = async (request, response) => {
+  const { role_id } = request.body;
+  try {
+    const result = await PageAccessModel.deleteRole(role_id);
+    return response.status(200).send({
+      massage: "Role has been deleted",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while deleting role",
+      details: error.message,
+    });
+  }
+};
+
 const getGroups = async (request, response) => {
   try {
     const result = await PageAccessModel.getGroups();
@@ -143,6 +175,8 @@ module.exports = {
   insertPermission,
   getRoles,
   insertRoles,
+  updateRole,
+  deleteRole,
   getGroups,
   insertGroups,
   getRolePermissions,
