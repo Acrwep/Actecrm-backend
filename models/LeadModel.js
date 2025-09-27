@@ -108,6 +108,7 @@ const LeadModel = {
       let affectedRows = 0;
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
+                            assigned_to,
                             name,
                             phone_code,
                             phone,
@@ -131,8 +132,9 @@ const LeadModel = {
                             created_date,
                             region_id
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
+        user_id,
         user_id,
         name,
         phone_code,

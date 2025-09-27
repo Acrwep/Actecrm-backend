@@ -125,6 +125,10 @@ router.get(
   CustomerController.getCustomerHistory
 );
 
-router.get("/getFeatures", PageAccessController.getFeatures);
-router.post("/insertFeature", PageAccessController.insertFeature);
+router.get("/getPermissions", PageAccessController.getPermissions);
+router.post("/insertPermission", PageAccessController.insertPermission);
+router.get("/getRoles", verifyToken, PageAccessController.getRoles);
+router.post("/insertRoles", verifyToken, PageAccessController.insertRoles);
+router.get("/getGroups", verifyToken, PageAccessController.getGroups);
+router.post("/insertGroups", verifyToken, PageAccessController.insertGroups);
 module.exports = router;
