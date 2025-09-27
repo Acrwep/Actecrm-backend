@@ -79,9 +79,15 @@ const getGroups = async (request, response) => {
 };
 
 const insertGroups = async (request, response) => {
-  const { group_name, description } = request.body;
+  const { group_name, description, background_color, text_color } =
+    request.body;
   try {
-    const result = await PageAccessModel.insertGroups(group_name, description);
+    const result = await PageAccessModel.insertGroups(
+      group_name,
+      description,
+      background_color,
+      text_color
+    );
     return response.status(201).send({
       massage: "Group inserted successfully",
       data: result,

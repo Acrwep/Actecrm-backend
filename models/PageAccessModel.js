@@ -59,6 +59,8 @@ const PageAccessModel = {
                       group_id,
                       group_name,
                       description,
+                      background_color,
+                      text_color,
                       CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active
                   FROM groups WHERE is_active = 1`;
       const [result] = await pool.query(sql);
@@ -68,15 +70,20 @@ const PageAccessModel = {
     }
   },
 
-  insertGroups: async (group_name, description) => {
+  insertGroups: async (
+    group_name,
+    description,
+    background_color,
+    text_color
+  ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT group_id FROM groups WHERE group_name = ? AND is_active = 1`,
         [group_name]
       );
       if (isExists.length > 0) throw new Error("The group name already exists");
-      const sql = `INSERT INTO groups(group_name, description) VALUES(?, ?)`;
-      const values = [group_name, description];
+      const sql = `INSERT INTO groups(group_name, description, background_color, text_color) VALUES(?, ?, ?, ?)`;
+      const values = [group_name, description, background_color, text_color];
       const [result] = await pool.query(sql, values);
       return result.affectedRows;
     } catch (error) {
