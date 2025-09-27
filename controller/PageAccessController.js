@@ -136,6 +136,42 @@ const insertGroups = async (request, response) => {
   }
 };
 
+const updateGroup = async (request, response) => {
+  const { group_name, description, group_id } = request.body;
+  try {
+    const result = await PageAccessModel.updateGroup(
+      group_name,
+      description,
+      group_id
+    );
+    return response.status(200).send({
+      massage: "Group updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating group",
+      details: error.message,
+    });
+  }
+};
+
+const deleteGroup = async (request, response) => {
+  const { group_id } = request.body;
+  try {
+    const result = await PageAccessModel.deleteGroup(group_id);
+    return response.status(200).send({
+      massage: "Group has been deleted",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while deleting group",
+      details: error.message,
+    });
+  }
+};
+
 const getRolePermissions = async (request, response) => {
   try {
     const result = await PageAccessModel.getRolePermissions();
@@ -179,6 +215,8 @@ module.exports = {
   deleteRole,
   getGroups,
   insertGroups,
+  updateGroup,
+  deleteGroup,
   getRolePermissions,
   insertRolePermissions,
 };

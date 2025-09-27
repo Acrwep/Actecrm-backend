@@ -3,7 +3,7 @@ const pool = require("../config/dbconfig");
 const PageAccessModel = {
   getPermissions: async () => {
     try {
-      const sql = `SELECT permission_id, permission_name, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM permissions WHERE is_active = 1 ORDER BY id ASC`;
+      const sql = `SELECT permission_id, permission_name, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM permissions WHERE is_active = 1 ORDER BY permission_id ASC`;
       const [result] = await pool.query(sql);
       return result;
     } catch (error) {
@@ -29,7 +29,7 @@ const PageAccessModel = {
 
   getRoles: async () => {
     try {
-      const sql = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY id ASC`;
+      const sql = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY role_id ASC`;
       const [result] = await pool.query(sql);
       return result;
     } catch (error) {
@@ -40,7 +40,7 @@ const PageAccessModel = {
   insertRoles: async (role_name, background_color, text_color) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT id FROM roles WHERE role_name = ? AND is_active = 1`,
+        `SELECT role_id FROM roles WHERE role_name = ? AND is_active = 1`,
         [role_name]
       );
       if (isExists.length > 0) throw new Error("The role name already exists");
@@ -132,6 +132,55 @@ const PageAccessModel = {
       const sql = `INSERT INTO groups(group_name, description, background_color, text_color) VALUES(?, ?, ?, ?)`;
       const values = [group_name, description, background_color, text_color];
       const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateGroup: async (group_name, description, group_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT group_id FROM groups WHERE group_id = ? AND is_active = 1`,
+        [group_id]
+      );
+      if (isExists.length <= 0) throw new Error("Invalid group Id");
+      const sql = `UPDATE
+                      groups
+                  SET
+                      group_name = ?,
+                      description = ?
+                  WHERE
+                      group_id = ?`;
+      const values = [group_name, description, group_id];
+      const [result] = await pool.query(sql, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  deleteGroup: async (group_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT group_id FROM groups WHERE group_id  = ? AND is_active = 1`,
+        [group_id]
+      );
+      if (isExists.length <= 0) throw new Error("Invalid geoup Id");
+
+      const [isGroupMapped] = await pool.query(
+        `SELECT COUNT(id) AS count FROM user_group_roles WHERE group_id = ?`,
+        [group_id]
+      );
+      if (isGroupMapped[0].count > 0)
+        throw new Error(
+          "Can't be able to delete this group, kindly un-map from user_group_roles table"
+        );
+
+      const [result] = await pool.query(
+        `DELETE FROM groups WHERE group_id  = ?`,
+        [group_id]
+      );
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);

@@ -133,6 +133,8 @@ router.put("/updateRole", verifyToken, PageAccessController.updateRole);
 router.delete("/deleteRole", verifyToken, PageAccessController.deleteRole);
 router.get("/getGroups", verifyToken, PageAccessController.getGroups);
 router.post("/insertGroups", verifyToken, PageAccessController.insertGroups);
+router.put("/updateGroup", verifyToken, PageAccessController.updateGroup);
+router.delete("/deleteGroup", verifyToken, PageAccessController.deleteGroup);
 router.get(
   "/getRolePermissions",
   verifyToken,
