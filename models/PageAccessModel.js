@@ -183,7 +183,7 @@ const PageAccessModel = {
       if (isExists.length <= 0) throw new Error("Invalid geoup Id");
 
       const [isGroupMapped] = await pool.query(
-        `SELECT COUNT(id) AS count FROM user_group_roles WHERE group_id = ?`,
+        `SELECT COUNT(user_group_id) AS count FROM user_group_roles WHERE group_id = ?`,
         [group_id]
       );
       if (isGroupMapped[0].count > 0)
