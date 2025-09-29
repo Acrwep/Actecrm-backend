@@ -187,9 +187,25 @@ const PageAccessModel = {
 
   getRolePermissions: async () => {
     try {
-      const sql = `SELECT role_id, permission_id FROM role_permissions`;
-      const [result] = await pool.query(sql);
-      return result;
+      const [getRoles] = await pool.query(
+        `SELECT role_id, role_name FROM roles WHERE is_active = 1 ORDER BY role_id ASC`
+      );
+
+      const formattedResult = await Promise.all(
+        getRoles.map(async (item) => {
+          const [getPermissions] = await pool.query(
+            `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 ORDER BY rp.id`,
+            [item.role_id]
+          );
+
+          return {
+            ...item,
+            permissions: getPermissions,
+          };
+        })
+      );
+
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
