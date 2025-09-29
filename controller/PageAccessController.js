@@ -171,6 +171,22 @@ const getRolePermissions = async (request, response) => {
   }
 };
 
+const getRolePermissionsById = async (request, response) => {
+  const { role_id } = request.query;
+  try {
+    const result = await PageAccessModel.getRolePermissionsById(role_id);
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 const insertRolePermissions = async (request, response) => {
   const { role_id, permission_ids } = request.body;
   try {
@@ -201,5 +217,6 @@ module.exports = {
   updateGroup,
   deleteGroup,
   getRolePermissions,
+  getRolePermissionsById,
   insertRolePermissions,
 };

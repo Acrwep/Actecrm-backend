@@ -194,7 +194,7 @@ const PageAccessModel = {
       const formattedResult = await Promise.all(
         getRoles.map(async (item) => {
           const [getPermissions] = await pool.query(
-            `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 ORDER BY rp.id`,
+            `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 WHERE rp.role_id = ? ORDER BY rp.id`,
             [item.role_id]
           );
 
@@ -206,6 +206,27 @@ const PageAccessModel = {
       );
 
       return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRolePermissionsById: async (role_id) => {
+    try {
+      const [getRole] = await pool.query(
+        `SELECT role_id, role_name FROM roles WHERE is_active = 1 AND role_id = ?`,
+        [role_id]
+      );
+
+      const [getPermissions] = await pool.query(
+        `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 AND rp.role_id = ? ORDER BY rp.id`,
+        [getRole[0].role_id]
+      );
+
+      return {
+        ...getRole[0],
+        permissions: getPermissions,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

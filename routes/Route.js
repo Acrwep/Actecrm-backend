@@ -139,6 +139,10 @@ router.get(
   verifyToken,
   PageAccessController.getRolePermissions
 );
+router.get(
+  "/getRolePermissionsById",
+  PageAccessController.getRolePermissionsById
+);
 router.post(
   "/insertRolePermissions",
   verifyToken,
