@@ -232,40 +232,114 @@ const PageAccessModel = {
     }
   },
 
+  // insertRolePermissions: async (role_id, permission_ids) => {
+  //   try {
+  //     // Check if any permissions already exist
+  //     const placeholders = permission_ids.map(() => "?").join(",");
+  //     const [existingPermissions] = await pool.query(
+  //       `SELECT permission_id FROM role_permissions
+  //            WHERE role_id = ? AND permission_id IN (${placeholders})`,
+  //       [role_id, ...permission_ids]
+  //     );
+
+  //     if (existingPermissions.length > 0) {
+  //       const existingIds = existingPermissions.map((ep) => ep.permission_id);
+  //       throw new Error(
+  //         `Permissions [${existingIds.join(
+  //           ", "
+  //         )}] are already mapped to this role`
+  //       );
+  //     }
+
+  //     // Create multiple value placeholders
+  //     const valuePlaceholders = permission_ids.map(() => "(?, ?)").join(", ");
+
+  //     // Flatten the values array [role_id, permission1, role_id, permission2, ...]
+  //     const values = permission_ids.flatMap((permission_id) => [
+  //       role_id,
+  //       permission_id,
+  //     ]);
+
+  //     const sql = `INSERT INTO role_permissions (role_id, permission_id) VALUES ${valuePlaceholders}`;
+  //     const [result] = await pool.query(sql, values);
+
+  //     return result.affectedRows;
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
+
   insertRolePermissions: async (role_id, permission_ids) => {
+    const connection = await pool.getConnection();
+
     try {
-      // Check if any permissions already exist
-      const placeholders = permission_ids.map(() => "?").join(",");
-      const [existingPermissions] = await pool.query(
-        `SELECT permission_id FROM role_permissions 
-             WHERE role_id = ? AND permission_id IN (${placeholders})`,
-        [role_id, ...permission_ids]
+      await connection.beginTransaction();
+
+      // Step 1: Get current permissions for this role
+      const [currentPermissions] = await connection.query(
+        `SELECT permission_id FROM role_permissions WHERE role_id = ?`,
+        [role_id]
       );
 
-      if (existingPermissions.length > 0) {
-        const existingIds = existingPermissions.map((ep) => ep.permission_id);
-        throw new Error(
-          `Permissions [${existingIds.join(
-            ", "
-          )}] are already mapped to this role`
+      const currentPermissionIds = currentPermissions.map(
+        (cp) => cp.permission_id
+      );
+
+      // Step 2: Find permissions to DELETE (exist in DB but not in new input)
+      const permissionsToDelete = currentPermissionIds.filter(
+        (id) => !permission_ids.includes(id)
+      );
+
+      // Step 3: Find permissions to INSERT (exist in new input but not in DB)
+      const permissionsToInsert = permission_ids.filter(
+        (id) => !currentPermissionIds.includes(id)
+      );
+
+      // Step 4: Delete permissions that are no longer needed
+      if (permissionsToDelete.length > 0) {
+        const deletePlaceholders = permissionsToDelete.map(() => "?").join(",");
+        await connection.query(
+          `DELETE FROM role_permissions 
+                 WHERE role_id = ? AND permission_id IN (${deletePlaceholders})`,
+          [role_id, ...permissionsToDelete]
         );
       }
 
-      // Create multiple value placeholders
-      const valuePlaceholders = permission_ids.map(() => "(?, ?)").join(", ");
+      // Step 5: Insert new permissions
+      let insertedRows = 0;
+      if (permissionsToInsert.length > 0) {
+        const insertPlaceholders = permissionsToInsert
+          .map(() => "(?, ?)")
+          .join(", ");
+        const insertValues = permissionsToInsert.flatMap((permission_id) => [
+          role_id,
+          permission_id,
+        ]);
 
-      // Flatten the values array [role_id, permission1, role_id, permission2, ...]
-      const values = permission_ids.flatMap((permission_id) => [
-        role_id,
-        permission_id,
-      ]);
+        const [insertResult] = await connection.query(
+          `INSERT INTO role_permissions (role_id, permission_id) VALUES ${insertPlaceholders}`,
+          insertValues
+        );
+        insertedRows = insertResult.affectedRows;
+      }
 
-      const sql = `INSERT INTO role_permissions (role_id, permission_id) VALUES ${valuePlaceholders}`;
-      const [result] = await pool.query(sql, values);
+      await connection.commit();
 
-      return result.affectedRows;
+      return {
+        inserted: insertedRows,
+        deleted: permissionsToDelete.length,
+        unchanged: permission_ids.length - permissionsToInsert.length,
+        message: `Sync completed: ${insertedRows} inserted, ${
+          permissionsToDelete.length
+        } deleted, ${
+          permission_ids.length - permissionsToInsert.length
+        } unchanged`,
+      };
     } catch (error) {
+      await connection.rollback();
       throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 };
