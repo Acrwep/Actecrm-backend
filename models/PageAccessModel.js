@@ -3,7 +3,7 @@ const pool = require("../config/dbconfig");
 const PageAccessModel = {
   getPermissions: async () => {
     try {
-      const sql = `SELECT permission_id, permission_name, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM permissions WHERE is_active = 1 ORDER BY permission_id ASC`;
+      const sql = `SELECT permission_id, permission_name, section, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM permissions WHERE is_active = 1 ORDER BY permission_id ASC`;
       const [result] = await pool.query(sql);
       return result;
     } catch (error) {
@@ -194,7 +194,7 @@ const PageAccessModel = {
       const formattedResult = await Promise.all(
         getRoles.map(async (item) => {
           const [getPermissions] = await pool.query(
-            `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 WHERE rp.role_id = ? ORDER BY rp.id`,
+            `SELECT rp.id, rp.permission_id, p.permission_name, p.section FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 WHERE rp.role_id = ? ORDER BY rp.id`,
             [item.role_id]
           );
 
@@ -219,7 +219,7 @@ const PageAccessModel = {
       );
 
       const [getPermissions] = await pool.query(
-        `SELECT rp.id, rp.permission_id, p.permission_name FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 AND rp.role_id = ? ORDER BY rp.id`,
+        `SELECT rp.id, rp.permission_id, p.permission_name, p.section FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 AND rp.role_id = ? ORDER BY rp.id`,
         [getRole[0].role_id]
       );
 
@@ -231,43 +231,6 @@ const PageAccessModel = {
       throw new Error(error.message);
     }
   },
-
-  // insertRolePermissions: async (role_id, permission_ids) => {
-  //   try {
-  //     // Check if any permissions already exist
-  //     const placeholders = permission_ids.map(() => "?").join(",");
-  //     const [existingPermissions] = await pool.query(
-  //       `SELECT permission_id FROM role_permissions
-  //            WHERE role_id = ? AND permission_id IN (${placeholders})`,
-  //       [role_id, ...permission_ids]
-  //     );
-
-  //     if (existingPermissions.length > 0) {
-  //       const existingIds = existingPermissions.map((ep) => ep.permission_id);
-  //       throw new Error(
-  //         `Permissions [${existingIds.join(
-  //           ", "
-  //         )}] are already mapped to this role`
-  //       );
-  //     }
-
-  //     // Create multiple value placeholders
-  //     const valuePlaceholders = permission_ids.map(() => "(?, ?)").join(", ");
-
-  //     // Flatten the values array [role_id, permission1, role_id, permission2, ...]
-  //     const values = permission_ids.flatMap((permission_id) => [
-  //       role_id,
-  //       permission_id,
-  //     ]);
-
-  //     const sql = `INSERT INTO role_permissions (role_id, permission_id) VALUES ${valuePlaceholders}`;
-  //     const [result] = await pool.query(sql, values);
-
-  //     return result.affectedRows;
-  //   } catch (error) {
-  //     throw new Error(error.message);
-  //   }
-  // },
 
   insertRolePermissions: async (role_id, permission_ids) => {
     const connection = await pool.getConnection();
