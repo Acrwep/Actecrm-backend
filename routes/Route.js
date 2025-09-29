@@ -126,7 +126,6 @@ router.get(
 );
 
 router.get("/getPermissions", PageAccessController.getPermissions);
-router.post("/insertPermission", PageAccessController.insertPermission);
 router.get("/getRoles", verifyToken, PageAccessController.getRoles);
 router.post("/insertRoles", verifyToken, PageAccessController.insertRoles);
 router.put("/updateRole", verifyToken, PageAccessController.updateRole);

@@ -11,22 +11,6 @@ const PageAccessModel = {
     }
   },
 
-  insertPermission: async (permission_name) => {
-    try {
-      const [isExists] = await pool.query(
-        `SELECT id FROM permissions WHERE permission_name = ? AND is_active = 1`,
-        [permission_name]
-      );
-      if (isExists.length > 0) throw new Error("The permission already exists");
-      const sql = `INSERT INTO permissions(permission_name) VALUES(?)`;
-      const values = [permission_name];
-      const [result] = await pool.query(sql, values);
-      return result.affectedRows;
-    } catch (error) {
-      throw new Error(error.message);
-    }
-  },
-
   getRoles: async () => {
     try {
       const sql = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY role_id ASC`;
@@ -211,17 +195,37 @@ const PageAccessModel = {
     }
   },
 
-  insertRolePermissions: async (role_id, permission_id) => {
+  insertRolePermissions: async (role_id, permission_ids) => {
     try {
-      const [isExists] = await pool.query(
-        `SELECT id FROM role_permissions WHERE role_id = ? AND permission_id = ?`,
-        [role_id, permission_id]
+      // Check if any permissions already exist
+      const placeholders = permission_ids.map(() => "?").join(",");
+      const [existingPermissions] = await pool.query(
+        `SELECT permission_id FROM role_permissions 
+             WHERE role_id = ? AND permission_id IN (${placeholders})`,
+        [role_id, ...permission_ids]
       );
-      if (isExists.length > 0)
-        throw new Error("Permission has already been mapped this role");
-      const sql = `INSERT INTO role_permissions(role_id, permission_id) VALUES(?, ?)`;
-      const values = [role_id, permission_id];
+
+      if (existingPermissions.length > 0) {
+        const existingIds = existingPermissions.map((ep) => ep.permission_id);
+        throw new Error(
+          `Permissions [${existingIds.join(
+            ", "
+          )}] are already mapped to this role`
+        );
+      }
+
+      // Create multiple value placeholders
+      const valuePlaceholders = permission_ids.map(() => "(?, ?)").join(", ");
+
+      // Flatten the values array [role_id, permission1, role_id, permission2, ...]
+      const values = permission_ids.flatMap((permission_id) => [
+        role_id,
+        permission_id,
+      ]);
+
+      const sql = `INSERT INTO role_permissions (role_id, permission_id) VALUES ${valuePlaceholders}`;
       const [result] = await pool.query(sql, values);
+
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);

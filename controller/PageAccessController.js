@@ -16,22 +16,6 @@ const getPermissions = async (request, response) => {
   }
 };
 
-const insertPermission = async (request, response) => {
-  const { permission_name } = request.body;
-  try {
-    const result = await PageAccessModel.insertPermission(permission_name);
-    return response.status(201).send({
-      massage: "Permission inserted successfully",
-      data: result,
-    });
-  } catch (error) {
-    response.status(500).send({
-      message: "Error while inserting permission",
-      details: error.message,
-    });
-  }
-};
-
 const getRoles = async (request, response) => {
   try {
     const result = await PageAccessModel.getRoles();
@@ -188,11 +172,11 @@ const getRolePermissions = async (request, response) => {
 };
 
 const insertRolePermissions = async (request, response) => {
-  const { role_id, permission_id } = request.body;
+  const { role_id, permission_ids } = request.body;
   try {
     const result = await PageAccessModel.insertRolePermissions(
       role_id,
-      permission_id
+      permission_ids
     );
     return response.status(201).send({
       massage: "Data inserted successfully",
@@ -208,7 +192,6 @@ const insertRolePermissions = async (request, response) => {
 
 module.exports = {
   getPermissions,
-  insertPermission,
   getRoles,
   insertRoles,
   updateRole,
