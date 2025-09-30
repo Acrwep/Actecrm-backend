@@ -354,9 +354,23 @@ const PageAccessModel = {
         group_id,
       ]);
 
+      // Remove duplicate roles from input data
+      const inputUserRoles = new Map(); // user_id -> Set of role_ids
+      const inputUserIds = new Set();
+
+      for (const user of users) {
+        inputUserIds.add(user.user_id);
+        if (!inputUserRoles.has(user.user_id)) {
+          inputUserRoles.set(user.user_id, new Set());
+        }
+        for (const role of user.roles) {
+          inputUserRoles.get(user.user_id).add(role.role_id);
+        }
+      }
+
       // Convert current users to a map for easy lookup
       const currentUserRoles = new Map(); // user_id -> Set of role_ids
-      const currentUserSet = new Set(); // All current user IDs
+      const currentUserSet = new Set();
 
       currentUsers.forEach((row) => {
         currentUserSet.add(row.user_id);
@@ -366,76 +380,67 @@ const PageAccessModel = {
         currentUserRoles.get(row.user_id).add(row.role_id);
       });
 
-      // Process operations
+      // Find roles to INSERT (exist in input but not in current DB)
       const rolesToInsert = [];
-      const rolesToRemove = [];
-      const inputUserIds = new Set();
-
-      // Process each user from input
-      for (const user of users) {
-        inputUserIds.add(user.user_id);
-
-        const inputRoleIds = new Set(user.roles.map((role) => role.role_id));
-        const currentUserRoleSet =
-          currentUserRoles.get(user.user_id) || new Set();
-
-        // Find roles to insert (in input but not in current)
-        for (const role of user.roles) {
-          if (!currentUserRoleSet.has(role.role_id)) {
-            rolesToInsert.push([user.user_id, group_id, role.role_id]);
-          }
-        }
-
-        // Find roles to remove (in current but not in input)
-        if (currentUserRoleSet.size > 0) {
-          for (const currentRoleId of currentUserRoleSet) {
-            if (!inputRoleIds.has(currentRoleId)) {
-              rolesToRemove.push([user.user_id, currentRoleId]);
-            }
+      for (const [userId, inputRoleSet] of inputUserRoles) {
+        const currentRoleSet = currentUserRoles.get(userId) || new Set();
+        for (const roleId of inputRoleSet) {
+          if (!currentRoleSet.has(roleId)) {
+            rolesToInsert.push([userId, group_id, roleId]);
           }
         }
       }
 
-      // Identify users to remove completely (exist in DB but not in input)
-      const usersToRemove = Array.from(currentUserSet).filter(
+      // Find roles to DELETE (exist in current DB but not in input)
+      const rolesToDelete = [];
+      for (const [userId, currentRoleSet] of currentUserRoles) {
+        const inputRoleSet = inputUserRoles.get(userId) || new Set();
+        for (const roleId of currentRoleSet) {
+          if (!inputRoleSet.has(roleId)) {
+            rolesToDelete.push([userId, roleId]);
+          }
+        }
+      }
+
+      // Find users to DELETE completely (exist in DB but not in input)
+      const usersToDelete = Array.from(currentUserSet).filter(
         (userId) => !inputUserIds.has(userId)
       );
 
-      // Remove roles that are no longer in input for existing users
-      if (rolesToRemove.length > 0) {
-        const removeRolesQuery = `
+      // Delete roles that are no longer needed
+      if (rolesToDelete.length > 0) {
+        // Build OR conditions for the delete query
+        const conditions = rolesToDelete
+          .map(() => "(user_id = ? AND role_id = ?)")
+          .join(" OR ");
+        const deleteRolesQuery = `
         DELETE FROM user_group_roles 
-        WHERE group_id = ? AND (user_id, role_id) IN (?)
+        WHERE group_id = ? AND (${conditions})
       `;
 
-        // Convert to the format needed for the IN clause
-        const roleRemovalConditions = rolesToRemove.map(([userId, roleId]) => [
-          userId,
-          roleId,
-        ]);
-        await connection.query(removeRolesQuery, [
-          group_id,
-          roleRemovalConditions,
-        ]);
+        const deleteParams = [group_id];
+        rolesToDelete.forEach(([userId, roleId]) => {
+          deleteParams.push(userId, roleId);
+        });
+
+        await connection.query(deleteRolesQuery, deleteParams);
       }
 
-      // Remove users that are not in the input
-      if (usersToRemove.length > 0) {
-        const removeUsersQuery = `
+      // Delete users that are not in input
+      if (usersToDelete.length > 0) {
+        const deleteUsersQuery = `
         DELETE FROM user_group_roles 
         WHERE group_id = ? AND user_id IN (?)
       `;
-
-        await connection.query(removeUsersQuery, [group_id, usersToRemove]);
+        await connection.query(deleteUsersQuery, [group_id, usersToDelete]);
       }
 
-      // Insert new role assignments
+      // Insert new roles (using INSERT IGNORE to prevent any potential duplicates)
       if (rolesToInsert.length > 0) {
         const insertQuery = `
-        INSERT INTO user_group_roles (user_id, group_id, role_id) 
+        INSERT IGNORE INTO user_group_roles (user_id, group_id, role_id) 
         VALUES ?
       `;
-
         await connection.query(insertQuery, [rolesToInsert]);
       }
 
@@ -445,9 +450,9 @@ const PageAccessModel = {
         success: true,
         message: `Group users updated successfully`,
         stats: {
-          rolesInserted: rolesToInsert.length,
-          rolesRemoved: rolesToRemove.length,
-          usersRemoved: usersToRemove.length,
+          newRolesAdded: rolesToInsert.length,
+          oldRolesRemoved: rolesToDelete.length,
+          usersRemoved: usersToDelete.length,
           totalUsers: inputUserIds.size,
         },
       };
@@ -456,6 +461,58 @@ const PageAccessModel = {
       throw new Error(error.message);
     } finally {
       connection.release();
+    }
+  },
+
+  getUserGroupById: async (group_id) => {
+    try {
+      // Get group details
+      const [getGroup] = await pool.query(
+        `SELECT group_id, group_name FROM groups WHERE group_id = ? AND is_active = 1`,
+        [group_id]
+      );
+
+      // Check if group exists
+      if (getGroup.length === 0) {
+        throw new Error("Group not found");
+      }
+
+      // Get all users in the group
+      const [getUsers] = await pool.query(
+        `SELECT ug.user_id, u.user_name 
+       FROM user_group_roles AS ug 
+       INNER JOIN users AS u ON ug.user_id = u.user_id 
+       WHERE ug.group_id = ? AND ug.is_active = 1 
+       GROUP BY ug.user_id, u.user_name`,
+        [group_id]
+      );
+
+      // Get roles for all users in parallel using Promise.all
+      const usersWithRoles = await Promise.all(
+        getUsers.map(async (item) => {
+          const [getRoles] = await pool.query(
+            `SELECT ug.role_id, r.role_name 
+           FROM user_group_roles AS ug 
+           INNER JOIN roles AS r ON ug.role_id = r.role_id 
+           WHERE ug.user_id = ? AND ug.group_id = ? AND ug.is_active = 1`,
+            [item.user_id, group_id] // Added group_id to ensure we get roles only for this group
+          );
+
+          return {
+            user_id: item.user_id,
+            user_name: item.user_name,
+            roles: getRoles,
+          };
+        })
+      );
+
+      return {
+        group_id: getGroup[0].group_id,
+        group_name: getGroup[0].group_name,
+        users: usersWithRoles,
+      };
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 };

@@ -222,6 +222,22 @@ const insertUserGroup = async (request, response) => {
   }
 };
 
+const getUserGroupById = async (request, response) => {
+  const { group_id } = request.query;
+  try {
+    const result = await PageAccessModel.getUserGroupById(group_id);
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   getRoles,
@@ -236,4 +252,5 @@ module.exports = {
   getRolePermissionsById,
   insertRolePermissions,
   insertUserGroup,
+  getUserGroupById,
 };
