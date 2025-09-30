@@ -206,6 +206,22 @@ const insertRolePermissions = async (request, response) => {
   }
 };
 
+const insertUserGroup = async (request, response) => {
+  const { group_id, users } = request.body;
+  try {
+    const result = await PageAccessModel.insertUserGroup(group_id, users);
+    return response.status(201).send({
+      massage: "Data inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   getRoles,
@@ -219,4 +235,5 @@ module.exports = {
   getRolePermissions,
   getRolePermissionsById,
   insertRolePermissions,
+  insertUserGroup,
 };

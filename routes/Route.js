@@ -148,4 +148,5 @@ router.post(
   verifyToken,
   PageAccessController.insertRolePermissions
 );
+router.post("/insertUserGroup", PageAccessController.insertUserGroup);
 module.exports = router;

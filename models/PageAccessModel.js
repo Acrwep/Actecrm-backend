@@ -305,6 +305,159 @@ const PageAccessModel = {
       connection.release();
     }
   },
+
+  insertUserGroup: async (group_id, users) => {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      // Validate input
+      if (!group_id || !users || !Array.isArray(users)) {
+        throw new Error("Invalid input: group_id and users array are required");
+      }
+
+      const userIds = users.map((u) => u.user_id);
+
+      // Check if users exist in other groups
+      if (userIds.length > 0) {
+        const checkOtherGroupsQuery = `
+        SELECT DISTINCT user_id 
+        FROM user_group_roles 
+        WHERE user_id IN (?) 
+        AND group_id != ?
+      `;
+
+        const [existingInOtherGroups] = await connection.query(
+          checkOtherGroupsQuery,
+          [userIds, group_id]
+        );
+
+        if (existingInOtherGroups.length > 0) {
+          const conflictingUsers = existingInOtherGroups
+            .map((row) => row.user_id)
+            .join(", ");
+          throw new Error(
+            `Users [${conflictingUsers}] already exist in other groups`
+          );
+        }
+      }
+
+      // Get current users and their roles for this group
+      const getCurrentUsersQuery = `
+      SELECT user_id, role_id 
+      FROM user_group_roles 
+      WHERE group_id = ?
+    `;
+
+      const [currentUsers] = await connection.query(getCurrentUsersQuery, [
+        group_id,
+      ]);
+
+      // Convert current users to a map for easy lookup
+      const currentUserRoles = new Map(); // user_id -> Set of role_ids
+      const currentUserSet = new Set(); // All current user IDs
+
+      currentUsers.forEach((row) => {
+        currentUserSet.add(row.user_id);
+        if (!currentUserRoles.has(row.user_id)) {
+          currentUserRoles.set(row.user_id, new Set());
+        }
+        currentUserRoles.get(row.user_id).add(row.role_id);
+      });
+
+      // Process operations
+      const rolesToInsert = [];
+      const rolesToRemove = [];
+      const inputUserIds = new Set();
+
+      // Process each user from input
+      for (const user of users) {
+        inputUserIds.add(user.user_id);
+
+        const inputRoleIds = new Set(user.roles.map((role) => role.role_id));
+        const currentUserRoleSet =
+          currentUserRoles.get(user.user_id) || new Set();
+
+        // Find roles to insert (in input but not in current)
+        for (const role of user.roles) {
+          if (!currentUserRoleSet.has(role.role_id)) {
+            rolesToInsert.push([user.user_id, group_id, role.role_id]);
+          }
+        }
+
+        // Find roles to remove (in current but not in input)
+        if (currentUserRoleSet.size > 0) {
+          for (const currentRoleId of currentUserRoleSet) {
+            if (!inputRoleIds.has(currentRoleId)) {
+              rolesToRemove.push([user.user_id, currentRoleId]);
+            }
+          }
+        }
+      }
+
+      // Identify users to remove completely (exist in DB but not in input)
+      const usersToRemove = Array.from(currentUserSet).filter(
+        (userId) => !inputUserIds.has(userId)
+      );
+
+      // Remove roles that are no longer in input for existing users
+      if (rolesToRemove.length > 0) {
+        const removeRolesQuery = `
+        DELETE FROM user_group_roles 
+        WHERE group_id = ? AND (user_id, role_id) IN (?)
+      `;
+
+        // Convert to the format needed for the IN clause
+        const roleRemovalConditions = rolesToRemove.map(([userId, roleId]) => [
+          userId,
+          roleId,
+        ]);
+        await connection.query(removeRolesQuery, [
+          group_id,
+          roleRemovalConditions,
+        ]);
+      }
+
+      // Remove users that are not in the input
+      if (usersToRemove.length > 0) {
+        const removeUsersQuery = `
+        DELETE FROM user_group_roles 
+        WHERE group_id = ? AND user_id IN (?)
+      `;
+
+        await connection.query(removeUsersQuery, [group_id, usersToRemove]);
+      }
+
+      // Insert new role assignments
+      if (rolesToInsert.length > 0) {
+        const insertQuery = `
+        INSERT INTO user_group_roles (user_id, group_id, role_id) 
+        VALUES ?
+      `;
+
+        await connection.query(insertQuery, [rolesToInsert]);
+      }
+
+      await connection.commit();
+
+      return {
+        success: true,
+        message: `Group users updated successfully`,
+        stats: {
+          rolesInserted: rolesToInsert.length,
+          rolesRemoved: rolesToRemove.length,
+          usersRemoved: usersToRemove.length,
+          totalUsers: inputUserIds.size,
+        },
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
+    }
+  },
 };
 
 module.exports = PageAccessModel;
