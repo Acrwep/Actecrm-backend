@@ -54,7 +54,7 @@ const LeadModel = {
         [region_id]
       );
       if (getRegion[0].name === "Hub") {
-        sql = `(SELECT id, name FROM branches WHERE name <> 'Virtual')
+        sql = `(SELECT id, name FROM branches WHERE name <> 'Online')
                 UNION
                 (SELECT id, name FROM branches WHERE region_id = ?)
                 ORDER BY name ASC;`;
