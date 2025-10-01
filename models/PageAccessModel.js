@@ -79,7 +79,7 @@ const PageAccessModel = {
       );
       if (isRoleMapped[0].count > 0)
         throw new Error(
-          "Can't be able to delete this role, kindly un-map from role_permissions table"
+          "Before delete, remove the all permissions from this role."
         );
 
       const [result] = await pool.query(`DELETE FROM roles WHERE role_id = ?`, [
