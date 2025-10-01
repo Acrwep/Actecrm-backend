@@ -292,7 +292,8 @@ const CustomerModel = {
       );
 
       const [paymentStatus] = await pool.query(
-        `SELECT COUNT(id) awaiting_finance FROM payment_trans WHERE is_second_due = 1 AND payment_status = 'Verify Pending'`
+        `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending' AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
+        [from_date, to_date]
       );
 
       const cusStatusCount = {
