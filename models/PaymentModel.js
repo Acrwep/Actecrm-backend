@@ -290,7 +290,7 @@ const PaymentModel = {
                                 (
                                     SELECT p2.next_due_date
                                     FROM payment_trans p2
-                                    WHERE p2.payment_master_id = pt.payment_master_id
+                                    WHERE p2.payment_master_id = pm.id
                                       AND p2.payment_status = 'Verified'
                                     ORDER BY p2.id DESC
                                     LIMIT 1
