@@ -2,14 +2,21 @@ const { request, response } = require("express");
 const userModel = require("../models/UserModel");
 
 const addUser = async (request, response) => {
-  const { user_id, user_name, password } = request.body;
+  const { user_id, user_name, password, users } = request.body;
   if (!user_id || !user_name || !password) {
     return response.status(500).send({
       message: "Missing required fields (user_id, user_name, password)",
     });
   }
+
+  const formattedUsers = Array.isArray(users) ? users : [users];
   try {
-    const result = await userModel.addUser(user_id, user_name, password);
+    const result = await userModel.addUser(
+      user_id,
+      user_name,
+      password,
+      formattedUsers
+    );
     response.status(201).json({
       message: "User addedd successfully",
       data: result,
@@ -39,9 +46,16 @@ const getUsers = async (request, response) => {
 };
 
 const updateUser = async (request, response) => {
-  const { id, user_id, user_name, password } = request.body;
+  const { id, user_id, user_name, password, users } = request.body;
+  const formattedUsers = Array.isArray(users) ? users : [users];
   try {
-    const users = await userModel.updateUser(id, user_id, user_name, password);
+    const users = await userModel.updateUser(
+      id,
+      user_id,
+      user_name,
+      password,
+      formattedUsers
+    );
     response.status(200).json({
       message: "User updated successfully",
       data: users,

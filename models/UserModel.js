@@ -1,7 +1,7 @@
 const pool = require("../config/dbconfig");
 
 const UserModel = {
-  addUser: async (user_id, user_name, password) => {
+  addUser: async (user_id, user_name, password, users) => {
     try {
       const [isUserIdExists] = await pool.query(
         `SELECT id FROM users WHERE user_id = ? AND is_active = 1`,
@@ -13,10 +13,11 @@ const UserModel = {
       const insertQuery = `INSERT INTO users(
                               user_id,
                               user_name,
-                              password
+                              password,
+                              child_users
                           )
-                          VALUES(?, ?, ?)`;
-      const values = [user_id, user_name, password];
+                          VALUES(?, ?, ?, ?)`;
+      const values = [user_id, user_name, password, JSON.stringify(users)];
 
       const [result] = await pool.query(insertQuery, values);
       return result.affectedRows;
@@ -28,7 +29,7 @@ const UserModel = {
   getUsers: async (user_id, user_name) => {
     try {
       const params = [];
-      let getQuery = `SELECT id, user_id, user_name, password, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
+      let getQuery = `SELECT id, user_id, user_name, password, child_users, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
       if (user_id) {
         getQuery += ` AND user_id LIKE '%${user_id}%'`;
       }
@@ -38,13 +39,20 @@ const UserModel = {
       getQuery += ` ORDER BY user_name`;
 
       const [users] = await pool.query(getQuery, params);
-      return users;
+      const formattedResult = users.map((item) => {
+        return {
+          ...item,
+          child_users: JSON.parse(item.child_users),
+        };
+      });
+
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  updateUser: async (id, user_id, user_name, password) => {
+  updateUser: async (id, user_id, user_name, password, users) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM users WHERE id = ?`,
@@ -53,8 +61,8 @@ const UserModel = {
       if (isIdExists.length <= 0) {
         throw new Error("Invalid Id");
       }
-      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, password = ? WHERE id = ?`;
-      const values = [user_id, user_name, password, id];
+      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, password = ?, child_users = ? WHERE id = ?`;
+      const values = [user_id, user_name, password, JSON.stringify(users), id];
       const [result] = await pool.query(updateQuery, values);
       return result.affectedRows;
     } catch (error) {
