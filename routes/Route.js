@@ -150,4 +150,5 @@ router.post(
 );
 router.post("/insertUserGroup", PageAccessController.insertUserGroup);
 router.get("/getUserGroupById", PageAccessController.getUserGroupById);
+router.post("/getUserPermissions", PageAccessController.getUserPermissions);
 module.exports = router;

@@ -515,6 +515,34 @@ const PageAccessModel = {
       throw new Error(error.message);
     }
   },
+
+  getUserPermissions: async (role_ids) => {
+    try {
+      // Validate input
+      if (!Array.isArray(role_ids) || role_ids.length === 0) {
+        return [];
+      }
+
+      // Create placeholders and ensure values are numbers
+      const placeholders = role_ids.map(() => "?").join(", ");
+      const numericRoleIds = role_ids.map((id) => Number(id));
+
+      const sql = `SELECT 
+                        rp.role_id, 
+                        r.role_name, 
+                        rp.permission_id, 
+                        p.permission_name 
+                     FROM role_permissions AS rp 
+                     INNER JOIN permissions AS p ON rp.permission_id = p.permission_id 
+                     INNER JOIN roles AS r ON r.role_id = rp.role_id 
+                     WHERE rp.role_id IN (${placeholders})`;
+
+      const [permissions] = await pool.query(sql, numericRoleIds);
+      return permissions;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = PageAccessModel;
