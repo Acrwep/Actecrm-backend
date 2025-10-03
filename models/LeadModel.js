@@ -214,7 +214,7 @@ const LeadModel = {
     }
   },
 
-  getLeads: async (name, start_date, end_date, lead_status_id) => {
+  getLeads: async (name, start_date, end_date, lead_status_id, user_ids) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -282,6 +282,14 @@ const LeadModel = {
                           LEFT JOIN lead_action AS la ON lh1.lead_action_id = la.id
                       ) AS lh ON lh.lead_id = l.id
                       WHERE 1 = 1`;
+
+      // // Validate input
+      // if (Array.isArray(user_ids) && user_ids.length > 0) {
+      //   const placeholders = user_ids.map(() => "?").join(", ");
+
+      //   getQuery += ` l.assigned_to IN (${placeholders})`;
+      //   queryParams.push(...user_ids); // Spread the array
+      // }
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }

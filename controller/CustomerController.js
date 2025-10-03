@@ -63,7 +63,7 @@ const updateCustomer = async (request, response) => {
 };
 
 const getCustomers = async (request, response) => {
-  const { from_date, to_date, status, name, email, mobile, course } =
+  const { from_date, to_date, status, name, email, mobile, course, user_ids } =
     request.body;
   try {
     const result = await CustomerModel.getCustomers(
@@ -73,7 +73,8 @@ const getCustomers = async (request, response) => {
       name,
       email,
       mobile,
-      course
+      course,
+      user_ids
     );
     return response.status(200).send({
       message: "Customers fetched successfully",

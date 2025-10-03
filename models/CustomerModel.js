@@ -95,7 +95,8 @@ const CustomerModel = {
     name,
     email,
     mobile,
-    course
+    course,
+    user_ids
   ) => {
     try {
       const queryParams = [];
@@ -201,6 +202,13 @@ const CustomerModel = {
                             GROUP BY pm.lead_id
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
+
+      // if (Array.isArray(user_ids) && user_ids.length > 0) {
+      //   const placeholders = user_ids.map(() => "?").join(", ");
+
+      //   getQuery += ` l.assigned_to IN (${placeholders})`;
+      //   queryParams.push(...user_ids); // Spread the array
+      // }
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;

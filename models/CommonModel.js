@@ -14,20 +14,19 @@ const CommonModel = {
         [getPaymentMaster[0].id]
       );
 
-      let paid_amount = 0;
-      const formattedResult = await Promise.all(
-        getPaymentTrans.map(async (item) => {
-          paid_amount += item.amount;
-          return {
-            ...item,
-            balance_amount: getPaymentMaster[0].total_amount - paid_amount,
-          };
-        })
-      );
+      // Calculate running balance
+      let runningBalance = getPaymentMaster[0].total_amount;
+      const formattedResult = getPaymentTrans.map((item) => {
+        runningBalance -= item.amount;
+        return {
+          ...item,
+          balance_amount: runningBalance,
+        };
+      });
 
       return {
         ...getPaymentMaster[0],
-        payment_trans: formattedResult.reverse(),
+        payment_trans: formattedResult.reverse(), // Reverse for latest first
       };
     } catch (error) {
       throw new Error(error.message);
