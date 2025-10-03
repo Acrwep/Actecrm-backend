@@ -39,7 +39,7 @@ router.get("/getLeadType", verifyToken, LeadController.getLeadType);
 router.get("/getStatus", verifyToken, LeadController.getStatus);
 router.get("/getResponseStatus", verifyToken, LeadController.getResponseStatus);
 router.get("/getBranches", verifyToken, LeadController.getBranches);
-router.get("/getBatchTrack", verifyToken, LeadController.getBatchTrack);
+router.get("/getBatchTrack", LeadController.getBatchTrack);
 router.post("/insertLead", verifyToken, LeadController.insertLead);
 router.post("/getLeads", verifyToken, LeadController.getLeads);
 router.get("/getLeadFollowUps", verifyToken, LeadController.getLeadFollowUps);
@@ -99,7 +99,7 @@ router.put(
 );
 
 router.put("/updateReview", verifyToken, CustomerController.updateReview);
-router.post("/insertCusTrack", verifyToken, CustomerController.insertCusTrack);
+router.post("/insertCusTrack", CustomerController.insertCusTrack);
 router.post("/pendingFeesList", verifyToken, PaymentController.pendingFeesList);
 router.get("/getCusByTrainer", verifyToken, TrainerController.getCusByTrainer);
 // Customer module end

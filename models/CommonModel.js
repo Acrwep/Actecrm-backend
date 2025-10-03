@@ -161,8 +161,7 @@ const CommonModel = {
                    <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
                     
                    <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
-                    <p style="margin:10px 0; font-size:18px;">The Academic Council of ACTE</p>
-                    <p style="margin:10px 0; font-size:18px;">Having Duly Examined</p>
+                    <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
                     <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
                       ${result[0].customer_name}
                     </h3>
