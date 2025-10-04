@@ -42,10 +42,10 @@ router.get("/getBranches", verifyToken, LeadController.getBranches);
 router.get("/getBatchTrack", LeadController.getBatchTrack);
 router.post("/insertLead", verifyToken, LeadController.insertLead);
 router.post("/getLeads", verifyToken, LeadController.getLeads);
-router.get("/getLeadFollowUps", verifyToken, LeadController.getLeadFollowUps);
+router.post("/getLeadFollowUps", verifyToken, LeadController.getLeadFollowUps);
 router.put("/updateFollowUp", verifyToken, LeadController.updateFollowUp);
 router.put("/updateLead", verifyToken, LeadController.updateLead);
-router.get("/getLeadCount", verifyToken, LeadController.getLeadCount);
+router.post("/getLeadCount", verifyToken, LeadController.getLeadCount);
 router.get("/getRegion", LeadController.getRegion);
 router.get("/getLeadAction", LeadController.getLeadAction);
 // Lead end

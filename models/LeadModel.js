@@ -325,103 +325,102 @@ const LeadModel = {
 
   getLeadFollowUps: async (user_ids, from_date, to_date) => {
     try {
+      const queryParams = [];
       let getQuery = `SELECT
-                      l.id,
-                      lf.id AS lead_history_id,
-                      l.user_id,
-                      u.user_name,
-                      l.assigned_to AS lead_assigned_to_id,
-                      au.user_name AS lead_assigned_to_name,
-                      l.name AS candidate_name,
-                      l.phone_code,
-                      l.phone,
-                      l.whatsapp,
-                      l.email,
-                      l.country,
-                      l.state,
-                      l.district AS area_id,
-                      a.name AS district,
-                      l.primary_course_id,
-                      pt.name AS primary_course,
-                      l.primary_fees,
-                      l.price_category,
-                      l.secondary_course_id,
-                      st.name AS secondary_course,
-                      l.secondary_fees,
-                      l.lead_type_id,
-                      lt.name AS lead_type,
-                      l.lead_status_id,
-                      ls.name lead_status,
-                      l.next_follow_up_date,
-                      l.expected_join_date,
-                      l.branch_id,
-                      b.name AS branche_name,
-                      l.batch_track_id,
-                      bt.name AS batch_track,
-                      l.comments,
-                      l.created_date,
-                      r.name AS region_name,
-                      r.id AS region_id
-                  FROM
-                      lead_master AS l
-                  INNER JOIN lead_follow_up_history AS lf ON
-                    l.id = lf.lead_id
-                  LEFT JOIN users AS u ON
-                      u.user_id = l.user_id
-                  LEFT JOIN users AS au ON
-                      au.user_id = l.assigned_to
-                  LEFT JOIN technologies AS pt ON
-                      pt.id = l.primary_course_id
-                  LEFT JOIN technologies AS st ON
-                      st.id = l.secondary_course_id
-                  LEFT JOIN lead_type AS lt ON
-                      lt.id = l.lead_type_id
-                  LEFT JOIN lead_status AS ls ON
-                      ls.id = l.lead_status_id
-                  LEFT JOIN region AS r ON
-                    r.id = l.region_id
-                  LEFT JOIN branches AS b ON
-                      b.id = l.branch_id
-                  LEFT JOIN batch_track AS bt ON
-                      bt.id = l.batch_track_id
-                  LEFT JOIN areas AS a ON
-                      a.id = l.district
-                  WHERE
-                      lf.is_updated = 0 `;
+                    l.id,
+                    lf.id AS lead_history_id,
+                    l.user_id,
+                    u.user_name,
+                    l.assigned_to AS lead_assigned_to_id,
+                    au.user_name AS lead_assigned_to_name,
+                    l.name AS candidate_name,
+                    l.phone_code,
+                    l.phone,
+                    l.whatsapp,
+                    l.email,
+                    l.country,
+                    l.state,
+                    l.district AS area_id,
+                    a.name AS district,
+                    l.primary_course_id,
+                    pt.name AS primary_course,
+                    l.primary_fees,
+                    l.price_category,
+                    l.secondary_course_id,
+                    st.name AS secondary_course,
+                    l.secondary_fees,
+                    l.lead_type_id,
+                    lt.name AS lead_type,
+                    l.lead_status_id,
+                    ls.name lead_status,
+                    l.next_follow_up_date,
+                    l.expected_join_date,
+                    l.branch_id,
+                    b.name AS branche_name,
+                    l.batch_track_id,
+                    bt.name AS batch_track,
+                    l.comments,
+                    l.created_date,
+                    r.name AS region_name,
+                    r.id AS region_id
+                FROM
+                    lead_master AS l
+                INNER JOIN lead_follow_up_history AS lf ON
+                  l.id = lf.lead_id
+                LEFT JOIN users AS u ON
+                    u.user_id = l.user_id
+                LEFT JOIN users AS au ON
+                    au.user_id = l.assigned_to
+                LEFT JOIN technologies AS pt ON
+                    pt.id = l.primary_course_id
+                LEFT JOIN technologies AS st ON
+                    st.id = l.secondary_course_id
+                LEFT JOIN lead_type AS lt ON
+                    lt.id = l.lead_type_id
+                LEFT JOIN lead_status AS ls ON
+                    ls.id = l.lead_status_id
+                LEFT JOIN region AS r ON
+                  r.id = l.region_id
+                LEFT JOIN branches AS b ON
+                    b.id = l.branch_id
+                LEFT JOIN batch_track AS bt ON
+                    bt.id = l.batch_track_id
+                LEFT JOIN areas AS a ON
+                    a.id = l.district
+                WHERE
+                    lf.is_updated = 0 `;
+
+      if (from_date && to_date) {
+        getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
+        queryParams.push(from_date, to_date);
+      }
 
       // Handle user_ids parameter
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids); // Keep original string values
+          queryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          // Single user ID (could be string or number)
           getQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
         }
       }
 
-      if (from_date && to_date) {
-        getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
-        queryParams.push(from_date, to_date);
-      }
-
-      // if (date_type === "Today") {
-      //   getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) = CURRENT_DATE`;
-      // } else if (date_type === "Carry Over") {
-      //   getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) < CURRENT_DATE`;
-      // }
-
       getQuery += ` ORDER BY lf.next_follow_up_date ASC`;
 
-      const [follow_ups] = await pool.query(getQuery);
+      const [follow_ups] = await pool.query(getQuery, queryParams);
 
       // Use Promise.all to wait for all async operations in the map
       const formattedResult = await Promise.all(
         follow_ups.map(async (item) => {
           const [history] = await pool.query(
-            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name FROM lead_follow_up_history AS lh LEFT JOIN users AS u ON lh.updated_by = u.user_id LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id WHERE lh.is_updated = 1 AND lh.lead_id = ? ORDER BY lh.id ASC`,
+            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+           FROM lead_follow_up_history AS lh 
+           LEFT JOIN users AS u ON lh.updated_by = u.user_id 
+           LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
+           WHERE lh.is_updated = 1 AND lh.lead_id = ? 
+           ORDER BY lh.id ASC`,
             [item.id]
           );
           return {
@@ -599,19 +598,49 @@ const LeadModel = {
     }
   },
 
-  getLeadCount: async () => {
+  getLeadCount: async (user_ids) => {
     try {
       const currentDate = new Date();
       const formattedDate = moment(currentDate).format("YYYY-MM-DD");
 
+      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) = ? AND lf.is_updated = 0`;
+
+      const followUpParams = [];
+      followUpParams.push(formattedDate);
+
+      // Handle user_ids parameter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          followUpQuery += ` AND l.assigned_to IN (${placeholders})`;
+          followUpParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          followUpQuery += ` AND l.assigned_to = ?`;
+          followUpParams.push(user_ids);
+        }
+      }
+
       const [getFollowupCount] = await pool.query(
-        `SELECT COUNT(id) AS follow_up_count FROM lead_follow_up_history WHERE CAST(next_follow_up_date AS DATE) = ? AND is_updated = 0`,
-        formattedDate
+        followUpQuery,
+        followUpParams
       );
 
-      const [getLeadCount] = await pool.query(
-        `SELECT COUNT(*) AS total_lead_count FROM lead_master WHERE created_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND created_date <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)`
-      );
+      let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE l.created_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND l.created_date <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)`;
+      const leadParams = [];
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          leadCountQuery += ` AND l.assigned_to IN (${placeholders})`;
+          leadParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          leadCountQuery += ` AND l.assigned_to = ?`;
+          leadParams.push(user_ids);
+        }
+      }
+      const [getLeadCount] = await pool.query(leadCountQuery, leadParams);
       return {
         follow_up_count: getFollowupCount[0].follow_up_count,
         total_lead_count: getLeadCount[0].total_lead_count,
