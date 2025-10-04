@@ -214,7 +214,15 @@ const LeadModel = {
     }
   },
 
-  getLeads: async (name, start_date, end_date, lead_status_id, user_ids) => {
+  getLeads: async (
+    name,
+    email,
+    phone,
+    start_date,
+    end_date,
+    lead_status_id,
+    user_ids
+  ) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -301,6 +309,14 @@ const LeadModel = {
 
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
+      }
+
+      if (email) {
+        getQuery += ` AND l.email LIKE '%${email}%'`;
+      }
+
+      if (phone) {
+        getQuery += ` AND l.phone LIKE '%${phone}%'`;
       }
 
       if (lead_status_id) {
