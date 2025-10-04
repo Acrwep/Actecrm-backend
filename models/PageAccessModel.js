@@ -543,6 +543,42 @@ const PageAccessModel = {
       throw new Error(error.message);
     }
   },
+
+  getUsersDownline: async (user_id) => {
+    try {
+      const getQuery = `SELECT
+                            u.id,
+                            u.user_id,
+                            u.user_name,
+                            u.child_users,
+                            u.roles
+                        FROM
+                            users AS u
+                        WHERE
+                            u.user_id = ? AND u.is_active = 1`;
+      const [getUser] = await pool.query(getQuery, user_id);
+
+      // Parse the JSON data
+      const childUsers = JSON.parse(getUser[0].child_users);
+      const roles = JSON.parse(getUser[0].roles);
+
+      // Extract user_ids from child_users and role_ids from roles
+      const childUserIds = [
+        getUser[0].user_id, // Include the current user's ID
+        ...childUsers.map((child) => child.user_id), // Extract user_id from each child
+      ];
+
+      const roleIds = roles.map((role) => role.role_id); // Extract role_id from each role
+
+      return {
+        ...getUser[0],
+        child_users: childUserIds,
+        roles: roleIds,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = PageAccessModel;

@@ -151,4 +151,6 @@ router.post(
 router.post("/insertUserGroup", PageAccessController.insertUserGroup);
 router.get("/getUserGroupById", PageAccessController.getUserGroupById);
 router.post("/getUserPermissions", PageAccessController.getUserPermissions);
+router.get("/getUsersDownline", PageAccessController.getUsersDownline);
+router.put("/assignLead", verifyToken, LeadController.assignLead);
 module.exports = router;

@@ -181,7 +181,8 @@ const PaymentModel = {
     mobile,
     email,
     course,
-    urgent_due
+    urgent_due,
+    user_ids
   ) => {
     try {
       const queryParams = [];
@@ -220,6 +221,8 @@ const PaymentModel = {
                             c.created_date,
                             lm.user_id AS lead_by_id,
                             u.user_name AS lead_by,
+                            lm.assigned_to AS lead_assigned_to_id,
+                            au.user_name AS lead_assigned_to_name,
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
@@ -272,6 +275,8 @@ const PaymentModel = {
                             ON c.lead_id = lm.id
                         INNER JOIN users AS u 
                             ON lm.user_id = u.user_id
+                        LEFT JOIN users AS au ON
+                          au.user_id = lm.assigned_to
                         LEFT JOIN technologies AS t 
                             ON c.enrolled_course = t.id
                         LEFT JOIN trainer_mapping AS tm 
@@ -318,6 +323,19 @@ const PaymentModel = {
                             ON payment_summary.payment_master_id = pm.id
                         WHERE payment_summary.balance_amount > 0 AND c.status <> 'Demo Completed'
                       `;
+
+      // Handle user_ids parameter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND lm.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          getQuery += ` AND lm.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
 
       // Date filter
       if (from_date && to_date) {

@@ -136,6 +136,8 @@ const CustomerModel = {
                             c.created_date,
                             l.user_id AS lead_by_id,
                             u.user_name AS lead_by,
+                            l.assigned_to AS lead_assigned_to_id,
+                            au.user_name AS lead_assigned_to_name,
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
@@ -186,6 +188,8 @@ const CustomerModel = {
                         	l.primary_course_id = tg.id
                         LEFT JOIN users AS u ON
                         	u.user_id = l.user_id
+                        LEFT JOIN users AS au ON
+                          au.user_id = l.assigned_to
                         LEFT JOIN trainer_mapping AS map ON
                         	map.customer_id = c.id
                           AND map.is_rejected = 0
@@ -203,12 +207,18 @@ const CustomerModel = {
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
-      // if (Array.isArray(user_ids) && user_ids.length > 0) {
-      //   const placeholders = user_ids.map(() => "?").join(", ");
-
-      //   getQuery += ` l.assigned_to IN (${placeholders})`;
-      //   queryParams.push(...user_ids); // Spread the array
-      // }
+      // Handle user_ids parameter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          getQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
@@ -357,6 +367,8 @@ const CustomerModel = {
                             c.class_start_date,
                             l.user_id AS lead_by_id,
                             u.user_name AS lead_by,
+                            l.assigned_to AS lead_assigned_to_id,
+                            au.user_name AS lead_assigned_to_name,
                             tr.name AS trainer_name,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
@@ -407,6 +419,8 @@ const CustomerModel = {
                         	l.primary_course_id = tg.id
                         LEFT JOIN users AS u ON
                         	u.user_id = l.user_id
+                        LEFT JOIN users AS au ON
+                          au.user_id = l.assigned_to
                         LEFT JOIN trainer_mapping AS map ON
                         	map.customer_id = c.id
                           AND map.is_rejected = 0

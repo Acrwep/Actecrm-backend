@@ -157,13 +157,14 @@ const insertLead = async (request, response) => {
 };
 
 const getLeads = async (request, response) => {
-  const { name, start_date, end_date, lead_status_id } = request.body;
+  const { name, start_date, end_date, lead_status_id, user_ids } = request.body;
   try {
     const leads = await LeadModel.getLeads(
       name,
       start_date,
       end_date,
-      lead_status_id
+      lead_status_id,
+      user_ids
     );
     return response.status(200).send({
       message: "Leads fetched successfully",
@@ -178,9 +179,13 @@ const getLeads = async (request, response) => {
 };
 
 const getLeadFollowUps = async (request, response) => {
-  const { date_type } = request.query;
+  const { user_ids, from_date, to_date } = request.body;
   try {
-    const leads = await LeadModel.getLeadFollowUps(date_type);
+    const leads = await LeadModel.getLeadFollowUps(
+      user_ids,
+      from_date,
+      to_date
+    );
     return response.status(200).send({
       message: "Follow up fetched successfully",
       data: leads,
@@ -348,6 +353,22 @@ const insertArea = async (request, response) => {
   }
 };
 
+const assignLead = async (request, response) => {
+  const { leads } = request.body;
+  try {
+    const result = await LeadModel.assignLead(leads);
+    return response.status(200).send({
+      message: "Leads assigned successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while assigning lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -364,4 +385,5 @@ module.exports = {
   getLeadAction,
   getAreas,
   insertArea,
+  assignLead,
 };

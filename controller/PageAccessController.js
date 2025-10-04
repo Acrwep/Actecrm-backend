@@ -254,6 +254,22 @@ const getUserPermissions = async (request, response) => {
   }
 };
 
+const getUsersDownline = async (request, response) => {
+  const { user_id } = request.query;
+  try {
+    const result = await PageAccessModel.getUsersDownline(user_id);
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   getRoles,
@@ -270,4 +286,5 @@ module.exports = {
   insertUserGroup,
   getUserGroupById,
   getUserPermissions,
+  getUsersDownline,
 };

@@ -221,6 +221,8 @@ const LeadModel = {
                           l.id,
                           l.user_id,
                           u.user_name,
+                          l.assigned_to AS lead_assigned_to_id,
+                          au.user_name AS lead_assigned_to_name,
                           l.name,
                           l.phone_code,
                           l.phone,
@@ -258,6 +260,7 @@ const LeadModel = {
                       FROM
                           lead_master AS l
                       LEFT JOIN users AS u ON u.user_id = l.user_id
+                      LEFT JOIN users AS au ON au.user_id = l.assigned_to
                       LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
                       LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
                       LEFT JOIN lead_type AS lt ON lt.id = l.lead_type_id
@@ -283,13 +286,19 @@ const LeadModel = {
                       ) AS lh ON lh.lead_id = l.id
                       WHERE 1 = 1`;
 
-      // // Validate input
-      // if (Array.isArray(user_ids) && user_ids.length > 0) {
-      //   const placeholders = user_ids.map(() => "?").join(", ");
+      // Handle user_ids parameter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          getQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
 
-      //   getQuery += ` l.assigned_to IN (${placeholders})`;
-      //   queryParams.push(...user_ids); // Spread the array
-      // }
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
       }
@@ -314,13 +323,15 @@ const LeadModel = {
     }
   },
 
-  getLeadFollowUps: async (date_type) => {
+  getLeadFollowUps: async (user_ids, from_date, to_date) => {
     try {
       let getQuery = `SELECT
                       l.id,
                       lf.id AS lead_history_id,
                       l.user_id,
                       u.user_name,
+                      l.assigned_to AS lead_assigned_to_id,
+                      au.user_name AS lead_assigned_to_name,
                       l.name AS candidate_name,
                       l.phone_code,
                       l.phone,
@@ -357,6 +368,8 @@ const LeadModel = {
                     l.id = lf.lead_id
                   LEFT JOIN users AS u ON
                       u.user_id = l.user_id
+                  LEFT JOIN users AS au ON
+                      au.user_id = l.assigned_to
                   LEFT JOIN technologies AS pt ON
                       pt.id = l.primary_course_id
                   LEFT JOIN technologies AS st ON
@@ -375,11 +388,30 @@ const LeadModel = {
                       a.id = l.district
                   WHERE
                       lf.is_updated = 0 `;
-      if (date_type === "Today") {
-        getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) = CURRENT_DATE`;
-      } else if (date_type === "Carry Over") {
-        getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) < CURRENT_DATE`;
+
+      // Handle user_ids parameter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          getQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
       }
+
+      if (from_date && to_date) {
+        getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
+        queryParams.push(from_date, to_date);
+      }
+
+      // if (date_type === "Today") {
+      //   getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) = CURRENT_DATE`;
+      // } else if (date_type === "Carry Over") {
+      //   getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) < CURRENT_DATE`;
+      // }
 
       getQuery += ` ORDER BY lf.next_follow_up_date ASC`;
 
@@ -618,14 +650,30 @@ const LeadModel = {
         [area_name]
       );
 
-      console.log("length", isExists.length);
-
       if (isExists.length > 0) throw new Error("Area already exists.");
 
       const [result] = await pool.query(`INSERT INTO areas(name) VALUES (?)`, [
         area_name,
       ]);
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  assignLead: async (leads) => {
+    try {
+      let affectedRows = 0;
+      for (const lead of leads) {
+        const [result] = await pool.query(
+          "UPDATE lead_master SET assigned_to = ? WHERE id = ?",
+          [lead.assigned_to, lead.id]
+        );
+
+        affectedRows += result.affectedRows;
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
