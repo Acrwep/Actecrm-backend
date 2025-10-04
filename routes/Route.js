@@ -104,7 +104,7 @@ router.post("/pendingFeesList", verifyToken, PaymentController.pendingFeesList);
 router.get("/getCusByTrainer", verifyToken, TrainerController.getCusByTrainer);
 // Customer module end
 
-router.get(
+router.post(
   "/getPendingFeesCount",
   verifyToken,
   PaymentController.getPendingFeesCount

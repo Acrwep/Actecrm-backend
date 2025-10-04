@@ -303,16 +303,46 @@ const CustomerModel = {
           };
         })
       );
+      let getCountQuery = `SELECT COUNT(c.id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed') THEN 1 END) AS Others FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+      const countParams = [];
+      if (from_date && to_date) {
+        getCountQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        countParams.push(from_date, to_date);
+      }
 
-      const [getStatus] = await pool.query(
-        `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed') THEN 1 END) AS Others FROM customers AS c WHERE CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
-        [from_date, to_date]
-      );
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
+          countParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          getCountQuery += ` AND l.assigned_to = ?`;
+          countParams.push(user_ids);
+        }
+      }
+      const [getStatus] = await pool.query(getCountQuery, countParams);
 
-      const [paymentStatus] = await pool.query(
-        `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending' AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`,
-        [from_date, to_date]
-      );
+      let paymentQuery = `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
+      const paymentParams = [];
+
+      if (from_date && to_date) {
+        paymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        paymentParams.push(from_date, to_date);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+          paymentParams.push(...user_ids); // Keep original string values
+        } else if (!Array.isArray(user_ids)) {
+          // Single user ID (could be string or number)
+          paymentQuery += ` AND l.assigned_to = ?`;
+          paymentParams.push(user_ids);
+        }
+      }
+      const [paymentStatus] = await pool.query(paymentQuery, paymentParams);
 
       const cusStatusCount = {
         ...getStatus[0],

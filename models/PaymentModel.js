@@ -390,90 +390,13 @@ const PaymentModel = {
       throw new Error(error.message);
     }
   },
-  getPendingFeesCount: async (from_date, to_date) => {
+
+  getPendingFeesCount: async (from_date, to_date, user_ids) => {
     try {
-      const [getOverall] = await pool.query(
-        `SELECT COUNT(DISTINCT pm.lead_id) AS overall_pending_count
-          FROM payment_master AS pm
-          WHERE (
-              pm.total_amount - (
-                  SELECT COALESCE(SUM(pt_amount.amount), 0)
-                  FROM payment_trans pt_amount
-                  WHERE pt_amount.payment_master_id = pm.id 
-                    AND pt_amount.payment_status = 'Verified'
-              )
-          ) > 0
-          AND EXISTS (
-              SELECT 1
-              FROM payment_trans pt_date
-              WHERE pt_date.id = (
-                  SELECT MAX(p2.id)
-                  FROM payment_trans p2
-                  WHERE p2.payment_master_id = pm.id
-                    AND p2.payment_status = 'Verified'
-              )
-              AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
-          );
-          `,
-        [from_date, to_date]
-      );
-
-      const [getToday] =
-        await pool.query(`SELECT COUNT(DISTINCT pm.lead_id) AS todays_pending_count
-                          FROM payment_master AS pm
-                          WHERE (
-                              pm.total_amount - (
-                                  SELECT COALESCE(SUM(pt_amount.amount), 0)
-                                  FROM payment_trans pt_amount
-                                  WHERE pt_amount.payment_master_id = pm.id 
-                                    AND pt_amount.payment_status = 'Verified'
-                              )
-                          ) > 0
-                          AND EXISTS (
-                              SELECT 1
-                              FROM payment_trans pt_date
-                              WHERE pt_date.id = (
-                                  SELECT MAX(p2.id)
-                                  FROM payment_trans p2
-                                  WHERE p2.payment_master_id = pm.id
-                                    AND p2.payment_status = 'Verified'
-                              )
-                              AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
-                          );
-                          `);
-
-      const [getUrgentDue] = await pool.query(
-        `SELECT COUNT(DISTINCT c.id) AS customer_count
-          FROM customers c
-          INNER JOIN payment_master pm 
-              ON c.lead_id = pm.lead_id
-          WHERE c.class_percentage >= 30
-            AND (
-                pm.total_amount - (
-                    SELECT COALESCE(SUM(pt.amount), 0)
-                    FROM payment_trans pt
-                    WHERE pt.payment_master_id = pm.id 
-                      AND pt.payment_status = 'Verified'
-                )
-            ) > 0
-            AND EXISTS (
-                SELECT 1
-                FROM payment_trans pt_date
-                WHERE pt_date.id = (
-                    SELECT MAX(p2.id)
-                    FROM payment_trans p2
-                    WHERE p2.payment_master_id = pm.id
-                      AND p2.payment_status = 'Verified'
-                )
-                AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
-            );
-          `,
-        [from_date, to_date]
-      );
       return {
-        today_count: getToday[0].todays_pending_count,
-        overall_count: getOverall[0].overall_pending_count,
-        urgent_due_count: getUrgentDue[0].customer_count,
+        today_count: await getTodayCount(user_ids),
+        overall_count: await getOverallCount(from_date, to_date, user_ids),
+        urgent_due_count: await getUrgentDueCount(from_date, to_date, user_ids),
       };
     } catch (error) {
       throw new Error(error.message);
@@ -700,6 +623,149 @@ function generateInvoiceNumber(date = new Date(), timeZone) {
   }).format(date);
 
   return `${day}${month}${year}${hours}${minutes}${seconds}`;
+}
+
+async function getOverallCount(from_date, to_date, user_ids) {
+  try {
+    let getQuery = `SELECT COUNT(DISTINCT pm.lead_id) AS overall_pending_count
+          FROM payment_master AS pm INNER JOIN lead_master AS l ON l.id = pm.lead_id
+          WHERE (
+              pm.total_amount - (
+                  SELECT COALESCE(SUM(pt_amount.amount), 0)
+                  FROM payment_trans pt_amount
+                  WHERE pt_amount.payment_master_id = pm.id 
+                    AND pt_amount.payment_status = 'Verified'
+              )
+          ) > 0`;
+    const queryParams = [];
+    if (from_date && to_date) {
+      getQuery += ` AND EXISTS (
+              SELECT 1
+              FROM payment_trans pt_date
+              WHERE pt_date.id = (
+                  SELECT MAX(p2.id)
+                  FROM payment_trans p2
+                  WHERE p2.payment_master_id = pm.id
+                    AND p2.payment_status = 'Verified'
+              )
+              AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
+          )`;
+      queryParams.push(from_date, to_date);
+    }
+
+    if (user_ids) {
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        getQuery += ` AND l.assigned_to IN (${placeholders})`;
+        queryParams.push(...user_ids); // Keep original string values
+      } else if (!Array.isArray(user_ids)) {
+        // Single user ID (could be string or number)
+        getQuery += ` AND l.assigned_to = ?`;
+        queryParams.push(user_ids);
+      }
+    }
+
+    const [result] = await pool.query(getQuery, queryParams);
+    return result[0].overall_pending_count;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function getTodayCount(user_ids) {
+  try {
+    let getQuery = `SELECT COUNT(DISTINCT pm.lead_id) AS todays_pending_count
+                          FROM payment_master AS pm INNER JOIN lead_master AS l ON l.id = pm.lead_id
+                          WHERE (
+                              pm.total_amount - (
+                                  SELECT COALESCE(SUM(pt_amount.amount), 0)
+                                  FROM payment_trans pt_amount
+                                  WHERE pt_amount.payment_master_id = pm.id 
+                                    AND pt_amount.payment_status = 'Verified'
+                              )
+                          ) > 0
+                          AND EXISTS (
+                              SELECT 1
+                              FROM payment_trans pt_date
+                              WHERE pt_date.id = (
+                                  SELECT MAX(p2.id)
+                                  FROM payment_trans p2
+                                  WHERE p2.payment_master_id = pm.id
+                                    AND p2.payment_status = 'Verified'
+                              )
+                              AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
+                          )`;
+    const queryParams = [];
+
+    if (user_ids) {
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        getQuery += ` AND l.assigned_to IN (${placeholders})`;
+        queryParams.push(...user_ids); // Keep original string values
+      } else if (!Array.isArray(user_ids)) {
+        // Single user ID (could be string or number)
+        getQuery += ` AND l.assigned_to = ?`;
+        queryParams.push(user_ids);
+      }
+    }
+
+    const [result] = await pool.query(getQuery, queryParams);
+    return result[0].todays_pending_count;
+  } catch (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function getUrgentDueCount(from_date, to_date, user_ids) {
+  try {
+    let getQuery = `SELECT COUNT(DISTINCT c.id) AS customer_count
+          FROM customers c
+          INNER JOIN payment_master pm ON
+          	c.lead_id = pm.lead_id
+          INNER JOIN lead_master AS l ON
+          	l.id = c.lead_id
+          WHERE c.class_percentage >= 30
+            AND (
+                pm.total_amount - (
+                    SELECT COALESCE(SUM(pt.amount), 0)
+                    FROM payment_trans pt
+                    WHERE pt.payment_master_id = pm.id 
+                      AND pt.payment_status = 'Verified'
+                )
+            ) > 0`;
+    const queryParams = [];
+    if (from_date && to_date) {
+      getQuery += ` AND EXISTS (
+                SELECT 1
+                FROM payment_trans pt_date
+                WHERE pt_date.id = (
+                    SELECT MAX(p2.id)
+                    FROM payment_trans p2
+                    WHERE p2.payment_master_id = pm.id
+                      AND p2.payment_status = 'Verified'
+                )
+                AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
+            )`;
+      queryParams.push(from_date, to_date);
+    }
+
+    if (user_ids) {
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        getQuery += ` AND l.assigned_to IN (${placeholders})`;
+        queryParams.push(...user_ids); // Keep original string values
+      } else if (!Array.isArray(user_ids)) {
+        // Single user ID (could be string or number)
+        getQuery += ` AND l.assigned_to = ?`;
+        queryParams.push(user_ids);
+      }
+    }
+
+    const [result] = await pool.query(getQuery, queryParams);
+    return result[0].customer_count;
+  } catch (error) {
+    throw new Error(error.message);
+  }
 }
 
 module.exports = PaymentModel;

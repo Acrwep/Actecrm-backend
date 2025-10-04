@@ -128,9 +128,13 @@ const pendingFeesList = async (request, response) => {
 };
 
 const getPendingFeesCount = async (request, response) => {
-  const { from_date, to_date } = request.query;
+  const { from_date, to_date, user_ids } = request.body;
   try {
-    const result = await PaymentModel.getPendingFeesCount(from_date, to_date);
+    const result = await PaymentModel.getPendingFeesCount(
+      from_date,
+      to_date,
+      user_ids
+    );
     return response.status(200).send({
       messages: "Data fetched successfully",
       data: result,
