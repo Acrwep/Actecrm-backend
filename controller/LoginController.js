@@ -24,6 +24,26 @@ const login = async (request, response) => {
   }
 };
 
+const changePassword = async (request, response) => {
+  const { user_id, currentPassword, newPassword } = request.body;
+  try {
+    const result = await loginModel.changePassword(
+      user_id,
+      currentPassword,
+      newPassword
+    );
+    return response.status(200).json({
+      message: "Password changed successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while changing password",
+      details: error.message,
+    });
+  }
+};
+
 const generateToken = (user) => {
   // Verify JWT_SECRET exists and is valid
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
@@ -42,4 +62,5 @@ const generateToken = (user) => {
 
 module.exports = {
   login,
+  changePassword,
 };

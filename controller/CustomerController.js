@@ -341,6 +341,7 @@ const generateCertificate = async (request, response) => {
     course_name,
     course_duration,
     course_completion_month,
+    current_location,
   } = request.body;
   try {
     const result = await CommonModel.generateCertificate(
@@ -348,7 +349,8 @@ const generateCertificate = async (request, response) => {
       customer_name,
       course_name,
       course_duration,
-      course_completion_month
+      course_completion_month,
+      current_location
     );
     return response.status(201).send({
       message: "Inserted successfully",

@@ -42,6 +42,25 @@ const LoginModel = {
       throw new Error(error.message);
     }
   },
+
+  changePassword: async (user_id, currentPassword, newPassword) => {
+    try {
+      const sql = `SELECT id, password FROM users WHERE user_id = ? AND is_active = 1`;
+      const [isExists] = await pool.query(sql, [user_id]);
+      if (isExists.length <= 0) throw new Error("Invalid user Id");
+
+      if (currentPassword !== isExists[0].password)
+        throw new Error("Incorrect current password!");
+
+      const [updatePassword] = await pool.query(
+        `UPDATE users SET password = ? WHERE user_id = ?`,
+        [newPassword, user_id]
+      );
+      return updatePassword.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LoginModel;

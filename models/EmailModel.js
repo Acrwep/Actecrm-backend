@@ -326,6 +326,7 @@ const sendCourseCertificate = async (email, customer_id) => {
                       course_duration,
                       course_completion_month,
                       certificate_number,
+                      location,
                       created_at
                   FROM
                       certificates
@@ -404,7 +405,7 @@ const sendCourseCertificate = async (email, customer_id) => {
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
                       Given under our hand and Seal on<br />
                       the month of ${result[0].course_completion_month}<br />
-                      At Chennai, India
+                      At ${result[0].location}, India
                     </p>
 
                     <!-- Signatures -->

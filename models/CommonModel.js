@@ -38,7 +38,8 @@ const CommonModel = {
     customer_name,
     course_name,
     course_duration,
-    course_completion_month
+    course_completion_month,
+    current_location
   ) => {
     try {
       const [isExists] = await pool.query(
@@ -63,7 +64,7 @@ const CommonModel = {
       // You can generate the cert number now, or later when the certificate is awarded
       const certNumber = await getNextUniqueNumber("CERT", location);
 
-      const sql = `INSERT INTO certificates (customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number) VALUES (?, ?, ?, ?, ?, ?)`;
+      const sql = `INSERT INTO certificates (customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location) VALUES (?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         customer_id,
         customer_name,
@@ -71,6 +72,7 @@ const CommonModel = {
         course_duration,
         course_completion_month,
         certNumber,
+        current_location,
       ];
 
       const [result] = await pool.query(sql, values);
@@ -99,6 +101,7 @@ const CommonModel = {
                       course_duration,
                       course_completion_month,
                       certificate_number,
+                      location,
                       created_at
                   FROM
                       certificates
@@ -178,7 +181,7 @@ const CommonModel = {
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
                       Given under our hand and Seal on<br />
                       the month of ${result[0].course_completion_month}<br />
-                      At Chennai, India
+                      At ${result[0].location}, India
                     </p>
 
                     <!-- Signatures -->

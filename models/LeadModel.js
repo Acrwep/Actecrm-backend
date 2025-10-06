@@ -105,6 +105,12 @@ const LeadModel = {
     region_id
   ) => {
     try {
+      const [isLeadExists] = await pool.query(
+        `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
+        [phone, email]
+      );
+      if (isLeadExists.length > 0)
+        throw new Error("The phone or email is already exists");
       let affectedRows = 0;
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
