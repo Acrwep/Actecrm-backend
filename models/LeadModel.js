@@ -266,6 +266,7 @@ const LeadModel = {
                           l.comments,
                           l.created_date,
                           CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
+                          c.id AS customer_id,
                           r.name AS region_name,
                           r.id AS region_id,
                           lh.lead_history_id,
@@ -384,7 +385,8 @@ const LeadModel = {
                     l.comments,
                     l.created_date,
                     r.name AS region_name,
-                    r.id AS region_id
+                    r.id AS region_id,
+                    c.id AS customer_id
                 FROM
                     lead_master AS l
                 INNER JOIN lead_follow_up_history AS lf ON
@@ -409,6 +411,8 @@ const LeadModel = {
                     bt.id = l.batch_track_id
                 LEFT JOIN areas AS a ON
                     a.id = l.district
+                LEFT JOIN customers AS c ON
+                    c.lead_id = l.id
                 WHERE
                     lf.is_updated = 0 `;
 
@@ -725,6 +729,28 @@ const LeadModel = {
       }
 
       return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  checkEmailMblExists: async (email, mobile) => {
+    try {
+      if (email) {
+        const [isEmailExists] = await pool.query(
+          `SELECT id FROM lead_master WHERE email = ?`,
+          [email]
+        );
+        return isEmailExists.length > 0 ? true : false;
+      }
+
+      if (mobile) {
+        const [isPhoneExists] = await pool.query(
+          `SELECT id FROM lead_master WHERE phone = ?`,
+          [mobile]
+        );
+        return isPhoneExists.length > 0 ? true : false;
+      }
     } catch (error) {
       throw new Error(error.message);
     }

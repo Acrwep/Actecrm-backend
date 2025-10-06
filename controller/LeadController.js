@@ -373,6 +373,22 @@ const assignLead = async (request, response) => {
   }
 };
 
+const checkEmailMblExists = async (request, response) => {
+  const { email, mobile } = request.query;
+  try {
+    const result = await LeadModel.checkEmailMblExists(email, mobile);
+    return response.status(200).send({
+      message: "Validation successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while validating",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -390,4 +406,5 @@ module.exports = {
   getAreas,
   insertArea,
   assignLead,
+  checkEmailMblExists,
 };
