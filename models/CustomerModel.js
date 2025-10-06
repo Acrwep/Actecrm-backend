@@ -463,7 +463,26 @@ const CustomerModel = {
                         WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);
-      return result[0];
+
+      const [getPaidAmount] = await pool.query(
+        `SELECT 
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(SUM(pt.amount), 0) AS paid_amount 
+            FROM payment_master AS pm 
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+            WHERE pm.lead_id = ?
+            GROUP BY pm.total_amount`,
+        [result[0].lead_id]
+      );
+
+      // Now you can safely access the values
+      const totalAmount = getPaidAmount[0]?.total_amount || 0;
+      const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+
+      return {
+        ...result[0],
+        balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+      };
     } catch (error) {
       throw new Error(error.message);
     }
