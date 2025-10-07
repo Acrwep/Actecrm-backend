@@ -169,7 +169,8 @@ const CustomerModel = {
                             cer.course_name AS cer_course_name,
                             cer.course_duration AS cer_course_duration,
                             cer.course_completion_month AS cer_course_completion_month,
-                            cer.certificate_number
+                            cer.certificate_number,
+                            cer.cer_location
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -430,7 +431,8 @@ const CustomerModel = {
                             cer.course_name AS cer_course_name,
                             cer.course_duration AS cer_course_duration,
                             cer.course_completion_month AS cer_course_completion_month,
-                            cer.certificate_number
+                            cer.certificate_number,
+                            cer.cer_location
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
