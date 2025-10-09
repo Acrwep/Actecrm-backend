@@ -193,12 +193,18 @@ const getLeads = async (request, response) => {
 };
 
 const getLeadFollowUps = async (request, response) => {
-  const { user_ids, from_date, to_date } = request.body;
+  const { user_ids, from_date, to_date, name, email, phone, page, limit } =
+    request.body;
   try {
     const leads = await LeadModel.getLeadFollowUps(
       user_ids,
       from_date,
-      to_date
+      to_date,
+      name,
+      email,
+      phone,
+      page,
+      limit
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",

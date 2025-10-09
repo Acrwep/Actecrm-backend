@@ -429,7 +429,7 @@ const PaymentModel = {
         [payment_master_id]
       );
 
-      if (paid_amount > getPendingFees[0].balance_amount)
+      if (parseFloat(paid_amount) > getPendingFees[0].balance_amount)
         throw new Error("Amount should be equal to or less then pending fees");
 
       const invoiceNo = generateInvoiceNumber();
