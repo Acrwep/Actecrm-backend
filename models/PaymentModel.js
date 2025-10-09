@@ -182,7 +182,9 @@ const PaymentModel = {
     email,
     course,
     urgent_due,
-    user_ids
+    user_ids,
+    page,
+    limit
   ) => {
     try {
       const queryParams = [];
@@ -324,58 +326,118 @@ const PaymentModel = {
                         WHERE payment_summary.balance_amount > 0 AND c.status <> 'Demo Completed'
                       `;
 
-      // Handle user_ids parameter
+      const countQueryParams = [];
+      let countQuery = `
+                        SELECT COUNT(DISTINCT c.id) as total
+                        FROM customers AS c
+                        INNER JOIN payment_master AS pm 
+                            ON pm.lead_id = c.lead_id
+                        INNER JOIN lead_master AS lm 
+                            ON c.lead_id = lm.id
+                        LEFT JOIN technologies AS t 
+                            ON c.enrolled_course = t.id
+                        INNER JOIN (
+                            SELECT 
+                                pt.payment_master_id,
+                                SUM(pt.amount) AS paid_amount,
+                                (pm.total_amount - SUM(pt.amount)) AS balance_amount,
+                                (
+                                    SELECT p2.next_due_date
+                                    FROM payment_trans p2
+                                    WHERE p2.payment_master_id = pm.id
+                                      AND p2.payment_status = 'Verified'
+                                    ORDER BY p2.id DESC
+                                    LIMIT 1
+                                ) AS next_due_date
+                            FROM payment_trans AS pt
+                            INNER JOIN payment_master AS pm 
+                                ON pt.payment_master_id = pm.id
+                            WHERE pt.payment_status = 'Verified'
+                            GROUP BY pt.payment_master_id, pm.total_amount
+                        ) AS payment_summary 
+                            ON payment_summary.payment_master_id = pm.id
+                        WHERE payment_summary.balance_amount > 0 AND c.status <> 'Demo Completed'
+                      `;
+
+      // Handle user_ids parameter for both queries
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND lm.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids); // Keep original string values
+          countQuery += ` AND lm.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          countQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          // Single user ID (could be string or number)
           getQuery += ` AND lm.assigned_to = ?`;
+          countQuery += ` AND lm.assigned_to = ?`;
           queryParams.push(user_ids);
+          countQueryParams.push(user_ids);
         }
       }
 
-      // Date filter
+      // Date filter for both queries
       if (from_date && to_date) {
         getQuery += ` AND CAST(payment_summary.next_due_date AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(payment_summary.next_due_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
+        countQueryParams.push(from_date, to_date);
       }
 
-      // Urgent due condition
+      // Urgent due condition for both queries
       if (urgent_due === "Urgent Due") {
         getQuery += ` AND c.class_percentage >= 30`;
+        countQuery += ` AND c.class_percentage >= 30`;
       }
 
-      // Name filter
+      // Name filter for both queries
       if (name) {
         getQuery += ` AND c.name LIKE ?`;
+        countQuery += ` AND c.name LIKE ?`;
         queryParams.push(`%${name}%`);
+        countQueryParams.push(`%${name}%`);
       }
 
-      // Email filter
+      // Email filter for both queries
       if (email) {
         getQuery += ` AND c.email LIKE ?`;
+        countQuery += ` AND c.email LIKE ?`;
         queryParams.push(`%${email}%`);
+        countQueryParams.push(`%${email}%`);
       }
 
-      // Mobile filter
+      // Mobile filter for both queries
       if (mobile) {
         getQuery += ` AND c.phone LIKE ?`;
+        countQuery += ` AND c.phone LIKE ?`;
         queryParams.push(`%${mobile}%`);
+        countQueryParams.push(`%${mobile}%`);
       }
 
-      // Course filter
+      // Course filter for both queries
       if (course) {
         getQuery += ` AND t.name LIKE ?`;
+        countQuery += ` AND t.name LIKE ?`;
         queryParams.push(`%${course}%`);
+        countQueryParams.push(`%${course}%`);
       }
 
-      // Run query
+      // Get total count
+      const [countResult] = await pool.query(countQuery, countQueryParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      // Add pagination to main query
+      getQuery += ` ORDER BY payment_summary.next_due_date ASC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      // Run main query
       const [result] = await pool.query(getQuery, queryParams);
 
-      // Add payment history
+      // Add payment history (original functionality preserved)
       const formattedResult = await Promise.all(
         result.map(async (item) => {
           return {
@@ -385,7 +447,15 @@ const PaymentModel = {
         })
       );
 
-      return formattedResult;
+      return {
+        data: formattedResult,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }

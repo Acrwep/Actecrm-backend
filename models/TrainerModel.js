@@ -229,7 +229,9 @@ const TrainerModel = {
     status,
     is_form_sent,
     is_onboarding,
-    ongoing
+    ongoing,
+    page,
+    limit
   ) => {
     try {
       const queryParams = [];
@@ -273,29 +275,57 @@ const TrainerModel = {
                         tb.trainer_id = t.id
                       WHERE
                           t.is_active = 1`;
+
+      const countQueryParams = [];
+      let countQuery = `SELECT COUNT(DISTINCT t.id) as total
+                      FROM trainer AS t
+                      WHERE t.is_active = 1`;
+
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
+        countQuery += ` AND t.name LIKE '%${name}%'`;
       }
       if (mobile) {
         getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
+        countQuery += ` AND t.mobile LIKE '%${mobile}%'`;
       }
       if (email) {
         getQuery += ` AND t.email LIKE '%${email}%'`;
+        countQuery += ` AND t.email LIKE '%${email}%'`;
       }
       if (status) {
         getQuery += ` AND t.status IN (?)`;
+        countQuery += ` AND t.status IN (?)`;
         queryParams.push(status);
+        countQueryParams.push(status);
       }
       if (is_form_sent != null || is_form_sent != undefined) {
         getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
+        countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
         queryParams.push(is_form_sent);
+        countQueryParams.push(is_form_sent);
       }
 
       if (is_onboarding != null || is_onboarding != undefined) {
         getQuery += " AND t.is_onboarding = ?";
+        countQuery += " AND t.is_onboarding = ?";
         queryParams.push(is_onboarding);
+        countQueryParams.push(is_onboarding);
       }
+
+      // Get total count before applying pagination and ongoing filter
+      const [countResult] = await pool.query(countQuery, countQueryParams);
+      const totalBeforeFilter = countResult[0]?.total || 0;
+
       getQuery += ` ORDER BY t.name`;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
 
       let [trainers] = await pool.query(getQuery, queryParams);
 
@@ -317,12 +347,17 @@ const TrainerModel = {
         `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 AND tm.is_rejected = 0 GROUP BY tm.trainer_id`
       );
 
+      // Calculate total after ongoing filter if applicable
+      let total = totalBeforeFilter;
+
       // filter from trainers only ongoing trainers
       if (ongoing === "Ongoing") {
         const ongoingTrainerIds = getOngoing.map((row) => row.trainer_id);
         trainers = trainers.filter((item) =>
           ongoingTrainerIds.includes(item.id)
         );
+        // Update total count for ongoing trainers only
+        total = ongoingTrainerIds.length;
       }
 
       const formattedResult = await Promise.all(
@@ -370,6 +405,12 @@ const TrainerModel = {
         trainer_status_count: getStatus,
         on_boarding: getOnBoarding[0].on_boarding_count,
         on_going: getOnBoarding[0].on_going_count,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
       };
     } catch (error) {
       throw new Error(error.message);

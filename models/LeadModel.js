@@ -471,19 +471,26 @@ const LeadModel = {
         countQueryParams.push(from_date, to_date);
       }
 
+      // FIXED: Use parameterized queries for LIKE conditions in both queries
       if (name) {
-        getQuery += ` AND l.name LIKE '%${name}%'`;
-        countQuery += ` AND l.name LIKE '%${name}%'`;
+        getQuery += ` AND l.name LIKE ?`;
+        countQuery += ` AND l.name LIKE ?`;
+        queryParams.push(`%${name}%`);
+        countQueryParams.push(`%${name}%`);
       }
 
       if (email) {
-        getQuery += ` AND l.email LIKE '%${email}%'`;
-        countQuery += ` AND l.email LIKE '%${email}%'`;
+        getQuery += ` AND l.email LIKE ?`;
+        countQuery += ` AND l.email LIKE ?`;
+        queryParams.push(`%${email}%`);
+        countQueryParams.push(`%${email}%`);
       }
 
       if (phone) {
-        getQuery += ` AND l.phone LIKE '%${phone}%'`;
-        countQuery += ` AND l.phone LIKE '%${phone}%'`;
+        getQuery += ` AND l.phone LIKE ?`;
+        countQuery += ` AND l.phone LIKE ?`;
+        queryParams.push(`%${phone}%`);
+        countQueryParams.push(`%${phone}%`);
       }
 
       // Handle user_ids parameter for both queries
@@ -506,15 +513,21 @@ const LeadModel = {
       const [countResult] = await pool.query(countQuery, countQueryParams);
       const total = countResult[0]?.total || 0;
 
+      console.log("Total count from database:", total);
+
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY lf.next_follow_up_date ASC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY lf.next_follow_up_date ASC`;
+
+      getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       const [follow_ups] = await pool.query(getQuery, queryParams);
+
+      console.log("Results found:", follow_ups.length);
 
       // Use Promise.all to wait for all async operations in the map
       const formattedResult = await Promise.all(
@@ -545,6 +558,7 @@ const LeadModel = {
         },
       };
     } catch (error) {
+      console.error("Error in getLeadFollowUps:", error);
       throw new Error(error.message);
     }
   },

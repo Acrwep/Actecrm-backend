@@ -103,6 +103,8 @@ const pendingFeesList = async (request, response) => {
     course,
     urgent_due,
     user_ids,
+    page,
+    limit,
   } = request.body;
   try {
     const result = await PaymentModel.pendingFeesList(
@@ -113,7 +115,9 @@ const pendingFeesList = async (request, response) => {
       email,
       course,
       urgent_due,
-      user_ids
+      user_ids,
+      page,
+      limit
     );
     return response.status(200).send({
       messages: "Fees pending data successfull",

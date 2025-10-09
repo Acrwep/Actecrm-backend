@@ -96,7 +96,9 @@ const CustomerModel = {
     email,
     mobile,
     course,
-    user_ids
+    user_ids,
+    page,
+    limit
   ) => {
     try {
       const queryParams = [];
@@ -208,58 +210,100 @@ const CustomerModel = {
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
-      // Handle user_ids parameter
+      const countQueryParams = [];
+      let countQuery = `SELECT COUNT(DISTINCT c.id) as total
+                        FROM customers AS c
+                        LEFT JOIN lead_master AS l ON l.id = c.lead_id
+                        LEFT JOIN technologies AS tg ON l.primary_course_id = tg.id
+                        LEFT JOIN (
+                            SELECT pm.lead_id, MAX(pt.is_second_due) as has_second_due
+                            FROM payment_master pm 
+                            LEFT JOIN payment_trans pt ON pm.id = pt.payment_master_id
+                            GROUP BY pm.lead_id
+                        ) AS payment_info ON payment_info.lead_id = c.lead_id
+                        WHERE 1 = 1`;
+
+      // Handle user_ids parameter for both queries
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids); // Keep original string values
+          countQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          countQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          // Single user ID (could be string or number)
           getQuery += ` AND l.assigned_to = ?`;
+          countQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
+          countQueryParams.push(user_ids);
         }
       }
 
       if (from_date && to_date) {
         getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
+        countQueryParams.push(from_date, to_date);
       }
 
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
           getQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
+          countQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
           queryParams.push(status);
+          countQueryParams.push(status);
         } else if (Array.isArray(status)) {
           const placeholders = status.map(() => "?").join(", ");
           getQuery += ` AND c.status IN (${placeholders})`;
+          countQuery += ` AND c.status IN (${placeholders})`;
           queryParams.push(...status);
+          countQueryParams.push(...status);
         } else if (status !== "Others") {
           getQuery += ` AND c.status = ?`;
+          countQuery += ` AND c.status = ?`;
           queryParams.push(status);
+          countQueryParams.push(status);
         }
       }
 
       if (status === "Others") {
         getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed')`;
+        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed')`;
       }
 
       if (name) {
         getQuery += ` AND c.name LIKE '%${name}%'`;
+        countQuery += ` AND c.name LIKE '%${name}%'`;
       }
 
       if (email) {
         getQuery += ` AND c.email LIKE '%${email}%'`;
+        countQuery += ` AND c.email LIKE '%${email}%'`;
       }
 
       if (mobile) {
         getQuery += ` AND c.phone LIKE '%${mobile}%'`;
+        countQuery += ` AND c.phone LIKE '%${mobile}%'`;
       }
 
       if (course) {
         getQuery += ` AND tg.name LIKE '%${course}%'`;
+        countQuery += ` AND tg.name LIKE '%${course}%'`;
       }
+
+      // Get total count
+      const [countResult] = await pool.query(countQuery, countQueryParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      // Add pagination to main query
+      getQuery += ` ORDER BY c.created_date DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
 
       const [result] = await pool.query(getQuery, queryParams);
 
@@ -304,6 +348,8 @@ const CustomerModel = {
           };
         })
       );
+
+      // All your existing count queries remain unchanged
       let getCountQuery = `SELECT COUNT(c.id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed') THEN 1 END) AS Others FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
       const countParams = [];
       if (from_date && to_date) {
@@ -315,9 +361,8 @@ const CustomerModel = {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
-          countParams.push(...user_ids); // Keep original string values
+          countParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          // Single user ID (could be string or number)
           getCountQuery += ` AND l.assigned_to = ?`;
           countParams.push(user_ids);
         }
@@ -336,9 +381,8 @@ const CustomerModel = {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
-          paymentParams.push(...user_ids); // Keep original string values
+          paymentParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          // Single user ID (could be string or number)
           paymentQuery += ` AND l.assigned_to = ?`;
           paymentParams.push(user_ids);
         }
@@ -354,6 +398,12 @@ const CustomerModel = {
       return {
         customers: res,
         customer_status_count: cusStatusCount,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
       };
     } catch (error) {
       throw new Error(error.message);
