@@ -157,8 +157,17 @@ const insertLead = async (request, response) => {
 };
 
 const getLeads = async (request, response) => {
-  const { name, email, phone, start_date, end_date, lead_status_id, user_ids } =
-    request.body;
+  const {
+    name,
+    email,
+    phone,
+    start_date,
+    end_date,
+    lead_status_id,
+    user_ids,
+    page,
+    limit,
+  } = request.body;
   try {
     const leads = await LeadModel.getLeads(
       name,
@@ -167,7 +176,9 @@ const getLeads = async (request, response) => {
       start_date,
       end_date,
       lead_status_id,
-      user_ids
+      user_ids,
+      page,
+      limit
     );
     return response.status(200).send({
       message: "Leads fetched successfully",

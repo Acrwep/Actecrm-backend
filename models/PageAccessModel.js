@@ -574,6 +574,7 @@ const PageAccessModel = {
         ...getUser[0],
         child_users: childUserIds,
         roles: roleIds,
+        downline_users: JSON.parse(getUser[0].child_users),
       };
     } catch (error) {
       throw new Error(error.message);

@@ -840,7 +840,10 @@ const sendInvoicePdf = async (
     <tbody>
       <tr>
           <td>${course_name}</td>
-          <td>₹${paid_amount}</td>
+          <td>₹${(
+            parseFloat(paid_amount) +
+            parseFloat(convenience_fees ? convenience_fees : 0)
+          ).toFixed(2)}</td>
           <td>${payment_mode}</td>
           <td>${gst_percentage}%</td>
           <td>₹${convenience_fees ? convenience_fees : 0}</td>
@@ -852,28 +855,31 @@ const sendInvoicePdf = async (
 <div class="totals-container" style="width: max-content; margin-left: auto; margin-top: -12px">
   <table class="totals">
       <tr>
-        <td>Sub Total:</td>
+        <td>Fees:</td>
         <td>₹${sub_total}</td>
-      </tr>
-      <tr>
-        <td>Payment Mode:</td>
-        <td>${payment_mode}</td>
       </tr>
       <tr>
         <td>GST:</td>
         <td>₹${gst_amount}</td>
       </tr>
       <tr>
-        <td>Convenience Charges:</td>
-        <td>₹${convenience_fees ? convenience_fees : 0}</td>
-      </tr>
-      <tr>
         <td><strong>Total Fee:</strong></td>
         <td><strong>₹${total_amount}</strong></td>
       </tr>
       <tr>
+        <td>Convenience Charges:</td>
+        <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+      <tr>
         <td><strong>Paid:</strong></td>
-        <td><strong>₹${paid_amount}</strong></td>
+        <td><strong>₹${(
+          parseFloat(paid_amount) +
+          parseFloat(convenience_fees ? convenience_fees : 0)
+        ).toFixed(2)}</strong></td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
       </tr>
       <tr>
         <td>Balance:</td>
@@ -1109,7 +1115,10 @@ const viewInvoicePdf = async (
     <tbody>
       <tr>
           <td>${course_name}</td>
-          <td>₹${paid_amount}</td>
+          <td>₹${(
+            parseFloat(paid_amount) +
+            parseFloat(convenience_fees ? convenience_fees : 0)
+          ).toFixed(2)}
           <td>${payment_mode}</td>
           <td>${gst_percentage}%</td>
           <td>₹${convenience_fees ? convenience_fees : 0}</td>
@@ -1121,28 +1130,31 @@ const viewInvoicePdf = async (
 <div class="totals-container" style="width: max-content; margin-left: auto; margin-top: -12px">
   <table class="totals">
       <tr>
-        <td>Sub Total:</td>
+        <td>Fees:</td>
         <td>₹${sub_total}</td>
-      </tr>
-      <tr>
-        <td>Payment Mode:</td>
-        <td>${payment_mode}</td>
       </tr>
       <tr>
         <td>GST:</td>
         <td>₹${gst_amount}</td>
       </tr>
       <tr>
-        <td>Convenience Charges:</td>
-        <td>₹${convenience_fees ? convenience_fees : 0}</td>
-      </tr>
-      <tr>
         <td><strong>Total Fee:</strong></td>
         <td><strong>₹${total_amount}</strong></td>
       </tr>
       <tr>
+        <td>Convenience Charges:</td>
+        <td>₹${convenience_fees ? convenience_fees : 0}</td>
+      </tr>
+      <tr>
         <td><strong>Paid:</strong></td>
-        <td><strong>₹${paid_amount}</strong></td>
+        <td><strong>₹${(
+          parseFloat(paid_amount) +
+          parseFloat(convenience_fees ? convenience_fees : 0)
+        ).toFixed(2)}</strong></td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
       </tr>
       <tr>
         <td>Balance:</td>

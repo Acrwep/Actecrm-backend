@@ -227,7 +227,9 @@ const LeadModel = {
     start_date,
     end_date,
     lead_status_id,
-    user_ids
+    user_ids,
+    page,
+    limit
   ) => {
     try {
       const queryParams = [];
@@ -337,6 +339,15 @@ const LeadModel = {
       }
 
       getQuery += ` ORDER BY l.created_date ASC`;
+
+      if (page && limit) {
+        const pageNumber = parseInt(page, 10) || 1;
+        const limitNumber = parseInt(limit, 10) || 10;
+        const offset = (pageNumber - 1) * limitNumber;
+
+        getQuery += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       const [result] = await pool.query(getQuery, queryParams);
 

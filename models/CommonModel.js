@@ -20,7 +20,7 @@ const CommonModel = {
         runningBalance -= item.amount;
         return {
           ...item,
-          balance_amount: runningBalance,
+          balance_amount: parseFloat(runningBalance).toFixed(2),
         };
       });
 

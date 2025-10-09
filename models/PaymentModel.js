@@ -425,7 +425,7 @@ const PaymentModel = {
         throw new Error("Kindly verify the previous payment");
 
       const [getPendingFees] = await pool.query(
-        `SELECT pm.lead_id, pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status = 'Verified' AND pm.id = ? GROUP BY pm.lead_id`,
+        `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status = 'Verified' AND pm.id = ?`,
         [payment_master_id]
       );
 
