@@ -629,6 +629,14 @@ const PaymentModel = {
         [payment_master_id]
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
+
+      const [paidAmount] = await pool.query(
+        `SELECT SUM(amount) AS paid_amount FROM payment_trans WHERE payment_master_id = ? AND payment_status NOT IN ('Rejected')`,
+        [payment_master_id]
+      );
+
+      if (parseFloat(total_amount) < parseFloat(paidAmount))
+        throw new Error("Total amount cannot be less than paid amout!");
       const sql = `UPDATE
                       payment_master
                   SET
