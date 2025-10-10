@@ -14,7 +14,7 @@ router.post("/login", LoginController.login);
 
 // User start
 router.post("/addUser", UserController.addUser);
-router.get("/getUsers", verifyToken, UserController.getUsers);
+router.post("/getUsers", verifyToken, UserController.getUsers);
 router.put("/updateUser", verifyToken, UserController.updateUser);
 router.put("/changePassword", verifyToken, LoginController.changePassword);
 // User end
