@@ -313,9 +313,9 @@ const updateLead = async (request, response) => {
 };
 
 const getLeadCount = async (request, response) => {
-  const { user_ids } = request.body;
+  const { user_ids, start_date, end_date } = request.body;
   try {
-    const result = await LeadModel.getLeadCount(user_ids);
+    const result = await LeadModel.getLeadCount(user_ids, start_date, end_date);
     return response.status(200).send({
       message: "Data fetched successfully",
       data: result,

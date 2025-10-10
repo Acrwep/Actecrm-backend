@@ -267,9 +267,9 @@ const TrainerModel = {
                           tb.signature_image
                       FROM
                           trainer AS t
-                      INNER JOIN technologies te ON
+                      LEFT JOIN technologies te ON
                           te.id = t.technology_id
-                      INNER JOIN batches b ON
+                      LEFT JOIN batches b ON
                           b.id = t.batch_id
                       LEFT JOIN trainer_bank_accounts AS tb ON
                         tb.trainer_id = t.id

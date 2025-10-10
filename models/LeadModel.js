@@ -513,8 +513,6 @@ const LeadModel = {
       const [countResult] = await pool.query(countQuery, countQueryParams);
       const total = countResult[0]?.total || 0;
 
-      console.log("Total count from database:", total);
-
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -526,8 +524,6 @@ const LeadModel = {
       queryParams.push(limitNumber, offset);
 
       const [follow_ups] = await pool.query(getQuery, queryParams);
-
-      console.log("Results found:", follow_ups.length);
 
       // Use Promise.all to wait for all async operations in the map
       const formattedResult = await Promise.all(
@@ -591,8 +587,8 @@ const LeadModel = {
         affectedRows += insert_follow_up.affectedRows;
 
         const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET next_follow_up_date = ? WHERE id = ?`,
-          [next_follow_up_date, lead_id]
+          `UPDATE lead_master SET next_follow_up_date = ?, comments = ? WHERE id = ?`,
+          [next_follow_up_date, comments, lead_id]
         );
 
         affectedRows += update_lead_master.affectedRows;
@@ -609,8 +605,8 @@ const LeadModel = {
         affectedRows += updateFollowUp.affectedRows;
 
         const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET lead_status_id = ? WHERE id = ?`,
-          [get_lead_status[0].id, lead_id]
+          `UPDATE lead_master SET lead_status_id = ?, comments = ? WHERE id = ?`,
+          [get_lead_status[0].id, comments, lead_id]
         );
 
         affectedRows += update_lead_master.affectedRows;
@@ -725,15 +721,12 @@ const LeadModel = {
     }
   },
 
-  getLeadCount: async (user_ids) => {
+  getLeadCount: async (user_ids, start_date, end_date) => {
     try {
-      const currentDate = new Date();
-      const formattedDate = moment(currentDate).format("YYYY-MM-DD");
-
-      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) = ? AND lf.is_updated = 0`;
+      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ? AND lf.is_updated = 0`;
 
       const followUpParams = [];
-      followUpParams.push(formattedDate);
+      followUpParams.push(start_date, end_date);
 
       // Handle user_ids parameter
       if (user_ids) {
@@ -753,8 +746,9 @@ const LeadModel = {
         followUpParams
       );
 
-      let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE l.created_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND l.created_date <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)`;
+      let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
       const leadParams = [];
+      leadParams.push(start_date, end_date);
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
