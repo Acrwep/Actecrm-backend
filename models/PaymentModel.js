@@ -635,7 +635,7 @@ const PaymentModel = {
         [payment_master_id]
       );
 
-      if (parseFloat(total_amount) < parseFloat(paidAmount))
+      if (parseFloat(total_amount) < parseFloat(paidAmount[0].paid_amount))
         throw new Error("Total amount cannot be less than paid amout!");
       const sql = `UPDATE
                       payment_master
