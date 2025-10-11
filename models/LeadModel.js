@@ -854,25 +854,55 @@ const LeadModel = {
   getLeadCountByUser: async (user_ids, start_date, end_date) => {
     try {
       const queryParams = [];
-      let getQuery = `SELECT COUNT(lm.assigned_to) AS lead_count, lm.assigned_to, u.user_name FROM lead_master AS lm INNER JOIN users AS u ON lm.assigned_to = u.user_id WHERE 1 = 1`;
-
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` AND lm.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids);
-        } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND lm.assigned_to = ?`;
-          queryParams.push(user_ids);
-        }
-      }
+      let getQuery = `SELECT u.user_id, u.user_name, COUNT(lm.id) AS lead_count FROM users AS u LEFT JOIN lead_master AS lm ON lm.assigned_to = u.user_id`;
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(lm.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
 
-      getQuery += ` GROUP BY lm.assigned_to ORDER BY u.user_name`;
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` WHERE u.user_id IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += ` WHERE u.user_id = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` GROUP BY u.user_id, u.user_name ORDER BY u.user_name`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getFollowupCountByUser: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT COUNT(lf.id) AS follow_up_count, u.user_id, u.user_name FROM users AS u LEFT JOIN lead_master AS lm ON lm.assigned_to = u.user_id LEFT JOIN lead_follow_up_history AS lf ON lf.lead_id = lm.id AND lf.is_updated = 0`;
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND u.user_id IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += ` AND u.user_id = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` GROUP BY u.user_id, u.user_name ORDER BY u.user_name`;
 
       const [result] = await pool.query(getQuery, queryParams);
       return result;

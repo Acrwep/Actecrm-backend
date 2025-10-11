@@ -426,6 +426,26 @@ const getLeadCountByUser = async (request, response) => {
   }
 };
 
+const getFollowupCountByUser = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await LeadModel.getFollowupCountByUser(
+      user_ids,
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -445,4 +465,5 @@ module.exports = {
   assignLead,
   checkEmailMblExists,
   getLeadCountByUser,
+  getFollowupCountByUser,
 };

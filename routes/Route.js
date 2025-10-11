@@ -160,4 +160,9 @@ router.post(
   verifyToken,
   LeadController.getLeadCountByUser
 );
+router.post(
+  "/getFollowupCountByUser",
+  verifyToken,
+  LeadController.getFollowupCountByUser
+);
 module.exports = router;
