@@ -894,10 +894,10 @@ const LeadModel = {
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` AND u.user_id IN (${placeholders})`;
+          getQuery += ` WHERE u.user_id IN (${placeholders})`;
           queryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND u.user_id = ?`;
+          getQuery += ` WHERE u.user_id = ?`;
           queryParams.push(user_ids);
         }
       }
