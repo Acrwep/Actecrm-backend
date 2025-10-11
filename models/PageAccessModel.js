@@ -11,10 +11,17 @@ const PageAccessModel = {
     }
   },
 
-  getRoles: async () => {
+  getRoles: async (name) => {
     try {
-      const sql = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1 ORDER BY role_id ASC`;
-      const [result] = await pool.query(sql);
+      const queryParams = [];
+      let getQuery = `SELECT role_id, role_name, background_color, text_color, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM roles WHERE is_active = 1`;
+
+      if (name) {
+        getQuery += ` AND role_name LIKE '%${name}%'`;
+      }
+
+      getQuery += ` ORDER BY role_id ASC`;
+      const [result] = await pool.query(getQuery, queryParams);
       return result;
     } catch (error) {
       throw new Error(error.message);

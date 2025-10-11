@@ -17,8 +17,9 @@ const getPermissions = async (request, response) => {
 };
 
 const getRoles = async (request, response) => {
+  const { name } = request.query;
   try {
-    const result = await PageAccessModel.getRoles();
+    const result = await PageAccessModel.getRoles(name);
     return response.status(200).send({
       massage: "Data fetched successfully",
       data: result,
