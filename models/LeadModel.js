@@ -850,6 +850,36 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  getLeadCountByUser: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT COUNT(lm.assigned_to) AS lead_count, lm.assigned_to, u.user_name FROM lead_master AS lm INNER JOIN users AS u ON lm.assigned_to = u.user_id WHERE 1 = 1`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND lm.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += ` AND lm.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(lm.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      getQuery += ` GROUP BY lm.assigned_to ORDER BY u.user_name`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;

@@ -155,4 +155,9 @@ router.post("/getUserPermissions", PageAccessController.getUserPermissions);
 router.get("/getUsersDownline", PageAccessController.getUsersDownline);
 router.put("/assignLead", verifyToken, LeadController.assignLead);
 router.get("/checkEmailMblExists", LeadController.checkEmailMblExists);
+router.post(
+  "/getLeadCountByUser",
+  verifyToken,
+  LeadController.getLeadCountByUser
+);
 module.exports = router;
