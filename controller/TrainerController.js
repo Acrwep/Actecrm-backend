@@ -172,6 +172,7 @@ const getTrainers = async (request, response) => {
   const {
     name,
     mobile,
+    trainer_code,
     email,
     status,
     is_form_sent,
@@ -184,6 +185,7 @@ const getTrainers = async (request, response) => {
     const trainers = await TrainerModel.getTrainers(
       name,
       mobile,
+      trainer_code,
       email,
       status,
       is_form_sent,

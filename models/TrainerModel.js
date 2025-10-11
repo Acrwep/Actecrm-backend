@@ -62,8 +62,16 @@ const TrainerModel = {
       if (isEmailOrMobileExists.length > 0) {
         throw new Error("Email or mobile number already exists");
       }
+
+      const [trainer_code] = await pool.query(`SELECT 
+                              CONCAT('TR', CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) + 1) AS next_trainer_id
+                          FROM trainer
+                          ORDER BY CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) DESC
+                          LIMIT 1;
+                          `);
       const insertQuery = `INSERT INTO trainer(
                                 name,
+                                trainer_id,
                                 mobile,
                                 email,
                                 whatsapp,
@@ -78,9 +86,10 @@ const TrainerModel = {
                                 profile_image,
                                 status
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         trainer_name,
+        trainer_code[0].next_trainer_id,
         mobile,
         email,
         whatsapp,
@@ -225,6 +234,7 @@ const TrainerModel = {
   getTrainers: async (
     name,
     mobile,
+    trainer_code,
     email,
     status,
     is_form_sent,
@@ -238,6 +248,7 @@ const TrainerModel = {
       let getQuery = `SELECT
                           t.id,
                           t.name,
+                          t.trainer_id AS trainer_code,
                           t.mobile,
                           t.email,
                           t.whatsapp,
@@ -284,6 +295,10 @@ const TrainerModel = {
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
         countQuery += ` AND t.name LIKE '%${name}%'`;
+      }
+      if (trainer_code) {
+        getQuery += ` AND t.trainer_code LIKE '%${trainer_code}%'`;
+        countQuery += ` AND t.trainer_code LIKE '%${trainer_code}%'`;
       }
       if (mobile) {
         getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
@@ -440,6 +455,7 @@ const TrainerModel = {
       let getQuery = `SELECT
                           t.id,
                           t.name,
+                          t.trainer_id AS trainer_code,
                           t.mobile,
                           t.email,
                           t.whatsapp,
@@ -491,7 +507,7 @@ const TrainerModel = {
 
   getTrainerHistory: async (customer_id) => {
     try {
-      const getQuery = `SELECT tm.id, tm.trainer_id, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id WHERE tm.customer_id = ? ORDER BY tm.id ASC`;
+      const getQuery = `SELECT tm.id, tm.trainer_id, t.trainer_id AS trainer_code, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id WHERE tm.customer_id = ? ORDER BY tm.id ASC`;
 
       const [history] = await pool.query(getQuery, [customer_id]);
 
