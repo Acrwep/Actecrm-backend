@@ -69,6 +69,13 @@ const TrainerModel = {
                           ORDER BY CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) DESC
                           LIMIT 1;
                           `);
+
+      let newId;
+      if (trainer_code.length === 0) {
+        newId = "TR000001";
+      } else {
+        newId = trainer_code[0].next_trainer_id;
+      }
       const insertQuery = `INSERT INTO trainer(
                                 name,
                                 trainer_id,
@@ -89,7 +96,7 @@ const TrainerModel = {
                             VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         trainer_name,
-        trainer_code[0].next_trainer_id,
+        newId,
         mobile,
         email,
         whatsapp,
