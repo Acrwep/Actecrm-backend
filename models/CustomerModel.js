@@ -23,7 +23,8 @@ const CustomerModel = {
     id,
     country,
     state,
-    area
+    area,
+    is_server_required
   ) => {
     try {
       const [isCusExists] = await pool.query(
@@ -54,7 +55,8 @@ const CustomerModel = {
                                 region_id = ?,
                                 country = ?,
                                 state = ?,
-                                current_location = ?
+                                current_location = ?,
+                                is_server_required = ?
                             WHERE
                                 id = ?`;
       const values = [
@@ -78,6 +80,7 @@ const CustomerModel = {
         country,
         state,
         area,
+        is_server_required,
         id,
       ];
 
