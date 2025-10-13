@@ -55,45 +55,49 @@ const TrainerModel = {
     created_date
   ) => {
     try {
+      // ✅ Check if email or mobile already exists
       const [isEmailOrMobileExists] = await pool.query(
-        `SELECT id FROM trainer WHERE email = ? AND mobile = ?`,
+        `SELECT id FROM trainer WHERE email = ? OR mobile = ?`,
         [email, mobile]
       );
       if (isEmailOrMobileExists.length > 0) {
         throw new Error("Email or mobile number already exists");
       }
 
-      const [trainer_code] = await pool.query(`SELECT 
-                              CONCAT('TR', IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1) AS next_trainer_id
-                          FROM trainer WHERE trainer_id IS NOT NULL 
-                          ORDER BY CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) DESC
-                          LIMIT 1;
-                          `);
+      // ✅ Generate next trainer ID with leading zeros (e.g., TR000001)
+      const [trainer_code] = await pool.query(
+        `SELECT CONCAT('TR', LPAD(IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1, 6, '0')) AS next_trainer_id 
+       FROM trainer`
+      );
 
       let newId;
-      if (trainer_code.length === 0) {
+      if (!trainer_code[0].next_trainer_id) {
         newId = "TR000001";
       } else {
         newId = trainer_code[0].next_trainer_id;
       }
-      const insertQuery = `INSERT INTO trainer(
-                                name,
-                                trainer_id,
-                                mobile,
-                                email,
-                                whatsapp,
-                                technology_id,
-                                overall_exp_year,
-                                relavant_exp_year,
-                                batch_id,
-                                availability_time,
-                                secondary_time,
-                                skills,
-                                location,
-                                profile_image,
-                                status
-                            )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      // ✅ Insert into trainer table
+      const insertQuery = `
+      INSERT INTO trainer(
+        name,
+        trainer_id,
+        mobile,
+        email,
+        whatsapp,
+        technology_id,
+        overall_exp_year,
+        relavant_exp_year,
+        batch_id,
+        availability_time,
+        secondary_time,
+        skills,
+        location,
+        profile_image,
+        status
+      )
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
       const values = [
         trainer_name,
         newId,
@@ -114,11 +118,15 @@ const TrainerModel = {
 
       const [result] = await pool.query(insertQuery, values);
 
-      if (result.affectedRows <= 0)
+      if (result.affectedRows <= 0) {
         throw new Error("Error while inserting trainer");
+      }
 
-      const [insertBank] = await pool.query(
-        `INSERT INTO trainer_bank_accounts (trainer_id, account_holder_name, account_number, bank_name, branch_name, ifsc_code, signature_image, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      // ✅ Insert bank details
+      await pool.query(
+        `INSERT INTO trainer_bank_accounts 
+        (trainer_id, account_holder_name, account_number, bank_name, branch_name, ifsc_code, signature_image, created_date) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           result.insertId,
           account_holder_name,
@@ -130,8 +138,10 @@ const TrainerModel = {
           created_date,
         ]
       );
+
       return {
         insertId: result.insertId,
+        trainer_id: newId,
         email: email,
       };
     } catch (error) {
