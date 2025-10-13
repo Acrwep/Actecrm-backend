@@ -64,11 +64,9 @@ const TrainerModel = {
       }
 
       const [trainer_code] = await pool.query(`SELECT 
-                              CONCAT('TR', CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) + 1) AS next_trainer_id
-                          FROM trainer
-                          ORDER BY CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED) DESC
-                          LIMIT 1;
-                          `);
+                                  CONCAT('TR', LPAD(
+                                    IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1)) AS next_trainer_id
+                                FROM trainer`);
 
       let newId;
       if (trainer_code.length === 0) {
