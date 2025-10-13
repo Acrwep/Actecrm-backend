@@ -54,12 +54,9 @@ const LeadModel = {
         [region_id]
       );
       if (getRegion[0].name === "Hub") {
-        sql = `(SELECT id, name FROM branches WHERE name <> 'Online')
-                UNION
-                (SELECT id, name FROM branches WHERE region_id = ?)
-                ORDER BY name ASC;`;
+        sql = `SELECT id, name FROM branches WHERE region_id = ? AND is_active = 1`;
       } else {
-        sql = `SELECT id, name FROM branches WHERE is_active = 1 AND region_id = ? ORDER BY name ASC`;
+        sql = `SELECT id, name FROM branches WHERE is_active = 1 AND region_id = ? AND name <> 'Online' ORDER BY name ASC`;
       }
       const [result] = await pool.query(sql, [region_id]);
       return result;

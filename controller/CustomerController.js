@@ -74,6 +74,7 @@ const getCustomers = async (request, response) => {
     user_ids,
     page,
     limit,
+    region,
   } = request.body;
   try {
     const result = await CustomerModel.getCustomers(
@@ -86,7 +87,8 @@ const getCustomers = async (request, response) => {
       course,
       user_ids,
       page,
-      limit
+      limit,
+      region
     );
     return response.status(200).send({
       message: "Customers fetched successfully",

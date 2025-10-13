@@ -98,7 +98,8 @@ const CustomerModel = {
     course,
     user_ids,
     page,
-    limit
+    limit,
+    region
   ) => {
     try {
       const queryParams = [];
@@ -240,6 +241,16 @@ const CustomerModel = {
         }
       }
 
+      if (region) {
+        if (region === "Classroom") {
+          getQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
+          countQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
+        } else if (region === "Online") {
+          getQuery += ` AND r.name IN ('Hub')`;
+          countQuery += ` AND r.name IN ('Hub')`;
+        }
+      }
+
       if (from_date && to_date) {
         getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
@@ -315,7 +326,7 @@ const CustomerModel = {
                 COALESCE(pm.total_amount, 0) AS total_amount,
                 COALESCE(SUM(pt.amount), 0) AS paid_amount 
             FROM payment_master AS pm 
-            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
             WHERE pm.lead_id = ?
             GROUP BY pm.total_amount`,
             [item.lead_id]
@@ -523,7 +534,7 @@ const CustomerModel = {
                 COALESCE(pm.total_amount, 0) AS total_amount,
                 COALESCE(SUM(pt.amount), 0) AS paid_amount 
             FROM payment_master AS pm 
-            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
             WHERE pm.lead_id = ?
             GROUP BY pm.total_amount`,
         [result[0].lead_id]

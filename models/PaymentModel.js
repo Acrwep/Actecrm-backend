@@ -298,7 +298,7 @@ const PaymentModel = {
                                     SELECT p2.next_due_date
                                     FROM payment_trans p2
                                     WHERE p2.payment_master_id = pm.id
-                                      AND p2.payment_status = 'Verified'
+                                      AND p2.payment_status IN ('Verified')
                                     ORDER BY p2.id DESC
                                     LIMIT 1
                                 ) AS next_due_date,
@@ -319,7 +319,7 @@ const PaymentModel = {
                             FROM payment_trans AS pt
                             INNER JOIN payment_master AS pm 
                                 ON pt.payment_master_id = pm.id
-                            WHERE pt.payment_status = 'Verified'
+                            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                             GROUP BY pt.payment_master_id, pm.total_amount
                         ) AS payment_summary 
                             ON payment_summary.payment_master_id = pm.id
@@ -352,7 +352,7 @@ const PaymentModel = {
                             FROM payment_trans AS pt
                             INNER JOIN payment_master AS pm 
                                 ON pt.payment_master_id = pm.id
-                            WHERE pt.payment_status = 'Verified'
+                            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                             GROUP BY pt.payment_master_id, pm.total_amount
                         ) AS payment_summary 
                             ON payment_summary.payment_master_id = pm.id
@@ -495,7 +495,7 @@ const PaymentModel = {
         throw new Error("Kindly verify the previous payment");
 
       const [getPendingFees] = await pool.query(
-        `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status = 'Verified' AND pm.id = ?`,
+        `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status IN ('Verified', 'Verify Pending') AND pm.id = ?`,
         [payment_master_id]
       );
 
@@ -712,7 +712,7 @@ async function getOverallCount(from_date, to_date, user_ids) {
                   SELECT COALESCE(SUM(pt_amount.amount), 0)
                   FROM payment_trans pt_amount
                   WHERE pt_amount.payment_master_id = pm.id 
-                    AND pt_amount.payment_status = 'Verified'
+                    AND pt_amount.payment_status IN ('Verified', 'Verify Pending')
               )
           ) > 0`;
     const queryParams = [];
@@ -724,7 +724,7 @@ async function getOverallCount(from_date, to_date, user_ids) {
                   SELECT MAX(p2.id)
                   FROM payment_trans p2
                   WHERE p2.payment_master_id = pm.id
-                    AND p2.payment_status = 'Verified'
+                    AND p2.payment_status IN ('Verified', 'Verify Pending')
               )
               AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
           )`;
@@ -759,7 +759,7 @@ async function getTodayCount(user_ids) {
                                   SELECT COALESCE(SUM(pt_amount.amount), 0)
                                   FROM payment_trans pt_amount
                                   WHERE pt_amount.payment_master_id = pm.id 
-                                    AND pt_amount.payment_status = 'Verified'
+                                    AND pt_amount.payment_status IN ('Verified', 'Verify Pending')
                               )
                           ) > 0
                           AND EXISTS (
@@ -769,7 +769,7 @@ async function getTodayCount(user_ids) {
                                   SELECT MAX(p2.id)
                                   FROM payment_trans p2
                                   WHERE p2.payment_master_id = pm.id
-                                    AND p2.payment_status = 'Verified'
+                                    AND p2.payment_status IN ('Verified', 'Verify Pending')
                               )
                               AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
                           )`;
@@ -808,7 +808,7 @@ async function getUrgentDueCount(from_date, to_date, user_ids) {
                     SELECT COALESCE(SUM(pt.amount), 0)
                     FROM payment_trans pt
                     WHERE pt.payment_master_id = pm.id 
-                      AND pt.payment_status = 'Verified'
+                      AND pt.payment_status IN ('Verified', 'Verify Pending')
                 )
             ) > 0`;
     const queryParams = [];
@@ -820,7 +820,7 @@ async function getUrgentDueCount(from_date, to_date, user_ids) {
                     SELECT MAX(p2.id)
                     FROM payment_trans p2
                     WHERE p2.payment_master_id = pm.id
-                      AND p2.payment_status = 'Verified'
+                      AND p2.payment_status IN ('Verified', 'Verify Pending')
                 )
                 AND CAST(pt_date.next_due_date AS DATE) BETWEEN ? AND ?
             )`;
