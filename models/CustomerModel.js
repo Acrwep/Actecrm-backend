@@ -348,6 +348,8 @@ const CustomerModel = {
           return {
             ...item,
             balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+            total_amount: totalAmount,
+            paid_amount: paidAmount,
             commercial_percentage: parseFloat(
               ((item.commercial / item.primary_fees) * 100).toFixed(2)
             ),
