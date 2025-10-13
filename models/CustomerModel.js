@@ -835,6 +835,19 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  checkIsCustomerReg: async (email) => {
+    try {
+      const [result] = await pool.query(
+        `SELECT id FROM customers WHERE email = ?`,
+        [email]
+      );
+
+      return result.length > 0 ? true : false;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = CustomerModel;

@@ -165,4 +165,5 @@ router.post(
   verifyToken,
   LeadController.getFollowupCountByUser
 );
+router.get("/checkIsCustomerReg", CustomerController.checkIsCustomerReg);
 module.exports = router;

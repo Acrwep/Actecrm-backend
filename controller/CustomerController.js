@@ -412,6 +412,22 @@ const getCustomerHistory = async (request, response) => {
   }
 };
 
+const checkIsCustomerReg = async (request, response) => {
+  const { email } = request.query;
+  try {
+    const result = await CustomerModel.checkIsCustomerReg(email);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -429,4 +445,5 @@ module.exports = {
   generateCertificate,
   getCertificate,
   getCustomerHistory,
+  checkIsCustomerReg,
 };
