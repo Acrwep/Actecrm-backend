@@ -63,10 +63,9 @@ const TrainerModel = {
         throw new Error("Email or mobile number already exists");
       }
 
-      const [trainer_code] = await pool.query(`SELECT 
-                                  CONCAT('TR', LPAD(
-                                    IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1)) AS next_trainer_id
-                                FROM trainer`);
+      const [trainer_code] = await pool.query(
+        `SELECT CONCAT('TR', IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1) AS next_trainer_id FROM trainer`
+      );
 
       let newId;
       if (trainer_code.length === 0) {
