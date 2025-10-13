@@ -217,6 +217,7 @@ const CustomerModel = {
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON l.id = c.lead_id
                         LEFT JOIN technologies AS tg ON l.primary_course_id = tg.id
+                        LEFT JOIN region AS r ON r.id = c.region_id
                         LEFT JOIN (
                             SELECT pm.lead_id, MAX(pt.is_second_due) as has_second_due
                             FROM payment_master pm 
