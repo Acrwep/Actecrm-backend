@@ -453,7 +453,7 @@ const LeadModel = {
                 LEFT JOIN customers AS c ON
                     c.lead_id = l.id
                 WHERE
-                    lf.is_updated = 0 `;
+                    lf.is_updated = 0 AND c.id IS NOT NULL `;
 
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(DISTINCT l.id) as total 
