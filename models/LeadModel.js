@@ -459,7 +459,8 @@ const LeadModel = {
       let countQuery = `SELECT COUNT(DISTINCT l.id) as total 
                       FROM lead_master AS l
                       INNER JOIN lead_follow_up_history AS lf ON l.id = lf.lead_id
-                      WHERE lf.is_updated = 0 `;
+                      LEFT JOIN customers AS c ON c.lead_id = l.id
+                      WHERE lf.is_updated = 0 AND c.id IS NULL `;
 
       if (from_date && to_date) {
         getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
