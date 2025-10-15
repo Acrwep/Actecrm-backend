@@ -596,8 +596,8 @@ const LeadModel = {
         );
 
         const [updateFollowUp] = await pool.query(
-          `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date) VALUES (?, ?, ?, ?, ?)`,
-          [lead_id, lead_action_id, comments, updated_by, updated_date]
+          `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date, is_updated) VALUES (?, ?, ?, ?, ?, ?)`,
+          [lead_id, lead_action_id, comments, updated_by, updated_date, 1]
         );
 
         affectedRows += updateFollowUp.affectedRows;

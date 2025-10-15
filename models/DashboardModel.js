@@ -1,0 +1,90 @@
+const pool = require("../config/dbconfig");
+
+const DashboardModel = {
+  getScoreBoard: async (user_ids, start_date, end_date) => {
+    try {
+      let leadQuery = `SELECT COUNT(id) AS total_leads FROM lead_master WHERE 1 = 1`;
+      let joinQuery = `SELECT COUNT(c.id) AS join_count FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+      let followupQuery = `SELECT SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled, SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id WHERE 1 = 1`;
+      let saleVolumeQuery = `SELECT SUM(pm.total_amount) AS sale_volume FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE 1 = 1`;
+      let collectionQuery = `SELECT SUM(pt.amount) AS collection FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.payment_status <> 'Rejected'`;
+      const leadParams = [];
+      const joinParams = [];
+      const followupParams = [];
+      const saleVolumeParams = [];
+      const collectionParams = [];
+      // Handle user_ids parameter for both queries
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          leadQuery += ` AND assigned_to IN (${placeholders})`;
+          joinQuery += ` AND l.assigned_to IN (${placeholders})`;
+          followupQuery += ` AND l.assigned_to IN (${placeholders})`;
+          saleVolumeQuery += ` AND l.assigned_to IN (${placeholders})`;
+          collectionQuery += ` AND l.assigned_to IN (${placeholders})`;
+          leadParams.push(...user_ids);
+          joinParams.push(...user_ids);
+          followupParams.push(...user_ids);
+          saleVolumeParams.push(...user_ids);
+          collectionParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          leadQuery += ` AND assigned_to = ?`;
+          joinQuery += ` AND l.assigned_to = ?`;
+          followupQuery += ` AND l.assigned_to = ?`;
+          saleVolumeQuery += ` AND l.assigned_to = ?`;
+          collectionQuery += ` AND l.assigned_to = ?`;
+          leadParams.push(user_ids);
+          joinParams.push(user_ids);
+          followupParams.push(user_ids);
+          saleVolumeParams.push(user_ids);
+          collectionParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        leadQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        joinQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        followupQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+        saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        leadParams.push(start_date, end_date);
+        joinParams.push(start_date, end_date);
+        followupParams.push(start_date, end_date);
+        saleVolumeParams.push(start_date, end_date);
+        collectionParams.push(start_date, end_date);
+      }
+
+      const [getTotalLeads] = await pool.query(leadQuery, leadParams);
+      const [getTotalJoins] = await pool.query(joinQuery, joinParams);
+      const [getFollowupCount] = await pool.query(
+        followupQuery,
+        followupParams
+      );
+      const [getSaleVolume] = await pool.query(
+        saleVolumeQuery,
+        saleVolumeParams
+      );
+      const [getCollection] = await pool.query(
+        collectionQuery,
+        collectionParams
+      );
+
+      return {
+        total_leads: getTotalLeads[0].total_leads,
+        total_join: getTotalJoins[0].join_count,
+        follow_up_handled: getFollowupCount[0].follow_up_handled,
+        follow_up_unhandled: getFollowupCount[0].follow_up_unhandled,
+        sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
+        collection: parseFloat(getCollection[0].collection).toFixed(2),
+        pending_payment: (
+          parseFloat(getSaleVolume[0].sale_volume) -
+          parseFloat(getCollection[0].collection)
+        ).toFixed(2),
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+};
+
+module.exports = DashboardModel;

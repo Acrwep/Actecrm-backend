@@ -9,6 +9,7 @@ const PaymentController = require("../controller/PaymentController");
 const EmailController = require("../controller/EmailController");
 const CustomerController = require("../controller/CustomerController");
 const PageAccessController = require("../controller/PageAccessController");
+const DashboardController = require("../controller/DashboardController");
 
 router.post("/login", LoginController.login);
 
@@ -166,4 +167,8 @@ router.post(
   LeadController.getFollowupCountByUser
 );
 router.get("/checkIsCustomerReg", CustomerController.checkIsCustomerReg);
+
+// Dashboard module start
+router.post("/getScoreBoard", verifyToken, DashboardController.getScoreBoard);
+// Dashboard module end
 module.exports = router;
