@@ -135,6 +135,112 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  getHRDashboard: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let sql = `SELECT SUM(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 ELSE 0 END) AS awaiting_trainer, SUM(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 ELSE 0 END) AS awaiting_trainer_verify, SUM(CASE WHEN c.status = 'Trainer Rejected' THEN 1 ELSE 0 END) AS rejected_trainer, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS verified_trainer FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          sql += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else {
+          sql += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        sql += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      const [result] = await pool.query(sql, queryParams);
+      return result[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRADashboard: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let sql = `SELECT SUM(CASE WHEN c.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS awaiting_class, SUM(CASE WHEN c.status = 'Class Scheduled' THEN 1 ELSE 0 END) AS class_scheduled, SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) AS escalated, SUM(CASE WHEN c.status = 'Class Going' THEN 1 ELSE 0 END) AS class_going FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          sql += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else {
+          sql += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        sql += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      const [result] = await pool.query(sql, queryParams);
+      return result[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getTopPerforming: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      const totalLeadParams = [];
+      let getQuery = `SELECT lt.name, COUNT(l.id) AS lead_count, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer FROM lead_type AS lt LEFT JOIN lead_master AS l ON lt.id = l.lead_type_id`;
+
+      let totalLeadQuery = `SELECT COUNT(l.id) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          totalLeadQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          totalLeadParams.push(...user_ids);
+        } else {
+          getQuery += ` AND l.assigned_to = ?`;
+          totalLeadQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+          totalLeadParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        totalLeadQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        totalLeadParams.push(start_date, end_date);
+      }
+
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id GROUP BY lt.name`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      const [getTotalLead] = await pool.query(totalLeadQuery, totalLeadParams);
+
+      const formattedResult = result.map((item) => {
+        const lead_percentage = parseFloat(
+          (item.lead_count / getTotalLead[0].total_lead_count) * 100
+        ).toFixed(2);
+
+        return {
+          ...item,
+          lead_percentage: lead_percentage,
+        };
+      });
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

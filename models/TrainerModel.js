@@ -349,7 +349,7 @@ const TrainerModel = {
       const [countResult] = await pool.query(countQuery, countQueryParams);
       const totalBeforeFilter = countResult[0]?.total || 0;
 
-      getQuery += ` ORDER BY t.name`;
+      getQuery += ` ORDER BY t.id DESC`;
 
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;

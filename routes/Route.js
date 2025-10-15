@@ -170,5 +170,12 @@ router.get("/checkIsCustomerReg", CustomerController.checkIsCustomerReg);
 
 // Dashboard module start
 router.post("/getScoreBoard", verifyToken, DashboardController.getScoreBoard);
+router.post("/getHRDashboard", verifyToken, DashboardController.getHRDashboard);
+router.post("/getRADashboard", verifyToken, DashboardController.getRADashboard);
+router.post(
+  "/getTopPerformance",
+  verifyToken,
+  DashboardController.getTopPerforming
+);
 // Dashboard module end
 module.exports = router;
