@@ -49,8 +49,10 @@ const getExperience = async (request, response) => {
 const addTrainer = async (request, response) => {
   const {
     trainer_name,
+    mobile_phone_code,
     mobile,
     email,
+    whatsapp_phone_code,
     whatsapp,
     technology_id,
     overall_exp_year,
@@ -73,8 +75,10 @@ const addTrainer = async (request, response) => {
   try {
     const result = await TrainerModel.addTrainer(
       trainer_name,
+      mobile_phone_code,
       mobile,
       email,
+      whatsapp_phone_code,
       whatsapp,
       technology_id,
       overall_exp_year,
@@ -108,8 +112,10 @@ const addTrainer = async (request, response) => {
 const updateTrainer = async (request, response) => {
   const {
     trainer_name,
+    mobile_phone_code,
     mobile,
     email,
+    whatsapp_phone_code,
     whatsapp,
     technology_id,
     overall_exp_year,
@@ -134,8 +140,10 @@ const updateTrainer = async (request, response) => {
   try {
     const result = await TrainerModel.updateTrainer(
       trainer_name,
+      mobile_phone_code,
       mobile,
       email,
+      whatsapp_phone_code,
       whatsapp,
       technology_id,
       overall_exp_year,

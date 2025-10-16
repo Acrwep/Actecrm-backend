@@ -236,7 +236,7 @@ const DashboardModel = {
 
         return {
           ...item,
-          lead_percentage: lead_percentage,
+          lead_percentage: parseFloat(lead_percentage).toFixed(2),
         };
       });
 

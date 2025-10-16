@@ -34,8 +34,10 @@ const TrainerModel = {
 
   addTrainer: async (
     trainer_name,
+    mobile_phone_code,
     mobile,
     email,
+    whatsapp_phone_code,
     whatsapp,
     technology_id,
     overall_exp_year,
@@ -82,8 +84,10 @@ const TrainerModel = {
       INSERT INTO trainer(
         name,
         trainer_id,
+        mobile_phone_code,
         mobile,
         email,
+        whatsapp_phone_code,
         whatsapp,
         technology_id,
         overall_exp_year,
@@ -96,13 +100,15 @@ const TrainerModel = {
         profile_image,
         status
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       const values = [
         trainer_name,
         newId,
+        mobile_phone_code,
         mobile,
         email,
+        whatsapp_phone_code,
         whatsapp,
         technology_id,
         overall_exp_year,
@@ -151,8 +157,10 @@ const TrainerModel = {
 
   updateTrainer: async (
     trainer_name,
+    mobile_phone_code,
     mobile,
     email,
+    whatsapp_phone_code,
     whatsapp,
     technology_id,
     overall_exp_year,
@@ -183,8 +191,10 @@ const TrainerModel = {
                                 trainer
                             SET
                                 name = ?,
+                                mobile_phone_code = ?,
                                 mobile = ?,
                                 email = ?,
+                                whatsapp_phone_code = ?,
                                 whatsapp = ?,
                                 technology_id = ?,
                                 overall_exp_year = ?,
@@ -266,8 +276,10 @@ const TrainerModel = {
                           t.id,
                           t.name,
                           t.trainer_id AS trainer_code,
+                          t.mobile_phone_code,
                           t.mobile,
                           t.email,
+                          t.whatsapp_phone_code,
                           t.whatsapp,
                           t.technology_id,
                           te.name AS technology,
@@ -473,8 +485,10 @@ const TrainerModel = {
                           t.id,
                           t.name,
                           t.trainer_id AS trainer_code,
+                          t.mobile_phone_code,
                           t.mobile,
                           t.email,
+                          t.whatsapp_phone_code,
                           t.whatsapp,
                           t.technology_id,
                           te.name AS technology,
