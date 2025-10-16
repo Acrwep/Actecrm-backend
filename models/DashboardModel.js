@@ -233,10 +233,9 @@ const DashboardModel = {
         const lead_percentage = parseFloat(
           (item.lead_count / getTotalLead[0].total_lead_count) * 100
         ).toFixed(2);
-
         return {
           ...item,
-          lead_percentage: parseFloat(lead_percentage).toFixed(2),
+          lead_percentage: isNaN(lead_percentage) ? 0 : lead_percentage,
         };
       });
 

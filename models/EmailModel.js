@@ -683,6 +683,11 @@ const sendInvoicePdf = async (
 ) => {
   const pdfPath = path.join(process.cwd(), "invoice.pdf");
 
+  // Get gst amount from paid amount
+  const getGST = splitGSTAmount(paid_amount, 18);
+  const gstForPaid = getGST.gst_amount;
+  const base_amount = getGST.base_amount;
+
   const getBase64Image = (filePath) => {
     if (!fs.existsSync(filePath)) return "";
     const data = fs.readFileSync(filePath, { encoding: "base64" });
@@ -832,21 +837,25 @@ const sendInvoicePdf = async (
       <tr>
           <th>Product</th>
           <th>Paid</th>
-          <th>Payment Mode</th>
           <th>GST</th>
-          <th>Convenience Fee</th>
+          <th>GST Amount</th>
+          <th>Total</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>${course_name}</td>
           <td>₹${(
-            parseFloat(paid_amount) +
+            parseFloat(base_amount) +
             parseFloat(convenience_fees ? convenience_fees : 0)
           ).toFixed(2)}</td>
-          <td>${payment_mode}</td>
           <td>${gst_percentage}%</td>
-          <td>₹${convenience_fees ? convenience_fees : 0}</td>
+          <td>${gstForPaid}</td>
+          <td>₹${
+            base_amount +
+            parseFloat(convenience_fees ? convenience_fees : 0) +
+            gstForPaid
+          }</td>
       </tr>
     </tbody>
 </table>
@@ -878,12 +887,12 @@ const sendInvoicePdf = async (
         ).toFixed(2)}</strong></td>
       </tr>
       <tr>
-        <td>Payment Mode:</td>
-        <td>${payment_mode}</td>
-      </tr>
-      <tr>
         <td>Balance:</td>
         <td>₹${balance_amount}</td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
       </tr>
   </table>
 </div>
@@ -964,6 +973,11 @@ const viewInvoicePdf = async (
   };
   const acteLogoBase64 = getBase64Image(process.env.LOGO_PATH);
 
+  // Get gst amount from paid amount
+  const getGST = splitGSTAmount(paid_amount, 18);
+  const gstForPaid = getGST.gst_amount;
+  const base_amount = getGST.base_amount;
+
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -1107,21 +1121,25 @@ const viewInvoicePdf = async (
       <tr>
           <th>Product</th>
           <th>Paid</th>
-          <th>Payment Mode</th>
           <th>GST</th>
-          <th>Convenience Fee</th>
+          <th>GST Amount</th>
+          <th>Total</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>${course_name}</td>
           <td>₹${(
-            parseFloat(paid_amount) +
+            parseFloat(base_amount) +
             parseFloat(convenience_fees ? convenience_fees : 0)
           ).toFixed(2)}
-          <td>${payment_mode}</td>
           <td>${gst_percentage}%</td>
-          <td>₹${convenience_fees ? convenience_fees : 0}</td>
+          <td>${gstForPaid}</td>
+          <td>₹${
+            base_amount +
+            parseFloat(convenience_fees ? convenience_fees : 0) +
+            gstForPaid
+          }</td>
       </tr>
     </tbody>
 </table>
@@ -1153,12 +1171,12 @@ const viewInvoicePdf = async (
         ).toFixed(2)}</strong></td>
       </tr>
       <tr>
-        <td>Payment Mode:</td>
-        <td>${payment_mode}</td>
-      </tr>
-      <tr>
         <td>Balance:</td>
         <td>₹${balance_amount}</td>
+      </tr>
+      <tr>
+        <td>Payment Mode:</td>
+        <td>${payment_mode}</td>
       </tr>
   </table>
 </div>
@@ -1181,6 +1199,18 @@ const viewInvoicePdf = async (
 `;
   return htmlContent;
 };
+
+function splitGSTAmount(paid_amount, gst_rate) {
+  const gstFraction = gst_rate / (100 + gst_rate);
+
+  const gst_amount = paid_amount * gstFraction;
+  const baseAmount = paid_amount - gst_amount;
+
+  return {
+    base_amount: Number(baseAmount.toFixed(2)),
+    gst_amount: Number(gst_amount.toFixed(2)),
+  };
+}
 
 module.exports = {
   sendMail,
