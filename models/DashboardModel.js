@@ -75,6 +75,7 @@ const DashboardModel = {
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
           pendingCollectionQuery += ` AND l.assigned_to IN (${placeholders})`;
           pendingCollectionParams.push(...user_ids);
         } else {
@@ -116,8 +117,8 @@ const DashboardModel = {
       return {
         total_leads: getTotalLeads[0].total_leads,
         total_join: getTotalJoins[0].join_count,
-        follow_up_handled: getFollowupCount[0].follow_up_handled,
-        follow_up_unhandled: getFollowupCount[0].follow_up_unhandled,
+        follow_up_handled: getFollowupCount[0].follow_up_handled || 0,
+        follow_up_unhandled: getFollowupCount[0].follow_up_unhandled || 0,
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
         // collection: parseFloat(getCollection[0].collection).toFixed(2),
         // pending_collection: parseFloat(
