@@ -68,13 +68,13 @@ const TrainerModel = {
 
       // ✅ Generate next trainer ID with leading zeros (e.g., TR000001)
       const [trainer_code] = await pool.query(
-        `SELECT CONCAT('TR', LPAD(IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1, 6, '0')) AS next_trainer_id 
+        `SELECT CONCAT('TR', LPAD(IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1, 4, '0')) AS next_trainer_id 
        FROM trainer`
       );
 
       let newId;
       if (!trainer_code[0].next_trainer_id) {
-        newId = "TR000001";
+        newId = "TR1000";
       } else {
         newId = trainer_code[0].next_trainer_id;
       }
