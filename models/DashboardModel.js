@@ -144,6 +144,7 @@ const DashboardModel = {
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
           sql += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
         } else {
@@ -171,6 +172,7 @@ const DashboardModel = {
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
           sql += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
         } else {
@@ -201,6 +203,7 @@ const DashboardModel = {
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
           totalLeadQuery += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
