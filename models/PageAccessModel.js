@@ -577,11 +577,23 @@ const PageAccessModel = {
 
       const roleIds = roles.map((role) => role.role_id); // Extract role_id from each role
 
+      // Create downline_users as an array
+      const downline_users = [
+        {
+          user_id: getUser[0].user_id,
+          user_name: getUser[0].user_name,
+        },
+        ...childUsers.map((child) => ({
+          user_id: child.user_id,
+          user_name: child.user_name,
+        })),
+      ];
+
       return {
         ...getUser[0],
         child_users: childUserIds,
         roles: roleIds,
-        downline_users: JSON.parse(getUser[0].child_users),
+        downline_users: downline_users,
       };
     } catch (error) {
       throw new Error(error.message);

@@ -729,7 +729,7 @@ const LeadModel = {
 
   getLeadCount: async (user_ids, start_date, end_date) => {
     try {
-      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ? AND lf.is_updated = 0`;
+      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ? AND lf.is_updated = 0 c.id IS NULL`;
 
       const followUpParams = [];
       followUpParams.push(start_date, end_date);
@@ -897,13 +897,15 @@ const LeadModel = {
         queryParams.push(start_date, end_date);
       }
 
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = lm.id WHERE c.id IS NULL`;
+
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` WHERE u.user_id IN (${placeholders})`;
+          getQuery += ` AND u.user_id IN (${placeholders})`;
           queryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` WHERE u.user_id = ?`;
+          getQuery += ` AND u.user_id = ?`;
           queryParams.push(user_ids);
         }
       }
