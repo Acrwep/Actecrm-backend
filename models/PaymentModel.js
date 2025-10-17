@@ -197,6 +197,7 @@ const PaymentModel = {
                             c.email,
                             c.phonecode,
                             c.phone,
+                            c.whatsapp_phone_code,
                             c.whatsapp,
                             c.date_of_birth,
                             c.gender,
