@@ -836,21 +836,22 @@ const sendInvoicePdf = async (
     <thead>
       <tr>
           <th>Product</th>
-          <th>Paid</th>
+          <th>Base Price</th>
           <th>GST</th>
           <th>GST Amount</th>
+          <th>Conv. Fees</th>
           <th>Total</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>${course_name}</td>
-          <td>₹${(
-            parseFloat(base_amount) +
-            parseFloat(convenience_fees ? convenience_fees : 0)
-          ).toFixed(2)}</td>
+          <td>₹${parseFloat(base_amount).toFixed(2)}</td>
           <td>${gst_percentage}%</td>
           <td>${gstForPaid}</td>
+          <td>${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
+            2
+          )}</td>
           <td>₹${
             base_amount +
             parseFloat(convenience_fees ? convenience_fees : 0) +
@@ -872,15 +873,11 @@ const sendInvoicePdf = async (
         <td>₹${gst_amount}</td>
       </tr>
       <tr>
-        <td><strong>Total Fee:</strong></td>
+        <td><strong>Total Fees:</strong></td>
         <td><strong>₹${total_amount}</strong></td>
       </tr>
       <tr>
-        <td>Convenience Charges:</td>
-        <td>₹${convenience_fees ? convenience_fees : 0}</td>
-      </tr>
-      <tr>
-        <td><strong>Paid:</strong></td>
+        <td><strong>Total Paid:</strong></td>
         <td><strong>₹${(
           parseFloat(paid_amount) +
           parseFloat(convenience_fees ? convenience_fees : 0)
@@ -1120,21 +1117,22 @@ const viewInvoicePdf = async (
     <thead>
       <tr>
           <th>Product</th>
-          <th>Paid</th>
+          <th>Base Price</th>
           <th>GST</th>
           <th>GST Amount</th>
-          <th>Total</th>
+          <th>Conv. Fees</th>
+          <th>Total Paid</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>${course_name}</td>
-          <td>₹${(
-            parseFloat(base_amount) +
-            parseFloat(convenience_fees ? convenience_fees : 0)
-          ).toFixed(2)}
+          <td>₹${parseFloat(base_amount).toFixed(2)}
           <td>${gst_percentage}%</td>
           <td>${gstForPaid}</td>
+          <td>${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
+            2
+          )}</td>
           <td>₹${
             base_amount +
             parseFloat(convenience_fees ? convenience_fees : 0) +
@@ -1156,15 +1154,11 @@ const viewInvoicePdf = async (
         <td>₹${gst_amount}</td>
       </tr>
       <tr>
-        <td><strong>Total Fee:</strong></td>
+        <td><strong>Total Fees:</strong></td>
         <td><strong>₹${total_amount}</strong></td>
       </tr>
       <tr>
-        <td>Convenience Charges:</td>
-        <td>₹${convenience_fees ? convenience_fees : 0}</td>
-      </tr>
-      <tr>
-        <td><strong>Paid:</strong></td>
+        <td><strong>Total Paid:</strong></td>
         <td><strong>₹${(
           parseFloat(paid_amount) +
           parseFloat(convenience_fees ? convenience_fees : 0)

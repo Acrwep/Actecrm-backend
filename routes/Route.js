@@ -178,4 +178,6 @@ router.post(
   DashboardController.getTopPerforming
 );
 // Dashboard module end
+router.post("/addSkills", verifyToken, TrainerController.addSkills);
+router.get("/getSkills", verifyToken, TrainerController.getSkills);
 module.exports = router;

@@ -297,6 +297,37 @@ const addTechnologies = async (request, response) => {
   }
 };
 
+const addSkills = async (request, response) => {
+  const { skill_name } = request.body;
+  try {
+    const result = await TrainerModel.addSkills(skill_name);
+    return response.status(201).send({
+      message: "Skill added successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while adding skill",
+      details: error.message,
+    });
+  }
+};
+
+const getSkills = async (request, response) => {
+  try {
+    const skills = await TrainerModel.getSkills();
+    return response.status(200).send({
+      message: "Skills fetched successfully",
+      data: skills,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching skills",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getTechnologies,
   getBatches,
@@ -309,4 +340,6 @@ module.exports = {
   getTrainerHistory,
   getCusByTrainer,
   addTechnologies,
+  addSkills,
+  getSkills,
 };

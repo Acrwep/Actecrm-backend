@@ -648,6 +648,35 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+
+  addSkills: async (skill_name) => {
+    try {
+      const [isNameExists] = await pool.query(
+        `SELECT id FROM skills WHERE name = ? AND is_active = 1`,
+        [skill_name]
+      );
+      if (isNameExists.length > 0)
+        throw new Error("The skill name already exists");
+
+      const [result] = await pool.query(`INSERT INTO skills(name) VALUES(?)`, [
+        skill_name,
+      ]);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getSkills: async () => {
+    try {
+      const [getSkills] = await pool.query(
+        `SELECT id, name FROM skills WHERE is_active = 1`
+      );
+      return getSkills;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = TrainerModel;
