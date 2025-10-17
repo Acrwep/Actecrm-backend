@@ -419,6 +419,10 @@ const TrainerModel = {
         total = ongoingTrainerIds.length;
       }
 
+      const [getSkills] = await pool.query(
+        `SELECT id, name FROM skills WHERE is_active = 1`
+      );
+
       const formattedResult = await Promise.all(
         trainers.map(async (item) => {
           const [student_count] = await pool.query(
@@ -449,9 +453,12 @@ const TrainerModel = {
             trainer_type = "New";
           }
 
+          const formattedSkills = await getSkillsWithDetails(item.skills);
+
           return {
             ...item,
-            skills: JSON.parse(item.skills),
+            // skills: JSON.parse(item.skills),
+            skills: formattedSkills,
             trainer_type,
             on_going_count: on_going,
             on_boarding_count: completed,
@@ -546,9 +553,11 @@ const TrainerModel = {
 
       const [trainers] = await pool.query(getQuery, [trainer_id]);
 
+      const formattedSkills = await getSkillsWithDetails(trainers[0].skills);
+
       return {
         ...trainers[0],
-        skills: JSON.parse(trainers[0].skills),
+        skills: formattedSkills,
       };
     } catch (error) {
       throw new Error(error.message);
@@ -694,6 +703,28 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+};
+
+const getSkillsWithDetails = async (skillIds) => {
+  try {
+    // Convert string to array if needed
+    const skillsArray =
+      typeof skillIds === "string" ? JSON.parse(skillIds) : skillIds;
+
+    if (skillsArray.length === 0) return [];
+
+    // Create placeholders for the IN clause
+    const placeholders = skillsArray.map(() => "?").join(",");
+
+    const [skills] = await pool.query(
+      `SELECT id, name FROM skills WHERE id IN (${placeholders}) AND is_active = 1`,
+      skillsArray
+    );
+
+    return skills; // This returns [{id: 1, name: "HTML"}, {id: 2, name: "CSS"}]
+  } catch (error) {
+    throw new Error(`Error fetching skills: ${error.message}`);
+  }
 };
 
 module.exports = TrainerModel;
