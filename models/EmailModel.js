@@ -684,7 +684,7 @@ const sendInvoicePdf = async (
   const pdfPath = path.join(process.cwd(), "invoice.pdf");
 
   // Get gst amount from paid amount
-  const getGST = splitGSTAmount(paid_amount, 18);
+  const getGST = splitGSTAmount(paid_amount, gst_percentage);
   const gstForPaid = getGST.gst_amount;
   const base_amount = getGST.base_amount;
 
@@ -974,7 +974,7 @@ const viewInvoicePdf = async (
   const acteLogoBase64 = getBase64Image(process.env.LOGO_PATH);
 
   // Get gst amount from paid amount
-  const getGST = splitGSTAmount(paid_amount, 18);
+  const getGST = splitGSTAmount(paid_amount, gst_percentage);
   const gstForPaid = getGST.gst_amount;
   const base_amount = getGST.base_amount;
 
