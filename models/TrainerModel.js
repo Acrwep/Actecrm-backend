@@ -687,7 +687,7 @@ const TrainerModel = {
   getSkills: async () => {
     try {
       const [getSkills] = await pool.query(
-        `SELECT id, name FROM skills WHERE is_active = 1`
+        `SELECT id, name FROM skills WHERE is_active = 1 ORDER BY name`
       );
       return getSkills;
     } catch (error) {

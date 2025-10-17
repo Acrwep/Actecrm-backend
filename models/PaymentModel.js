@@ -93,17 +93,18 @@ const PaymentModel = {
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
       const [getCustomer] = await pool.query(
-        `SELECT id, name, phone_code, phone, whatsapp, email, region_id, branch_id, country, state, district FROM lead_master WHERE id = ?`,
+        `SELECT id, name, phone_code, phone, whatsapp_phone_code, whatsapp, email, region_id, branch_id, country, state, district FROM lead_master WHERE id = ?`,
         [lead_id]
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
         getCustomer[0].email,
         getCustomer[0].phone_code,
         getCustomer[0].phone,
+        getCustomer[0].whatsapp_phone_code,
         getCustomer[0].whatsapp,
         "Form Pending",
         created_date,
