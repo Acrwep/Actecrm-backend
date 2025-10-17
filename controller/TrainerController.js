@@ -69,6 +69,7 @@ const addTrainer = async (request, response) => {
     branche_name,
     ifsc_code,
     signature_image,
+    created_by,
     created_date,
   } = request.body;
   const formattedSkills = Array.isArray(skills) ? skills : [skills];
@@ -95,6 +96,7 @@ const addTrainer = async (request, response) => {
       branche_name,
       ifsc_code,
       signature_image,
+      created_by,
       created_date
     );
     return response.status(200).send({
@@ -186,6 +188,7 @@ const getTrainers = async (request, response) => {
     is_form_sent,
     is_onboarding,
     ongoing,
+    created_by,
     page,
     limit,
   } = request.body;
@@ -199,6 +202,7 @@ const getTrainers = async (request, response) => {
       is_form_sent,
       is_onboarding,
       ongoing,
+      created_by,
       page,
       limit
     );

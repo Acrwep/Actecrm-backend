@@ -54,6 +54,7 @@ const TrainerModel = {
     branche_name,
     ifsc_code,
     signature_image,
+    created_by,
     created_date
   ) => {
     try {
@@ -98,9 +99,10 @@ const TrainerModel = {
         skills,
         location,
         profile_image,
-        status
+        status,
+        created_by
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       const values = [
         trainer_name,
@@ -120,6 +122,7 @@ const TrainerModel = {
         location,
         profile_image,
         "Verify Pending",
+        created_by,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -269,6 +272,7 @@ const TrainerModel = {
     is_form_sent,
     is_onboarding,
     ongoing,
+    created_by,
     page,
     limit
   ) => {
@@ -306,7 +310,9 @@ const TrainerModel = {
                           tb.bank_name,
                           tb.branch_name,
                           tb.ifsc_code,
-                          tb.signature_image
+                          tb.signature_image,
+                          t.created_by,
+                          u.user_name AS hr_head
                       FROM
                           trainer AS t
                       LEFT JOIN technologies te ON
@@ -315,6 +321,8 @@ const TrainerModel = {
                           b.id = t.batch_id
                       LEFT JOIN trainer_bank_accounts AS tb ON
                         tb.trainer_id = t.id
+                      LEFT JOIN users AS u ON
+                        u.user_id = t.created_by
                       WHERE
                           t.is_active = 1`;
 
@@ -357,6 +365,11 @@ const TrainerModel = {
         countQuery += " AND t.is_onboarding = ?";
         queryParams.push(is_onboarding);
         countQueryParams.push(is_onboarding);
+      }
+
+      if (created_by) {
+        getQuery += ` AND t.created_by LIKE '%${created_by}%'`;
+        countQuery += ` AND t.created_by LIKE '%${created_by}%'`;
       }
 
       // Get total count before applying pagination and ongoing filter
@@ -515,7 +528,9 @@ const TrainerModel = {
                           tb.bank_name,
                           tb.branch_name,
                           tb.ifsc_code,
-                          tb.signature_image
+                          tb.signature_image,
+                          t.created_by,
+                          u.user_name AS hr_head
                       FROM
                           trainer AS t
                       INNER JOIN technologies te ON
@@ -524,6 +539,8 @@ const TrainerModel = {
                           b.id = t.batch_id
                       LEFT JOIN trainer_bank_accounts AS tb ON
                         tb.trainer_id = t.id
+                      LEFT JOIN users AS u ON
+                        u.user_id = t.created_by
                       WHERE
                           t.is_active = 1 AND t.id = ?`;
 
