@@ -208,11 +208,13 @@ const TrainerModel = {
                                 status = ?,
                                 is_bank_updated = ?
                             WHERE
-                                id = ?`;
+                                id = ? `;
       const values = [
         trainer_name,
+        mobile_phone_code,
         mobile,
         email,
+        whatsapp_phone_code,
         whatsapp,
         technology_id,
         overall_exp_year,
