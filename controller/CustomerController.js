@@ -27,6 +27,7 @@ const updateCustomer = async (request, response) => {
     state,
     area,
     is_server_required,
+    is_customer_updated,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -52,7 +53,8 @@ const updateCustomer = async (request, response) => {
       country,
       state,
       area,
-      is_server_required
+      is_server_required,
+      is_customer_updated
     );
     return response.status(200).send({
       message: "Customer updated successfully",

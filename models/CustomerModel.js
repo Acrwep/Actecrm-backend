@@ -25,7 +25,8 @@ const CustomerModel = {
     country,
     state,
     area,
-    is_server_required
+    is_server_required,
+    is_customer_updated
   ) => {
     try {
       const [isCusExists] = await pool.query(
@@ -33,7 +34,9 @@ const CustomerModel = {
         [id]
       );
       if (isCusExists.length <= 0) throw new Error("Invalid customer");
-      const updateQuery = `UPDATE
+
+      const queryParams = [];
+      let updateQuery = `UPDATE
                                 customers
                             SET
                                 name = ?,
@@ -53,15 +56,12 @@ const CustomerModel = {
                                 signature_image = ?,
                                 profile_image = ?,
                                 placement_support = ?,
-                                is_customer_updated = 1,
                                 region_id = ?,
                                 country = ?,
                                 state = ?,
                                 current_location = ?,
-                                is_server_required = ?
-                            WHERE
-                                id = ?`;
-      const values = [
+                                is_server_required = ?`;
+      queryParams.push(
         name,
         email,
         phonecode,
@@ -83,11 +83,18 @@ const CustomerModel = {
         country,
         state,
         area,
-        is_server_required,
-        id,
-      ];
+        is_server_required
+      );
 
-      const [result] = await pool.query(updateQuery, values);
+      if (is_customer_updated) {
+        updateQuery += ` , is_customer_updated = ?`;
+        queryParams.push(is_customer_updated);
+      }
+
+      updateQuery += ` WHERE id = ?`;
+      queryParams.push(id);
+
+      const [result] = await pool.query(updateQuery, queryParams);
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
