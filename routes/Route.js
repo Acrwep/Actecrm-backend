@@ -180,4 +180,10 @@ router.post(
 // Dashboard module end
 router.post("/addSkills", verifyToken, TrainerController.addSkills);
 router.get("/getSkills", verifyToken, TrainerController.getSkills);
+router.post(
+  "/updatePageColumns",
+  verifyToken,
+  PageAccessController.updatePageColumns
+);
+router.get("/getPageColumns", verifyToken, PageAccessController.getPageColumns);
 module.exports = router;

@@ -75,7 +75,7 @@ const TrainerModel = {
 
       let newId;
       if (!trainer_code[0].next_trainer_id) {
-        newId = "TR1000";
+        newId = "TR0001";
       } else {
         newId = trainer_code[0].next_trainer_id;
       }
@@ -236,9 +236,6 @@ const TrainerModel = {
 
       updateQuery += ` WHERE id = ?`;
       queryParams.push(id);
-
-      console.log("query", updateQuery);
-      console.log("params", queryParams);
 
       const [result] = await pool.query(updateQuery, queryParams);
       if (result.affectedRows <= 0)

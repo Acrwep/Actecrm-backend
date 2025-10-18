@@ -599,6 +599,59 @@ const PageAccessModel = {
       throw new Error(error.message);
     }
   },
+
+  updatePageColumns: async (user_id, page_name, column_names, id) => {
+    try {
+      // Checks page exists for the user_id
+      const [isPageExists] = await pool.query(
+        `SELECT id FROM page_columns WHERE user_id = ? AND page_name = ? AND is_active = 1`,
+        [user_id, page_name]
+      );
+
+      console.log("ppp", isPageExists.length);
+
+      let affectedRows = 0;
+      if (isPageExists.length > 0) {
+        // Update page if already exists
+        const [updatePage] = await pool.query(
+          `UPDATE page_columns SET page_name = ?, column_names = ? WHERE id = ?`,
+          [page_name, JSON.stringify(column_names), id]
+        );
+        affectedRows += updatePage.affectedRows;
+      } else {
+        // Insert page if already not exists
+        const [insertPage] = await pool.query(
+          `INSERT INTO page_columns(user_id, page_name, column_names) VALUES(?, ?, ?)`,
+          [user_id, page_name, JSON.stringify(column_names)]
+        );
+        affectedRows += insertPage.affectedRows;
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getPageColumns: async (user_id) => {
+    try {
+      const [getPages] = await pool.query(
+        `SELECT id, user_id, page_name, column_names FROM page_columns WHERE user_id = ? AND is_active = 1`,
+        [user_id]
+      );
+
+      const formattedResult = getPages.map((item) => {
+        return {
+          ...item,
+          column_names: JSON.parse(item.column_names),
+        };
+      });
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = PageAccessModel;

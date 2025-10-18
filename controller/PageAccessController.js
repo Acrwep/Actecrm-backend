@@ -271,6 +271,43 @@ const getUsersDownline = async (request, response) => {
   }
 };
 
+const updatePageColumns = async (request, response) => {
+  const { user_id, page_name, column_names, id } = request.body;
+  try {
+    const result = await PageAccessModel.updatePageColumns(
+      user_id,
+      page_name,
+      column_names,
+      id
+    );
+    return response.status(200).send({
+      massage: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating Data",
+      details: error.message,
+    });
+  }
+};
+
+const getPageColumns = async (request, response) => {
+  const { user_id } = request.query;
+  try {
+    const result = await PageAccessModel.getPageColumns(user_id);
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   getRoles,
@@ -288,4 +325,6 @@ module.exports = {
   getUserGroupById,
   getUserPermissions,
   getUsersDownline,
+  updatePageColumns,
+  getPageColumns,
 };
