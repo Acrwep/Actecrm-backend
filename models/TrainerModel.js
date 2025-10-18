@@ -236,7 +236,11 @@ const TrainerModel = {
 
       updateQuery += ` WHERE id = ?`;
       queryParams.push(id);
-      const [result] = await pool.query(updateQuery, updateQuery);
+
+      console.log("query", updateQuery);
+      console.log("params", queryParams);
+
+      const [result] = await pool.query(updateQuery, queryParams);
       if (result.affectedRows <= 0)
         throw new Error("Error while updating trainer");
       const [updateBank] = await pool.query(
