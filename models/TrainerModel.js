@@ -182,7 +182,8 @@ const TrainerModel = {
     bank_name,
     branch_name,
     ifsc_code,
-    signature_image
+    signature_image,
+    is_bank_updated
   ) => {
     try {
       const [isIdExists] = await pool.query(
@@ -190,7 +191,8 @@ const TrainerModel = {
         [id]
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
-      const updateQuery = `UPDATE
+      const queryParams = [];
+      let updateQuery = `UPDATE
                                 trainer
                             SET
                                 name = ?,
@@ -208,11 +210,8 @@ const TrainerModel = {
                                 skills = ?,
                                 location = ?,
                                 profile_image = ?,
-                                status = ?,
-                                is_bank_updated = ?
-                            WHERE
-                                id = ? `;
-      const values = [
+                                status = ?`;
+      queryParams.push(
         trainer_name,
         mobile_phone_code,
         mobile,
@@ -228,11 +227,16 @@ const TrainerModel = {
         JSON.stringify(skills),
         location,
         profile_image,
-        status,
-        1,
-        id,
-      ];
-      const [result] = await pool.query(updateQuery, values);
+        status
+      );
+      if (is_bank_updated) {
+        updateQuery += `, is_bank_updated = ?`;
+        queryParams.push(is_bank_updated);
+      }
+
+      updateQuery += ` WHERE id = ?`;
+      queryParams.push(id);
+      const [result] = await pool.query(updateQuery, updateQuery);
       if (result.affectedRows <= 0)
         throw new Error("Error while updating trainer");
       const [updateBank] = await pool.query(

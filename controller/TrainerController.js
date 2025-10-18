@@ -137,6 +137,7 @@ const updateTrainer = async (request, response) => {
     branch_name,
     ifsc_code,
     signature_image,
+    is_bank_updated,
   } = request.body;
   const formattedSkills = Array.isArray(skills) ? skills : [skills];
   try {
@@ -164,7 +165,8 @@ const updateTrainer = async (request, response) => {
       bank_name,
       branch_name,
       ifsc_code,
-      signature_image
+      signature_image,
+      is_bank_updated
     );
     return response.status(200).send({
       message: "Trainer updated successfully",
