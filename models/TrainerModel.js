@@ -283,6 +283,9 @@ const TrainerModel = {
   ) => {
     try {
       const queryParams = [];
+      const countQueryParams = [];
+      const statusParams = [];
+      const onBoardingParams = [];
       let getQuery = `SELECT
                           t.id,
                           t.name,
@@ -331,10 +334,18 @@ const TrainerModel = {
                       WHERE
                           t.is_active = 1`;
 
-      const countQueryParams = [];
       let countQuery = `SELECT COUNT(DISTINCT t.id) as total
                       FROM trainer AS t
                       WHERE t.is_active = 1`;
+
+      let getStatusQuery = `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t WHERE 1 = 1`;
+
+      let onBoardingQuery = `SELECT
+          COUNT(DISTINCT CASE WHEN c.class_percentage = 100 THEN t.id END) AS on_boarding_count,
+          COUNT(DISTINCT CASE WHEN c.class_percentage < 100 THEN t.id END) AS on_going_count
+        FROM trainer AS t
+        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id AND tm.is_rejected = 0
+        INNER JOIN customers AS c ON tm.customer_id = c.id WHERE 1 = 1`;
 
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
@@ -375,6 +386,10 @@ const TrainerModel = {
       if (created_by) {
         getQuery += ` AND t.created_by LIKE '%${created_by}%'`;
         countQuery += ` AND t.created_by LIKE '%${created_by}%'`;
+        getStatusQuery += ` AND t.created_by = ?`;
+        onBoardingQuery += ` AND t.created_by = ?`;
+        statusParams.push(created_by);
+        onBoardingParams.push(created_by);
       }
 
       // Get total count before applying pagination and ongoing filter
@@ -394,17 +409,11 @@ const TrainerModel = {
       let [trainers] = await pool.query(getQuery, queryParams);
 
       // Get counts of trainers based on status
-      const [getStatus] = await pool.query(
-        `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t`
-      );
+      const [getStatus] = await pool.query(getStatusQuery, statusParams);
 
       const [getOnBoarding] = await pool.query(
-        `SELECT
-          COUNT(DISTINCT CASE WHEN c.class_percentage = 100 THEN t.id END) AS on_boarding_count,
-          COUNT(DISTINCT CASE WHEN c.class_percentage < 100 THEN t.id END) AS on_going_count
-        FROM trainer AS t
-        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id AND tm.is_rejected = 0
-        INNER JOIN customers AS c ON tm.customer_id = c.id;`
+        onBoardingQuery,
+        onBoardingParams
       );
 
       const [getOngoing] = await pool.query(
