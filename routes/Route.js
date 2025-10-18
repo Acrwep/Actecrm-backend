@@ -179,7 +179,7 @@ router.post(
 );
 // Dashboard module end
 router.post("/addSkills", verifyToken, TrainerController.addSkills);
-router.get("/getSkills", verifyToken, TrainerController.getSkills);
+router.get("/getSkills", TrainerController.getSkills);
 router.post(
   "/updatePageColumns",
   verifyToken,
