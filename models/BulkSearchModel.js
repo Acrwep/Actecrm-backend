@@ -16,7 +16,7 @@ const BulkSearchModel = {
           [item.mobile, item.mobile, item.email, item.email]
         );
 
-        let status = "Not Found";
+        let status = "Not found";
         let result = null;
 
         if (results.length > 0) {
