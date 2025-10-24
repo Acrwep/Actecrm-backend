@@ -227,9 +227,21 @@ const CustomerModel = {
                         LEFT JOIN certificates AS cer ON
                           cer.customer_id = c.id
                         LEFT JOIN (
-                            SELECT pm.lead_id, (SELECT p2.next_due_date FROM payment_trans AS p2 WHERE p2.payment_master_id = pm.id AND p2.payment_status IN ('Verified', 'Verify Pending') ORDER BY p2.id DESC LIMIT 1) AS next_due_date, (SELECT p2.is_second_due FROM payment_trans AS p2 WHERE p2.payment_master_id = pm.id ORDER BY p2.id DESC LIMIT 1) AS has_second_due FROM payment_master AS pm
-                            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id
-                            GROUP BY pm.lead_id
+                            SELECT 
+                            pm.lead_id,
+                            (SELECT p2.next_due_date 
+                            FROM payment_trans AS p2 
+                            WHERE p2.payment_master_id = pm.id 
+                            AND p2.payment_status IN ('Verified', 'Verify Pending') 
+                            ORDER BY p2.id DESC 
+                            LIMIT 1) AS next_due_date,
+                            (SELECT p2.is_second_due 
+                            FROM payment_trans AS p2 
+                            WHERE p2.payment_master_id = pm.id 
+                            ORDER BY p2.id DESC 
+                            LIMIT 1) AS has_second_due
+                        FROM payment_master AS pm
+                        GROUP BY pm.lead_id
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
@@ -240,9 +252,21 @@ const CustomerModel = {
                         LEFT JOIN technologies AS tg ON l.primary_course_id = tg.id
                         LEFT JOIN region AS r ON r.id = c.region_id
                         LEFT JOIN (
-                            SELECT pm.lead_id, (SELECT p2.next_due_date FROM payment_trans AS p2 WHERE p2.payment_master_id = pm.id AND p2.payment_status IN ('Verified', 'Verify Pending') ORDER BY p2.id DESC LIMIT 1) AS next_due_date, (SELECT p2.is_second_due FROM payment_trans AS p2 WHERE p2.payment_master_id = pm.id ORDER BY p2.id DESC LIMIT 1) AS has_second_due FROM payment_master AS pm
-                            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id
-                            GROUP BY pm.lead_id
+                              SELECT 
+                                      pm.lead_id,
+                                      (SELECT p2.next_due_date 
+                                      FROM payment_trans AS p2 
+                                      WHERE p2.payment_master_id = pm.id 
+                                      AND p2.payment_status IN ('Verified', 'Verify Pending') 
+                                      ORDER BY p2.id DESC 
+                                      LIMIT 1) AS next_due_date,
+                                      (SELECT p2.is_second_due 
+                                      FROM payment_trans AS p2 
+                                      WHERE p2.payment_master_id = pm.id 
+                                      ORDER BY p2.id DESC 
+                                      LIMIT 1) AS has_second_due
+                                  FROM payment_master AS pm
+                                  GROUP BY pm.lead_id
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
