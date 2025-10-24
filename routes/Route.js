@@ -10,6 +10,7 @@ const EmailController = require("../controller/EmailController");
 const CustomerController = require("../controller/CustomerController");
 const PageAccessController = require("../controller/PageAccessController");
 const DashboardController = require("../controller/DashboardController");
+const BulkSearchController = require("../controller/BulkSearchController");
 
 router.post("/login", LoginController.login);
 
@@ -186,4 +187,9 @@ router.post(
   PageAccessController.updatePageColumns
 );
 router.get("/getPageColumns", verifyToken, PageAccessController.getPageColumns);
+router.post(
+  "/bulkSearch",
+  BulkSearchController.upload.single("file"),
+  BulkSearchController.bulkSearch
+);
 module.exports = router;
