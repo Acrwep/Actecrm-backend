@@ -187,9 +187,5 @@ router.post(
   PageAccessController.updatePageColumns
 );
 router.get("/getPageColumns", verifyToken, PageAccessController.getPageColumns);
-router.post(
-  "/bulkSearch",
-  BulkSearchController.upload.single("file"),
-  BulkSearchController.bulkSearch
-);
+router.post("/bulkSearch", BulkSearchController.bulkSearch);
 module.exports = router;
