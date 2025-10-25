@@ -341,8 +341,8 @@ const CustomerModel = {
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
-          countQuery += ` AND (c.status = ? OR payment_info.has_second_due = 1)`;
+          getQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1)`;
+          countQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1)`;
           queryParams.push(status);
           countQueryParams.push(status);
         } else if (Array.isArray(status)) {
