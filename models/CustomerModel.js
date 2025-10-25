@@ -195,8 +195,8 @@ const CustomerModel = {
                             cer.course_completion_month AS cer_course_completion_month,
                             cer.certificate_number,
                             cer.location AS cer_location,
-                            payment_info.next_due_date,
-                            payment_info.has_second_due
+                            payment_next.next_due_date,
+							              payment_has.is_second_due AS has_second_due
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -227,22 +227,28 @@ const CustomerModel = {
                         LEFT JOIN certificates AS cer ON
                           cer.customer_id = c.id
                         LEFT JOIN (
-                            SELECT 
-                            pm.lead_id,
-                            (SELECT p2.next_due_date 
-                            FROM payment_trans AS p2 
-                            WHERE p2.payment_master_id = pm.id 
-                            AND p2.payment_status IN ('Verified', 'Verify Pending') 
-                            ORDER BY p2.id DESC 
-                            LIMIT 1) AS next_due_date,
-                            (SELECT p2.is_second_due 
-                            FROM payment_trans AS p2 
-                            WHERE p2.payment_master_id = pm.id 
-                            ORDER BY p2.id DESC 
-                            LIMIT 1) AS has_second_due
-                        FROM payment_master AS pm
-                        GROUP BY pm.lead_id
-                        ) AS payment_info ON payment_info.lead_id = c.lead_id
+                          SELECT lead_id, next_due_date
+                          FROM (
+                            SELECT pm.lead_id,
+                                   p2.next_due_date,
+                                   ROW_NUMBER() OVER (PARTITION BY pm.lead_id ORDER BY p2.id DESC) AS rn
+                            FROM payment_trans p2
+                            JOIN payment_master pm ON p2.payment_master_id = pm.id
+                            WHERE p2.payment_status IN ('Verified', 'Verify Pending')
+                          ) q
+                          WHERE rn = 1
+                        ) AS payment_next ON payment_next.lead_id = c.lead_id
+                        LEFT JOIN (
+                          SELECT lead_id, is_second_due
+                          FROM (
+                            SELECT pm.lead_id,
+                                   p2.is_second_due,
+                                   ROW_NUMBER() OVER (PARTITION BY pm.lead_id ORDER BY p2.id DESC) AS rn
+                            FROM payment_trans p2
+                            JOIN payment_master pm ON p2.payment_master_id = pm.id
+                          ) q
+                          WHERE rn = 1
+                        ) AS payment_has ON payment_has.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       // Get pagination count query
