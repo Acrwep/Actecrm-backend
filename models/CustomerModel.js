@@ -196,7 +196,7 @@ const CustomerModel = {
                             cer.certificate_number,
                             cer.location AS cer_location,
                             payment_next.next_due_date,
-							              payment_has.is_second_due AS has_second_due
+							              payment_info.is_second_due AS has_second_due
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -248,7 +248,7 @@ const CustomerModel = {
                             JOIN payment_master pm ON p2.payment_master_id = pm.id
                           ) q
                           WHERE rn = 1
-                        ) AS payment_has ON payment_has.lead_id = c.lead_id
+                        ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       // Get pagination count query
@@ -279,7 +279,7 @@ const CustomerModel = {
                             JOIN payment_master pm ON p2.payment_master_id = pm.id
                           ) q
                           WHERE rn = 1
-                        ) AS payment_has ON payment_has.lead_id = c.lead_id
+                        ) AS payment_info ON payment_info.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       // All your existing count queries remain unchanged
