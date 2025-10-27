@@ -188,4 +188,9 @@ router.post(
 );
 router.get("/getPageColumns", verifyToken, PageAccessController.getPageColumns);
 router.post("/bulkSearch", BulkSearchController.bulkSearch);
+router.post(
+  "/getUserWiseScoreBoard",
+  verifyToken,
+  DashboardController.getUserWiseScoreBoard
+);
 module.exports = router;
