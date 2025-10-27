@@ -365,8 +365,8 @@ const DashboardModel = {
         const formattedResult = await Promise.all(
           result.map(async (r) => {
             const [getTarget] = await pool.query(
-              `SELECT id AS user_target_id, target_month, target_value FROM user_target_master WHERE user_id = ? AND target_month = DATE_FORMAT(?, '%b-%Y') ORDER BY id DESC LIMIT 1`,
-              [r.user_id, end_date]
+              `SELECT id AS user_target_id, target_month, target_value FROM user_target_master WHERE user_id = ? AND target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) ORDER BY id DESC LIMIT 1`,
+              [r.user_id, start_date, end_date]
             );
 
             const target_month = getTarget[0]?.target_month || "";

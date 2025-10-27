@@ -8,7 +8,8 @@ const UserModel = {
     users,
     roles,
     target_value,
-    target_month
+    target_start,
+    target_end
   ) => {
     try {
       let affectedRows = 0;
@@ -39,20 +40,20 @@ const UserModel = {
       affectedRows += result.affectedRows;
 
       const [isTargetExists] = await pool.query(
-        `SELECT * FROM user_target_master WHERE target_month = DATE_FORMAT(?, '%b-%Y') AND user_id = ?`,
-        [target_month, user_id]
+        `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+        [target_start, target_end, user_id]
       );
 
       if (isTargetExists.length > 0) {
         const [updateTarget] = await pool.query(
-          `UPDATE user_target_master SET target_value = ? WHERE target_month = DATE_FORMAT(?, '%b-%Y') AND user_id = ?`,
-          [target_value, target_month, user_id]
+          `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+          [target_value, target_start, target_end, user_id]
         );
         affectedRows += updateTarget.affectedRows;
       } else {
         const [insertTarget] = await pool.query(
-          `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, DATE_FORMAT(?, '%b-%Y'), ?)`,
-          [user_id, target_month, target_value]
+          `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
+          [user_id, target_start, target_end, target_value]
         );
         affectedRows += insertTarget.affectedRows;
       }
@@ -131,7 +132,8 @@ const UserModel = {
     password,
     users,
     roles,
-    target_month,
+    target_start,
+    target_end,
     target_value
   ) => {
     try {
@@ -157,20 +159,20 @@ const UserModel = {
       affectedRows += result.affectedRows;
 
       const [isTargetExists] = await pool.query(
-        `SELECT * FROM user_target_master WHERE target_month = DATE_FORMAT(?, '%b-%Y') AND user_id = ?`,
-        [target_month, user_id]
+        `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+        [target_start, target_end, user_id]
       );
 
       if (isTargetExists.length > 0) {
         const [updateTarget] = await pool.query(
-          `UPDATE user_target_master SET target_value = ? WHERE target_month = DATE_FORMAT(?, '%b-%Y') AND user_id = ?`,
-          [target_value, target_month, user_id]
+          `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+          [target_value, target_start, target_end, user_id]
         );
         affectedRows += updateTarget.affectedRows;
       } else {
         const [insertTarget] = await pool.query(
-          `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, DATE_FORMAT(?, '%b-%Y'), ?)`,
-          [user_id, target_month, target_value]
+          `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
+          [user_id, target_start, target_end, target_value]
         );
         affectedRows += insertTarget.affectedRows;
       }

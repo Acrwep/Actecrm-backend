@@ -9,7 +9,8 @@ const addUser = async (request, response) => {
     users,
     roles,
     target_value,
-    target_month,
+    target_start,
+    target_end,
   } = request.body;
   if (!user_id || !user_name || !password) {
     return response.status(500).send({
@@ -27,7 +28,8 @@ const addUser = async (request, response) => {
       formattedUsers,
       formattedRoles,
       target_value,
-      target_month
+      target_start,
+      target_end
     );
     response.status(201).json({
       message: "User addedd successfully",
@@ -65,7 +67,8 @@ const updateUser = async (request, response) => {
     password,
     users,
     roles,
-    target_month,
+    target_start,
+    target_end,
     target_value,
   } = request.body;
   const formattedUsers = Array.isArray(users) ? users : [users];
@@ -78,7 +81,8 @@ const updateUser = async (request, response) => {
       password,
       formattedUsers,
       formattedRoles,
-      target_month,
+      target_start,
+      target_end,
       target_value
     );
     response.status(200).json({
