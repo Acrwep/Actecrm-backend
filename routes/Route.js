@@ -193,4 +193,9 @@ router.post(
   verifyToken,
   DashboardController.getUserWiseScoreBoard
 );
+router.post(
+  "/getUserWiseLeadCounts",
+  verifyToken,
+  DashboardController.getUserWiseLeadCounts
+);
 module.exports = router;

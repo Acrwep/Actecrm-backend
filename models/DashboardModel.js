@@ -168,7 +168,7 @@ const DashboardModel = {
   getRADashboard: async (user_ids, start_date, end_date) => {
     try {
       const queryParams = [];
-      let sql = `SELECT SUM(CASE WHEN c.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS awaiting_class, SUM(CASE WHEN c.status = 'Class Scheduled' THEN 1 ELSE 0 END) AS class_scheduled, SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) AS escalated, SUM(CASE WHEN c.status = 'Class Going' THEN 1 ELSE 0 END) AS class_going, SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END) AS google_review_count, SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END) AS linkedin_review_count FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+      let sql = `SELECT SUM(CASE WHEN c.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS awaiting_class, SUM(CASE WHEN c.status = 'Class Scheduled' THEN 1 ELSE 0 END) AS class_scheduled, SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) AS escalated, SUM(CASE WHEN c.status = 'Class Going' THEN 1 ELSE 0 END) AS class_going, SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END) AS google_review_count, SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END) AS linkedin_review_count, SUM(CASE WHEN c.status = 'Completed' THEN 1 ELSE 0 END) AS class_completed FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -283,7 +283,7 @@ const DashboardModel = {
         total: [],
       };
 
-      // 🔹 Filter by date range
+      // Filter by date range
       if (start_date && end_date) {
         saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
@@ -298,7 +298,7 @@ const DashboardModel = {
       LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
       totalCollectionQuery += ` WHERE 1 = 1`;
 
-      // 🔹 Filter by user(s)
+      // Filter by user(s)
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
@@ -322,7 +322,7 @@ const DashboardModel = {
       collectionQuery += ` GROUP BY u.user_id, u.user_name ORDER BY collection DESC`;
       totalCollectionQuery += ` GROUP BY u.user_id, u.user_name ORDER BY total_collection DESC`;
 
-      // 🔹 Execute queries
+      // Execute queries
       const [saleData] = await pool.query(saleVolumeQuery, params.sale);
 
       const [collectionData] = await pool.query(
@@ -334,7 +334,7 @@ const DashboardModel = {
         params.total
       );
 
-      // 🔹 Map data user-wise
+      // Map data user-wise
       const result = saleData.map((saleUser) => {
         const collectionUser = collectionData.find(
           (c) => c.user_id === saleUser.user_id
@@ -354,7 +354,7 @@ const DashboardModel = {
         };
       });
 
-      // 🔹 If specific type requested
+      // If specific type requested
       if (type === "Sale")
         return result.map((r) => ({
           user_id: r.user_id,
@@ -397,8 +397,49 @@ const DashboardModel = {
           pending: parseFloat(r.pending).toFixed(2),
         }));
 
-      // 🔹 Default: full scoreboard
+      // Default: full scoreboard
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getUserWiseLeadCounts: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT u.user_id, u.user_name, COUNT(l.id) AS total_leads, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count, ROUND(((SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END)) / IFNULL(COUNT(l.id), 0)) * 100, 2) AS percentage FROM users AS u LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to`;
+
+      // Filter by date range
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
+
+      // Filter by user(s)
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND u.user_id IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else {
+          getQuery += ` AND u.user_id = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` GROUP BY u.user_id, u.user_name ORDER BY total_leads DESC`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      const formattedResult = result.map((item) => {
+        return {
+          ...item,
+          percentage: item.percentage ? item.percentage : 0.0,
+        };
+      });
+      return formattedResult;
     } catch (error) {
       throw new Error(error.message);
     }
