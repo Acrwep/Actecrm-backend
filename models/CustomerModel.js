@@ -717,12 +717,26 @@ const CustomerModel = {
 
   updateCustomerStatus: async (customer_id, status) => {
     try {
+      let affectedRows = 0;
+      if (status && status === "Completed") {
+        const [getFeesDetails] = await pool.query(
+          `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ?`,
+          [customer_id]
+        );
+
+        if (getFeesDetails.length > 0 && getFeesDetails[0].pending_fees > 0)
+          throw new Error(
+            "The candidate has pending due, Kindly collect the pending fees"
+          );
+      }
       const [result] = await pool.query(
         `UPDATE customers SET status = ? WHERE id = ?`,
         [status, customer_id]
       );
 
-      return result.affectedRows;
+      affectedRows += result.affectedRows;
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
