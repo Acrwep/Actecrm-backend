@@ -198,4 +198,5 @@ router.post(
   verifyToken,
   DashboardController.getUserWiseLeadCounts
 );
+router.post("/setTarget", verifyToken, UserController.setTarget);
 module.exports = router;

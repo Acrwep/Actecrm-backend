@@ -181,6 +181,40 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
+
+  setTarget: async (user_ids, target_start, target_end, target_value) => {
+    try {
+      let affectedRows = 0;
+      if (user_ids.length > 0 && Array.isArray(user_ids)) {
+        await Promise.all(
+          user_ids.map(async (item) => {
+            const [isTargetExists] = await pool.query(
+              `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+              [target_start, target_end, item.user_id]
+            );
+
+            if (isTargetExists.length > 0) {
+              const [updateTarget] = await pool.query(
+                `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
+                [target_value, target_start, target_end, item.user_id]
+              );
+              affectedRows += updateTarget.affectedRows;
+            } else {
+              const [insertTarget] = await pool.query(
+                `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
+                [item.user_id, target_start, target_end, target_value]
+              );
+              affectedRows += insertTarget.affectedRows;
+            }
+          })
+        );
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = UserModel;

@@ -97,8 +97,30 @@ const updateUser = async (request, response) => {
   }
 };
 
+const setTarget = async (request, response) => {
+  const { user_ids, target_start, target_end, target_value } = request.body;
+  try {
+    const result = await userModel.setTarget(
+      user_ids,
+      target_start,
+      target_end,
+      target_value
+    );
+    response.status(200).json({
+      message: "Target updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while updating target",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
   updateUser,
+  setTarget,
 };
