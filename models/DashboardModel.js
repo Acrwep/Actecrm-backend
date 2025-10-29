@@ -453,6 +453,8 @@ const DashboardModel = {
         percentage: item.percentage || 0.0,
       }));
 
+      formattedResult.sort((a, b) => b.percentage - a.percentage);
+
       return formattedResult;
     } catch (error) {
       throw new Error(error.message);
