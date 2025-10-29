@@ -355,13 +355,17 @@ const DashboardModel = {
       });
 
       // If specific type requested
-      if (type === "Sale")
+      if (type === "Sale") {
+        result.sort((a, b) => b.sale_volume - a.sale_volume);
         return result.map((r) => ({
           user_id: r.user_id,
           user_name: r.user_name,
           sale_volume: parseFloat(r.sale_volume).toFixed(2),
         }));
+      }
+
       if (type === "Collection") {
+        result.sort((a, b) => b.total_collection - a.total_collection);
         const formattedResult = await Promise.all(
           result.map(async (r) => {
             const [getTarget] = await pool.query(
@@ -390,12 +394,14 @@ const DashboardModel = {
 
         return formattedResult;
       }
-      if (type === "Pending")
+      if (type === "Pending") {
+        result.sort((a, b) => b.pending - a.pending);
         return result.map((r) => ({
           user_id: r.user_id,
           user_name: r.user_name,
           pending: parseFloat(r.pending).toFixed(2),
         }));
+      }
 
       // Default: full scoreboard
       return result;
