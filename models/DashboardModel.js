@@ -407,15 +407,28 @@ const DashboardModel = {
   getUserWiseLeadCounts: async (user_ids, start_date, end_date) => {
     try {
       const queryParams = [];
-      let getQuery = `SELECT u.user_id, u.user_name, COUNT(l.id) AS total_leads, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count, ROUND(((SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END)) / IFNULL(COUNT(l.id), 0)) * 100, 2) AS percentage FROM users AS u LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to`;
+
+      let getQuery = `
+      SELECT 
+        u.user_id, 
+        u.user_name, 
+        COUNT(l.id) AS total_leads,
+        SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count,
+        ROUND(
+          (SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(l.id), 0)) * 100, 
+          2
+        ) AS percentage
+      FROM users AS u
+      LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to
+      LEFT JOIN customers AS c ON c.lead_id = l.id
+      WHERE 1 = 1
+    `;
 
       // Filter by date range
       if (start_date && end_date) {
         getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
-
-      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
 
       // Filter by user(s)
       if (user_ids) {
@@ -429,16 +442,17 @@ const DashboardModel = {
         }
       }
 
-      getQuery += ` GROUP BY u.user_id, u.user_name ORDER BY total_leads DESC`;
+      // ✅ Order and grouping
+      getQuery += `
+      GROUP BY u.user_id, u.user_name ORDER BY percentage DESC`;
 
       const [result] = await pool.query(getQuery, queryParams);
 
-      const formattedResult = result.map((item) => {
-        return {
-          ...item,
-          percentage: item.percentage ? item.percentage : 0.0,
-        };
-      });
+      const formattedResult = result.map((item) => ({
+        ...item,
+        percentage: item.percentage || 0.0,
+      }));
+
       return formattedResult;
     } catch (error) {
       throw new Error(error.message);
