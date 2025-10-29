@@ -199,4 +199,5 @@ router.post(
   DashboardController.getUserWiseLeadCounts
 );
 router.post("/setTarget", verifyToken, UserController.setTarget);
+router.get("/getAllDownlines", verifyToken, UserController.getAllDownlines);
 module.exports = router;
