@@ -729,7 +729,7 @@ const LeadModel = {
 
   getLeadCount: async (user_ids, start_date, end_date) => {
     try {
-      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ? AND lf.is_updated = 0 c.id IS NULL`;
+      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ? AND lf.is_updated = 0 AND c.id IS NULL`;
 
       const followUpParams = [];
       followUpParams.push(start_date, end_date);
