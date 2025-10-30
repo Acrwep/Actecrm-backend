@@ -197,7 +197,8 @@ const CustomerModel = {
                             cer.certificate_number,
                             cer.location AS cer_location,
                             payment_next.next_due_date,
-							              payment_info.is_second_due AS has_second_due
+							              payment_info.is_second_due AS has_second_due,
+                            payment_rejected.is_last_pay_rejected
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -382,7 +383,7 @@ const CustomerModel = {
           countQuery += ` AND c.status IN (${placeholders})`;
           queryParams.push(...status);
           countQueryParams.push(...status);
-        } else if (status !== "Others") {
+        } else if (status !== "Others" && status !== "Payment Rejected") {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
           queryParams.push(status);
@@ -504,7 +505,7 @@ const CustomerModel = {
         ...getStatus[0],
         awaiting_finance:
           getStatus[0].awaiting_finance + paymentStatus[0].awaiting_finance,
-        rejected_payment: rejectedPaymentCount[0].payment_rejected,
+        rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
       };
 
       // Return customer result
