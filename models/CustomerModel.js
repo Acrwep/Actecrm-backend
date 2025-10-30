@@ -119,6 +119,7 @@ const CustomerModel = {
       const countParams = [];
       const countQueryParams = [];
       const paymentParams = [];
+      const rejectedPaymentParams = [];
 
       // Get customers query
       let getQuery = `SELECT
@@ -249,6 +250,17 @@ const CustomerModel = {
                           ) q
                           WHERE rn = 1
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
+                        LEFT JOIN (
+                          SELECT lead_id, is_last_pay_rejected
+                          FROM (
+                            SELECT pm.lead_id,
+                                   p2.is_last_pay_rejected,
+                                   ROW_NUMBER() OVER (PARTITION BY pm.lead_id ORDER BY p2.id DESC) AS rn
+                            FROM payment_trans p2
+                            JOIN payment_master pm ON p2.payment_master_id = pm.id
+                          ) q
+                          WHERE rn = 1
+                        ) AS payment_rejected ON payment_rejected.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       // Get pagination count query
@@ -280,13 +292,26 @@ const CustomerModel = {
                           ) q
                           WHERE rn = 1
                         ) AS payment_info ON payment_info.lead_id = c.lead_id
+                        LEFT JOIN (
+                          SELECT lead_id, is_last_pay_rejected
+                          FROM (
+                            SELECT pm.lead_id,
+                                   p2.is_last_pay_rejected,
+                                   ROW_NUMBER() OVER (PARTITION BY pm.lead_id ORDER BY p2.id DESC) AS rn
+                            FROM payment_trans p2
+                            JOIN payment_master pm ON p2.payment_master_id = pm.id
+                          ) q
+                          WHERE rn = 1
+                        ) AS payment_rejected ON payment_rejected.lead_id = c.lead_id
                         WHERE 1 = 1`;
 
       // All your existing count queries remain unchanged
-      let getCountQuery = `SELECT COUNT(c.id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed') THEN 1 END) AS Others FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN region AS r ON r.id = c.region_id WHERE 1 = 1`;
+      let getCountQuery = `SELECT COUNT(c.id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status IN ('Awaiting Finance') AND pt.payment_status = 'Verify Pending' THEN 1 END) AS awaiting_finance, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status IN ('Awaiting Trainer', 'Trainer Rejected') THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed') THEN 1 END) AS Others FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN region AS r ON r.id = c.region_id LEFT JOIN payment_master AS pm ON c.lead_id = pm.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE 1 = 1`;
 
       // Get second due payments count query
       let paymentQuery = `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
+
+      let rejectedPaymentQuery = `SELECT SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
       if (user_ids) {
@@ -296,19 +321,23 @@ const CustomerModel = {
           countQuery += ` AND l.assigned_to IN (${placeholders})`;
           getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
           paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+          rejectedPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
           countParams.push(...user_ids);
           paymentParams.push(...user_ids);
+          rejectedPaymentParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND l.assigned_to = ?`;
           countQuery += ` AND l.assigned_to = ?`;
           getCountQuery += ` AND l.assigned_to = ?`;
           paymentQuery += ` AND l.assigned_to = ?`;
+          rejectedPaymentQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
           countParams.push(user_ids);
           paymentParams.push(user_ids);
+          rejectedPaymentParams.push(user_ids);
         }
       }
 
@@ -331,18 +360,20 @@ const CustomerModel = {
         countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         getCountQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         paymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        rejectedPaymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
         paymentParams.push(from_date, to_date);
+        rejectedPaymentParams.push(from_date, to_date);
       }
 
       // Add status filter
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1)`;
-          countQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1)`;
+          getQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1) AND payment_rejected.is_last_pay_rejected = 0`;
+          countQuery += ` AND (c.status = ? OR payment_info.is_second_due = 1) AND payment_rejected.is_last_pay_rejected = 0`;
           queryParams.push(status);
           countQueryParams.push(status);
         } else if (Array.isArray(status)) {
@@ -357,6 +388,11 @@ const CustomerModel = {
           queryParams.push(status);
           countQueryParams.push(status);
         }
+      }
+
+      if (status === "Payment Rejected") {
+        getQuery += ` AND payment_rejected.is_last_pay_rejected = 1`;
+        countQuery += ` AND payment_rejected.is_last_pay_rejected = 1`;
       }
 
       // Add status filter for others
@@ -459,10 +495,16 @@ const CustomerModel = {
       // Fetch customer payment status count
       const [paymentStatus] = await pool.query(paymentQuery, paymentParams);
 
+      const [rejectedPaymentCount] = await pool.query(
+        rejectedPaymentQuery,
+        rejectedPaymentParams
+      );
+
       const cusStatusCount = {
         ...getStatus[0],
         awaiting_finance:
           getStatus[0].awaiting_finance + paymentStatus[0].awaiting_finance,
+        rejected_payment: rejectedPaymentCount[0].payment_rejected,
       };
 
       // Return customer result
