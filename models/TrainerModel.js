@@ -580,7 +580,7 @@ const TrainerModel = {
 
   getTrainerHistory: async (customer_id) => {
     try {
-      const getQuery = `SELECT tm.id, tm.trainer_id, t.trainer_id AS trainer_code, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id WHERE tm.customer_id = ? ORDER BY tm.id ASC`;
+      const getQuery = `SELECT tm.id, tm.trainer_id, t.trainer_id AS trainer_code, t.name AS trainer_name, tm.commercial, tm.mode_of_class, tm.trainer_type, tm.proof_communication, tm.comments, tm.is_verified, tm.verified_date, tm.is_rejected, tm.rejected_date, tm.created_date, u.user_id AS trainer_hr_id, u.user_name AS trainer_hr_name FROM trainer_mapping AS tm INNER JOIN trainer AS t ON tm.trainer_id = t.id INNER JOIN users AS u ON u.user_id = t.created_by WHERE tm.customer_id = ? ORDER BY tm.id ASC`;
 
       const [history] = await pool.query(getQuery, [customer_id]);
 
