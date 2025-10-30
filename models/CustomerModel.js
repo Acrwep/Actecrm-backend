@@ -166,6 +166,9 @@ const CustomerModel = {
                             tr.mobile_phone_code AS trainer_mobile_code,
                             tr.mobile AS trainer_mobile,
                             tr.email AS trainer_email,
+                            tr.overall_exp_year,
+                            tus.user_id AS trainer_hr_id,
+                            tus.user_name AS trainer_hr_name,
                             map.id AS training_map_id,
                             map.trainer_id,
                             map.commercial,
@@ -224,6 +227,8 @@ const CustomerModel = {
                           AND map.is_rejected = 0
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
+                        LEFT JOIN users AS tus ON
+                          tr.created_by = tus.user_id
                         LEFT JOIN class_schedule AS cs ON
                           c.class_schedule_id = cs.id
                         LEFT JOIN certificates AS cer ON
