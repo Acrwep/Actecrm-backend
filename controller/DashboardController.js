@@ -103,12 +103,13 @@ const getUserWiseScoreBoard = async (request, response) => {
 };
 
 const getUserWiseLeadCounts = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, type } = request.body;
   try {
     const result = await DashboardModel.getUserWiseLeadCounts(
       user_ids,
       start_date,
-      end_date
+      end_date,
+      type
     );
     return response.status(200).send({
       message: "Data fetched successfully",

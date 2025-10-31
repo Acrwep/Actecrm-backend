@@ -410,9 +410,11 @@ const DashboardModel = {
     }
   },
 
-  getUserWiseLeadCounts: async (user_ids, start_date, end_date) => {
+  getUserWiseLeadCounts: async (user_ids, start_date, end_date, type) => {
     try {
       const queryParams = [];
+      const followupParams = [];
+      const joiningParams = [];
 
       let getQuery = `
       SELECT 
@@ -425,43 +427,83 @@ const DashboardModel = {
           2
         ) AS percentage
       FROM users AS u
-      LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to
-      LEFT JOIN customers AS c ON c.lead_id = l.id
-      WHERE 1 = 1
-    `;
+      LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to`;
+
+      let followupQuery = `SELECT u.user_id, u.user_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM users AS u LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to`;
+
+      let joiningQuery = `SELECT u.user_id, u.user_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM users AS u LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
 
       // Filter by date range
       if (start_date && end_date) {
         getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        followupQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        joiningQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
+        followupParams.push(start_date, end_date);
+        joiningParams.push(start_date, end_date);
       }
+
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
+      followupQuery += ` LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id WHERE 1 = 1`;
+      joiningQuery += ` WHERE 1 = 1`;
 
       // Filter by user(s)
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND u.user_id IN (${placeholders})`;
+          followupQuery += ` AND u.user_id IN (${placeholders})`;
+          joiningQuery += ` AND u.user_id IN (${placeholders})`;
           queryParams.push(...user_ids);
+          followupParams.push(...user_ids);
+          joiningParams.push(...user_ids);
         } else {
           getQuery += ` AND u.user_id = ?`;
+          followupQuery += ` AND u.user_id = ?`;
+          joiningQuery += ` AND u.user_id = ?`;
           queryParams.push(user_ids);
+          followupParams.push(user_ids);
+          joiningParams.push(user_ids);
         }
       }
 
       // ✅ Order and grouping
-      getQuery += `
-      GROUP BY u.user_id, u.user_name ORDER BY percentage DESC`;
+      getQuery += ` GROUP BY u.user_id, u.user_name ORDER BY percentage DESC`;
+      followupQuery += ` GROUP BY u.user_id, u.user_name ORDER BY percentage DESC`;
+      joiningQuery += ` GROUP BY u.user_id, u.user_name ORDER BY customer_count DESC`;
 
-      const [result] = await pool.query(getQuery, queryParams);
+      if (type && type === "Leads") {
+        const [result] = await pool.query(getQuery, queryParams);
 
-      const formattedResult = result.map((item) => ({
-        ...item,
-        percentage: item.percentage || 0.0,
-      }));
+        const formattedResult = result.map((item) => ({
+          ...item,
+          percentage: item.percentage || 0.0,
+        }));
 
-      formattedResult.sort((a, b) => b.percentage - a.percentage);
+        formattedResult.sort((a, b) => b.percentage - a.percentage);
 
-      return formattedResult;
+        return formattedResult;
+      }
+
+      if (type && type === "Follow Up") {
+        const [followupResult] = await pool.query(
+          followupQuery,
+          followupParams
+        );
+
+        const formattedResult = followupResult.map((item) => ({
+          ...item,
+          percentage: item.percentage || 0.0,
+        }));
+
+        formattedResult.sort((a, b) => b.percentage - a.percentage);
+        return formattedResult;
+      }
+
+      if (type && type === "Customer Join") {
+        const [result] = await pool.query(joiningQuery, joiningParams);
+        return result;
+      }
     } catch (error) {
       throw new Error(error.message);
     }
