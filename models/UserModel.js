@@ -218,57 +218,7 @@ const UserModel = {
 
   getAllDownlines: async (user_id) => {
     try {
-      const getQuery = `WITH RECURSIVE numbers AS(
-                            SELECT 0 AS n
-                            UNION ALL
-                          SELECT n + 1 FROM numbers WHERE n + 1 < 100
-                        ),
-                        downline AS(
-                            SELECT
-                                u.user_id AS root_id,
-                                u.user_id AS descendant_id,
-                                u.user_name AS descendant_name,
-                                CAST(u.user_id AS CHAR(10000)) AS path
-                            FROM
-                                users AS u
-                            WHERE u.user_id = ?
-                            UNION ALL
-                          SELECT
-                                d.root_id,
-                                JSON_UNQUOTE(
-                                    JSON_EXTRACT(
-                                        parent.child_users,
-                                        CONCAT('$[', n.n, '].user_id')
-                                    )
-                                ) AS descendant_id,
-                                JSON_UNQUOTE(
-                                    JSON_EXTRACT(
-                                        parent.child_users,
-                                        CONCAT('$[', n.n, '].user_name')
-                                    )
-                                ) AS descendant_name,
-                                CONCAT(
-                                    d.path,
-                                    ',',
-                                    JSON_UNQUOTE(
-                                        JSON_EXTRACT(
-                                            parent.child_users,
-                                            CONCAT('$[', n.n, '].user_id')
-                                        )
-                                    )
-                                ) AS path
-                            FROM downline AS d
-                        JOIN users AS parent ON
-                            parent.user_id = d.descendant_id
-                        JOIN numbers AS n ON
-                            n.n < JSON_LENGTH(parent.child_users)
-                        WHERE
-                            JSON_UNQUOTE(JSON_EXTRACT(parent.child_users, CONCAT('$[', n.n, '].user_id'))) IS NOT NULL AND FIND_IN_SET(
-                                JSON_UNQUOTE(
-                                    JSON_EXTRACT(
-                                        parent.child_users,
-                                        CONCAT('$[', n.n, '].user_id'))), d.path) = 0)
-                        SELECT DISTINCT descendant_id AS user_id, descendant_name FROM downline;`;
+      const getQuery = `CALL get_downline(?)`;
 
       const [result] = await pool.query(getQuery, user_id);
       return result;

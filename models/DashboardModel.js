@@ -472,37 +472,34 @@ const DashboardModel = {
       followupQuery += ` GROUP BY u.user_id, u.user_name ORDER BY percentage DESC`;
       joiningQuery += ` GROUP BY u.user_id, u.user_name ORDER BY customer_count DESC`;
 
-      if (type && type === "Leads") {
-        const [result] = await pool.query(getQuery, queryParams);
-
-        const formattedResult = result.map((item) => ({
-          ...item,
-          percentage: item.percentage || 0.0,
-        }));
-
-        formattedResult.sort((a, b) => b.percentage - a.percentage);
-
-        return formattedResult;
-      }
-
-      if (type && type === "Follow Up") {
-        const [followupResult] = await pool.query(
-          followupQuery,
-          followupParams
-        );
-
-        const formattedResult = followupResult.map((item) => ({
-          ...item,
-          percentage: item.percentage || 0.0,
-        }));
-
-        formattedResult.sort((a, b) => b.percentage - a.percentage);
-        return formattedResult;
-      }
-
-      if (type && type === "Customer Join") {
-        const [result] = await pool.query(joiningQuery, joiningParams);
-        return result;
+      switch (type) {
+        case "Leads": {
+          const [result] = await pool.query(getQuery, queryParams);
+          const formattedResult = result.map((item) => ({
+            ...item,
+            percentage: item.percentage || 0.0,
+          }));
+          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          return formattedResult;
+        }
+        case "Follow Up": {
+          const [followupResult] = await pool.query(
+            followupQuery,
+            followupParams
+          );
+          const formattedResult = followupResult.map((item) => ({
+            ...item,
+            percentage: item.percentage || 0.0,
+          }));
+          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          return formattedResult;
+        }
+        case "Customer Join": {
+          const [result] = await pool.query(joiningQuery, joiningParams);
+          return result;
+        }
+        default:
+          return [];
       }
     } catch (error) {
       throw new Error(error.message);
