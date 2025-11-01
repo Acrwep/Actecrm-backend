@@ -144,6 +144,27 @@ const getBranchWiseScoreBoard = async (request, response) => {
   }
 };
 
+const getBranchWiseLeadCounts = async (request, response) => {
+  const { region_id, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.getBranchWiseLeadCounts(
+      region_id,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScoreBoard,
   getHRDashboard,
@@ -152,4 +173,5 @@ module.exports = {
   getUserWiseScoreBoard,
   getUserWiseLeadCounts,
   getBranchWiseScoreBoard,
+  getBranchWiseLeadCounts,
 };

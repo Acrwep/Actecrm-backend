@@ -205,4 +205,9 @@ router.post(
   verifyToken,
   DashboardController.getBranchWiseScoreBoard
 );
+router.post(
+  "/getBranchWiseLeadCounts",
+  verifyToken,
+  DashboardController.getBranchWiseLeadCounts
+);
 module.exports = router;

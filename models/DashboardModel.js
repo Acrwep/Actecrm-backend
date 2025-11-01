@@ -507,11 +507,11 @@ const DashboardModel = {
 
   getBranchWiseScoreBoard: async (region_id, start_date, end_date, type) => {
     try {
-      let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON c.lead_id = l.id`;
+      let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id`;
 
-      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS collection FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON c.lead_id = l.id`;
+      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id`;
 
-      let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS total_collection FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+      let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS total_collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
 
       const params = {
         sale: [],
@@ -556,9 +556,9 @@ const DashboardModel = {
         params.total.push(region_id);
       }
 
-      saleVolumeQuery += ` GROUP BY B.name ORDER BY sale_volume DESC`;
-      collectionQuery += ` GROUP BY B.name ORDER BY collection DESC`;
-      totalCollectionQuery += ` GROUP BY B.name ORDER BY total_collection DESC`;
+      saleVolumeQuery += ` GROUP BY b.id, b.name ORDER BY sale_volume DESC`;
+      collectionQuery += ` GROUP BY b.id, b.name ORDER BY collection DESC`;
+      totalCollectionQuery += ` GROUP BY b.id, b.name ORDER BY total_collection DESC`;
 
       // Execute queries
       const [saleData] = await pool.query(saleVolumeQuery, params.sale);
@@ -623,6 +623,93 @@ const DashboardModel = {
 
       // Default: full scoreboard
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getBranchWiseLeadCounts: async (region_id, start_date, end_date, type) => {
+    try {
+      const queryParams = [];
+      const followupParams = [];
+      const joiningParams = [];
+
+      let getQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(COUNT(l.id), 0) AS total_leads, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count, ROUND((SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(l.id), 0)) * 100, 2) AS percentage FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id`;
+
+      let followupQuery = `SELECT b.id AS branch_id, b.name AS branch_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id`;
+
+      let joiningQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
+
+      // Filter by date range
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        followupQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        joiningQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        followupParams.push(start_date, end_date);
+        joiningParams.push(start_date, end_date);
+      }
+
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
+      followupQuery += ` LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id WHERE 1 = 1`;
+      joiningQuery += ` WHERE 1 = 1`;
+
+      if (region_id) {
+        const [getRegion] = await pool.query(
+          `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
+          [region_id]
+        );
+        if (
+          getRegion[0].name === "Chennai" ||
+          getRegion[0].name === "Bangalore"
+        ) {
+          getQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+          followupQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+          joiningQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+        } else if (getRegion[0].name === "Hub") {
+          getQuery += ` AND b.region_id = ?`;
+          followupQuery += ` AND b.region_id = ?`;
+          joiningQuery += ` AND b.region_id = ?`;
+        }
+        queryParams.push(region_id);
+        followupParams.push(region_id);
+        joiningParams.push(region_id);
+      }
+
+      // ✅ Order and grouping
+      getQuery += ` GROUP BY B.id, b.name ORDER BY percentage DESC`;
+      followupQuery += ` GROUP BY B.id, b.name ORDER BY percentage DESC`;
+      joiningQuery += ` GROUP BY B.id, b.name ORDER BY customer_count DESC`;
+
+      switch (type) {
+        case "Leads": {
+          const [result] = await pool.query(getQuery, queryParams);
+          const formattedResult = result.map((item) => ({
+            ...item,
+            percentage: item.percentage || 0.0,
+          }));
+          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          return formattedResult;
+        }
+        case "Follow Up": {
+          const [followupResult] = await pool.query(
+            followupQuery,
+            followupParams
+          );
+          const formattedResult = followupResult.map((item) => ({
+            ...item,
+            percentage: item.percentage || 0.0,
+          }));
+          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          return formattedResult;
+        }
+        case "Customer Join": {
+          const [result] = await pool.query(joiningQuery, joiningParams);
+          return result;
+        }
+        default:
+          return [];
+      }
     } catch (error) {
       throw new Error(error.message);
     }
