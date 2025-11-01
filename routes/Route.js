@@ -200,4 +200,9 @@ router.post(
 );
 router.post("/setTarget", verifyToken, UserController.setTarget);
 router.get("/getAllDownlines", verifyToken, UserController.getAllDownlines);
+router.post(
+  "/getBranchWiseScoreBoard",
+  verifyToken,
+  DashboardController.getBranchWiseScoreBoard
+);
 module.exports = router;
