@@ -309,12 +309,12 @@ const getPageColumns = async (request, response) => {
 };
 
 const updateDashboardSettings = async (request, response) => {
-  const { user_id, compound_name, compound_settings, id } = request.body;
+  const { user_id, card_name, card_settings, id } = request.body;
   try {
     const result = await PageAccessModel.updateDashboardSettings(
       user_id,
-      compound_name,
-      compound_settings,
+      card_name,
+      card_settings,
       id
     );
     return response.status(200).send({

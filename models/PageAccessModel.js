@@ -651,32 +651,27 @@ const PageAccessModel = {
     }
   },
 
-  updateDashboardSettings: async (
-    user_id,
-    compound_name,
-    compound_settings,
-    id
-  ) => {
+  updateDashboardSettings: async (user_id, card_name, card_settings, id) => {
     try {
       // Checks compound exists for the user_id
       const [isCompoundExists] = await pool.query(
-        `SELECT id FROM dashboard_settings WHERE user_id = ? AND compound_name = ? AND is_active = 1`,
-        [user_id, compound_name]
+        `SELECT id FROM dashboard_settings WHERE user_id = ? AND card_name = ? AND is_active = 1`,
+        [user_id, card_name]
       );
 
       let affectedRows = 0;
       if (isCompoundExists.length > 0) {
         // Update compound if already exists
         const [updateCompound] = await pool.query(
-          `UPDATE dashboard_settings SET compound_name = ?, compound_settings = ? WHERE id = ?`,
-          [compound_name, JSON.stringify(compound_settings), id]
+          `UPDATE dashboard_settings SET card_name = ?, card_settings = ? WHERE id = ?`,
+          [card_name, JSON.stringify(card_settings), id]
         );
         affectedRows += updateCompound.affectedRows;
       } else {
         // Insert compound if already not exists
         const [insertCompound] = await pool.query(
-          `INSERT INTO dashboard_settings(user_id, compound_name, compound_settings) VALUES(?, ?, ?)`,
-          [user_id, compound_name, JSON.stringify(compound_settings)]
+          `INSERT INTO dashboard_settings(user_id, card_name, card_settings) VALUES(?, ?, ?)`,
+          [user_id, card_name, JSON.stringify(card_settings)]
         );
         affectedRows += insertCompound.affectedRows;
       }
@@ -690,14 +685,14 @@ const PageAccessModel = {
   getDashboardCompounds: async (user_id) => {
     try {
       const [getCompounds] = await pool.query(
-        `SELECT id, user_id, compound_name, compound_settings FROM dashboard_settings WHERE user_id = ? AND is_active = 1`,
+        `SELECT id, user_id, card_name, card_settings FROM dashboard_settings WHERE user_id = ? AND is_active = 1`,
         [user_id]
       );
 
       const formattedResult = getCompounds.map((item) => {
         return {
           ...item,
-          compound_settings: JSON.parse(item.compound_settings),
+          card_settings: JSON.parse(item.card_settings),
         };
       });
 
