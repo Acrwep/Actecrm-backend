@@ -210,4 +210,14 @@ router.post(
   verifyToken,
   DashboardController.getBranchWiseLeadCounts
 );
+router.post(
+  "/updateDashboardSettings",
+  verifyToken,
+  PageAccessController.updateDashboardSettings
+);
+router.get(
+  "/getDashboardCompounds",
+  verifyToken,
+  PageAccessController.getDashboardCompounds
+);
 module.exports = router;

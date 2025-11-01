@@ -308,6 +308,43 @@ const getPageColumns = async (request, response) => {
   }
 };
 
+const updateDashboardSettings = async (request, response) => {
+  const { user_id, compound_name, compound_settings, id } = request.body;
+  try {
+    const result = await PageAccessModel.updateDashboardSettings(
+      user_id,
+      compound_name,
+      compound_settings,
+      id
+    );
+    return response.status(200).send({
+      massage: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating Data",
+      details: error.message,
+    });
+  }
+};
+
+const getDashboardCompounds = async (request, response) => {
+  const { user_id } = request.query;
+  try {
+    const result = await PageAccessModel.getDashboardCompounds(user_id);
+    return response.status(200).send({
+      massage: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching Data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPermissions,
   getRoles,
@@ -327,4 +364,6 @@ module.exports = {
   getUsersDownline,
   updatePageColumns,
   getPageColumns,
+  updateDashboardSettings,
+  getDashboardCompounds,
 };
