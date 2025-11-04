@@ -122,6 +122,15 @@ const PaymentModel = {
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
 
+      console.log("Server", is_server_required);
+
+      if (is_server_required === true) {
+        const [insertServer] = await pool.query(
+          `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
+          [insertCustomer.insertId, "Requested", created_date]
+        );
+      }
+
       const statuses = [
         ["Customer created", created_date, updated_by],
         ["Down Payment", created_date, updated_by],

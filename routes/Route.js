@@ -11,6 +11,7 @@ const CustomerController = require("../controller/CustomerController");
 const PageAccessController = require("../controller/PageAccessController");
 const DashboardController = require("../controller/DashboardController");
 const BulkSearchController = require("../controller/BulkSearchController");
+const ServerController = require("../controller/ServerController");
 
 router.post("/login", LoginController.login);
 
@@ -219,5 +220,10 @@ router.get(
   "/getDashboardCompounds",
   verifyToken,
   PageAccessController.getDashboardCompounds
+);
+router.post(
+  "/getServerRequest",
+  verifyToken,
+  ServerController.getServerRequest
 );
 module.exports = router;
