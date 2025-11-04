@@ -29,6 +29,7 @@ const CustomerModel = {
     is_customer_updated
   ) => {
     try {
+      let affectedRows = 0;
       const [isCusExists] = await pool.query(
         `SELECT id FROM customers WHERE id = ?`,
         [id]
@@ -95,7 +96,22 @@ const CustomerModel = {
       queryParams.push(id);
 
       const [result] = await pool.query(updateQuery, queryParams);
-      return result.affectedRows;
+      affectedRows += result.affectedRows;
+
+      if (is_server_required === true) {
+        const [isServerExists] = await pool.query(
+          `SELECT id FROM server_master WHERE customer_id = ?`,
+          [id]
+        );
+        if (isServerExists.length <= 0) {
+          const [insertServer] = await pool.query(
+            `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
+            [id, "Requested", created_date]
+          );
+          affectedRows += insertServer.affectedRows;
+        }
+      }
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
