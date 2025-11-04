@@ -677,9 +677,9 @@ const DashboardModel = {
       }
 
       // ✅ Order and grouping
-      getQuery += ` GROUP BY B.id, b.name ORDER BY percentage DESC`;
-      followupQuery += ` GROUP BY B.id, b.name ORDER BY percentage DESC`;
-      joiningQuery += ` GROUP BY B.id, b.name ORDER BY customer_count DESC`;
+      getQuery += ` GROUP BY b.id, b.name ORDER BY percentage DESC`;
+      followupQuery += ` GROUP BY b.id, b.name ORDER BY percentage DESC`;
+      joiningQuery += ` GROUP BY b.id, b.name ORDER BY customer_count DESC`;
 
       switch (type) {
         case "Leads": {
