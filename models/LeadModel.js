@@ -918,6 +918,55 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  websiteLead: async (name, phone, email, course, branch_id, comments) => {
+    try {
+      const insertQuery = `INSERT INTO website_leads(
+                              name,
+                              phone,
+                              email,
+                              course,
+                              region_id,
+                              branch_id,
+                              comments
+                          )
+                          VALUES(?, ?, ?, ?, ?, ?, ?)`;
+
+      const [getRegion] = await pool.query(
+        `SELECT id, name FROM branches WHERE id = ? AND is_active = 1`,
+        [branch_id]
+      );
+
+      const region_id = getRegion.length > 0 ? getRegion[0].id : 0;
+
+      const values = [
+        name,
+        phone,
+        email,
+        course,
+        region_id,
+        branch_id,
+        comments,
+      ];
+
+      const [result] = await pool.query(insertQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getAllBranches: async () => {
+    try {
+      const getQuery = `SELECT id, name, region_id FROM branches WHERE name <> 'Online'
+                        UNION
+                        SELECT b.id, b.name, b.region_id FROM branches AS b INNER JOIN region AS r ON b.region_id = r.id WHERE r.name = 'Hub' ORDER BY region_id, name ASC;`;
+      const [result] = await pool.query(getQuery);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;

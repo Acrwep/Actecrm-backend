@@ -450,6 +450,44 @@ const getFollowupCountByUser = async (request, response) => {
   }
 };
 
+const websiteLead = async (request, response) => {
+  const { name, phone, email, course, branch_id, comments } = request.body;
+  try {
+    const result = await LeadModel.websiteLead(
+      name,
+      phone,
+      email,
+      course,
+      branch_id,
+      comments
+    );
+    return response.status(201).send({
+      message: "Lead added successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while adding lead",
+      details: error.message,
+    });
+  }
+};
+
+const getAllBranches = async (request, response) => {
+  try {
+    const result = await LeadModel.getAllBranches();
+    return response.status(200).send({
+      message: "Branches fetched successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching branches",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -470,4 +508,6 @@ module.exports = {
   checkEmailMblExists,
   getLeadCountByUser,
   getFollowupCountByUser,
+  websiteLead,
+  getAllBranches,
 };

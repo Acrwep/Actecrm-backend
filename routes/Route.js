@@ -52,6 +52,8 @@ router.put("/updateLead", verifyToken, LeadController.updateLead);
 router.post("/getLeadCount", verifyToken, LeadController.getLeadCount);
 router.get("/getRegion", LeadController.getRegion);
 router.get("/getLeadAction", LeadController.getLeadAction);
+router.post("/websiteLead", LeadController.websiteLead);
+router.get("/getAllBranches", LeadController.getAllBranches);
 // Lead end
 
 // Payment start
