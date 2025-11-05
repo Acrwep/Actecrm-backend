@@ -98,7 +98,7 @@ const CustomerModel = {
       const [result] = await pool.query(updateQuery, queryParams);
       affectedRows += result.affectedRows;
 
-      if (is_server_required === true) {
+      if (is_server_required === true || is_server_required === 1) {
         const [isServerExists] = await pool.query(
           `SELECT id FROM server_master WHERE customer_id = ?`,
           [id]
@@ -106,7 +106,7 @@ const CustomerModel = {
         if (isServerExists.length <= 0) {
           const [insertServer] = await pool.query(
             `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
-            [id, "Requested", created_date]
+            [id, "Requested", CURRENT_TIMESTAMP]
           );
           affectedRows += insertServer.affectedRows;
         }
