@@ -478,7 +478,7 @@ const DashboardModel = {
             ...item,
             percentage: item.percentage || 0.0,
           }));
-          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          formattedResult.sort((a, b) => b.total_leads - a.total_leads);
           return formattedResult;
         }
         case "Follow Up": {
@@ -490,7 +490,9 @@ const DashboardModel = {
             ...item,
             percentage: item.percentage || 0.0,
           }));
-          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          formattedResult.sort(
+            (a, b) => b.followup_unhandled - a.followup_unhandled
+          );
           return formattedResult;
         }
         case "Customer Join": {
@@ -688,7 +690,7 @@ const DashboardModel = {
             ...item,
             percentage: item.percentage || 0.0,
           }));
-          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          formattedResult.sort((a, b) => b.total_leads - a.total_leads);
           return formattedResult;
         }
         case "Follow Up": {
@@ -700,7 +702,9 @@ const DashboardModel = {
             ...item,
             percentage: item.percentage || 0.0,
           }));
-          formattedResult.sort((a, b) => b.percentage - a.percentage);
+          formattedResult.sort(
+            (a, b) => b.followup_unhandled - a.followup_unhandled
+          );
           return formattedResult;
         }
         case "Customer Join": {
