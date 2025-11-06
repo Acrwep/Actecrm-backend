@@ -90,6 +90,19 @@ const ServerModel = {
       throw new Error(error.message);
     }
   },
+
+  updateServerStatus: async (server_id, status) => {
+    try {
+      const updateQuery = `UPDATE server_master SET status = ? WHERE id = ?`;
+      const values = [server_id, status];
+
+      const [result] = await pool.query(updateQuery, values);
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ServerModel;

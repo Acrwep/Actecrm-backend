@@ -228,4 +228,9 @@ router.post(
   verifyToken,
   ServerController.getServerRequest
 );
+router.put(
+  "/updateServerStatus",
+  verifyToken,
+  ServerController.updateServerStatus
+);
 module.exports = router;

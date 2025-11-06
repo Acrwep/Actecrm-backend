@@ -37,6 +37,23 @@ const getServerRequest = async (request, response) => {
   }
 };
 
+const updateServerStatus = async (request, response) => {
+  const { server_id, status } = request.body;
+  try {
+    const result = await ServerModel.updateServerStatus(server_id, status);
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getServerRequest,
+  updateServerStatus,
 };

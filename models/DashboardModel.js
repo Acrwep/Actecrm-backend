@@ -5,7 +5,8 @@ const DashboardModel = {
     try {
       let leadQuery = `SELECT COUNT(id) AS total_leads FROM lead_master WHERE 1 = 1`;
       let joinQuery = `SELECT COUNT(c.id) AS join_count FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
-      let followupQuery = `SELECT SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled, SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE c.id IS NULL`;
+      let followupQuery = `SELECT COUNT(lf.id) AS total_followups, SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled, SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled, ROUND(((SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100), 2) AS percentage FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id LEFT JOIN customers AS c ON c.lead_id = l.id AND c.id IS NULL WHERE 1 = 1`;
+
       let saleVolumeQuery = `SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE 1 = 1`;
       let collectionQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.payment_status <> 'Rejected'`;
       let pendingCollectionQuery = `WITH CTE AS (SELECT pm.id FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE 1 = 1`;
@@ -117,13 +118,11 @@ const DashboardModel = {
       return {
         total_leads: getTotalLeads[0].total_leads,
         total_join: getTotalJoins[0].join_count,
+        total_followups: getFollowupCount[0].total_followups || 0,
         follow_up_handled: getFollowupCount[0].follow_up_handled || 0,
         follow_up_unhandled: getFollowupCount[0].follow_up_unhandled || 0,
+        follow_up_percentage: getFollowupCount[0].percentage || 0,
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
-        // collection: parseFloat(getCollection[0].collection).toFixed(2),
-        // pending_collection: parseFloat(
-        //   getPendingCollection[0].pending_collection
-        // ).toFixed(2),
         total_collection: parseFloat(
           getTotalCollection[0].total_collection
         ).toFixed(2),
