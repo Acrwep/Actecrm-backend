@@ -94,18 +94,30 @@ const UserModel = {
 
       const [users] = await pool.query(getQuery, params);
 
+      // Get all users
+      const [getAllUsers] = await pool.query(
+        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`
+      );
+
       const formattedResult = await Promise.all(
         users.map(async (item) => {
           const [getTarget] = await pool.query(
             `SELECT id AS user_target_id, target_month, target_value FROM user_target_master WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
             [item.user_id]
           );
+
+          child_users = JSON.parse(item.child_users);
           return {
             ...item,
             user_target_id: getTarget[0]?.user_target_id || 0,
             target_month: getTarget[0]?.target_month || "",
             target_value: getTarget[0]?.target_value || 0,
-            child_users: JSON.parse(item.child_users),
+            child_users: child_users.map((child) => ({
+              user_id: child.user_id,
+              user_name:
+                getAllUsers.find((r) => r.user_id === child.user_id)
+                  ?.user_name || "",
+            })),
             roles: JSON.parse(item.roles),
           };
         })
