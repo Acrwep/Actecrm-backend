@@ -577,6 +577,11 @@ const PageAccessModel = {
 
       const roleIds = roles.map((role) => role.role_id); // Extract role_id from each role
 
+      // Get all users
+      const [getAllUsers] = await pool.query(
+        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`
+      );
+
       // Create downline_users as an array
       const downline_users = [
         {
@@ -585,7 +590,9 @@ const PageAccessModel = {
         },
         ...childUsers.map((child) => ({
           user_id: child.user_id,
-          user_name: child.user_name,
+          user_name:
+            getAllUsers.find((r) => r.user_id === child.user_id)?.user_name ||
+            "",
         })),
       ];
 
