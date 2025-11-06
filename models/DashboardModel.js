@@ -292,10 +292,10 @@ const DashboardModel = {
         params.total.push(start_date, end_date);
       }
 
-      saleVolumeQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
+      saleVolumeQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE u.roles LIKE '%Sale%'`;
       collectionQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
-      totalCollectionQuery += ` WHERE 1 = 1`;
+      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE u.roles LIKE '%Sale%'`;
+      totalCollectionQuery += ` WHERE u.roles LIKE '%Sale%'`;
 
       // Filter by user(s)
       if (user_ids) {
@@ -442,9 +442,9 @@ const DashboardModel = {
         joiningParams.push(start_date, end_date);
       }
 
-      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
-      followupQuery += ` WHERE c.id IS NULL`;
-      joiningQuery += ` WHERE 1 = 1`;
+      getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE u.roles LIKE '%Sale%'`;
+      followupQuery += ` WHERE c.id IS NULL AND u.roles LIKE '%Sale%'`;
+      joiningQuery += ` WHERE u.roles LIKE '%Sale%'`;
 
       // Filter by user(s)
       if (user_ids) {
