@@ -620,7 +620,8 @@ const CustomerModel = {
                             cer.course_duration AS cer_course_duration,
                             cer.course_completion_month AS cer_course_completion_month,
                             cer.certificate_number,
-                            cer.location AS cer_location
+                            cer.location AS cer_location,
+                            pm.total_amount AS total_course_amount
                         FROM
                             customers AS c
                         LEFT JOIN technologies AS t ON
@@ -635,6 +636,8 @@ const CustomerModel = {
                             bs.id = c.batch_timing_id
                         LEFT JOIN lead_master AS l ON
                         	l.id = c.lead_id
+                        LEFT JOIN payment_master AS pm ON
+                          pm.lead_id = l.id
                         LEFT JOIN technologies AS tg ON
                         	l.primary_course_id = tg.id
                         LEFT JOIN users AS u ON
