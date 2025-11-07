@@ -79,8 +79,25 @@ const serverVerify = async (request, response) => {
   }
 };
 
+const serverApprove = async (request, response) => {
+  const { server_id } = request.body;
+  try {
+    const result = await ServerModel.serverApprove(server_id);
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getServerRequest,
   updateServerStatus,
   serverVerify,
+  serverApprove,
 };

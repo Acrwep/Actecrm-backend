@@ -20,7 +20,7 @@ const ServerModel = {
 
       let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
-      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END) AS requested, SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END) AS awaiting_approval, SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END) AS issued, SUM(CASE WHEN s.status = 'Rejected' THEN 1 ELSE 0 END) AS rejected, SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END) AS expired, SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END) AS hold FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
+      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END) AS requested, SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END) AS awaiting_approval, SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END) AS issued, SUM(CASE WHEN s.status = 'Server Rejected' THEN 1 ELSE 0 END) AS server_rejected, SUM(CASE WHEN s.status = 'Approval Rejected' THEN 1 ELSE 0 END) AS approval_rejected, SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END) AS expired, SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END) AS hold FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
@@ -103,8 +103,6 @@ const ServerModel = {
         server_id
       );
 
-      console.log("ccc", isServerExists);
-
       if (isServerExists.length <= 0) {
         throw new Error("Invalid Id");
       }
@@ -152,6 +150,53 @@ const ServerModel = {
         affectedRows += insertResult.affectedRows;
       } else {
         throw new Error("Couldn't verify server");
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  serverApprove: async (server_id) => {
+    try {
+      let affectedRows = 0;
+      const [isServerExists] = await pool.query(
+        `SELECT id FROM server_master WHERE id = ?`,
+        [server_id]
+      );
+
+      if (isServerExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+
+      const [getDuration] = await pool.query(
+        `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Pending' ORDER BY id DESC LIMIT 1`,
+        [server_id]
+      );
+
+      if (getDuration.length <= 0) throw new Error("Invalid data");
+
+      const [getDate] = await pool.query(
+        `SELECT CONCAT(CURRENT_DATE(), ' 00:00:00') AS start_date, DATE_SUB(CONCAT(DATE_ADD(CURDATE(), INTERVAL ${getDuration[0].duration} DAY), ' 00:00:00'), INTERVAL 1 SECOND) AS end_date`
+      );
+
+      const [result] = await pool.query(
+        `UPDATE server_trans SET start_date = ?, end_date = ?, status = 'Active' WHERE id = ?`,
+        [getDate[0].start_date, getDate[0].end_date, getDuration[0].id]
+      );
+
+      affectedRows += result.affectedRows;
+
+      if (affectedRows > 0) {
+        const [updateMaster] = await pool.query(
+          `UPDATE server_master SET status = 'Issued' WHERE id = ?`,
+          [server_id]
+        );
+
+        affectedRows += updateMaster.affectedRows;
+      } else {
+        throw new Error("Couldn't approve server");
       }
 
       return affectedRows;
