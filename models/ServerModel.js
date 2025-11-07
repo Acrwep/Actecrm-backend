@@ -16,7 +16,7 @@ const ServerModel = {
       const queryParams = [];
       const paginationParams = [];
       const statusParams = [];
-      let getQuery = `SELECT s.id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, s.activated_date, s.duration, s.server_deactivated, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
+      let getQuery = `SELECT s.id, s.customer_id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, s.activated_date AS start_date, s.duration, s.server_deactivated AS end_date, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by, s.status FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
       let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
