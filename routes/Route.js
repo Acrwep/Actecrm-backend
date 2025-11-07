@@ -233,4 +233,5 @@ router.put(
   verifyToken,
   ServerController.updateServerStatus
 );
+router.put("/serverVerify", verifyToken, ServerController.serverVerify);
 module.exports = router;

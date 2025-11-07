@@ -53,7 +53,28 @@ const updateServerStatus = async (request, response) => {
   }
 };
 
+const serverVerify = async (request, response) => {
+  const { server_id, server_cost, duration } = request.body;
+  try {
+    const result = await ServerModel.serverVerify(
+      server_id,
+      server_cost,
+      duration
+    );
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getServerRequest,
   updateServerStatus,
+  serverVerify,
 };

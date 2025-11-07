@@ -16,7 +16,7 @@ const ServerModel = {
       const queryParams = [];
       const paginationParams = [];
       const statusParams = [];
-      let getQuery = `SELECT s.id, s.customer_id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, s.activated_date AS start_date, s.duration, s.server_deactivated AS end_date, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by, s.status FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
+      let getQuery = `SELECT s.id, s.customer_id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, server_info.duration, server_info.start_date, server_info.end_date, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by, s.status, server_info.server_trans_id, server_info.status AS server_status FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN (SELECT s.id, st.id AS server_trans_id, st.duration, st.start_date, st.end_date, st.status FROM server_master AS s INNER JOIN server_trans AS st ON s.id = st.server_id ORDER BY st.id DESC LIMIT 1) AS server_info ON server_info.id = s.id WHERE 1 = 1`;
 
       let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
@@ -99,6 +99,32 @@ const ServerModel = {
       const [result] = await pool.query(updateQuery, values);
 
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  serverVerify: async (server_id, server_cost, duration) => {
+    try {
+      let affectedRows = 0;
+      const updateQuery = `UPDATE server_master SET server_cost = ?, status = 'Awaiting Verify' WHERE id = ?`;
+      const values = [server_cost, server_id];
+
+      const [result] = await pool.query(updateQuery, values);
+
+      affectedRows += result.affectedRows;
+
+      if (affectedRows > 0) {
+        const insertQuery = `INSERT INTO server_trans(server_id, duration, status) VALUES (?, ?, ?)`;
+        const queryParams = [server_id, duration, "Pending"];
+
+        const [insertResult] = await pool.query(insertQuery, queryParams);
+        affectedRows += insertResult.affectedRows;
+      } else {
+        throw new Error("Couldn't verify server");
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
