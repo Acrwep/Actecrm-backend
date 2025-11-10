@@ -34,32 +34,36 @@ const ServerModel = {
       if (name) {
         getQuery += ` AND c.name LIKE '%${name}%'`;
         paginationQuery += ` AND c.name LIKE '%${name}%'`;
-        // statusQuery += ` AND c.name LIKE '%${name}%'`;
       }
 
       if (mobile) {
         getQuery += ` AND c.phone LIKE '%${mobile}%'`;
         paginationQuery += ` AND c.phone LIKE '%${mobile}%'`;
-        // statusQuery += ` AND c.phone LIKE '%${mobile}%'`;
       }
 
       if (email) {
         getQuery += ` AND c.email LIKE '%${email}%'`;
         paginationQuery += ` AND c.email LIKE '%${email}%'`;
-        // statusQuery += ` AND c.email LIKE '%${email}%'`;
       }
 
       if (server) {
         getQuery += ` AND t.name LIKE '%${server}%'`;
         paginationQuery += ` AND t.name LIKE '%${server}%'`;
-        // statusQuery += ` AND t.name LIKE '%${server}%'`;
       }
 
-      if (status) {
-        getQuery += ` AND s.status = ?`;
-        paginationQuery += ` AND s.status = ?`;
-        queryParams.push(status);
-        paginationParams.push(status);
+      if (status && status.length > 0) {
+        if (Array.isArray(status)) {
+          const placeholders = status.map(() => "?").join(", ");
+          getQuery += ` AND s.status IN (${placeholders})`;
+          paginationQuery += ` AND s.status IN (${placeholders})`;
+          queryParams.push(...status);
+          paginationParams.push(...status);
+        } else {
+          getQuery += ` AND s.status = ?`;
+          paginationQuery += ` AND s.status = ?`;
+          queryParams.push(status);
+          paginationParams.push(status);
+        }
       }
 
       const [pageResult] = await pool.query(paginationQuery, paginationParams);
