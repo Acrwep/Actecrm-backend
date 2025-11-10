@@ -16,7 +16,7 @@ const ServerModel = {
       const queryParams = [];
       const paginationParams = [];
       const statusParams = [];
-      let getQuery = `SELECT s.id, s.customer_id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, server_info.duration, server_info.start_date, server_info.end_date, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by, s.status, server_info.server_trans_id, server_info.status AS server_status, s.verify_comments, s.approval_comments FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN (SELECT s.id, st.id AS server_trans_id, st.duration, st.start_date, st.end_date, st.status FROM server_master AS s INNER JOIN server_trans AS st ON s.id = st.server_id ORDER BY st.id DESC LIMIT 1) AS server_info ON server_info.id = s.id WHERE 1 = 1`;
+      let getQuery = `SELECT s.id, s.customer_id, c.name, c.phonecode, c.phone, c.email, t.name AS server_name, s.vendor_id, s.server_cost, server_info.duration, server_info.start_date, server_info.end_date, s.created_date, l.assigned_to AS created_by_id, u.user_name AS created_by, s.status, server_info.server_trans_id, server_info.status AS server_status FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN (SELECT s.id, st.id AS server_trans_id, st.duration, st.start_date, st.end_date, st.status FROM server_master AS s INNER JOIN server_trans AS st ON s.id = st.server_id ORDER BY st.id DESC LIMIT 1) AS server_info ON server_info.id = s.id WHERE 1 = 1`;
 
       let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
@@ -79,29 +79,87 @@ const ServerModel = {
 
       const [result] = await pool.query(getQuery, queryParams);
 
-      const [statusResult] = await pool.query(statusQuery, statusParams);
-      return {
-        data: result,
-        statusCount: statusResult,
-        pagination: {
-          total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
-        },
-      };
+      // Optimize history query - only fetch relevant records
+      if (result.length > 0) {
+        const serverIds = result.map((item) => item.id);
+
+        const [getHistory] = await pool.query(
+          `
+        SELECT 
+          srh.id, srh.server_id, srh.status, srh.comments, 
+          srh.rejected_by AS rejected_by_id, u.user_name AS rejected_by, 
+          srh.rejected_date 
+        FROM server_rejected_history AS srh 
+        INNER JOIN users AS u ON srh.rejected_by = u.user_id 
+        WHERE srh.server_id IN (?)
+      `,
+          [serverIds]
+        );
+
+        // Create lookup map for better performance
+        const historyMap = getHistory.reduce((map, historyItem) => {
+          if (!map[historyItem.server_id]) {
+            map[historyItem.server_id] = [];
+          }
+          map[historyItem.server_id].push(historyItem);
+          return map;
+        }, {});
+
+        // Format result with history
+        const formattedResult = result.map((item) => {
+          const serverHistories = historyMap[item.id] || [];
+
+          const approvalRejected = serverHistories
+            .filter((r) => r.status === "Approval Rejected")
+            .sort((a, b) => b.id - a.id);
+
+          const serverRejected = serverHistories
+            .filter((r) => r.status === "Server Rejected")
+            .sort((a, b) => b.id - a.id);
+
+          return {
+            ...item,
+            server_rejected_history: serverRejected,
+            approval_rejected_history: approvalRejected,
+          };
+        });
+
+        // Execute status count query
+        const [statusResult] = await pool.query(statusQuery, statusParams);
+
+        return {
+          data: formattedResult,
+          statusCount: statusResult[0],
+          pagination: {
+            total: parseInt(total),
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: Math.ceil(total / limitNumber),
+          },
+        };
+      } else {
+        // No results case
+        const [statusResult] = await pool.query(statusQuery, statusParams);
+
+        return {
+          data: [],
+          statusCount: statusResult[0],
+          pagination: {
+            total: 0,
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: 0,
+          },
+        };
+      }
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  updateServerStatus: async (
-    server_id,
-    status,
-    verify_comments,
-    approval_comments
-  ) => {
+  updateServerStatus: async (server_id, status, comments, rejected_by) => {
     try {
+      let affectedRows = 0;
       const [isServerExists] = await pool.query(
         `SELECT id FROM server_master WHERE id = ?`,
         server_id
@@ -111,26 +169,22 @@ const ServerModel = {
         throw new Error("Invalid Id");
       }
 
-      const queryParams = [];
-      let updateQuery = `UPDATE server_master SET status = ?`;
-      queryParams.push(status);
+      const updateQuery = `UPDATE server_master SET status = ? WHERE id = ?`;
 
-      if (status === "Server Rejected") {
-        updateQuery += `, verify_comments = ?`;
-        queryParams.push(verify_comments);
+      const [result] = await pool.query(updateQuery, [status, server_id]);
+
+      affectedRows += result.affectedRows;
+
+      if (status === "Server Rejected" || status === "Approval Rejected") {
+        const [history] = await pool.query(
+          `INSERT INTO server_rejected_history(server_id, status, comments, rejected_by, rejected_date) VALUES (?, ?, ?, ?, CURRENT_DATE)`,
+          [server_id, status, comments, rejected_by]
+        );
+
+        affectedRows += history.affectedRows;
       }
 
-      if (status === "Approval Rejected") {
-        updateQuery += `, approval_comments = ?`;
-        queryParams.push(approval_comments);
-      }
-
-      updateQuery += ` WHERE id = ?`;
-      queryParams.push(server_id);
-
-      const [result] = await pool.query(updateQuery, queryParams);
-
-      return result.affectedRows;
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

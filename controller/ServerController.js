@@ -38,14 +38,13 @@ const getServerRequest = async (request, response) => {
 };
 
 const updateServerStatus = async (request, response) => {
-  const { server_id, status, verify_comments, approval_comments } =
-    request.body;
+  const { server_id, status, comments, rejected_by } = request.body;
   try {
     const result = await ServerModel.updateServerStatus(
       server_id,
       status,
-      verify_comments,
-      approval_comments
+      comments,
+      rejected_by
     );
     return response.status(200).send({
       message: "Data updated successfully",
