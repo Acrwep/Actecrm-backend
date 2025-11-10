@@ -235,4 +235,10 @@ router.put(
 );
 router.put("/serverVerify", verifyToken, ServerController.serverVerify);
 router.put("/serverApprove", verifyToken, ServerController.serverApprove);
+router.post(
+  "/insertServerTrack",
+  verifyToken,
+  ServerController.insertServerTrack
+);
+router.get("/getServerHistory", verifyToken, ServerController.getServerHistory);
 module.exports = router;

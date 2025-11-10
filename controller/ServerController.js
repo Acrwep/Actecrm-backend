@@ -95,9 +95,49 @@ const serverApprove = async (request, response) => {
   }
 };
 
+const insertServerTrack = async (request, response) => {
+  const { server_id, status, status_date, updated_by, details } = request.body;
+  try {
+    const result = await ServerModel.insertServerTrack(
+      server_id,
+      status,
+      status_date,
+      updated_by,
+      details
+    );
+    return response.status(201).send({
+      message: "Inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting",
+      details: error.message,
+    });
+  }
+};
+
+const getServerHistory = async (request, response) => {
+  const { server_id } = request.query;
+  try {
+    const result = await ServerModel.getServerHistory(server_id);
+    return response.status(200).send({
+      message: "Server history fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching server history",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getServerRequest,
   updateServerStatus,
   serverVerify,
   serverApprove,
+  insertServerTrack,
+  getServerHistory,
 };

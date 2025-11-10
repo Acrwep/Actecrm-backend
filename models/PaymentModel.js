@@ -127,6 +127,11 @@ const PaymentModel = {
           `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
           [insertCustomer.insertId, "Requested", created_date]
         );
+
+        const [serverTrack] = await pool.query(
+          `INSERT INTO server_track(server_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+          [insertServer.insertId, "Requested", created_date, updated_by]
+        );
       }
 
       const statuses = [

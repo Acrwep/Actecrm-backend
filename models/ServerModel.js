@@ -208,6 +208,72 @@ const ServerModel = {
       throw new Error(error.message);
     }
   },
+
+  insertServerTrack: async (
+    server_id,
+    status,
+    status_date,
+    updated_by,
+    details
+  ) => {
+    try {
+      const insertQuery = `INSERT INTO server_track(
+                              server_id,
+                              status,
+                              status_date,
+                              details,
+                              updated_by
+                          )
+                          VALUES(?, ?, ?, ?, ?)`;
+      const values = [
+        server_id,
+        status,
+        status_date,
+        JSON.stringify(details),
+        updated_by,
+      ];
+      const [res] = await pool.query(insertQuery, values);
+      return res.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getServerHistory: async (server_id) => {
+    try {
+      const sql = `SELECT
+                      st.id,
+                      st.server_id,
+                      c.name AS customer_name,
+                      st.status,
+                      st.status_date,
+                      st.details,
+                      st.updated_by AS updated_by_id,
+                      u.user_name AS updated_by
+                  FROM
+                      server_track AS st
+                  INNER JOIN server_master AS s ON
+                    s.id = st.server_id
+                  INNER JOIN customers AS c ON
+                    c.id = s.customer_id
+                  INNER JOIN users AS u ON
+                    st.updated_by = u.user_id
+                  WHERE
+                      st.server_id = ?
+                  ORDER BY st.id ASC`;
+      const [result] = await pool.query(sql, [server_id]);
+
+      const formattedResult = result.map((item) => {
+        return {
+          ...item,
+          details: JSON.parse(item.details),
+        };
+      });
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ServerModel;
