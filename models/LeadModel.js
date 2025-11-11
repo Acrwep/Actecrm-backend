@@ -100,15 +100,32 @@ const LeadModel = {
     batch_track_id,
     comments,
     created_date,
-    region_id
+    region_id,
+    is_manager
   ) => {
     try {
-      const [isLeadExists] = await pool.query(
-        `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
-        [phone, email]
-      );
-      if (isLeadExists.length > 0)
-        throw new Error("The phone or email is already exists");
+      console.log("is_manager", is_manager);
+
+      if (is_manager === true) {
+        const [isLeadExists] = await pool.query(
+          `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
+          [phone, primary_course_id, email, primary_course_id]
+        );
+        if (isLeadExists.length > 0)
+          throw new Error(
+            "The customer has already been registered with this email and mobile number."
+          );
+      } else {
+        const [isLeadExists] = await pool.query(
+          `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
+          [phone, email]
+        );
+        if (isLeadExists.length > 0)
+          throw new Error("The phone or email is already exists");
+      }
+
+      throw new Error("Success Error");
+
       let affectedRows = 0;
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
