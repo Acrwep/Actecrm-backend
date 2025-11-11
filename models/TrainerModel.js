@@ -392,9 +392,35 @@ const TrainerModel = {
         onBoardingParams.push(created_by);
       }
 
+      // Modified approach with single query
+      if (ongoing === "Ongoing") {
+        getQuery += `
+                    AND t.id IN (
+                      SELECT tm.trainer_id 
+                      FROM trainer_mapping AS tm 
+                      INNER JOIN customers AS c ON tm.customer_id = c.id 
+                      WHERE c.class_percentage > 0 
+                        AND c.class_percentage < 100 
+                        AND tm.is_rejected = 0 
+                      GROUP BY tm.trainer_id
+                    )
+                  `;
+        countQuery += `
+                    AND t.id IN (
+                      SELECT tm.trainer_id 
+                      FROM trainer_mapping AS tm 
+                      INNER JOIN customers AS c ON tm.customer_id = c.id 
+                      WHERE c.class_percentage > 0 
+                        AND c.class_percentage < 100 
+                        AND tm.is_rejected = 0 
+                      GROUP BY tm.trainer_id
+                    )
+                  `;
+      }
+
       // Get total count before applying pagination and ongoing filter
       const [countResult] = await pool.query(countQuery, countQueryParams);
-      const totalBeforeFilter = countResult[0]?.total || 0;
+      const total = countResult[0]?.total || 0;
 
       getQuery += ` ORDER BY t.id DESC`;
 
@@ -415,23 +441,6 @@ const TrainerModel = {
         onBoardingQuery,
         onBoardingParams
       );
-
-      const [getOngoing] = await pool.query(
-        `SELECT tm.trainer_id FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE c.class_percentage > 0 AND c.class_percentage < 100 AND tm.is_rejected = 0 GROUP BY tm.trainer_id`
-      );
-
-      // Calculate total after ongoing filter if applicable
-      let total = totalBeforeFilter;
-
-      // filter from trainers only ongoing trainers
-      if (ongoing === "Ongoing") {
-        const ongoingTrainerIds = getOngoing.map((row) => row.trainer_id);
-        trainers = trainers.filter((item) =>
-          ongoingTrainerIds.includes(item.id)
-        );
-        // Update total count for ongoing trainers only
-        total = ongoingTrainerIds.length;
-      }
 
       const [getSkills] = await pool.query(
         `SELECT id, name FROM skills WHERE is_active = 1`
