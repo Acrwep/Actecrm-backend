@@ -104,8 +104,6 @@ const LeadModel = {
     is_manager
   ) => {
     try {
-      console.log("is_manager", is_manager);
-
       if (is_manager === true) {
         const [isLeadExists] = await pool.query(
           `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
@@ -574,7 +572,6 @@ const LeadModel = {
         },
       };
     } catch (error) {
-      console.error("Error in getLeadFollowUps:", error);
       throw new Error(error.message);
     }
   },
