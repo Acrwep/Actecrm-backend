@@ -122,8 +122,6 @@ const LeadModel = {
           throw new Error("The phone or email is already exists");
       }
 
-      throw new Error("Success Error");
-
       let affectedRows = 0;
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
