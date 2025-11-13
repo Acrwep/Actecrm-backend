@@ -20,14 +20,15 @@ const UserModel = {
       if (isUserIdExists.length > 0) {
         throw new Error("User Id already exists");
       }
+
       const insertQuery = `INSERT INTO users(
-                              user_id,
-                              user_name,
-                              password,
-                              child_users,
-                              roles
-                          )
-                          VALUES(?, ?, ?, ?, ?)`;
+                            user_id,
+                            user_name,
+                            password,
+                            child_users,
+                            roles
+                        )
+                        VALUES(?, ?, ?, ?, ?)`;
       const values = [
         user_id,
         user_name,
@@ -75,7 +76,7 @@ const UserModel = {
             affectedRows += 1;
           }
 
-          // 3. Check if parent-child relationship already exists
+          // Check if parent-child relationship already exists
           const [relationshipExists] = await pool.query(
             `SELECT id FROM users_downline WHERE user_id = ? AND parent_id = ?`,
             [child.user_id, user_id]
@@ -90,9 +91,11 @@ const UserModel = {
             affectedRows += 1;
           }
 
-          // 4. Update paths for this parent-child relationship
-          await updatePathsForParentChild(child.user_id, user_id);
+          // REMOVED: Don't call updatePathsForParentChild here for each child
         }
+
+        // ✅ CALL PATH UPDATE HERE - AFTER ALL CHILDREN ARE PROCESSED
+        await rebuildAllPathsCompletely();
       }
 
       return affectedRows;
@@ -194,6 +197,7 @@ const UserModel = {
       if (isIdExists.length <= 0) {
         throw new Error("Invalid Id");
       }
+
       const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
       const values = [
         user_id,
@@ -204,7 +208,6 @@ const UserModel = {
         id,
       ];
       const [result] = await pool.query(updateQuery, values);
-
       affectedRows += result.affectedRows;
 
       const [isTargetExists] = await pool.query(
@@ -232,11 +235,13 @@ const UserModel = {
           [user_id]
         );
         affectedRows += deleteDownline.affectedRows;
+
         const [deleteDownlinePath] = await pool.query(
           `DELETE FROM user_downline_paths WHERE parent_id = ?`,
           [user_id]
         );
         affectedRows += deleteDownlinePath.affectedRows;
+
         for (const child of users) {
           // Check if child user exists
           const [childExists] = await pool.query(
@@ -253,35 +258,31 @@ const UserModel = {
             affectedRows += 1;
           }
 
-          // 3. Check if parent-child relationship already exists
-          const [relationshipExists] = await pool.query(
-            `SELECT id FROM users_downline WHERE user_id = ? AND parent_id = ?`,
+          // Create parent-child relationship
+          await pool.query(
+            `INSERT INTO users_downline(user_id, parent_id) VALUES(?, ?)`,
             [child.user_id, user_id]
           );
-
-          if (relationshipExists.length === 0) {
-            // Create parent-child relationship
-            await pool.query(
-              `INSERT INTO users_downline(user_id, parent_id) VALUES(?, ?)`,
-              [child.user_id, user_id]
-            );
-            affectedRows += 1;
-          }
-
-          // 4. Update paths for this parent-child relationship
-          await updatePathsForParentChild(child.user_id, user_id);
+          affectedRows += 1;
         }
+
+        // ✅ CALL PATH UPDATE HERE - AFTER ALL CHILDREN ARE INSERTED
+        await rebuildAllPathsCompletely();
       } else if (users.length === 0) {
         const [deleteDownline] = await pool.query(
           `DELETE FROM users_downline WHERE parent_id = ?`,
           [user_id]
         );
         affectedRows += deleteDownline.affectedRows;
+
         const [deleteDownlinePath] = await pool.query(
           `DELETE FROM user_downline_paths WHERE parent_id = ?`,
           [user_id]
         );
         affectedRows += deleteDownlinePath.affectedRows;
+
+        // ✅ CALL PATH UPDATE HERE TOO - WHEN NO CHILDREN
+        await rebuildAllPathsCompletely();
       }
 
       return affectedRows;
@@ -341,53 +342,49 @@ const UserModel = {
   },
 };
 
-const updatePathsForParentChild = async (childUserId, parentId) => {
-  // First, remove any existing paths for this parent-child line to avoid duplicates
-  await pool.query(
-    `DELETE FROM user_downline_paths WHERE user_id = ? AND parent_id = ?`,
-    [childUserId, parentId]
-  );
+const rebuildAllPathsCompletely = async () => {
+  try {
+    // 1. Clear all paths
+    await pool.query("TRUNCATE TABLE user_downline_paths");
 
-  // 1. Insert self-path for child under this parent
-  await pool.query(
-    `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, 0)`,
-    [childUserId, childUserId, parentId]
-  );
+    // 2. Get all root users (users with no parent or parent is themselves)
+    const [rootUsers] = await pool.query(`
+      SELECT DISTINCT user_id 
+      FROM users_downline 
+      WHERE parent_id IS NULL OR parent_id = user_id
+      UNION
+      SELECT u.user_id 
+      FROM users u 
+      WHERE u.user_id NOT IN (SELECT user_id FROM users_downline)
+    `);
 
-  // 2. Insert path: child -> parent (depth 1)
-  await pool.query(
-    `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, 1)`,
-    [childUserId, parentId, parentId]
-  );
+    // 3. For each root user, build complete downline
+    for (const rootUser of rootUsers) {
+      await buildDownlineFromRoot(rootUser.user_id, rootUser.user_id, 0);
+    }
 
-  // 3. Get all existing ancestors of the parent for this specific parent line
-  const [parentAncestors] = await pool.query(
-    `SELECT ancestor_id, depth FROM user_downline_paths WHERE user_id = ? AND parent_id = ? AND ancestor_id != user_id`,
-    [parentId, parentId]
-  );
-
-  // 4. Copy all parent's ancestors to child with increased depth
-  for (const ancestor of parentAncestors) {
-    await pool.query(
-      `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, ?)`,
-      [childUserId, ancestor.ancestor_id, parentId, ancestor.depth + 1]
-    );
+    console.log("All paths rebuilt completely");
+  } catch (error) {
+    console.error("Error rebuilding paths:", error);
+    throw error;
   }
-
-  // 5. Recursively update all descendants of this child for this parent line
-  await updateDescendantsForNewParent(childUserId, parentId);
 };
 
-const updateDescendantsForNewParent = async (userId, newParentId) => {
-  // Get all direct children of this user
-  const [directChildren] = await pool.query(
-    `SELECT user_id FROM users_downline WHERE parent_id = ?`,
-    [userId]
+const buildDownlineFromRoot = async (currentUserId, rootUserId, depth) => {
+  // Insert path for current user under root
+  await pool.query(
+    `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, ?)`,
+    [currentUserId, rootUserId, rootUserId, depth]
   );
 
-  for (const child of directChildren) {
-    // Update paths for this child under the new parent line
-    await updatePathsForParentChild(child.user_id, newParentId);
+  // Get children and recursively build
+  const [children] = await pool.query(
+    `SELECT user_id FROM users_downline WHERE parent_id = ?`,
+    [currentUserId]
+  );
+
+  for (const child of children) {
+    await buildDownlineFromRoot(child.user_id, rootUserId, depth + 1);
   }
 };
 
