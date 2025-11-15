@@ -228,13 +228,13 @@ router.post(
   verifyToken,
   ServerController.getServerRequest
 );
+router.post("/awatingVerify", verifyToken, ServerController.awatingVerify);
 router.put(
   "/updateServerStatus",
   verifyToken,
   ServerController.updateServerStatus
 );
-router.put("/serverVerify", verifyToken, ServerController.serverVerify);
-router.put("/serverApprove", verifyToken, ServerController.serverApprove);
+router.put("/serverIssued", verifyToken, ServerController.serverIssued);
 router.post(
   "/insertServerTrack",
   verifyToken,

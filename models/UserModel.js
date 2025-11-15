@@ -347,44 +347,59 @@ const rebuildAllPathsCompletely = async () => {
     // 1. Clear all paths
     await pool.query("TRUNCATE TABLE user_downline_paths");
 
-    // 2. Get all root users (users with no parent or parent is themselves)
+    // 2. Get all root users (users with no parent)
     const [rootUsers] = await pool.query(`
-      SELECT DISTINCT user_id 
-      FROM users_downline 
-      WHERE parent_id IS NULL OR parent_id = user_id
+      SELECT DISTINCT ud.user_id 
+      FROM users_downline ud 
+      WHERE ud.parent_id IS NULL
       UNION
       SELECT u.user_id 
       FROM users u 
-      WHERE u.user_id NOT IN (SELECT user_id FROM users_downline)
+      WHERE u.user_id NOT IN (SELECT user_id FROM users_downline WHERE parent_id IS NOT NULL)
     `);
 
     // 3. For each root user, build complete downline
     for (const rootUser of rootUsers) {
       await buildDownlineFromRoot(rootUser.user_id, rootUser.user_id, 0);
     }
-
-    console.log("All paths rebuilt completely");
   } catch (error) {
     console.error("Error rebuilding paths:", error);
-    throw error;
   }
 };
 
 const buildDownlineFromRoot = async (currentUserId, rootUserId, depth) => {
-  // Insert path for current user under root
-  await pool.query(
-    `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, ?)`,
-    [currentUserId, rootUserId, rootUserId, depth]
+  // Safety check to prevent infinite recursion
+  if (depth > 20) {
+    console.warn(
+      `Max depth reached for user ${currentUserId} under root ${rootUserId}`
+    );
+    return;
+  }
+
+  // Insert path for current user under root (only if not already inserted)
+  const [existingPath] = await pool.query(
+    `SELECT id FROM user_downline_paths WHERE user_id = ? AND ancestor_id = ? AND depth = ?`,
+    [currentUserId, rootUserId, depth]
   );
 
-  // Get children and recursively build
+  if (existingPath.length === 0) {
+    await pool.query(
+      `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, ?)`,
+      [currentUserId, rootUserId, rootUserId, depth]
+    );
+  }
+
+  // Get direct children and recursively build their paths
   const [children] = await pool.query(
     `SELECT user_id FROM users_downline WHERE parent_id = ?`,
     [currentUserId]
   );
 
   for (const child of children) {
-    await buildDownlineFromRoot(child.user_id, rootUserId, depth + 1);
+    // Prevent infinite recursion by checking if we're creating a cycle
+    if (child.user_id !== rootUserId && child.user_id !== currentUserId) {
+      await buildDownlineFromRoot(child.user_id, rootUserId, depth + 1);
+    }
   }
 };
 

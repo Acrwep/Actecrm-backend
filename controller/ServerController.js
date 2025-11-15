@@ -58,13 +58,16 @@ const updateServerStatus = async (request, response) => {
   }
 };
 
-const serverVerify = async (request, response) => {
-  const { server_id, server_cost, duration } = request.body;
+const awatingVerify = async (request, response) => {
+  const { server_id, vendor_id, duration, server_cost, server_trans_id } =
+    request.body;
   try {
-    const result = await ServerModel.serverVerify(
+    const result = await ServerModel.awatingVerify(
       server_id,
+      vendor_id,
+      duration,
       server_cost,
-      duration
+      server_trans_id
     );
     return response.status(200).send({
       message: "Data updated successfully",
@@ -78,10 +81,10 @@ const serverVerify = async (request, response) => {
   }
 };
 
-const serverApprove = async (request, response) => {
+const serverIssued = async (request, response) => {
   const { server_id } = request.body;
   try {
-    const result = await ServerModel.serverApprove(server_id);
+    const result = await ServerModel.serverIssued(server_id);
     return response.status(200).send({
       message: "Data updated successfully",
       data: result,
@@ -134,9 +137,9 @@ const getServerHistory = async (request, response) => {
 
 module.exports = {
   getServerRequest,
+  awatingVerify,
   updateServerStatus,
-  serverVerify,
-  serverApprove,
+  serverIssued,
   insertServerTrack,
   getServerHistory,
 };

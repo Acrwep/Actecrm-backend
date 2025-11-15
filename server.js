@@ -1,6 +1,7 @@
 const express = require("express");
 const Route = require("./routes/Route");
 const cors = require("cors");
+require("./models/SchedulerModel");
 
 const app = express();
 
