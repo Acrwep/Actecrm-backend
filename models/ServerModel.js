@@ -101,8 +101,7 @@ const ServerModel = {
           srh.rejected_date 
         FROM server_rejected_history AS srh 
         INNER JOIN users AS u ON srh.rejected_by = u.user_id 
-        WHERE srh.server_id IN (?)
-      `,
+        WHERE srh.server_id IN (?)`,
           [serverIds]
         );
 
@@ -119,18 +118,21 @@ const ServerModel = {
         const formattedResult = result.map((item) => {
           const serverHistories = historyMap[item.id] || [];
 
-          const approvalRejected = serverHistories
-            .filter((r) => r.status === "Approval Rejected")
-            .sort((a, b) => b.id - a.id);
+          const history = serverHistories.sort((a, b) => b.id - a.id);
 
-          const serverRejected = serverHistories
-            .filter((r) => r.status === "Verification Rejected")
-            .sort((a, b) => b.id - a.id);
+          // const approvalRejected = serverHistories
+          //   .filter((r) => r.status === "Approval Rejected")
+          //   .sort((a, b) => b.id - a.id);
+
+          // const serverRejected = serverHistories
+          //   .filter((r) => r.status === "Verification Rejected")
+          //   .sort((a, b) => b.id - a.id);
 
           return {
             ...item,
-            server_rejected_history: serverRejected,
-            approval_rejected_history: approvalRejected,
+            server_history: history,
+            // server_rejected_history: serverRejected,
+            // approval_rejected_history: approvalRejected,
           };
         });
 

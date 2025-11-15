@@ -238,9 +238,16 @@ const CustomerModel = {
                         	u.user_id = l.user_id
                         LEFT JOIN users AS au ON
                           au.user_id = l.assigned_to
-                        LEFT JOIN trainer_mapping AS map ON
-                        	map.customer_id = c.id
-                          AND map.is_rejected = 0
+                        LEFT JOIN (
+                          SELECT *
+                          FROM (
+                            SELECT
+                              tm.*,
+                              ROW_NUMBER() OVER (PARTITION BY tm.customer_id ORDER BY tm.id DESC) AS rn
+                            FROM trainer_mapping tm
+                          ) x
+                          WHERE rn = 1
+                        ) AS map ON map.customer_id = c.id
                        	LEFT JOIN trainer AS tr ON
                         	tr.id = map.trainer_id
                         LEFT JOIN users AS tus ON
