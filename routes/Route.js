@@ -12,6 +12,7 @@ const PageAccessController = require("../controller/PageAccessController");
 const DashboardController = require("../controller/DashboardController");
 const BulkSearchController = require("../controller/BulkSearchController");
 const ServerController = require("../controller/ServerController");
+const NotificationController = require("../controller/NotificationController");
 
 router.post("/login", LoginController.login);
 
@@ -241,4 +242,12 @@ router.post(
   ServerController.insertServerTrack
 );
 router.get("/getServerHistory", verifyToken, ServerController.getServerHistory);
+//notification
+router.post("/save-token", NotificationController.registerToken);
+router.post(
+  "/send-notification",
+  NotificationController.sendNotificationToUser
+);
+router.get("/getNotifications", NotificationController.getNotifications);
+router.put("/readNotification", NotificationController.readNotification);
 module.exports = router;

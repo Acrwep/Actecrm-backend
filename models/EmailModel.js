@@ -1018,7 +1018,7 @@ const viewInvoicePdf = async (
         .invoice-box .invoice-info,
         .invoice-box .bill-to {
           margin-bottom: 20px;
-          line-height: 22px;
+          line-height: 26px;
         }
 
         .invoice-box .invoice-table {

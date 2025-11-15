@@ -35,8 +35,23 @@ const getCurrentYear = () => {
   return new Date().getFullYear();
 };
 
+const formatMessageBody = (message) => {
+  if (!message || typeof message !== "object") {
+    return String(message); // If message is a string
+  }
+
+  let result = "";
+
+  Object.keys(message).forEach((key) => {
+    result += `${key.replace(/_/g, " ")}: ${message[key] ?? "-"}\n`;
+  });
+
+  return result.trim();
+};
+
 module.exports = {
   verifyToken,
   convertUTCDateToLocalDate,
   getCurrentYear,
+  formatMessageBody,
 };
