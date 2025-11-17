@@ -90,12 +90,7 @@ const UserModel = {
             );
             affectedRows += 1;
           }
-
-          // REMOVED: Don't call updatePathsForParentChild here for each child
         }
-
-        // ✅ CALL PATH UPDATE HERE - AFTER ALL CHILDREN ARE PROCESSED
-        await rebuildAllPathsCompletely();
       }
 
       return affectedRows;
@@ -236,12 +231,6 @@ const UserModel = {
         );
         affectedRows += deleteDownline.affectedRows;
 
-        const [deleteDownlinePath] = await pool.query(
-          `DELETE FROM user_downline_paths WHERE parent_id = ?`,
-          [user_id]
-        );
-        affectedRows += deleteDownlinePath.affectedRows;
-
         for (const child of users) {
           // Check if child user exists
           const [childExists] = await pool.query(
@@ -265,24 +254,12 @@ const UserModel = {
           );
           affectedRows += 1;
         }
-
-        // ✅ CALL PATH UPDATE HERE - AFTER ALL CHILDREN ARE INSERTED
-        await rebuildAllPathsCompletely();
       } else if (users.length === 0) {
         const [deleteDownline] = await pool.query(
           `DELETE FROM users_downline WHERE parent_id = ?`,
           [user_id]
         );
         affectedRows += deleteDownline.affectedRows;
-
-        const [deleteDownlinePath] = await pool.query(
-          `DELETE FROM user_downline_paths WHERE parent_id = ?`,
-          [user_id]
-        );
-        affectedRows += deleteDownlinePath.affectedRows;
-
-        // ✅ CALL PATH UPDATE HERE TOO - WHEN NO CHILDREN
-        await rebuildAllPathsCompletely();
       }
 
       return affectedRows;
@@ -325,82 +302,75 @@ const UserModel = {
     }
   },
 
-  getAllDownlines: async (user_id) => {
+  getAllDownlines: async (parent_id) => {
     try {
-      const getQuery = `WITH user_hierarchy AS (
-                          SELECT u.user_id, u.user_name FROM users AS u WHERE u.user_id = ?
-                            UNION ALL
-                            SELECT udp.user_id, u.user_name FROM user_downline_paths AS udp INNER JOIN users AS u ON udp.user_id = u.user_id WHERE udp.ancestor_id = ?
-                        )
-                        SELECT * FROM user_hierarchy GROUP BY user_id, user_name ORDER BY user_id;`;
+      const downline = new Map();
+      const queue = [{ userId: parent_id, level: 0 }];
+      const MAX_DEPTH = 20;
+      const BATCH_SIZE = 50;
 
-      const [result] = await pool.query(getQuery, [user_id, user_id]);
-      return result;
+      // If you want to include the root user in results, uncomment:
+      const [getRootUser] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id = ?`,
+        parent_id
+      );
+      downline.set(parent_id, {
+        userId: parent_id,
+        userName: getRootUser[0]?.user_name || "",
+        parentId: null,
+        level: 0,
+      });
+
+      let processedCount = 0;
+
+      while (queue.length > 0 && processedCount < 1000) {
+        const batch = [];
+
+        while (batch.length < BATCH_SIZE && queue.length > 0) {
+          const item = queue.shift();
+          batch.push(item);
+        }
+
+        if (batch.length === 0) break;
+
+        const placeholders = batch.map(() => "?").join(",");
+        const parentIds = batch.map((item) => item.userId);
+
+        const [children] = await pool.query(
+          `SELECT d.user_id, u.user_name, d.parent_id, d.created_at FROM users_downline AS d INNER JOIN users AS u ON d.user_id = u.user_id WHERE d.parent_id IN (${placeholders})`,
+          parentIds
+        );
+
+        for (const child of children) {
+          if (!downline.has(child.user_id)) {
+            const parentLevel =
+              batch.find((p) => p.userId === child.parent_id)?.level || 0;
+            const level = parentLevel + 1;
+
+            if (level <= MAX_DEPTH) {
+              downline.set(child.user_id, {
+                userId: child.user_id,
+                userName: child.user_name,
+                parentId: child.parent_id,
+                level: level,
+              });
+
+              queue.push({
+                userId: child.user_id,
+                level: level,
+              });
+            }
+          }
+        }
+
+        processedCount += batch.length;
+      }
+
+      return Array.from(downline.values());
     } catch (error) {
       throw new Error(error.message);
     }
   },
-};
-
-const rebuildAllPathsCompletely = async () => {
-  try {
-    // 1. Clear all paths
-    await pool.query("TRUNCATE TABLE user_downline_paths");
-
-    // 2. Get all root users (users with no parent)
-    const [rootUsers] = await pool.query(`
-      SELECT DISTINCT ud.user_id 
-      FROM users_downline ud 
-      WHERE ud.parent_id IS NULL
-      UNION
-      SELECT u.user_id 
-      FROM users u 
-      WHERE u.user_id NOT IN (SELECT user_id FROM users_downline WHERE parent_id IS NOT NULL)
-    `);
-
-    // 3. For each root user, build complete downline
-    for (const rootUser of rootUsers) {
-      await buildDownlineFromRoot(rootUser.user_id, rootUser.user_id, 0);
-    }
-  } catch (error) {
-    console.error("Error rebuilding paths:", error);
-  }
-};
-
-const buildDownlineFromRoot = async (currentUserId, rootUserId, depth) => {
-  // Safety check to prevent infinite recursion
-  if (depth > 20) {
-    console.warn(
-      `Max depth reached for user ${currentUserId} under root ${rootUserId}`
-    );
-    return;
-  }
-
-  // Insert path for current user under root (only if not already inserted)
-  const [existingPath] = await pool.query(
-    `SELECT id FROM user_downline_paths WHERE user_id = ? AND ancestor_id = ? AND depth = ?`,
-    [currentUserId, rootUserId, depth]
-  );
-
-  if (existingPath.length === 0) {
-    await pool.query(
-      `INSERT INTO user_downline_paths(user_id, ancestor_id, parent_id, depth) VALUES(?, ?, ?, ?)`,
-      [currentUserId, rootUserId, rootUserId, depth]
-    );
-  }
-
-  // Get direct children and recursively build their paths
-  const [children] = await pool.query(
-    `SELECT user_id FROM users_downline WHERE parent_id = ?`,
-    [currentUserId]
-  );
-
-  for (const child of children) {
-    // Prevent infinite recursion by checking if we're creating a cycle
-    if (child.user_id !== rootUserId && child.user_id !== currentUserId) {
-      await buildDownlineFromRoot(child.user_id, rootUserId, depth + 1);
-    }
-  }
 };
 
 module.exports = UserModel;
