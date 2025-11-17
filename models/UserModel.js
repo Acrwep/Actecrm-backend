@@ -315,9 +315,9 @@ const UserModel = {
         parent_id
       );
       downline.set(parent_id, {
-        userId: parent_id,
-        userName: getRootUser[0]?.user_name || "",
-        parentId: null,
+        user_id: parent_id,
+        user_name: getRootUser[0]?.user_name || "",
+        parent_id: null,
         level: 0,
       });
 
@@ -349,9 +349,9 @@ const UserModel = {
 
             if (level <= MAX_DEPTH) {
               downline.set(child.user_id, {
-                userId: child.user_id,
-                userName: child.user_name,
-                parentId: child.parent_id,
+                user_id: child.user_id,
+                user_name: child.user_name,
+                parent_id: child.parent_id,
                 level: level,
               });
 
