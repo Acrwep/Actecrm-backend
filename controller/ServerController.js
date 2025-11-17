@@ -82,9 +82,13 @@ const awatingVerify = async (request, response) => {
 };
 
 const serverIssued = async (request, response) => {
-  const { server_id } = request.body;
+  const { server_id, email_subject, email_content } = request.body;
   try {
-    const result = await ServerModel.serverIssued(server_id);
+    const result = await ServerModel.serverIssued(
+      server_id,
+      email_subject,
+      email_content
+    );
     return response.status(200).send({
       message: "Data updated successfully",
       data: result,

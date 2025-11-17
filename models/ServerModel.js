@@ -257,7 +257,7 @@ const ServerModel = {
     }
   },
 
-  serverIssued: async (server_id) => {
+  serverIssued: async (server_id, email_subject, email_content) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
@@ -281,9 +281,9 @@ const ServerModel = {
         const mailOptions = {
           from: process.env.SMTP_FROM,
           to: getEmail[0].email,
-          subject: "Server Credential",
-          text: "Please find your server credential below.",
-          html: "",
+          subject: email_subject,
+          // text: "Please find your server credential below.",
+          html: email_content,
         };
 
         await transporter.sendMail(mailOptions);
