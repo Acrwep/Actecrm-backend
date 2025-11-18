@@ -371,6 +371,71 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
+
+  getAllUpline: async (user_id) => {
+    try {
+      const upline = new Map();
+      const queue = [{ userId: user_id, level: 0 }];
+      const MAX_DEPTH = 20;
+
+      // Add the starting user
+      const [startingUser] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id = ?`,
+        [user_id]
+      );
+
+      upline.set(user_id, {
+        user_id: user_id,
+        user_name: startingUser[0]?.user_name || "",
+        parent_id: null, // Will be filled later
+        level: 0,
+        isStartingUser: true,
+      });
+
+      let processedCount = 0;
+
+      while (queue.length > 0 && processedCount < 1000) {
+        const current = queue.shift();
+
+        // Find this user's parent(s)
+        const [parents] = await pool.query(
+          `SELECT d.parent_id, u.user_name 
+         FROM users_downline AS d 
+         INNER JOIN users AS u ON d.parent_id = u.user_id 
+         WHERE d.user_id = ?`,
+          [current.userId]
+        );
+
+        for (const parent of parents) {
+          if (parent.parent_id && !upline.has(parent.parent_id)) {
+            const level = current.level + 1;
+
+            if (level <= MAX_DEPTH) {
+              upline.set(parent.parent_id, {
+                user_id: parent.parent_id,
+                user_name: parent.user_name,
+                parent_id: null, // Will find grandparent in next iteration
+                level: level,
+                child_id: current.userId, // Who they directly referred
+              });
+
+              // Continue finding this parent's parent
+              queue.push({
+                userId: parent.parent_id,
+                level: level,
+              });
+            }
+          }
+        }
+
+        processedCount++;
+      }
+
+      return Array.from(upline.values()).sort((a, b) => a.level - b.level);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = UserModel;

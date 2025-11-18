@@ -30,3 +30,5 @@ serviceAccountKey.json
 *.njsproj
 *.sln
 *.sw?
+models/cron_job_logs.txt
+models/cron_job_logs.txt

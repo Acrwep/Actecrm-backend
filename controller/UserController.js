@@ -134,10 +134,27 @@ const getAllDownlines = async (request, response) => {
   }
 };
 
+const getAllUpline = async (request, response) => {
+  const { user_id } = request.query;
+  try {
+    const result = await userModel.getAllUpline(user_id);
+    response.status(200).json({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
   updateUser,
   setTarget,
   getAllDownlines,
+  getAllUpline,
 };

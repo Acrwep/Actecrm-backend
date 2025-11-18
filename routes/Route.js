@@ -250,4 +250,5 @@ router.post(
 );
 router.get("/getNotifications", NotificationController.getNotifications);
 router.put("/readNotification", NotificationController.readNotification);
+router.get("/getAllUpline", verifyToken, UserController.getAllUpline);
 module.exports = router;
