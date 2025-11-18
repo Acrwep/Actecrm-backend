@@ -36,12 +36,12 @@ const sendNotificationToUser = async (req, res) => {
   try {
     const { user_id, title, message, created_at } = req.body;
 
-    // 1️⃣ Get FCM token from DB
     const token = await notificationModel.getUserToken(user_id);
-    if (!token)
+    if (!token) {
       return res.status(400).json({ message: "User FCM token not found" });
+    }
 
-    // 2️⃣ Convert JSON message to readable string
+    // Convert message object to readable string
     let body;
     if (typeof message === "object") {
       body = Object.entries(message)
@@ -51,20 +51,20 @@ const sendNotificationToUser = async (req, res) => {
       body = message;
     }
 
-    // 3️⃣ Store notification in database (calling MODEL function)
+    // Save in DB
     const insertedId = await notificationModel.sendNotificationToUser(
       user_id,
       title,
-      JSON.stringify(message), // store JSON cleanly
+      JSON.stringify(message),
       token,
       created_at
     );
 
-    // 4️⃣ Send push notification using Firebase
+    // 🚀 Send DATA-ONLY FCM PAYLOAD
     const payload = {
-      notification: {
-        title,
-        body,
+      data: {
+        title: title,
+        body: body,
       },
       token,
     };
