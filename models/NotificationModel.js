@@ -39,7 +39,7 @@ const notificationModel = {
         created_at,
       ]);
 
-      return result.insertId; // Newly inserted ID
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

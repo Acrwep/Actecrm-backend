@@ -33,47 +33,53 @@ const registerToken = async (req, res) => {
 
 // Send notification to specific user
 const sendNotificationToUser = async (req, res) => {
+  const { user_ids, title, message, created_at } = req.body;
   try {
-    const { user_id, title, message, created_at } = req.body;
+    let affectedRows = 0;
+    if (Array.isArray(user_ids) && user_ids.length > 0) {
+      for (const user_id of user_ids) {
+        const token = await notificationModel.getUserToken(user_id);
+        if (!token) {
+          return res.status(400).json({ message: "User FCM token not found" });
+        }
 
-    const token = await notificationModel.getUserToken(user_id);
-    if (!token) {
-      return res.status(400).json({ message: "User FCM token not found" });
+        // Convert message object to readable string
+        let body;
+        if (typeof message === "object") {
+          body = Object.entries(message)
+            .map(([key, val]) => `${key.replace(/_/g, " ")}: ${val}`)
+            .join("\n");
+        } else {
+          body = message;
+        }
+
+        // Save in DB
+        affectedRows = await notificationModel.sendNotificationToUser(
+          user_id,
+          title,
+          JSON.stringify(message),
+          token,
+          created_at
+        );
+
+        affectedRows += affectedRows;
+
+        // 🚀 Send DATA-ONLY FCM PAYLOAD
+        const payload = {
+          data: {
+            title: title,
+            body: body,
+          },
+          token,
+        };
+
+        await admin.messaging().send(payload);
+      }
     }
-
-    // Convert message object to readable string
-    let body;
-    if (typeof message === "object") {
-      body = Object.entries(message)
-        .map(([key, val]) => `${key.replace(/_/g, " ")}: ${val}`)
-        .join("\n");
-    } else {
-      body = message;
-    }
-
-    // Save in DB
-    const insertedId = await notificationModel.sendNotificationToUser(
-      user_id,
-      title,
-      JSON.stringify(message),
-      token,
-      created_at
-    );
-
-    // 🚀 Send DATA-ONLY FCM PAYLOAD
-    const payload = {
-      data: {
-        title: title,
-        body: body,
-      },
-      token,
-    };
-
-    await admin.messaging().send(payload);
 
     return res.json({
       message: "Notification sent successfully",
-      notification_id: insertedId,
+      notification_id: affectedRows,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
