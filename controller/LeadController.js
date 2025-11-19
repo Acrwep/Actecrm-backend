@@ -490,6 +490,54 @@ const getAllBranches = async (request, response) => {
   }
 };
 
+const downloadLeads = async (request, response) => {
+  const { name, email, phone, start_date, end_date, lead_status_id, user_ids } =
+    request.body;
+  try {
+    const leads = await LeadModel.downloadLeads(
+      name,
+      email,
+      phone,
+      start_date,
+      end_date,
+      lead_status_id,
+      user_ids
+    );
+    return response.status(200).send({
+      message: "Leads fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching leads",
+      details: error.message,
+    });
+  }
+};
+
+const downloadLeadFollowUps = async (request, response) => {
+  const { user_ids, from_date, to_date, name, email, phone } = request.body;
+  try {
+    const leads = await LeadModel.downloadLeadFollowUps(
+      user_ids,
+      from_date,
+      to_date,
+      name,
+      email,
+      phone
+    );
+    return response.status(200).send({
+      message: "Follow up fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching follow ups",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -512,4 +560,6 @@ module.exports = {
   getFollowupCountByUser,
   websiteLead,
   getAllBranches,
+  downloadLeads,
+  downloadLeadFollowUps,
 };

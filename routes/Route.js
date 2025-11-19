@@ -261,4 +261,10 @@ router.post(
   verifyToken,
   DashboardController.downloadUserWiseScoreBoard
 );
+router.post("/downloadLeads", verifyToken, LeadController.downloadLeads);
+router.post(
+  "/downloadLeadFollowUps",
+  verifyToken,
+  LeadController.downloadLeadFollowUps
+);
 module.exports = router;
