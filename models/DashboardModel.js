@@ -717,6 +717,350 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  downloadUserWiseLeads: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      const followupParams = [];
+
+      let getQuery = `
+      SELECT 
+        u.user_id, 
+        u.user_name, 
+        COUNT(l.id) AS total_leads,
+        SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count,
+        ROUND(
+          (SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(l.id), 0)) * 100, 
+          2
+        ) AS percentage
+      FROM users AS u
+      LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to
+      LEFT JOIN customers AS c ON c.lead_id = l.id
+    `;
+
+      let followupQuery = `
+      SELECT 
+        u.user_id, 
+        u.user_name, 
+        COUNT(lfh.id) AS lead_followup_count, 
+        SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, 
+        SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, 
+        ROUND(
+          (CASE WHEN COUNT(lfh.id) = 0 THEN 0 ELSE (SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100 END),
+          2
+        ) AS percentage
+      FROM users AS u
+      LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to
+      LEFT JOIN customers AS c ON c.lead_id = l.id
+      LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id
+    `;
+
+      // Filter by date range (apply to the correct tables)
+      if (start_date && end_date) {
+        // leads created date
+        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+
+        // followups: next_follow_up_date (as in your original code)
+        followupQuery += ` AND CAST(lfh.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+        followupParams.push(start_date, end_date);
+      }
+
+      // Add role filtering and any other joins already appended earlier
+      getQuery += ` WHERE u.roles LIKE '%Sale%'`;
+      followupQuery += ` WHERE c.id IS NULL AND u.roles LIKE '%Sale%'`;
+
+      // Filter by user(s)
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND u.user_id IN (${placeholders})`;
+          followupQuery += ` AND u.user_id IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          followupParams.push(...user_ids);
+        } else {
+          getQuery += ` AND u.user_id = ?`;
+          followupQuery += ` AND u.user_id = ?`;
+          queryParams.push(user_ids);
+          followupParams.push(user_ids);
+        }
+      }
+
+      // Grouping & ordering (ordering here is only for individual queries; we'll resort later)
+      getQuery += ` GROUP BY u.user_id, u.user_name`;
+      followupQuery += ` GROUP BY u.user_id, u.user_name`;
+
+      // Run all three queries
+      const [leadsResult] = await pool.query(getQuery, queryParams);
+      const [followupResult] = await pool.query(followupQuery, followupParams);
+
+      // Merge by user_id
+      const map = new Map();
+
+      const ensureNumber = (val) => {
+        if (val === null || val === undefined) return 0;
+        const n = Number(val);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      // add leads data
+      for (const row of leadsResult) {
+        map.set(row.user_id, {
+          user_id: row.user_id,
+          user_name: row.user_name,
+          total_leads: ensureNumber(row.total_leads),
+          leads_customer_count: ensureNumber(row.customer_count),
+          leads_percentage: ensureNumber(row.percentage),
+          // placeholders for followup/joining
+          lead_followup_count: 0,
+          followup_handled: 0,
+          followup_unhandled: 0,
+          followup_percentage: 0.0,
+        });
+      }
+
+      // merge followup data
+      for (const row of followupResult) {
+        const existing = map.get(row.user_id) || {
+          user_id: row.user_id,
+          user_name: row.user_name,
+          total_leads: 0,
+          leads_customer_count: 0,
+          leads_percentage: 0.0,
+          lead_followup_count: 0,
+          followup_handled: 0,
+          followup_unhandled: 0,
+          followup_percentage: 0.0,
+        };
+
+        existing.lead_followup_count = ensureNumber(row.lead_followup_count);
+        existing.followup_handled = ensureNumber(row.followup_handled);
+        existing.followup_unhandled = ensureNumber(row.followup_unhandled);
+        existing.followup_percentage = ensureNumber(row.percentage);
+
+        map.set(row.user_id, existing);
+      }
+
+      // Build final array
+      const merged = Array.from(map.values());
+
+      // Final sort — by followup_unhandled desc (change if you prefer another metric)
+      merged.sort((a, b) => b.followup_unhandled - a.followup_unhandled);
+
+      return merged;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  downloadUserWiseScoreBoard: async (user_ids, start_date, end_date, type) => {
+    try {
+      const db = pool;
+
+      // Helper
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      // 1) Fetch all Sale users (optionally filter by user_ids)
+      let usersQuery = `SELECT u.user_id, u.user_name FROM users u WHERE u.roles LIKE '%Sale%'`;
+      const usersParams = [];
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          usersQuery += ` AND u.user_id IN (${user_ids
+            .map(() => "?")
+            .join(",")})`;
+          usersParams.push(...user_ids);
+        } else {
+          usersQuery += ` AND u.user_id = ?`;
+          usersParams.push(user_ids);
+        }
+      }
+      // optional ordering so UI is stable
+      usersQuery += ` ORDER BY u.user_name`;
+
+      const [usersRows] = await db.query(usersQuery, usersParams);
+
+      // if no sale users found, return empty
+      if (!usersRows || usersRows.length === 0) return [];
+
+      const userIds = usersRows.map((u) => u.user_id);
+
+      // placeholders for user ids
+      const userPlaceholders = userIds.map(() => "?").join(",");
+
+      // 2) Build & execute aggregated queries (use the same date filters you had)
+      // sale volume (based on payment_master.total_amount and customers created_date filter)
+      let saleQuery = `
+      SELECT u.user_id, IFNULL(SUM(pm.total_amount),0) AS sale_volume
+      FROM users u
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN customers c ON c.lead_id = l.id
+      LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
+      WHERE u.roles LIKE '%Sale%' AND u.user_id IN (${userPlaceholders})
+    `;
+      const saleParams = [...userIds];
+      if (start_date && end_date) {
+        saleQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        saleParams.push(start_date, end_date);
+      }
+      saleQuery += ` GROUP BY u.user_id`;
+
+      // collection (sum of payment_trans.amount with invoice_date filter)
+      let collectionQuery = `
+      SELECT u.user_id, IFNULL(SUM(pt.amount),0) AS collection
+      FROM users u
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN customers c ON c.lead_id = l.id
+      LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
+      LEFT JOIN payment_trans pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
+      WHERE u.roles LIKE '%Sale%' AND u.user_id IN (${userPlaceholders})
+    `;
+      const collectionParams = [...userIds];
+      if (start_date && end_date) {
+        collectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        collectionParams.push(start_date, end_date);
+      }
+      collectionQuery += ` GROUP BY u.user_id`;
+
+      // total collection (same as collection in your earlier code; kept separately for clarity)
+      let totalCollectionQuery = `
+      SELECT u.user_id, IFNULL(SUM(pt.amount),0) AS total_collection
+      FROM users u
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN customers c ON c.lead_id = l.id
+      LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
+      LEFT JOIN payment_trans pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
+      WHERE u.roles LIKE '%Sale%' AND u.user_id IN (${userPlaceholders})
+    `;
+      const totalParams = [...userIds];
+      if (start_date && end_date) {
+        totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        totalParams.push(start_date, end_date);
+      }
+      totalCollectionQuery += ` GROUP BY u.user_id`;
+
+      // Execute queries in parallel
+      const [saleRowsPromise, collectionRowsPromise, totalRowsPromise] =
+        await Promise.all([
+          db.query(saleQuery, saleParams),
+          db.query(collectionQuery, collectionParams),
+          db.query(totalCollectionQuery, totalParams),
+        ]);
+
+      const saleRows = saleRowsPromise[0] || [];
+      const collectionRows = collectionRowsPromise[0] || [];
+      const totalRows = totalRowsPromise[0] || [];
+
+      // Convert aggregated results to maps for quick lookup
+      const saleMap = saleRows.reduce((acc, r) => {
+        acc[r.user_id] = toNum(r.sale_volume);
+        return acc;
+      }, {});
+      const collectionMap = collectionRows.reduce((acc, r) => {
+        acc[r.user_id] = toNum(r.collection);
+        return acc;
+      }, {});
+      const totalMap = totalRows.reduce((acc, r) => {
+        acc[r.user_id] = toNum(r.total_collection);
+        return acc;
+      }, {});
+
+      // 3) Fetch targets for all users in one query (matching your target_month format)
+      // Build target_month string as in your current logic
+      const targetMonthStr = `CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y'))`;
+      const targetQuery = `
+      SELECT ut.user_id, ut.target_month, ut.target_value
+      FROM user_target_master ut
+      JOIN (
+        SELECT user_id, MAX(id) AS mx
+        FROM user_target_master
+        WHERE target_month = ${targetMonthStr}
+        AND user_id IN (${userPlaceholders})
+        GROUP BY user_id
+      ) t ON t.user_id = ut.user_id AND t.mx = ut.id
+    `;
+      // params: start_date, end_date for the DATE_FORMAT placeholders, then userIds
+      const targetParams = [start_date, end_date, ...userIds];
+      const [targetRows] = await db.query(targetQuery, targetParams);
+      const targetMap = (targetRows || []).reduce((acc, r) => {
+        acc[r.user_id] = {
+          target_month: r.target_month,
+          target_value: toNum(r.target_value),
+        };
+        return acc;
+      }, {});
+
+      // 4) Merge everything into final array (includes all Sale users)
+      const final = usersRows.map((u) => {
+        const sale_volume = toNum(saleMap[u.user_id] ?? 0);
+        const collection = toNum(collectionMap[u.user_id] ?? 0);
+        const total_collection = toNum(totalMap[u.user_id] ?? 0);
+
+        const pending = Math.max(0, sale_volume - collection);
+        const targetObj = targetMap[u.user_id] || {
+          target_month: "",
+          target_value: 0,
+        };
+        const target_value = toNum(targetObj.target_value);
+        const target_percentage =
+          target_value > 0
+            ? Number(((total_collection / target_value) * 100).toFixed(2))
+            : 0;
+
+        return {
+          user_id: u.user_id,
+          user_name: u.user_name,
+          sale_volume: Number(sale_volume.toFixed(2)),
+          collection: Number(collection.toFixed(2)),
+          total_collection: Number(total_collection.toFixed(2)),
+          pending: Number(pending.toFixed(2)),
+          target_month: targetObj.target_month,
+          target_value: Number(target_value.toFixed(2)),
+          target_percentage,
+        };
+      });
+
+      // 5) Return views based on 'type'
+      if (type === "Sale") {
+        final.sort((a, b) => b.sale_volume - a.sale_volume);
+        return final.map((r) => ({
+          user_id: r.user_id,
+          user_name: r.user_name,
+          sale_volume: r.sale_volume.toFixed(2),
+        }));
+      }
+
+      if (type === "Collection") {
+        final.sort((a, b) => b.total_collection - a.total_collection);
+        return final.map((r) => ({
+          user_id: r.user_id,
+          user_name: r.user_name,
+          total_collection: r.total_collection.toFixed(2),
+          target_month: r.target_month,
+          target_value: r.target_value.toFixed(2),
+          percentage: r.target_percentage,
+        }));
+      }
+
+      if (type === "Pending") {
+        final.sort((a, b) => b.pending - a.pending);
+        return final.map((r) => ({
+          user_id: r.user_id,
+          user_name: r.user_name,
+          pending: r.pending.toFixed(2),
+        }));
+      }
+
+      // Default: full scoreboard sorted by sale_volume desc
+      final.sort((a, b) => b.sale_volume - a.sale_volume);
+      return final;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

@@ -165,6 +165,47 @@ const getBranchWiseLeadCounts = async (request, response) => {
   }
 };
 
+const downloadUserWiseLeads = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await DashboardModel.downloadUserWiseLeads(
+      user_ids,
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const downloadUserWiseScoreBoard = async (request, response) => {
+  const { user_ids, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.downloadUserWiseScoreBoard(
+      user_ids,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScoreBoard,
   getHRDashboard,
@@ -174,4 +215,6 @@ module.exports = {
   getUserWiseLeadCounts,
   getBranchWiseScoreBoard,
   getBranchWiseLeadCounts,
+  downloadUserWiseLeads,
+  downloadUserWiseScoreBoard,
 };

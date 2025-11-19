@@ -251,4 +251,14 @@ router.post(
 router.get("/getNotifications", NotificationController.getNotifications);
 router.put("/readNotification", NotificationController.readNotification);
 router.get("/getAllUpline", verifyToken, UserController.getAllUpline);
+router.post(
+  "/downloadUserWiseLeads",
+  verifyToken,
+  DashboardController.downloadUserWiseLeads
+);
+router.post(
+  "/downloadUserWiseScoreBoard",
+  verifyToken,
+  DashboardController.downloadUserWiseScoreBoard
+);
 module.exports = router;
