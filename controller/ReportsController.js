@@ -41,7 +41,28 @@ const reportUserWiseScoreBoard = async (request, response) => {
   }
 };
 
+const reportUserWiseLead = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.reportUserWiseLead(
+      user_ids,
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
+  reportUserWiseLead,
 };

@@ -808,6 +808,8 @@ const ReportModel = {
               : 0;
 
           monthsArr.push({
+            user_id: uid,
+            user_name: user_name,
             month: mAbbrev, // "Jan 2025"
             label: mLabel, // "January 2025"
             sale_volume: Number(sale_volume.toFixed(2)),
@@ -820,16 +822,137 @@ const ReportModel = {
           });
         }
 
-        result.push({
-          user_id: uid,
-          user_name,
-          months: monthsArr,
-        });
+        result.push(monthsArr);
       }
 
       return result;
     } catch (error) {
       throw new Error(error && error.message ? error.message : String(error));
+    }
+  },
+
+  reportUserWiseLead: async (user_ids, start_date, end_date) => {
+    try {
+      const leadParams = [];
+      const followupParams = [];
+
+      let userPlaceholders = "";
+      let userParamsForEach = [];
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          userPlaceholders = user_ids.map(() => "?").join(", ");
+          userParamsForEach = [...user_ids];
+        } else {
+          userPlaceholders = "?";
+          userParamsForEach = [user_ids];
+        }
+      }
+
+      // Month bucket (26th → next month)
+      let leadsAgg = `
+      SELECT
+        u.user_id,
+        DATE_FORMAT(DATE_ADD(l.created_date, INTERVAL 6 DAY), '%Y-%m') AS month,
+        COUNT(l.id) AS total_leads,
+        SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count
+      FROM users u
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN customers c ON c.lead_id = l.id
+      WHERE u.roles LIKE '%Sale%'`;
+
+      let followupAgg = `
+      SELECT
+        u.user_id,
+        DATE_FORMAT(DATE_ADD(lfh.next_follow_up_date, INTERVAL 6 DAY), '%Y-%m') AS month,
+        COUNT(lfh.id) AS lead_followup_count,
+        SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled,
+        SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled
+      FROM users u
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN customers c ON c.lead_id = l.id
+      LEFT JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
+      WHERE u.roles LIKE '%Sale%'`;
+
+      // Apply date filters
+      if (start_date && end_date) {
+        leadsAgg += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        leadParams.push(start_date, end_date);
+
+        followupAgg += ` AND CAST(lfh.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+        followupParams.push(start_date, end_date);
+      }
+
+      // Apply user filters
+      if (userPlaceholders) {
+        leadsAgg += ` AND u.user_id IN (${userPlaceholders})`;
+        followupAgg += ` AND u.user_id IN (${userPlaceholders})`;
+        leadParams.push(...userParamsForEach);
+        followupParams.push(...userParamsForEach);
+      }
+
+      leadsAgg += ` GROUP BY u.user_id, month`;
+      followupAgg += ` GROUP BY u.user_id, month`;
+
+      const finalQuery = `
+      WITH leads AS (${leadsAgg}),
+           followups AS (${followupAgg}),
+      user_months AS (
+        SELECT user_id, month FROM leads
+        UNION
+        SELECT user_id, month FROM followups
+      )
+      SELECT
+        um.user_id,
+        u.user_name,
+        um.month,
+        DATE_FORMAT(STR_TO_DATE(CONCAT(um.month, '-01'), '%Y-%m-%d'), '%b %Y') AS label,
+        IFNULL(l.total_leads, 0) AS total_leads,
+        IFNULL(l.customer_count, 0) AS customer_count,
+        ROUND((IFNULL(l.customer_count,0) / NULLIF(IFNULL(l.total_leads,0),0)) * 100, 2) AS lead_to_customer_percentage,
+        IFNULL(f.lead_followup_count, 0) AS lead_followup_count,
+        IFNULL(f.followup_handled, 0) AS followup_handled,
+        IFNULL(f.followup_unhandled, 0) AS followup_unhandled,
+        ROUND((IFNULL(f.followup_handled,0) / NULLIF(IFNULL(f.lead_followup_count,0),0)) * 100, 2) AS followup_handled_percentage
+      FROM user_months um
+      LEFT JOIN leads l ON l.user_id = um.user_id AND l.month = um.month
+      LEFT JOIN followups f ON f.user_id = um.user_id AND f.month = um.month
+      LEFT JOIN users u ON u.user_id = um.user_id
+      ORDER BY u.user_name ASC, um.month DESC;
+    `;
+
+      const finalParams = [...leadParams, ...followupParams];
+      const [rows] = await pool.query(finalQuery, finalParams);
+
+      // Transform → group by user → months array
+      const grouped = {};
+
+      for (const r of rows) {
+        if (!grouped[r.user_id]) {
+          grouped[r.user_id] = {
+            user_id: r.user_id,
+            user_name: r.user_name,
+            months: [],
+          };
+        }
+
+        grouped[r.user_id].months.push({
+          month: r.month,
+          label: r.label,
+          total_leads: Number(r.total_leads) || 0,
+          customer_count: Number(r.customer_count) || 0,
+          lead_to_customer_percentage:
+            Number(r.lead_to_customer_percentage) || 0.0,
+          lead_followup_count: Number(r.lead_followup_count) || 0,
+          followup_handled: Number(r.followup_handled) || 0,
+          followup_unhandled: Number(r.followup_unhandled) || 0,
+          followup_handled_percentage:
+            Number(r.followup_handled_percentage) || 0.0,
+        });
+      }
+
+      return Object.values(grouped);
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 };

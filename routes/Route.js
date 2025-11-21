@@ -280,5 +280,10 @@ router.post(
   verifyToken,
   ReportController.reportUserWiseScoreBoard
 );
+router.post(
+  "/reportUserWiseLead",
+  verifyToken,
+  ReportController.reportUserWiseLead
+);
 // Report module end
 module.exports = router;
