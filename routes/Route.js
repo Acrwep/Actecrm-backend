@@ -275,5 +275,10 @@ router.post(
   verifyToken,
   ReportController.reportScoreBoard
 );
+router.post(
+  "/reportUserWiseScoreBoard",
+  verifyToken,
+  ReportController.reportUserWiseScoreBoard
+);
 // Report module end
 module.exports = router;
