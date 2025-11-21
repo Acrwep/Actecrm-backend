@@ -13,6 +13,7 @@ const DashboardController = require("../controller/DashboardController");
 const BulkSearchController = require("../controller/BulkSearchController");
 const ServerController = require("../controller/ServerController");
 const NotificationController = require("../controller/NotificationController");
+const ReportController = require("../controller/ReportsController");
 
 router.post("/login", LoginController.login);
 
@@ -267,4 +268,12 @@ router.post(
   verifyToken,
   LeadController.downloadLeadFollowUps
 );
+
+// Report module start
+router.post(
+  "/reportScoreBoard",
+  verifyToken,
+  ReportController.reportScoreBoard
+);
+// Report module end
 module.exports = router;

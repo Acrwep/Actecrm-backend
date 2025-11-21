@@ -136,7 +136,7 @@ const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
           const tokenRow = getUsersToken.find(
             (r) => r.user_id === item.assigned_to
           );
-          if (tokenRow.token) {
+          if (tokenRow != undefined) {
             const fcmToken = tokenRow.token; // <-- actual string token
             const title = `You have ${item.follow_up_count} Follow-ups today.`;
             const body =
@@ -241,7 +241,8 @@ const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
           const tokenRow = getUsersToken.find(
             (r) => r.user_id === item.assigned_to
           );
-          if (tokenRow.token) {
+
+          if (tokenRow != undefined) {
             const fcmToken = tokenRow.token; // <-- actual string token
             const title = `You have ${item.todays_pending_count} pending payment today.`;
             const body =
