@@ -395,7 +395,7 @@ const ReportModel = {
       for (const m of months) {
         const sale_volume = saleMap[m] ?? 0;
         const collection = collectionMap[m] ?? 0;
-        const pending = Math.max(0, sale_volume - collectionMap[m] ?? 0);
+        const pending = Math.max(0, sale_volume - collection);
         const total_collection_month = totalMap[m] ?? 0;
         const total_lead = leadMap[m] ?? 0;
         const joins = joinMap[m] ?? 0;
