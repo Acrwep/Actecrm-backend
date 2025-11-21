@@ -783,7 +783,6 @@ const ReportModel = {
       for (const uid of userIds) {
         const user_name = userNameMap[uid] || "";
 
-        const monthsArr = [];
         for (const mObj of months) {
           const mLabel = mObj.label; // "January 2025"
           const mAbbrev = mObj.abbrev; // "Jan 2025"
@@ -807,7 +806,7 @@ const ReportModel = {
               ? Number(((total_collection / target_value) * 100).toFixed(2))
               : 0;
 
-          monthsArr.push({
+          result.push({
             user_id: uid,
             user_name: user_name,
             month: mAbbrev, // "Jan 2025"
@@ -821,8 +820,6 @@ const ReportModel = {
             percentage,
           });
         }
-
-        result.push(monthsArr);
       }
 
       return result;
