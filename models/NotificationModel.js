@@ -46,16 +46,28 @@ const notificationModel = {
   },
 
   // Get User Notifications
-  getUserNotifications: async (user_id) => {
+  getUserNotifications: async (user_id, limit, offset) => {
     try {
-      const query = `
+      const dataQuery = `
       SELECT * FROM notifications
       WHERE user_id = ?
       ORDER BY id DESC
+      LIMIT ? OFFSET ?
     `;
 
-      const [rows] = await pool.query(query, [user_id]);
-      return rows;
+      const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM notifications
+      WHERE user_id = ?
+    `;
+
+      const [rows] = await pool.query(dataQuery, [user_id, limit, offset]);
+      const [countResult] = await pool.query(countQuery, [user_id]);
+
+      return {
+        data: rows,
+        total: countResult[0].total,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

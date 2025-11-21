@@ -89,11 +89,34 @@ const sendNotificationToUser = async (req, res) => {
 // Fetch user notifications
 const getNotifications = async (req, res) => {
   try {
-    const { user_id } = req.query;
-    const notifications = await notificationModel.getUserNotifications(user_id);
-    return res.json(notifications);
+    const { user_id, page = 1, limit = 20 } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const { data, total } = await notificationModel.getUserNotifications(
+      user_id,
+      limitNumber,
+      offset
+    );
+
+    // range calculation
+    const start = total === 0 ? 0 : offset + 1;
+    const end = Math.min(offset + limitNumber, total);
+
+    return res.json({
+      data,
+      pagination: {
+        total: total,
+        label: `${start} to ${end} of ${total}`,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    });
   } catch (err) {
-    return res.status(500).json(err);
+    return res.status(500).json({ error: err.message });
   }
 };
 
