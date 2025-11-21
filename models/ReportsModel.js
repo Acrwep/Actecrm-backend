@@ -407,7 +407,7 @@ const ReportModel = {
         };
 
         total_sale += sale_volume;
-        total_collection += collection;
+        total_collection += total_collection_month;
         total_pending += pending;
         total_leads += total_lead;
         total_joins += joins;
