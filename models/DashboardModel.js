@@ -508,9 +508,9 @@ const DashboardModel = {
 
   getBranchWiseScoreBoard: async (region_id, start_date, end_date, type) => {
     try {
-      let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id`;
+      let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
 
-      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id`;
+      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
 
       let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS total_collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
 
@@ -530,8 +530,8 @@ const DashboardModel = {
         params.total.push(start_date, end_date);
       }
 
-      saleVolumeQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
-      collectionQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+      saleVolumeQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
+      collectionQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
       LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
       totalCollectionQuery += ` WHERE 1 = 1`;
 

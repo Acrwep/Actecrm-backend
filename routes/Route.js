@@ -285,5 +285,15 @@ router.post(
   verifyToken,
   ReportController.reportUserWiseLead
 );
+router.post(
+  "/reportBranchWiseScoreBoard",
+  verifyToken,
+  ReportController.reportBranchWiseScoreBoard
+);
+router.post(
+  "/reportBranchWiseLeads",
+  verifyToken,
+  ReportController.reportBranchWiseLeads
+);
 // Report module end
 module.exports = router;
