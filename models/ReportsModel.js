@@ -826,12 +826,18 @@ const ReportModel = {
     boundaryDay = 26
   ) => {
     try {
-      // validate/normalize boundaryDay
+      // --- validate/normalize boundaryDay -------------------------------
       boundaryDay = Number(boundaryDay) || 26;
       if (boundaryDay < 1) boundaryDay = 1;
       if (boundaryDay > 31) boundaryDay = 31;
 
-      // parse date helpers (accepts 'YYYY-MM-DD' or Date)
+      // --- helpers -------------------------------------------------------
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
       const parseToDateOnly = (d) => {
         if (!d) return null;
         if (d instanceof Date && !isNaN(d)) {
@@ -856,7 +862,7 @@ const ReportModel = {
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
-      // build half-open datetimes for parameterized WHERE clauses
+      // --- build half-open datetimes ------------------------------------
       const startDateOnly = parseToDateOnly(start_date);
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
@@ -869,48 +875,123 @@ const ReportModel = {
       endExclusive.setDate(endExclusive.getDate() + 1);
       const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
 
-      // build user placeholders
-      let userPlaceholders = "";
-      let userParamsForEach = [];
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          userPlaceholders = user_ids.map(() => "?").join(", ");
-          userParamsForEach = [...user_ids];
-        } else {
-          userPlaceholders = "?";
-          userParamsForEach = [user_ids];
+      // --- month mapping helpers ----------------------------------------
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthAbbrev = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const getMappedMonthStart = (dateInput) => {
+        const d = new Date(dateInput.getTime());
+        const day = d.getDate();
+        if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+
+      const formatLabel = (d) =>
+        `${monthNames[d.getMonth()]} ${d.getFullYear()}`; // "January 2025"
+      const formatAbbrev = (d) =>
+        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`; // "Jan 2025"
+      const monthKeyFromDate = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        return `${y}-${m}`; // "2025-01"
+      };
+
+      const getMonths = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const startMapped = getMappedMonthStart(sDate);
+        const endMapped = getMappedMonthStart(eDate);
+        const months = [];
+        const cur = new Date(startMapped.getTime());
+        while (cur <= endMapped) {
+          months.push({
+            label: formatLabel(cur),
+            abbrev: formatAbbrev(cur),
+            key: monthKeyFromDate(cur),
+            d: new Date(cur.getTime()),
+          });
+          cur.setMonth(cur.getMonth() + 1);
         }
+        return months;
+      };
+
+      const months = getMonths(start_date, end_date); // array of mapped months
+
+      // --- build user list: either provided or all Sale users -----------
+      let userList = [];
+      if (user_ids) {
+        if (Array.isArray(user_ids)) userList = Array.from(new Set(user_ids));
+        else userList = [user_ids];
+      } else {
+        // fetch all sale users
+        const [urows] = await pool.query(
+          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`
+        );
+        userList = (urows || []).map((r) => r.user_id);
       }
 
-      // boundary shorthand for SQL
-      const b = boundaryDay;
+      if (userList.length === 0) return []; // nothing to do
 
-      // Leads aggregate: group by mapped month using l.created_date
-      let leadsAgg = `
+      // --- prepare user placeholder and params for queries --------------
+      const userPlaceholders = userList.map(() => "?").join(", ");
+      const userParams = [...userList];
+
+      // --- Aggregates: leads, followups, joins (use half-open datetime filters) ---
+      // Leads aggregate (mapped by l.created_date)
+      const leadsAgg = `
       SELECT
         u.user_id,
         DATE_FORMAT(
-          CASE WHEN DAY(CAST(l.created_date AS DATE)) >= ${b}
+          CASE WHEN DAY(CAST(l.created_date AS DATE)) >= ${boundaryDay}
             THEN DATE_ADD(CAST(l.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(l.created_date AS DATE) END,
-          '%Y-%m'
+            ELSE CAST(l.created_date AS DATE) END, '%Y-%m'
         ) AS month,
         COUNT(l.id) AS total_leads,
         SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count
       FROM users u
-      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
+      LEFT JOIN lead_master l ON l.assigned_to = u.user_id AND l.created_date >= ? AND l.created_date < ?
       LEFT JOIN customers c ON c.lead_id = l.id
-      WHERE u.roles LIKE '%Sale%'`;
+      WHERE u.roles LIKE '%Sale%' AND u.user_id IN (${userPlaceholders})
+      GROUP BY u.user_id, month
+    `;
 
-      // Followups aggregate: use lfh.next_follow_up_date
-      let followupAgg = `
+      // Followups aggregate (mapped by lfh.next_follow_up_date) for leads where customer IS NULL
+      const followupsAgg = `
       SELECT
         u.user_id,
         DATE_FORMAT(
-          CASE WHEN DAY(CAST(lfh.next_follow_up_date AS DATE)) >= ${b}
+          CASE WHEN DAY(CAST(lfh.next_follow_up_date AS DATE)) >= ${boundaryDay}
             THEN DATE_ADD(CAST(lfh.next_follow_up_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(lfh.next_follow_up_date AS DATE) END,
-          '%Y-%m'
+            ELSE CAST(lfh.next_follow_up_date AS DATE) END, '%Y-%m'
         ) AS month,
         COUNT(lfh.id) AS lead_followup_count,
         SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled,
@@ -918,116 +999,145 @@ const ReportModel = {
       FROM users u
       LEFT JOIN lead_master l ON l.assigned_to = u.user_id
       LEFT JOIN customers c ON c.lead_id = l.id
-      LEFT JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
-      WHERE u.roles LIKE '%Sale%' AND c.id IS NULL`;
+      LEFT JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id AND lfh.next_follow_up_date >= ? AND lfh.next_follow_up_date < ?
+      WHERE u.roles LIKE '%Sale%' AND c.id IS NULL AND u.user_id IN (${userPlaceholders})
+      GROUP BY u.user_id, month
+    `;
 
-      // Joining aggregate: use c.created_date
-      let joiningAgg = `
+      // Joining aggregate (mapped by c.created_date)
+      const joiningAgg = `
       SELECT
         u.user_id,
         DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${boundaryDay}
             THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%Y-%m'
+            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
         ) AS month,
         COUNT(DISTINCT c.id) AS joined_customers
       FROM users u
       LEFT JOIN lead_master l ON l.assigned_to = u.user_id
-      LEFT JOIN customers c ON l.id = c.lead_id
-      WHERE u.roles LIKE '%Sale%'`;
-
-      // params for each agg (half-open ranges)
-      const leadParams = [];
-      const followupParams = [];
-      const joiningParams = [];
-
-      if (start_date && end_date) {
-        // IMPORTANT FIX: use half-open range on the actual datetime columns (no CAST(... AS DATE) BETWEEN ...)
-        leadsAgg += ` AND l.created_date >= ? AND l.created_date < ?`;
-        leadParams.push(startDateTimeSQL, endExclusiveDateTimeSQL);
-
-        followupAgg += ` AND lfh.next_follow_up_date >= ? AND lfh.next_follow_up_date < ?`;
-        followupParams.push(startDateTimeSQL, endExclusiveDateTimeSQL);
-
-        joiningAgg += ` AND c.created_date >= ? AND c.created_date < ?`;
-        joiningParams.push(startDateTimeSQL, endExclusiveDateTimeSQL);
-      }
-
-      // apply user filters
-      if (userPlaceholders) {
-        leadsAgg += ` AND u.user_id IN (${userPlaceholders})`;
-        followupAgg += ` AND u.user_id IN (${userPlaceholders})`;
-        joiningAgg += ` AND u.user_id IN (${userPlaceholders})`;
-        leadParams.push(...userParamsForEach);
-        followupParams.push(...userParamsForEach);
-        joiningParams.push(...userParamsForEach);
-      }
-
-      // group by mapped month
-      leadsAgg += ` GROUP BY u.user_id, month`;
-      followupAgg += ` GROUP BY u.user_id, month`;
-      joiningAgg += ` GROUP BY u.user_id, month`;
-
-      // final CTE query: union user-months then left-join aggregates
-      const finalQuery = `
-      WITH leads AS (${leadsAgg}),
-           followups AS (${followupAgg}),
-           joins AS (${joiningAgg}),
-      user_months AS (
-        SELECT user_id, month FROM leads
-        UNION
-        SELECT user_id, month FROM followups
-        UNION
-        SELECT user_id, month FROM joins
-      )
-      SELECT
-        um.user_id,
-        u.user_name,
-        um.month,
-        DATE_FORMAT(STR_TO_DATE(CONCAT(um.month, '-01'), '%Y-%m-%d'), '%M %Y') AS label,
-        IFNULL(l.total_leads, 0) AS total_leads,
-        IFNULL(l.customer_count, 0) AS customer_count,
-        ROUND((IFNULL(l.customer_count,0) / NULLIF(IFNULL(l.total_leads,0),0)) * 100, 2) AS lead_to_customer_percentage,
-        IFNULL(f.lead_followup_count, 0) AS lead_followup_count,
-        IFNULL(f.followup_handled, 0) AS followup_handled,
-        IFNULL(f.followup_unhandled, 0) AS followup_unhandled,
-        ROUND((IFNULL(f.followup_handled,0) / NULLIF(IFNULL(f.lead_followup_count,0),0)) * 100, 2) AS followup_handled_percentage,
-        IFNULL(j.joined_customers, 0) AS joined_customers
-      FROM user_months um
-      LEFT JOIN leads l ON l.user_id = um.user_id AND l.month = um.month
-      LEFT JOIN followups f ON f.user_id = um.user_id AND f.month = um.month
-      LEFT JOIN joins j ON j.user_id = um.user_id AND j.month = um.month
-      LEFT JOIN users u ON u.user_id = um.user_id
-      ORDER BY u.user_name ASC, um.month DESC;
+      LEFT JOIN customers c ON c.lead_id = l.id AND c.created_date >= ? AND c.created_date < ?
+      WHERE u.roles LIKE '%Sale%' AND u.user_id IN (${userPlaceholders})
+      GROUP BY u.user_id, month
     `;
 
-      // final param order: leads params, followups params, joining params
-      const finalParams = [...leadParams, ...followupParams, ...joiningParams];
+      // --- execute aggregates (params: date range then user list for each) ---
+      const leadsParams = [
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+        ...userParams,
+      ];
+      const followupParams = [
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+        ...userParams,
+      ];
+      const joiningParams = [
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+        ...userParams,
+      ];
 
-      const [rows] = await pool.query(finalQuery, finalParams);
+      const [leadRows] = await pool.query(leadsAgg, leadsParams);
+      const [followRows] = await pool.query(followupsAgg, followupParams);
+      const [joinRows] = await pool.query(joiningAgg, joiningParams);
 
-      // format numbers and ensure percentages default to 0
-      const formatted = rows.map((r) => ({
-        user_id: r.user_id,
-        user_name: r.user_name,
-        month: r.month,
-        label: r.label,
-        total_leads: Number(r.total_leads) || 0,
-        customer_count: Number(r.customer_count) || 0,
-        lead_to_customer_percentage:
-          Number(r.lead_to_customer_percentage) || 0.0,
-        lead_followup_count: Number(r.lead_followup_count) || 0,
-        followup_handled: Number(r.followup_handled) || 0,
-        followup_unhandled: Number(r.followup_unhandled) || 0,
-        followup_handled_percentage:
-          Number(r.followup_handled_percentage) || 0.0,
-        joined_customers: Number(r.joined_customers) || 0,
-      }));
+      // --- build maps keyed by 'userId||YYYY-MM' ---------------------------
+      const leadMap = (leadRows || []).reduce((acc, r) => {
+        const key = `${r.user_id}||${r.month}`;
+        acc[key] = {
+          total_leads: toNum(r.total_leads),
+          customer_count: toNum(r.customer_count),
+        };
+        return acc;
+      }, {});
 
-      return formatted;
+      const followMap = (followRows || []).reduce((acc, r) => {
+        const key = `${r.user_id}||${r.month}`;
+        acc[key] = {
+          lead_followup_count: toNum(r.lead_followup_count),
+          followup_handled: toNum(r.followup_handled),
+          followup_unhandled: toNum(r.followup_unhandled),
+        };
+        return acc;
+      }, {});
+
+      const joinMap = (joinRows || []).reduce((acc, r) => {
+        const key = `${r.user_id}||${r.month}`;
+        acc[key] = {
+          joined_customers: toNum(r.joined_customers),
+        };
+        return acc;
+      }, {});
+
+      // --- fetch user names (batch) -------------------------------------
+      const [userRows] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id IN (${userPlaceholders})`,
+        userParams
+      );
+      const userNameMap = (userRows || []).reduce((acc, r) => {
+        acc[r.user_id] = r.user_name;
+        return acc;
+      }, {});
+
+      // --- construct final per-user result: every user × every mapped month ---
+      const final = [];
+      for (const uid of userList) {
+        const uname = userNameMap[uid] || "";
+        const monthsArr = months.map((m) => {
+          const monthKey = m.key; // "YYYY-MM"
+          const leadData = leadMap[`${uid}||${monthKey}`] || {
+            total_leads: 0,
+            customer_count: 0,
+          };
+          const followData = followMap[`${uid}||${monthKey}`] || {
+            lead_followup_count: 0,
+            followup_handled: 0,
+            followup_unhandled: 0,
+          };
+          const joinData = joinMap[`${uid}||${monthKey}`] || {
+            joined_customers: 0,
+          };
+
+          const total_leads = leadData.total_leads;
+          const customer_count = leadData.customer_count;
+          const lead_to_customer_percentage =
+            total_leads > 0
+              ? Number(((customer_count / total_leads) * 100).toFixed(2))
+              : 0;
+
+          const lead_followup_count = followData.lead_followup_count;
+          const followup_handled = followData.followup_handled;
+          const followup_unhandled = followData.followup_unhandled;
+          const followup_handled_percentage =
+            lead_followup_count > 0
+              ? Number(
+                  ((followup_handled / lead_followup_count) * 100).toFixed(2)
+                )
+              : 0;
+
+          const joined_customers = joinData.joined_customers;
+
+          final.push({
+            user_id: uid,
+            user_name: uname,
+            month: m.abbrev, // "Jan 2025"
+            label: m.label, // "January 2025"
+            total_leads,
+            customer_count,
+            lead_to_customer_percentage,
+            lead_followup_count,
+            followup_handled,
+            followup_unhandled,
+            followup_handled_percentage,
+            joined_customers,
+          });
+        });
+      }
+
+      return final;
     } catch (error) {
-      throw new Error(error.message);
+      throw new Error(error && error.message ? error.message : String(error));
     }
   },
 
