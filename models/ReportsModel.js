@@ -2210,7 +2210,7 @@ const ReportModel = {
     }
   },
 
-  monthWiseCollection: async (user_ids, start_date, end_date) => {
+  monthWiseCollection: async (user_ids, start_date, end_date, branch_id) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection, DATE_FORMAT(c.created_date, '%M %Y') month_name, DATE_FORMAT(c.created_date, '%m-%Y') ym FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE pt.payment_status <> 'Rejected'`;
@@ -2229,6 +2229,11 @@ const ReportModel = {
           getQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
         }
+      }
+
+      if (branch_id) {
+        getQuery += ` AND c.branch_id = ?`;
+        queryParams.push(branch_id);
       }
 
       getQuery += ` GROUP BY month_name ORDER BY ym ASC`;
