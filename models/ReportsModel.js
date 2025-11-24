@@ -2001,6 +2001,214 @@ const ReportModel = {
       throw new Error(error && error.message ? error.message : String(error));
     }
   },
+
+  reportRADashBoard: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26
+  ) => {
+    try {
+      // --- helpers & normalize boundaryDay --------------------------------
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      boundaryDay = Number(boundaryDay) || 26;
+      if (boundaryDay < 1) boundaryDay = 1;
+      if (boundaryDay > 31) boundaryDay = 31;
+
+      const parseToDateOnly = (d) => {
+        if (!d) return null;
+        if (d instanceof Date && !isNaN(d)) {
+          const dt = new Date(d.getTime());
+          dt.setHours(0, 0, 0, 0);
+          return dt;
+        }
+        const iso =
+          typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
+            ? `${d}T00:00:00`
+            : d;
+        const dt = new Date(iso);
+        if (isNaN(dt)) return null;
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+
+      const formatDateTimeSQL = (dt) => {
+        const z = (n) => n.toString().padStart(2, "0");
+        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
+          dt.getDate()
+        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
+      };
+
+      // --- build half-open datetimes --------------------------------------
+      const startDateOnly = parseToDateOnly(start_date);
+      const endDateOnly = parseToDateOnly(end_date);
+      if (!startDateOnly || !endDateOnly) {
+        throw new Error(
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+        );
+      }
+      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
+      const endExclusive = new Date(endDateOnly.getTime());
+      endExclusive.setDate(endExclusive.getDate() + 1);
+      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
+
+      // --- SQL: aggregate by mapped month (use c.created_date for mapping/filter) ---
+      const b = boundaryDay;
+      let sql = `
+      SELECT
+        DATE_FORMAT(
+          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(c.created_date AS DATE) END,
+          '%M %Y'
+        ) AS sale_month,
+        DATE_FORMAT(
+          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(c.created_date AS DATE) END,
+          '%Y-%m'
+        ) AS ym,
+        SUM(CASE WHEN c.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify,
+        SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS awaiting_class,
+        SUM(CASE WHEN c.status = 'Class Scheduled' THEN 1 ELSE 0 END) AS class_scheduled,
+        SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) AS escalated,
+        SUM(CASE WHEN c.status = 'Class Going' THEN 1 ELSE 0 END) AS class_going,
+        SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END) AS google_review_count,
+        SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END) AS linkedin_review_count,
+        SUM(CASE WHEN c.status = 'Completed' THEN 1 ELSE 0 END) AS class_completed
+      FROM customers c
+      INNER JOIN lead_master l ON c.lead_id = l.id
+      WHERE c.created_date >= ? AND c.created_date < ?
+    `;
+
+      const params = [startDateTimeSQL, endExclusiveDateTimeSQL];
+
+      // optional user filter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const ph = user_ids.map(() => "?").join(", ");
+          sql += ` AND l.assigned_to IN (${ph})`;
+          params.push(...user_ids);
+        } else {
+          sql += ` AND l.assigned_to = ?`;
+          params.push(user_ids);
+        }
+      }
+
+      sql += ` GROUP BY ym, sale_month ORDER BY ym ASC`;
+
+      const [rows] = await pool.query(sql, params);
+
+      // --- compute mapped months list for full range so months with zero appear --
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthAbbrev = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const getMappedMonthStart = (dateInput) => {
+        const d = new Date(dateInput.getTime());
+        const day = d.getDate();
+        if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const formatLabel = (d) =>
+        `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      const formatAbbrev = (d) =>
+        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`;
+      const getMonths = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const startMapped = getMappedMonthStart(sDate);
+        const endMapped = getMappedMonthStart(eDate);
+        const months = [];
+        const cur = new Date(startMapped.getTime());
+        while (cur <= endMapped) {
+          months.push({
+            label: formatLabel(cur),
+            abbrev: formatAbbrev(cur),
+            d: new Date(cur.getTime()),
+          });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+        return months;
+      };
+      const months = getMonths(start_date, end_date);
+
+      // build lookup map from query rows keyed by 'YYYY-MM' (ym)
+      const rowMap = {};
+      (rows || []).forEach((r) => {
+        rowMap[r.ym] = {
+          sale_month: r.sale_month,
+          awaiting_verify: toNum(r.awaiting_verify),
+          awaiting_class: toNum(r.awaiting_class),
+          class_scheduled: toNum(r.class_scheduled),
+          escalated: toNum(r.escalated),
+          class_going: toNum(r.class_going),
+          google_review_count: toNum(r.google_review_count),
+          linkedin_review_count: toNum(r.linkedin_review_count),
+          class_completed: toNum(r.class_completed),
+        };
+      });
+
+      // build final month_wise array (ensure every mapped month present)
+      const month_wise = months.map((mObj) => {
+        // convert "January 2025" -> "2025-01"
+        const [mn, yy] = mObj.label.split(" ");
+        const mi = monthNames.indexOf(mn) + 1;
+        const mm = mi.toString().padStart(2, "0");
+        const ymKey = `${yy}-${mm}`;
+
+        const data = rowMap[ymKey] || null;
+        return {
+          month: mObj.abbrev, // "Jan 2025"
+          label: mObj.label, // "January 2025"
+          awaiting_verify: data ? data.awaiting_verify : 0,
+          awaiting_class: data ? data.awaiting_class : 0,
+          class_scheduled: data ? data.class_scheduled : 0,
+          escalated: data ? data.escalated : 0,
+          class_going: data ? data.class_going : 0,
+          google_review_count: data ? data.google_review_count : 0,
+          linkedin_review_count: data ? data.linkedin_review_count : 0,
+          class_completed: data ? data.class_completed : 0,
+        };
+      });
+
+      return { month_wise };
+    } catch (error) {
+      throw new Error(error && error.message ? error.message : String(error));
+    }
+  },
 };
 
 module.exports = ReportModel;

@@ -300,5 +300,10 @@ router.post(
   verifyToken,
   ReportController.reportHRDashBoard
 );
+router.post(
+  "/reportRADashBoard",
+  verifyToken,
+  ReportController.reportRADashBoard
+);
 // Report module end
 module.exports = router;
