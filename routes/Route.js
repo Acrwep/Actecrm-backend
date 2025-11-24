@@ -305,5 +305,10 @@ router.post(
   verifyToken,
   ReportController.reportRADashBoard
 );
+router.post(
+  "/monthWiseCollection",
+  verifyToken,
+  ReportController.monthWiseCollection
+);
 // Report module end
 module.exports = router;

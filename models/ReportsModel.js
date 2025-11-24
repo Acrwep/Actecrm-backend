@@ -2209,6 +2209,42 @@ const ReportModel = {
       throw new Error(error && error.message ? error.message : String(error));
     }
   },
+
+  monthWiseCollection: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection, DATE_FORMAT(c.created_date, '%M %Y') month_name, DATE_FORMAT(c.created_date, '%m-%Y') ym FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE pt.payment_status <> 'Rejected'`;
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+        } else {
+          getQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` GROUP BY month_name ORDER BY ym ASC`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+      const formattedResult = result.map((item) => {
+        return {
+          month_name: item.month_name,
+          collection: item.collection,
+        };
+      });
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;

@@ -141,6 +141,26 @@ const reportRADashBoard = async (request, response) => {
   }
 };
 
+const monthWiseCollection = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.monthWiseCollection(
+      user_ids,
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -149,4 +169,5 @@ module.exports = {
   reportBranchWiseLeads,
   reportHRDashBoard,
   reportRADashBoard,
+  monthWiseCollection,
 };
