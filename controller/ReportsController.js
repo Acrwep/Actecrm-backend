@@ -101,10 +101,31 @@ const reportBranchWiseLeads = async (request, response) => {
   }
 };
 
+const reportHRDashBoard = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.reportHRDashBoard(
+      user_ids,
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
   reportUserWiseLead,
   reportBranchWiseScoreBoard,
   reportBranchWiseLeads,
+  reportHRDashBoard,
 };

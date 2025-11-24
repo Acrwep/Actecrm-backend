@@ -208,15 +208,6 @@ const ReportModel = {
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const ph = user_ids.map(() => "?").join(", ");
-          // append user filters into SQL by string concatenation (we'll recompose queries accordingly)
-          // Rebuild queries by appending to original string: safer to append here since earlier constants
-          // were standalone; but to keep code short we'll append filter text and push params.
-
-          const userFilterTextSale = ` AND l.assigned_to IN (${ph})`;
-          const userFilterTextLead = ` AND assigned_to IN (${ph})`;
-          const userFilterTextJoin = ` AND l.assigned_to IN (${ph})`;
-          const userFilterTextFollowup = ` AND l.assigned_to IN (${ph})`;
-
           // Append by replacing 'WHERE 1 = 1' occurrences — simpler approach: we'll append filter strings to base queries:
           // (Note: in this function we declared queries as constants above — to avoid re-building each string, we will run queries with appended filters.)
           // So push user_ids into each param array, and later we'll run `pool.query(query + userFilterText + " GROUP BY ...", params)`.
@@ -1699,6 +1690,203 @@ const ReportModel = {
       }
 
       return result;
+    } catch (error) {
+      throw new Error(error && error.message ? error.message : String(error));
+    }
+  },
+
+  reportHRDashBoard: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26
+  ) => {
+    try {
+      // --- helpers & normalize boundaryDay --------------------------------
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      boundaryDay = Number(boundaryDay) || 26;
+      if (boundaryDay < 1) boundaryDay = 1;
+      if (boundaryDay > 31) boundaryDay = 31;
+
+      const parseToDateOnly = (d) => {
+        if (!d) return null;
+        if (d instanceof Date && !isNaN(d)) {
+          const dt = new Date(d.getTime());
+          dt.setHours(0, 0, 0, 0);
+          return dt;
+        }
+        const iso =
+          typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
+            ? `${d}T00:00:00`
+            : d;
+        const dt = new Date(iso);
+        if (isNaN(dt)) return null;
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+
+      const formatDateTimeSQL = (dt) => {
+        const z = (n) => n.toString().padStart(2, "0");
+        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
+          dt.getDate()
+        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
+      };
+
+      // --- build half-open datetimes --------------------------------------
+      const startDateOnly = parseToDateOnly(start_date);
+      const endDateOnly = parseToDateOnly(end_date);
+      if (!startDateOnly || !endDateOnly) {
+        throw new Error(
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+        );
+      }
+      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
+      const endExclusive = new Date(endDateOnly.getTime());
+      endExclusive.setDate(endExclusive.getDate() + 1);
+      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
+
+      // --- SQL: counts grouped by mapped month (mapping uses c.created_date) ---
+      const b = boundaryDay;
+      let sql = `
+      SELECT
+        DATE_FORMAT(
+          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(c.created_date AS DATE) END,
+          '%M %Y'
+        ) AS sale_month,
+        DATE_FORMAT(
+          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(c.created_date AS DATE) END,
+          '%Y-%m'
+        ) AS ym,
+        SUM(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 ELSE 0 END) AS awaiting_trainer,
+        SUM(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 ELSE 0 END) AS awaiting_trainer_verify,
+        SUM(CASE WHEN c.status = 'Trainer Rejected' THEN 1 ELSE 0 END) AS rejected_trainer,
+        SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS verified_trainer
+      FROM customers c
+      INNER JOIN lead_master l ON c.lead_id = l.id
+      WHERE 1 = 1
+        AND c.created_date >= ? AND c.created_date < ?
+    `;
+
+      const params = [startDateTimeSQL, endExclusiveDateTimeSQL];
+
+      // optional user filter (preserve single or array)
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const ph = user_ids.map(() => "?").join(", ");
+          sql += ` AND l.assigned_to IN (${ph})`;
+          params.push(...user_ids);
+        } else {
+          sql += ` AND l.assigned_to = ?`;
+          params.push(user_ids);
+        }
+      }
+
+      sql += ` GROUP BY ym, sale_month ORDER BY ym ASC`;
+
+      const [rows] = await pool.query(sql, params);
+
+      // --- compute mapped months list for full range so months with zero appear --
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthAbbrev = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      const getMappedMonthStart = (dateInput) => {
+        const d = new Date(dateInput.getTime());
+        const day = d.getDate();
+        if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const formatLabel = (d) =>
+        `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+      const formatAbbrev = (d) =>
+        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`;
+      const getMonths = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const startMapped = getMappedMonthStart(sDate);
+        const endMapped = getMappedMonthStart(eDate);
+        const months = [];
+        const cur = new Date(startMapped.getTime());
+        while (cur <= endMapped) {
+          months.push({
+            label: formatLabel(cur),
+            abbrev: formatAbbrev(cur),
+            d: new Date(cur.getTime()),
+          });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+        return months;
+      };
+      const months = getMonths(start_date, end_date);
+
+      // build lookup map from query rows
+      const rowMap = {};
+      (rows || []).forEach((r) => {
+        rowMap[r.ym] = {
+          sale_month: r.sale_month,
+          awaiting_trainer: toNum(r.awaiting_trainer),
+          awaiting_trainer_verify: toNum(r.awaiting_trainer_verify),
+          rejected_trainer: toNum(r.rejected_trainer),
+          verified_trainer: toNum(r.verified_trainer),
+        };
+      });
+
+      // build final month_wise array (ensure every mapped month present)
+      const month_wise = months.map((mObj) => {
+        // convert "Jan 2025" abbrev to 'YYYY-MM' key used by SQL rows (e.g. '2025-01')
+        const [mName, yStr] = mObj.label.split(" ");
+        const mi = monthNames.indexOf(mName) + 1;
+        const mm = mi.toString().padStart(2, "0");
+        const ymKey = `${yStr}-${mm}`;
+
+        const data = rowMap[ymKey] || null;
+        return {
+          month: mObj.abbrev, // "Jan 2025"
+          label: mObj.label, // "January 2025"
+          awaiting_trainer: data ? data.awaiting_trainer : 0,
+          awaiting_trainer_verify: data ? data.awaiting_trainer_verify : 0,
+          rejected_trainer: data ? data.rejected_trainer : 0,
+          verified_trainer: data ? data.verified_trainer : 0,
+        };
+      });
+
+      return { month_wise };
     } catch (error) {
       throw new Error(error && error.message ? error.message : String(error));
     }

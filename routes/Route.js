@@ -295,5 +295,10 @@ router.post(
   verifyToken,
   ReportController.reportBranchWiseLeads
 );
+router.post(
+  "/reportHRDashBoard",
+  verifyToken,
+  ReportController.reportHRDashBoard
+);
 // Report module end
 module.exports = router;
