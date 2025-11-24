@@ -2224,6 +2224,7 @@ const ReportModel = {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
         } else {
           getQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
