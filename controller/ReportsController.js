@@ -142,12 +142,13 @@ const reportRADashBoard = async (request, response) => {
 };
 
 const monthWiseCollection = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, branch_id } = request.body;
   try {
     const result = await ReportModel.monthWiseCollection(
       user_ids,
       start_date,
-      end_date
+      end_date,
+      branch_id
     );
     return response.status(200).send({
       message: "Data fetched successfully",
