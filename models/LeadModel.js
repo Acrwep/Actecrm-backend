@@ -993,7 +993,8 @@ const LeadModel = {
     start_date,
     end_date,
     lead_status_id,
-    user_ids
+    user_ids,
+    course
   ) => {
     try {
       const queryParams = [];
@@ -1082,6 +1083,10 @@ const LeadModel = {
 
       if (name) {
         getQuery += ` AND l.name LIKE '%${name}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND pt.name LIKE '%${course}%'`;
       }
 
       if (email) {

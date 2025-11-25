@@ -493,8 +493,16 @@ const getAllBranches = async (request, response) => {
 };
 
 const downloadLeads = async (request, response) => {
-  const { name, email, phone, start_date, end_date, lead_status_id, user_ids } =
-    request.body;
+  const {
+    name,
+    email,
+    phone,
+    start_date,
+    end_date,
+    lead_status_id,
+    user_ids,
+    course,
+  } = request.body;
   try {
     const leads = await LeadModel.downloadLeads(
       name,
@@ -503,7 +511,8 @@ const downloadLeads = async (request, response) => {
       start_date,
       end_date,
       lead_status_id,
-      user_ids
+      user_ids,
+      course
     );
     return response.status(200).send({
       message: "Leads fetched successfully",
