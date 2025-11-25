@@ -199,8 +199,17 @@ const getLeads = async (request, response) => {
 };
 
 const getLeadFollowUps = async (request, response) => {
-  const { user_ids, from_date, to_date, name, email, phone, page, limit } =
-    request.body;
+  const {
+    user_ids,
+    from_date,
+    to_date,
+    name,
+    email,
+    phone,
+    page,
+    limit,
+    course,
+  } = request.body;
   try {
     const leads = await LeadModel.getLeadFollowUps(
       user_ids,
@@ -210,7 +219,8 @@ const getLeadFollowUps = async (request, response) => {
       email,
       phone,
       page,
-      limit
+      limit,
+      course
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",
@@ -527,7 +537,8 @@ const downloadLeads = async (request, response) => {
 };
 
 const downloadLeadFollowUps = async (request, response) => {
-  const { user_ids, from_date, to_date, name, email, phone } = request.body;
+  const { user_ids, from_date, to_date, name, email, phone, course } =
+    request.body;
   try {
     const leads = await LeadModel.downloadLeadFollowUps(
       user_ids,
@@ -535,7 +546,8 @@ const downloadLeadFollowUps = async (request, response) => {
       to_date,
       name,
       email,
-      phone
+      phone,
+      course
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",

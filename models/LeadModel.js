@@ -407,7 +407,8 @@ const LeadModel = {
     email,
     phone,
     page,
-    limit
+    limit,
+    course
   ) => {
     try {
       const queryParams = [];
@@ -482,6 +483,7 @@ const LeadModel = {
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(DISTINCT l.id) as total 
                       FROM lead_master AS l
+                      INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
                       INNER JOIN lead_follow_up_history AS lf ON l.id = lf.lead_id
                       LEFT JOIN customers AS c ON c.lead_id = l.id
                       WHERE lf.is_updated = 0 AND c.id IS NULL `;
@@ -499,6 +501,13 @@ const LeadModel = {
         countQuery += ` AND l.name LIKE ?`;
         queryParams.push(`%${name}%`);
         countQueryParams.push(`%${name}%`);
+      }
+
+      if (course) {
+        getQuery += ` AND pt.name LIKE ?`;
+        countQuery += ` AND pt.name LIKE ?`;
+        queryParams.push(`%${course}%`);
+        countQueryParams.push(`%${course}%`);
       }
 
       if (email) {
@@ -1123,7 +1132,8 @@ const LeadModel = {
     to_date,
     name,
     email,
-    phone
+    phone,
+    course
   ) => {
     try {
       const queryParams = [];
@@ -1204,6 +1214,11 @@ const LeadModel = {
       if (name) {
         getQuery += ` AND l.name LIKE ?`;
         queryParams.push(`%${name}%`);
+      }
+
+      if (course) {
+        getQuery += ` AND pt.name LIKE ?`;
+        queryParams.push(`%${course}%`);
       }
 
       if (email) {
