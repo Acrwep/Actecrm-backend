@@ -310,5 +310,6 @@ router.post(
   verifyToken,
   ReportController.monthWiseCollection
 );
+router.get("/globalFilter", verifyToken, LeadController.globalFilter);
 // Report module end
 module.exports = router;

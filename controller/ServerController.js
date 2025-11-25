@@ -12,6 +12,7 @@ const getServerRequest = async (request, response) => {
     status,
     page,
     limit,
+    user_ids,
   } = request.body;
   try {
     const result = await ServerModel.getServerRequest(
@@ -23,7 +24,8 @@ const getServerRequest = async (request, response) => {
       server,
       status,
       page,
-      limit
+      limit,
+      user_ids
     );
     return response.status(200).send({
       message: "Data fetched successfully",

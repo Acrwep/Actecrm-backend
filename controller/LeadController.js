@@ -171,6 +171,7 @@ const getLeads = async (request, response) => {
     user_ids,
     page,
     limit,
+    course,
   } = request.body;
   try {
     const leads = await LeadModel.getLeads(
@@ -182,7 +183,8 @@ const getLeads = async (request, response) => {
       lead_status_id,
       user_ids,
       page,
-      limit
+      limit,
+      course
     );
     return response.status(200).send({
       message: "Leads fetched successfully",
@@ -538,6 +540,22 @@ const downloadLeadFollowUps = async (request, response) => {
   }
 };
 
+const globalFilter = async (request, response) => {
+  const { filter } = request.query;
+  try {
+    const result = await LeadModel.globalFilter(filter);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -562,4 +580,5 @@ module.exports = {
   getAllBranches,
   downloadLeads,
   downloadLeadFollowUps,
+  globalFilter,
 };

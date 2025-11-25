@@ -20,7 +20,8 @@ const ServerModel = {
     server,
     status,
     page,
-    limit
+    limit,
+    user_ids
   ) => {
     try {
       const queryParams = [];
@@ -120,19 +121,9 @@ const ServerModel = {
 
           const history = serverHistories.sort((a, b) => b.id - a.id);
 
-          // const approvalRejected = serverHistories
-          //   .filter((r) => r.status === "Approval Rejected")
-          //   .sort((a, b) => b.id - a.id);
-
-          // const serverRejected = serverHistories
-          //   .filter((r) => r.status === "Verification Rejected")
-          //   .sort((a, b) => b.id - a.id);
-
           return {
             ...item,
             server_history: history,
-            // server_rejected_history: serverRejected,
-            // approval_rejected_history: approvalRejected,
           };
         });
 
@@ -173,12 +164,41 @@ const ServerModel = {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
-        `SELECT id FROM server_master WHERE id = ?`,
+        `SELECT id, customer_id FROM server_master WHERE id = ?`,
         server_id
       );
 
       if (isServerExists.length <= 0) {
         throw new Error("Invalid Id");
+      }
+
+      if (status === "Server Raised") {
+        const [getLeadID] = await pool.query(
+          `SELECT lead_id FROM customers WHERE id = ?`,
+          [isServerExists[0].customer_id]
+        );
+        const [getPaidAmount] = await pool.query(
+          `SELECT 
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(SUM(pt.amount), 0) AS paid_amount 
+            FROM payment_master AS pm 
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
+            WHERE pm.lead_id = ?
+            GROUP BY pm.total_amount`,
+          [getLeadID[0].lead_id]
+        );
+
+        // Now you can safely access the values
+        const totalAmount = getPaidAmount[0]?.total_amount || 0;
+        const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+        const balance_amount = parseFloat(
+          (totalAmount - paidAmount).toFixed(2)
+        );
+
+        if (balance_amount > 0)
+          throw new Error(
+            "Server cannot be raised as the customer has outstanding fees."
+          );
       }
 
       const updateQuery = `UPDATE server_master SET status = ? WHERE id = ?`;

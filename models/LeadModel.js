@@ -242,7 +242,8 @@ const LeadModel = {
     lead_status_id,
     user_ids,
     page,
-    limit
+    limit,
+    course
   ) => {
     try {
       const queryParams = [];
@@ -318,7 +319,7 @@ const LeadModel = {
                     WHERE 1 = 1`;
 
       const countQueryParams = [];
-      let countQuery = `SELECT COUNT(*) as total FROM lead_master AS l WHERE 1 = 1`;
+      let countQuery = `SELECT COUNT(*) as total FROM lead_master AS l INNER JOIN technologies AS pt ON pt.id = l.primary_course_id WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
       if (user_ids) {
@@ -349,6 +350,11 @@ const LeadModel = {
       if (phone) {
         getQuery += ` AND l.phone LIKE '%${phone}%'`;
         countQuery += ` AND l.phone LIKE '%${phone}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND pt.name LIKE '%${course}%'`;
+        countQuery += ` AND pt.name LIKE '%${course}%'`;
       }
 
       if (lead_status_id) {
@@ -1241,6 +1247,100 @@ const LeadModel = {
       );
 
       return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  globalFilter: async (filter) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT
+                        l.id,
+                        l.user_id,
+                        u.user_name,
+                        l.assigned_to AS lead_assigned_to_id,
+                        au.user_name AS lead_assigned_to_name,
+                        l.name,
+                        l.phone_code,
+                        l.phone,
+                        l.whatsapp_phone_code,
+                        l.whatsapp,
+                        l.email,
+                        l.country,
+                        l.state,
+                        l.district AS area_id,
+                        a.name AS district,
+                        l.primary_course_id,
+                        pt.name AS primary_course,
+                        l.primary_fees,
+                        l.price_category,
+                        l.secondary_course_id,
+                        st.name AS secondary_course,
+                        l.secondary_fees,
+                        l.lead_type_id,
+                        lt.name AS lead_type,
+                        l.lead_status_id,
+                        ls.name AS lead_status,
+                        l.next_follow_up_date,
+                        l.expected_join_date,
+                        l.branch_id,
+                        b.name AS branch_name,
+                        l.batch_track_id,
+                        bt.name AS batch_track,
+                        l.comments,
+                        l.created_date,
+                        CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
+                        c.id AS customer_id,
+                        r.name AS region_name,
+                        r.id AS region_id,
+                        lh.lead_history_id,
+                        lh.lead_action_id,
+                        lh.lead_action_name
+                    FROM
+                        lead_master AS l
+                    LEFT JOIN users AS u ON u.user_id = l.user_id
+                    LEFT JOIN users AS au ON au.user_id = l.assigned_to
+                    LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+                    LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
+                    LEFT JOIN lead_type AS lt ON lt.id = l.lead_type_id
+                    LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+                    LEFT JOIN region AS r ON r.id = l.region_id
+                    LEFT JOIN branches AS b ON b.id = l.branch_id
+                    LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
+                    LEFT JOIN customers AS c ON c.lead_id = l.id
+                    LEFT JOIN areas AS a ON a.id = l.district
+                    LEFT JOIN (
+                        SELECT 
+                            lh1.lead_id,
+                            lh1.id AS lead_history_id, 
+                            lh1.lead_action_id, 
+                            la.name AS lead_action_name 
+                        FROM lead_follow_up_history AS lh1 
+                        INNER JOIN (
+                            SELECT lead_id, MAX(id) AS max_id
+                            FROM lead_follow_up_history
+                            GROUP BY lead_id
+                        ) AS latest ON lh1.id = latest.max_id
+                        LEFT JOIN lead_action AS la ON lh1.lead_action_id = la.id
+                    ) AS lh ON lh.lead_id = l.id
+                    WHERE 1 = 1`;
+
+      if (filter && filter.trim() !== "") {
+        getQuery += `
+                  AND (
+                        l.name  COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
+                    OR l.phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
+                    OR l.email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
+                  )
+                `;
+
+        queryParams.push(filter, filter, filter);
+      }
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }
