@@ -33,6 +33,25 @@ const ServerModel = {
 
       let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END) AS requested, SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected', 'Approval Rejected') THEN 1 ELSE 0 END) AS server_raised, SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END) AS awaiting_approval, SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END) AS issued, SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END) AS server_approved, SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END) AS expired, SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END) AS hold FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
 
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          paginationQuery += ` AND l.assigned_to IN (${placeholders})`;
+          statusQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          paginationParams.push(...user_ids);
+          statusParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += ` AND l.assigned_to = ?`;
+          paginationQuery += ` AND l.assigned_to = ?`;
+          statusQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+          paginationParams.push(user_ids);
+          statusParams.push(user_ids);
+        }
+      }
+
       if (start_date && end_date) {
         getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
         paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
