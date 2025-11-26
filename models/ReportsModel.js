@@ -2236,7 +2236,7 @@ const ReportModel = {
         queryParams.push(branch_id);
       }
 
-      getQuery += ` GROUP BY month_name ORDER BY ym ASC`;
+      getQuery += ` GROUP BY month_name, ym ORDER BY ym ASC`;
 
       const [result] = await pool.query(getQuery, queryParams);
       const formattedResult = result.map((item) => {
