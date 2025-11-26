@@ -794,7 +794,7 @@ const CustomerModel = {
       let affectedRows = 0;
       if (status && status === "Completed") {
         const [getFeesDetails] = await pool.query(
-          `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ?`,
+          `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
           [customer_id]
         );
 
