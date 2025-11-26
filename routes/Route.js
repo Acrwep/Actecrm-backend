@@ -14,6 +14,7 @@ const BulkSearchController = require("../controller/BulkSearchController");
 const ServerController = require("../controller/ServerController");
 const NotificationController = require("../controller/NotificationController");
 const ReportController = require("../controller/ReportsController");
+const TemplateController = require("../controller/EmailTemplateController");
 
 router.post("/login", LoginController.login);
 
@@ -312,4 +313,16 @@ router.post(
 );
 router.get("/globalFilter", verifyToken, LeadController.globalFilter);
 // Report module end
+
+// Email template module start
+router.post("/addTemplate", verifyToken, TemplateController.addTemplate);
+router.get("/getTemplates", verifyToken, TemplateController.getTemplates);
+router.put("/updateTemplate", verifyToken, TemplateController.updateTemplate);
+router.delete(
+  "/deleteTemplate",
+  verifyToken,
+  TemplateController.deleteTemplate
+);
+router.post("/emailSend", verifyToken, TemplateController.emailSend);
+// Email template module end
 module.exports = router;
