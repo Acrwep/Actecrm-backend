@@ -58,7 +58,7 @@ const updateTemplate = async (request, response) => {
 };
 
 const deleteTemplate = async (request, response) => {
-  const { template_id } = request.body;
+  const { template_id } = request.query;
   try {
     const result = await TemplateModel.deleteTemplate(template_id);
 
