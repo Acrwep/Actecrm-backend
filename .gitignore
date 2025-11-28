@@ -36,3 +36,4 @@ node_modules/.package-lock.json
 models/checkpoint.json
 node_modules/.package-lock.json
 node_modules/.package-lock.json
+models/serviceaccount.json
