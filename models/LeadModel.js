@@ -399,8 +399,33 @@ const LeadModel = {
 
       const [result] = await pool.query(getQuery, queryParams);
 
+      // Use Promise.all to wait for all async operations in the map
+      const formattedResult = await Promise.all(
+        result.map(async (item) => {
+          const [history] = await pool.query(
+            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+           FROM lead_follow_up_history AS lh 
+           LEFT JOIN users AS u ON lh.updated_by = u.user_id 
+           LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
+           WHERE lh.is_updated = 1 AND lh.lead_id = ? 
+           ORDER BY lh.id ASC`,
+            [item.id]
+          );
+
+          const [qualityHistory] = await pool.query(
+            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
+            [item.id]
+          );
+          return {
+            ...item,
+            histories: history,
+            quality_history: qualityHistory,
+          };
+        })
+      );
+
       return {
-        data: result,
+        data: formattedResult,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
