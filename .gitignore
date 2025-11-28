@@ -31,9 +31,6 @@ serviceAccountKey.json
 *.sln
 *.sw?
 models/cron_job_logs.txt
-models/cron_job_logs.txt
-node_modules/.package-lock.json
 models/checkpoint.json
-node_modules/.package-lock.json
-node_modules/.package-lock.json
 models/serviceaccount.json
+node_modules/.package-lock.json

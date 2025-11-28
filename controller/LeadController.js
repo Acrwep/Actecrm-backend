@@ -601,6 +601,42 @@ const updateQuality = async (request, response) => {
   }
 };
 
+const qualityLeadFollowUps = async (request, response) => {
+  const {
+    user_ids,
+    from_date,
+    to_date,
+    name,
+    email,
+    phone,
+    page,
+    limit,
+    course,
+  } = request.body;
+  try {
+    const leads = await LeadModel.qualityLeadFollowUps(
+      user_ids,
+      from_date,
+      to_date,
+      name,
+      email,
+      phone,
+      page,
+      limit,
+      course
+    );
+    return response.status(200).send({
+      message: "Follow up fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching follow ups",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -627,4 +663,5 @@ module.exports = {
   downloadLeadFollowUps,
   globalFilter,
   updateQuality,
+  qualityLeadFollowUps,
 };

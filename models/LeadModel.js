@@ -288,7 +288,9 @@ const LeadModel = {
                         r.id AS region_id,
                         lh.lead_history_id,
                         lh.lead_action_id,
-                        lh.lead_action_name
+                        lh.lead_action_name,
+                        qm.cna_date AS quality_followup_date,
+                        latest1.comments AS quality_recent_comment
                     FROM
                         lead_master AS l
                     LEFT JOIN users AS u ON u.user_id = l.user_id
@@ -316,6 +318,18 @@ const LeadModel = {
                         ) AS latest ON lh1.id = latest.max_id
                         LEFT JOIN lead_action AS la ON lh1.lead_action_id = la.id
                     ) AS lh ON lh.lead_id = l.id
+                    LEFT JOIN (
+                        SELECT q.id, q.lead_id, q.cna_date, q.comments FROM lead_master AS lm
+                        INNER JOIN quality_master AS q ON
+                          q.lead_id = lm.id
+                        WHERE q.is_updated = 0
+                    ) AS qm ON qm.lead_id = l.id
+                    LEFT JOIN (
+                      SELECT qm1.lead_id, qm1.comments FROM quality_master AS qm1
+                      INNER JOIN (
+                        SELECT lead_id, MAX(id) AS max_id FROM quality_master WHERE is_updated = 1 GROUP BY lead_id
+                      ) AS latest ON qm1.id = latest.max_id
+                    ) AS latest1 ON latest1.lead_id = l.id
                     WHERE 1 = 1`;
 
       const countQueryParams = [];
@@ -1417,6 +1431,211 @@ const LeadModel = {
       }
 
       return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  qualityLeadFollowUps: async (
+    user_ids,
+    from_date,
+    to_date,
+    name,
+    email,
+    phone,
+    page,
+    limit,
+    course
+  ) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT
+                          l.id,
+                          qm.id AS quality_id,
+                          l.user_id,
+                          u.user_name,
+                          l.assigned_to AS lead_assigned_to_id,
+                          au.user_name AS lead_assigned_to_name,
+                          l.name AS candidate_name,
+                          l.phone_code,
+                          l.phone,
+                          l.whatsapp_phone_code,
+                          l.whatsapp,
+                          l.email,
+                          l.country,
+                          l.state,
+                          l.district AS area_id,
+                          a.name AS district,
+                          l.primary_course_id,
+                          pt.name AS primary_course,
+                          l.primary_fees,
+                          l.price_category,
+                          l.secondary_course_id,
+                          st.name AS secondary_course,
+                          l.secondary_fees,
+                          l.lead_type_id,
+                          lt.name AS lead_type,
+                          l.lead_status_id,
+                          ls.name lead_status,
+                          qm.cna_date,
+                          l.expected_join_date,
+                          l.branch_id,
+                          b.name AS branche_name,
+                          l.batch_track_id,
+                          bt.name AS batch_track,
+                          latest1.comments,
+                          l.created_date,
+                          r.name AS region_name,
+                          r.id AS region_id,
+                          c.id AS customer_id
+                      FROM
+                          lead_master AS l
+                      INNER JOIN (
+                        SELECT q.id, q.lead_id, q.cna_date, q.comments FROM lead_master AS lm
+                          INNER JOIN quality_master AS q ON
+                            q.lead_id = lm.id
+                          WHERE q.is_updated = 0
+                      ) AS qm ON qm.lead_id = l.id
+                      LEFT JOIN (
+                        SELECT qm1.lead_id, qm1.comments FROM quality_master AS qm1
+                          INNER JOIN (
+                            SELECT lead_id, MAX(id) AS max_id FROM quality_master WHERE is_updated = 1 GROUP BY lead_id
+                          ) AS latest ON qm1.id = latest.max_id
+                      ) AS latest1 ON latest1.lead_id = l.id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.user_id
+                      LEFT JOIN users AS au ON
+                          au.user_id = l.assigned_to
+                      LEFT JOIN technologies AS pt ON
+                          pt.id = l.primary_course_id
+                      LEFT JOIN technologies AS st ON
+                          st.id = l.secondary_course_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN region AS r ON
+                        r.id = l.region_id
+                      LEFT JOIN branches AS b ON
+                          b.id = l.branch_id
+                      LEFT JOIN batch_track AS bt ON
+                          bt.id = l.batch_track_id
+                      LEFT JOIN areas AS a ON
+                          a.id = l.district
+                      LEFT JOIN customers AS c ON
+                          c.lead_id = l.id
+                      WHERE c.id IS NULL`;
+
+      const countQueryParams = [];
+      let countQuery = `SELECT COUNT(DISTINCT qm.id) as total 
+                      FROM quality_master AS qm
+                      INNER JOIN lead_master AS l ON qm.lead_id = l.id
+                      INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
+                      LEFT JOIN customers AS c ON c.lead_id = l.id
+                      WHERE qm.is_updated = 0 AND c.id IS NULL `;
+
+      if (from_date && to_date) {
+        getQuery += ` AND DATE(qm.cna_date) BETWEEN ? AND ?`;
+        countQuery += ` AND DATE(qm.cna_date) BETWEEN ? AND ?`;
+        queryParams.push(from_date, to_date);
+        countQueryParams.push(from_date, to_date);
+      }
+
+      // FIXED: Use parameterized queries for LIKE conditions in both queries
+      if (name) {
+        getQuery += ` AND l.name LIKE ?`;
+        countQuery += ` AND l.name LIKE ?`;
+        queryParams.push(`%${name}%`);
+        countQueryParams.push(`%${name}%`);
+      }
+
+      if (course) {
+        getQuery += ` AND pt.name LIKE ?`;
+        countQuery += ` AND pt.name LIKE ?`;
+        queryParams.push(`%${course}%`);
+        countQueryParams.push(`%${course}%`);
+      }
+
+      if (email) {
+        getQuery += ` AND l.email LIKE ?`;
+        countQuery += ` AND l.email LIKE ?`;
+        queryParams.push(`%${email}%`);
+        countQueryParams.push(`%${email}%`);
+      }
+
+      if (phone) {
+        getQuery += ` AND l.phone LIKE ?`;
+        countQuery += ` AND l.phone LIKE ?`;
+        queryParams.push(`%${phone}%`);
+        countQueryParams.push(`%${phone}%`);
+      }
+
+      // Handle user_ids parameter for both queries
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          countQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          countQueryParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += ` AND l.assigned_to = ?`;
+          countQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+          countQueryParams.push(user_ids);
+        }
+      }
+
+      // Get total count
+      const [countResult] = await pool.query(countQuery, countQueryParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY qm.cna_date ASC`;
+
+      getQuery += ` LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [follow_ups] = await pool.query(getQuery, queryParams);
+
+      // Use Promise.all to wait for all async operations in the map
+      const formattedResult = await Promise.all(
+        follow_ups.map(async (item) => {
+          const [history] = await pool.query(
+            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+           FROM lead_follow_up_history AS lh 
+           LEFT JOIN users AS u ON lh.updated_by = u.user_id 
+           LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
+           WHERE lh.is_updated = 1 AND lh.lead_id = ? 
+           ORDER BY lh.id ASC`,
+            [item.id]
+          );
+
+          const [qualityHistory] = await pool.query(
+            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
+            [item.id]
+          );
+          return {
+            ...item,
+            histories: history,
+            quality_history: qualityHistory,
+          };
+        })
+      );
+
+      return {
+        data: formattedResult,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }
