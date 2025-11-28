@@ -5,7 +5,14 @@ const crypto = require("crypto");
 const pool = require("../config/dbconfig");
 
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const SHEET_NAME = process.env.SHEET_NAME || "Sheet1";
+const SHEET_NAMES = (
+  process.env.SHEET_NAMES ||
+  process.env.SHEET_NAME ||
+  "Sheet1"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 // const POLL_INTERVAL_MS =
 //   parseInt(process.env.POLL_INTERVAL_SECONDS || "10", 10) * 1000;
 // const POLL_INTERVAL_MS =
@@ -35,12 +42,16 @@ async function createSheetsClient() {
   return google.sheets({ version: "v4", auth: authClient });
 }
 
+// checkpoint is now an object keyed by sheetName: { Sheet1: { lastRowCount: N }, Sheet2: { ... } }
 function loadCheckpoint() {
   try {
     const raw = fs.readFileSync(CHECKPOINT_FILE, "utf8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // normalize shape
+    if (typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    return {};
   } catch (err) {
-    return { lastRowCount: 0 };
+    return {};
   }
 }
 
@@ -98,8 +109,6 @@ function computeHash(obj) {
 async function insertLead(leadObj, sheetRowNumber) {
   const mapped = mapSheetObjectToDb(leadObj);
   const sourceHash = computeHash(mapped);
-
-  // If your table expects integers for region_id/branch_id, try parseInt
   const branchId = mapped.branch_id ? parseInt(mapped.branch_id, 10) : null;
 
   try {
@@ -107,31 +116,40 @@ async function insertLead(leadObj, sheetRowNumber) {
       `SELECT region_id FROM branches WHERE id = ?`,
       [mapped.branch_id]
     );
-    // Use INSERT IGNORE or ON DUPLICATE KEY to avoid duplicate sheet_row inserts.
-    // This SQL assumes you've added sheet_row column with a UNIQUE index (ux_website_leads_sheet_row).
+    const region_id_val =
+      getRegionID && getRegionID[0] ? getRegionID[0].region_id : null;
+
     const sql = `
-    INSERT INTO website_leads
-      (name, phone, email, course, region_id, branch_id, comments, status, sheet_row, source_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE id = id; -- no-op update if duplicate
-  `;
+      INSERT INTO website_leads
+        (name, phone, email, course, region_id, branch_id, comments, status, sheet_row, source_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE id = id;
+    `;
     const params = [
       mapped.name,
       mapped.phone,
       mapped.email,
       mapped.course,
-      getRegionID[0].region_id,
+      region_id_val,
       branchId,
       mapped.comments,
       "Pending",
-      sheetRowNumber,
+      sheetRowNumber, // NOTE: row number is per-tab
       sourceHash,
     ];
-    const [res] = await pool.execute(sql, params);
-    // If insert happened, res.insertId will be set. For duplicate, affectedRows may be 0 or 2 (depending)
+
+    const [isExists] = await pool.query(
+      `SELECT COUNT(id) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+      [mapped.email, mapped.phone]
+    );
+
+    let res = [];
+    if (isExists[0].lead_count <= 0) {
+      res = await pool.query(sql, params);
+    }
+
     if (res.insertId && res.insertId > 0) {
-      // read back to verify
-      const [rows] = await pool.execute(
+      const [rows] = await pool.query(
         "SELECT * FROM website_leads WHERE id = ?",
         [res.insertId]
       );
@@ -141,7 +159,7 @@ async function insertLead(leadObj, sheetRowNumber) {
         return { ok: false, error: "Inserted but read-back failed" };
       }
     } else {
-      // likely duplicate - try to fetch by sheet_row to confirm
+      // duplicate or no insertId
       const [rows] = await pool.execute(
         "SELECT * FROM website_leads WHERE sheet_row = ?",
         [sheetRowNumber]
@@ -153,7 +171,6 @@ async function insertLead(leadObj, sheetRowNumber) {
       }
     }
   } catch (err) {
-    // if duplicate key error occurs and you didn't have ON DUPLICATE KEY, handle it
     if (err && err.code === "ER_DUP_ENTRY") {
       return { ok: true, duplicate: true, error: err.message };
     }
@@ -161,88 +178,108 @@ async function insertLead(leadObj, sheetRowNumber) {
   }
 }
 
-async function pollSheet(sheets) {
-  const range = `${SHEET_NAME}!A:Z`; // adjust if you need more/less
-  const res = await sheets.spreadsheets.values.get({
+// New: poll multiple sheets (tabs) in same spreadsheet using batchGet
+async function pollMultipleSheets(sheetsClient) {
+  // build ranges for each tab
+  const ranges = SHEET_NAMES.map((name) => `${name}!A:Z`);
+  const resp = await sheetsClient.spreadsheets.values.batchGet({
     spreadsheetId: SPREADSHEET_ID,
-    range,
+    ranges,
   });
-  const rows = res.data.values || [];
-  const checkpoint = loadCheckpoint();
-  const lastRowCount = checkpoint.lastRowCount || 0;
 
-  if (rows.length <= 1) {
-    // only header or empty
-    console.log(new Date().toISOString(), "No data found.");
-    return;
-  }
+  const valueRanges = resp.data.valueRanges || [];
+  const checkpoints = loadCheckpoint(); // object keyed by sheetName
 
-  const totalDataRows = rows.length - 1; // minus header row
-  if (totalDataRows > lastRowCount) {
-    const allObjects = rowsToObjects(rows); // array: all data rows in order
-    const newRows = allObjects.slice(lastRowCount); // only new rows
-    console.log(
-      new Date().toISOString(),
-      `Found ${newRows.length} new row(s).`
-    );
+  for (let i = 0; i < SHEET_NAMES.length; i++) {
+    const sheetName = SHEET_NAMES[i];
+    const vr = valueRanges[i] || {};
+    const rows = vr.values || [];
+    const checkpointForSheet = checkpoints[sheetName] || { lastRowCount: 0 };
+    const lastRowCount = checkpointForSheet.lastRowCount || 0;
 
-    // startIndex is the index in allObjects of the first new row
-    const startIndex = lastRowCount; // 0-based in allObjects
-    for (let i = 0; i < newRows.length; i++) {
-      const leadObject = newRows[i];
-      // compute the real Google Sheets row number for this item:
-      // header is row 1, allObjects[0] => sheet row 2, so:
-      const sheetRowNumber = startIndex + i + 2;
-
-      try {
-        const result = await insertLead(leadObject, sheetRowNumber);
-        if (result.ok) {
-          if (result.duplicate) {
-            console.log(`Row ${sheetRowNumber} already inserted (duplicate).`);
-          } else {
-            console.log(
-              `Inserted row ${sheetRowNumber} => id=${result.insertedId}`
-            );
-          }
-          // optionally mark the sheet cell as processed here (requires write scope)
-        } else {
-          console.error(
-            `Failed to insert row ${sheetRowNumber}:`,
-            result.error
-          );
-          // Important: do NOT advance checkpoint for failed row — allow retry next run
-          // we exit loop to avoid updating checkpoint incorrectly
-          return;
-        }
-      } catch (err) {
-        console.error(`Unexpected error inserting row ${sheetRowNumber}:`, err);
-        return; // do not advance checkpoint
-      }
+    if (rows.length <= 1) {
+      console.log(new Date().toISOString(), `[${sheetName}] No data found.`);
+      // still ensure checkpoint exists
+      checkpoints[sheetName] = { lastRowCount: lastRowCount };
+      continue;
     }
 
-    // all new rows processed successfully (or were duplicates) -> update checkpoint
-    saveCheckpoint({ lastRowCount: totalDataRows });
-    console.log("Checkpoint updated:", totalDataRows);
-  } else {
-    console.log(new Date().toISOString(), "No new rows.");
-  }
+    const totalDataRows = rows.length - 1;
+    if (totalDataRows > lastRowCount) {
+      const allObjects = rowsToObjects(rows); // all data rows for this sheet
+      const newRows = allObjects.slice(lastRowCount);
+      console.log(
+        new Date().toISOString(),
+        `[${sheetName}] Found ${newRows.length} new row(s).`
+      );
+
+      const startIndex = lastRowCount; // 0-based index in allObjects for first new row
+      for (let j = 0; j < newRows.length; j++) {
+        const leadObject = newRows[j];
+        // sheet row number: header is row 1, allObjects[0] => sheet row 2
+        const sheetRowNumber = startIndex + j + 2;
+
+        try {
+          const result = await insertLead(
+            leadObject,
+            sheetRowNumber,
+            sheetName
+          );
+          if (result.ok) {
+            if (result.duplicate) {
+              console.log(
+                `[${sheetName}] Row ${sheetRowNumber} duplicate (already inserted).`
+              );
+            } else {
+              console.log(
+                `[${sheetName}] Inserted row ${sheetRowNumber} => id=${result.insertedId}`
+              );
+            }
+          } else {
+            console.error(
+              `[${sheetName}] Failed to insert row ${sheetRowNumber}:`,
+              result.error
+            );
+            // do not update checkpoint for this sheet (so it will retry next poll)
+            // skip remaining new rows for this sheet to avoid advancing checkpoint incorrectly
+            break;
+          }
+        } catch (err) {
+          console.error(
+            `[${sheetName}] Unexpected error inserting row ${sheetRowNumber}:`,
+            err
+          );
+          // stop processing this sheet this run
+          break;
+        }
+      }
+
+      checkpoints[sheetName] = { lastRowCount: totalDataRows };
+      saveCheckpoint(checkpoints);
+      console.log(`[${sheetName}] Checkpoint updated: ${totalDataRows}`);
+    } else {
+      console.log(new Date().toISOString(), `[${sheetName}] No new rows.`);
+      // ensure checkpoint exists
+      checkpoints[sheetName] = { lastRowCount: lastRowCount };
+      saveCheckpoint(checkpoints);
+    }
+  } // end for each sheet
 }
 
 async function main() {
-  const sheets = await createSheetsClient();
+  const sheetsClient = await createSheetsClient();
   console.log(
-    "Starting sheet poller for",
+    "Starting multi-sheet poller for",
     SPREADSHEET_ID,
-    "sheet:",
-    SHEET_NAME
+    "sheets:",
+    SHEET_NAMES.join(", ")
   );
-  // initial poll immediately
-  await pollSheet(sheets, pool);
-
-  // schedule subsequent polls
+  // initial run
+  await pollMultipleSheets(sheetsClient);
+  // schedule subsequent runs
   setInterval(async () => {
     try {
-      await pollSheet(sheets, pool);
+      await pollMultipleSheets(sheetsClient);
     } catch (err) {
       console.error("Poll error:", err);
     }
