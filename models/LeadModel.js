@@ -568,9 +568,15 @@ const LeadModel = {
            ORDER BY lh.id ASC`,
             [item.id]
           );
+
+          const [qualityHistory] = await pool.query(
+            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
+            [item.id]
+          );
           return {
             ...item,
             histories: history,
+            quality_history: qualityHistory,
           };
         })
       );
@@ -1361,6 +1367,56 @@ const LeadModel = {
       const [result] = await pool.query(getQuery, queryParams);
 
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateQuality: async (
+    id,
+    lead_id,
+    comments,
+    status,
+    cna_date,
+    updated_by
+  ) => {
+    try {
+      let affectedRows = 0;
+      if (id) {
+        const [updateComment] = await pool.query(
+          `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, is_updated = 1 WHERE id = ?`,
+          [comments, status, updated_by, id]
+        );
+
+        affectedRows += updateComment.affectedRows;
+
+        if (cna_date) {
+          const [insertComment] = await pool.query(
+            `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
+            [lead_id, cna_date, updated_by]
+          );
+
+          affectedRows += insertComment.affectedRows;
+        }
+      } else {
+        const [insertComment] = await pool.query(
+          `INSERT INTO quality_master(lead_id, comments, status, updated_by, is_updated) VALUES(?, ?, ?, ?, 1)`,
+          [lead_id, comments, status, updated_by]
+        );
+
+        affectedRows += insertComment.affectedRows;
+
+        if (cna_date) {
+          const [insertNextFollowup] = await pool.query(
+            `INSERT INTO quality_master(lead_id, cna_date) VALUES(?, ?)`,
+            [lead_id, cna_date]
+          );
+
+          affectedRows += insertNextFollowup.affectedRows;
+        }
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

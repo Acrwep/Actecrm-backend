@@ -325,4 +325,5 @@ router.delete(
 );
 router.post("/emailSend", verifyToken, TemplateController.emailSend);
 // Email template module end
+router.post("/updateQuality", verifyToken, LeadController.updateQuality);
 module.exports = router;
