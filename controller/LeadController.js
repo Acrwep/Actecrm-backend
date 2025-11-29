@@ -637,6 +637,29 @@ const qualityLeadFollowUps = async (request, response) => {
   }
 };
 
+const updateQualityFollowup = async (request, response) => {
+  const { lead_id, comments, status, cna_date, updated_by } = request.body;
+  try {
+    const result = await LeadModel.updateQualityFollowup(
+      lead_id,
+      comments,
+      status,
+      cna_date,
+      updated_by
+    );
+
+    return response.status(200).send({
+      message: "Data updated successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -664,4 +687,5 @@ module.exports = {
   globalFilter,
   updateQuality,
   qualityLeadFollowUps,
+  updateQualityFollowup,
 };

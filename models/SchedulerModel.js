@@ -16,10 +16,7 @@ if (!admin.apps.length) {
   });
 }
 
-// let scheduleTime = "*/02 * * * *"; // Schedule: Runs every 30 minutes
 let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
-// let nextFollowupTime = "0 08 * * *"; // Schedule: Runs every day at 08:00 AM
-// // let scheduleTime = "0 0 * * 0"; // Schedule: Runs every Sunday at midnight
 let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
 let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
 

@@ -1665,6 +1665,52 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  updateQualityFollowup: async (
+    lead_id,
+    comments,
+    status,
+    cna_date,
+    updated_by
+  ) => {
+    try {
+      let affectedRows = 0;
+      const [checkLead] = await pool.query(
+        `SELECT COUNT(id) AS total_count FROM quality_master WHERE is_updated = 0 AND lead_id = ?`,
+        [lead_id]
+      );
+
+      if (checkLead[0].total_count > 0)
+        throw new Error("Complete the previous pending follow-ups");
+
+      const [getRecentID] = await pool.query(
+        `SELECT id FROM quality_master WHERE lead_id = ? ORDER BY id	DESC LIMIT 1`,
+        [lead_id]
+      );
+
+      if (getRecentID.length <= 0) throw new Error("Couldn't update follow-up");
+
+      const [updateFollowUp] = await pool.query(
+        `UPDATE quality_master SET comments = ?, status = ?, cna_date = ?, updated_by = ? WHERE id = ?`,
+        [comments, status, cna_date, updated_by, getRecentID[0].id]
+      );
+
+      affectedRows += updateFollowUp.affectedRows;
+
+      if (cna_date) {
+        const [insertNextFollowup] = await pool.query(
+          `INSERT INTO quality_master(lead_id, cna_date) VALUES(?, ?)`,
+          [lead_id, cna_date]
+        );
+
+        affectedRows += insertNextFollowup.affectedRows;
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;
