@@ -578,7 +578,8 @@ const globalFilter = async (request, response) => {
 };
 
 const updateQuality = async (request, response) => {
-  const { id, lead_id, comments, status, cna_date, updated_by } = request.body;
+  const { id, lead_id, comments, status, cna_date, updated_by, updated_date } =
+    request.body;
   try {
     const result = await LeadModel.updateQuality(
       id,
@@ -586,7 +587,8 @@ const updateQuality = async (request, response) => {
       comments,
       status,
       cna_date,
-      updated_by
+      updated_by,
+      updated_date
     );
 
     return response.status(200).send({
@@ -638,14 +640,16 @@ const qualityLeadFollowUps = async (request, response) => {
 };
 
 const updateQualityFollowup = async (request, response) => {
-  const { lead_id, comments, status, cna_date, updated_by } = request.body;
+  const { lead_id, comments, status, cna_date, updated_by, updated_date } =
+    request.body;
   try {
     const result = await LeadModel.updateQualityFollowup(
       lead_id,
       comments,
       status,
       cna_date,
-      updated_by
+      updated_by,
+      updated_date
     );
 
     return response.status(200).send({

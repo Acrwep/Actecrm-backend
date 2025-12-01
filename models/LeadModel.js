@@ -1417,14 +1417,15 @@ const LeadModel = {
     comments,
     status,
     cna_date,
-    updated_by
+    updated_by,
+    updated_date
   ) => {
     try {
       let affectedRows = 0;
       if (id) {
         const [updateComment] = await pool.query(
-          `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = CURRENT_DATE, is_updated = 1 WHERE id = ?`,
-          [comments, status, updated_by, id]
+          `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
+          [comments, status, updated_by, updated_date, id]
         );
 
         affectedRows += updateComment.affectedRows;
@@ -1439,7 +1440,7 @@ const LeadModel = {
         }
       } else {
         const [insertComment] = await pool.query(
-          `INSERT INTO quality_master(lead_id, comments, status, updated_by, updated_date, is_updated) VALUES(?, ?, ?, ?, CURRENT_DATE, 1)`,
+          `INSERT INTO quality_master(lead_id, comments, status, updated_by, updated_date, is_updated) VALUES(?, ?, ?, ?, ?, 1)`,
           [lead_id, comments, status, updated_by]
         );
 
@@ -1672,7 +1673,8 @@ const LeadModel = {
     comments,
     status,
     cna_date,
-    updated_by
+    updated_by,
+    updated_date
   ) => {
     try {
       let affectedRows = 0;
@@ -1692,8 +1694,8 @@ const LeadModel = {
       if (getRecentID.length <= 0) throw new Error("Couldn't update follow-up");
 
       const [updateFollowUp] = await pool.query(
-        `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = CURRENT_DATE WHERE id = ?`,
-        [comments, status, updated_by, getRecentID[0].id]
+        `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = ? WHERE id = ?`,
+        [comments, status, updated_by, updated_date, getRecentID[0].id]
       );
 
       affectedRows += updateFollowUp.affectedRows;
