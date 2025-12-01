@@ -2251,6 +2251,298 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  reportUserWiseQuality: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26
+  ) => {
+    try {
+      // --- validate/normalize boundaryDay -------------------------------
+      boundaryDay = Number(boundaryDay) || 26;
+      if (boundaryDay < 1) boundaryDay = 1;
+      if (boundaryDay > 31) boundaryDay = 31;
+
+      // --- helpers -------------------------------------------------------
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      const parseToDateOnly = (d) => {
+        if (!d) return null;
+        if (d instanceof Date && !isNaN(d)) {
+          const dt = new Date(d.getTime());
+          dt.setHours(0, 0, 0, 0);
+          return dt;
+        }
+        // Accept 'YYYY-MM-DD' or other ISO-ish strings
+        const iso =
+          typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
+            ? `${d}T00:00:00`
+            : d;
+        const dt = new Date(iso);
+        if (isNaN(dt)) return null;
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+
+      const formatDateTimeSQL = (dt) => {
+        const z = (n) => n.toString().padStart(2, "0");
+        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
+          dt.getDate()
+        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
+      };
+
+      // --- build half-open datetimes ------------------------------------
+      const startDateOnly = parseToDateOnly(start_date);
+      const endDateOnly = parseToDateOnly(end_date);
+      if (!startDateOnly || !endDateOnly) {
+        throw new Error(
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+        );
+      }
+      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
+      const endExclusive = new Date(endDateOnly.getTime());
+      endExclusive.setDate(endExclusive.getDate() + 1);
+      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
+
+      // --- month mapping helpers ----------------------------------------
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthAbbrev = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const getMappedMonthStart = (dateInput) => {
+        // This maps an actual date to the "month label" start date according to boundaryDay.
+        // Example: boundaryDay=26 -> days 26..end belong to next month label.
+        const d = new Date(dateInput.getTime());
+        const day = d.getDate();
+        // If day >= boundaryDay, the record belongs to the NEXT month label
+        if (day >= boundaryDay) {
+          d.setMonth(d.getMonth() + 1);
+        }
+        // Start of that month label (1st of month)
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+
+      const formatLabel = (d) =>
+        `${monthNames[d.getMonth()]} ${d.getFullYear()}`; // "January 2025"
+      const formatAbbrev = (d) =>
+        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`; // "Jan 2025"
+      const monthKeyFromDate = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        return `${y}-${m}`; // "2025-01"
+      };
+
+      const getMonths = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const startMapped = getMappedMonthStart(sDate);
+        const endMapped = getMappedMonthStart(eDate);
+        const months = [];
+        const cur = new Date(startMapped.getTime());
+        while (cur <= endMapped) {
+          months.push({
+            label: formatLabel(cur),
+            abbrev: formatAbbrev(cur),
+            key: monthKeyFromDate(cur),
+            d: new Date(cur.getTime()),
+          });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+        return months;
+      };
+
+      const months = getMonths(start_date, end_date); // array of mapped months
+      if (months.length === 0) return [];
+
+      // --- build user list: either provided or all Quality users -----------
+      let userList = [];
+      if (user_ids) {
+        if (Array.isArray(user_ids)) userList = Array.from(new Set(user_ids));
+        else userList = [user_ids];
+      } else {
+        // fetch all quality users
+        const [urows] = await pool.query(
+          `SELECT user_id FROM users WHERE roles LIKE '%Quality%'`
+        );
+        userList = (urows || []).map((r) => r.user_id);
+      }
+
+      if (userList.length === 0) return []; // nothing to do
+
+      // --- prepare user placeholder and params for queries --------------
+      const userPlaceholders = userList.map(() => "?").join(", ");
+      const userParams = [...userList];
+
+      // --- Aggregates: productivity (updated_date) and followups (cna_date) ---
+      // NOTE: aliases here must match what we read later (productivity_count, cna_moved, ...)
+      const productivityAgg = `
+      SELECT u.user_id,
+        DATE_FORMAT(
+          CASE
+            WHEN DAY(CAST(qm.updated_date AS DATE)) >= ${boundaryDay}
+              THEN DATE_ADD(CAST(qm.updated_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(qm.updated_date AS DATE)
+          END, '%Y-%m'
+        ) AS month,
+        IFNULL(COUNT(qm.id), 0) AS productivity_count,
+        IFNULL(SUM(CASE WHEN qm.status = 3 THEN 1 ELSE 0 END), 0) AS cna_moved,
+        IFNULL(SUM(CASE WHEN qm.status <> 3 AND qm.cna_date IS NOT NULL THEN 1 ELSE 0 END), 0) AS cna_reached,
+        IFNULL(SUM(CASE WHEN qm.status <> 3 AND qm.cna_date IS NULL THEN 1 ELSE 0 END), 0) AS direct_reached
+      FROM users AS u
+      LEFT JOIN quality_master AS qm
+        ON u.user_id = qm.updated_by
+        AND qm.is_updated = 1
+        AND qm.updated_date >= ?
+        AND qm.updated_date < ?
+      WHERE u.roles LIKE '%Quality%'
+        AND u.user_id IN (${userPlaceholders})
+      GROUP BY u.user_id, month;
+    `;
+
+      const followupsAgg = `
+      SELECT u.user_id,
+        DATE_FORMAT(
+          CASE
+            WHEN DAY(CAST(qm.cna_date AS DATE)) >= ${boundaryDay}
+              THEN DATE_ADD(CAST(qm.cna_date AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(qm.cna_date AS DATE)
+          END, '%Y-%m'
+        ) AS month,
+        IFNULL(COUNT(qm.id), 0) AS total_followups,
+        IFNULL(SUM(CASE WHEN qm.is_updated = 1 THEN 1 ELSE 0 END), 0) AS followup_handled,
+        IFNULL(SUM(CASE WHEN qm.is_updated = 0 THEN 1 ELSE 0 END), 0) AS followup_unhandled
+      FROM users AS u
+      LEFT JOIN quality_master AS qm
+        ON u.user_id = qm.updated_by
+        AND qm.cna_date >= ?
+        AND qm.cna_date < ?
+      WHERE u.roles LIKE '%Quality%'
+        AND u.user_id IN (${userPlaceholders})
+      GROUP BY u.user_id, month;
+    `;
+
+      // --- execute aggregates (params: date range then user list for each) ---
+      const productivityParams = [
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+        ...userParams,
+      ];
+      const followupParams = [
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+        ...userParams,
+      ];
+
+      const [productivityRows] = await pool.query(
+        productivityAgg,
+        productivityParams
+      );
+      const [followRows] = await pool.query(followupsAgg, followupParams);
+
+      // --- build maps keyed by 'userId||YYYY-MM' ---------------------------
+      const productivityMap = (productivityRows || []).reduce((acc, r) => {
+        const key = `${r.user_id}||${r.month}`;
+        acc[key] = {
+          productivity_count: toNum(r.productivity_count),
+          cna_moved: toNum(r.cna_moved),
+          cna_reached: toNum(r.cna_reached),
+          direct_reached: toNum(r.direct_reached),
+        };
+        return acc;
+      }, {});
+
+      const followMap = (followRows || []).reduce((acc, r) => {
+        const key = `${r.user_id}||${r.month}`;
+        acc[key] = {
+          total_followups: toNum(r.total_followups),
+          followup_handled: toNum(r.followup_handled),
+          followup_unhandled: toNum(r.followup_unhandled),
+        };
+        return acc;
+      }, {});
+
+      // --- fetch user names (batch) -------------------------------------
+      const [userRows] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id IN (${userPlaceholders})`,
+        userParams
+      );
+      const userNameMap = (userRows || []).reduce((acc, r) => {
+        acc[r.user_id] = r.user_name;
+        return acc;
+      }, {});
+
+      // --- construct final per-user result: every user × every mapped month ---
+      const final = [];
+      for (const uid of userList) {
+        const uname = userNameMap[uid] || "";
+        for (const m of months) {
+          const monthKey = m.key; // "YYYY-MM"
+          const productivityData = productivityMap[`${uid}||${monthKey}`] || {
+            productivity_count: 0,
+            cna_moved: 0,
+            cna_reached: 0,
+            direct_reached: 0,
+          };
+          const followData = followMap[`${uid}||${monthKey}`] || {
+            total_followups: 0,
+            followup_handled: 0,
+            followup_unhandled: 0,
+          };
+
+          final.push({
+            user_id: uid,
+            user_name: uname,
+            month: m.abbrev, // "Jan 2025"
+            label: m.label, // "January 2025"
+            productivity_count: productivityData.productivity_count,
+            cna_moved: productivityData.cna_moved,
+            cna_reached: productivityData.cna_reached,
+            direct_reached: productivityData.direct_reached,
+            total_followups: followData.total_followups,
+            followup_handled: followData.followup_handled,
+            followup_unhandled: followData.followup_unhandled,
+          });
+        }
+      }
+
+      return final;
+    } catch (error) {
+      throw new Error(error && error.message ? error.message : String(error));
+    }
+  },
 };
 
 module.exports = ReportModel;

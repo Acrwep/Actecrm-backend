@@ -312,6 +312,11 @@ router.post(
   ReportController.monthWiseCollection
 );
 router.get("/globalFilter", verifyToken, LeadController.globalFilter);
+router.post(
+  "/reportUserWiseQuality",
+  verifyToken,
+  ReportController.reportUserWiseQuality
+);
 // Report module end
 
 // Email template module start
