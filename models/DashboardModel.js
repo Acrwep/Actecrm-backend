@@ -1061,6 +1061,81 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  qualityProductivity: async (user_ids, start_date, end_date, type) => {
+    try {
+      const queryParams = [];
+      const followUpParams = [];
+      let getQuery = `SELECT u.user_id, u.user_name, IFNULL(COUNT(qm.id), 0) AS productivity_count, IFNULL(SUM(CASE WHEN qm.status = 3 THEN 1 ELSE 0 END), 0) AS cna_moved, IFNULL(SUM(CASE WHEN qm.status <> 3 AND qm.cna_date IS NOT NULL THEN 1 ELSE 0 END), 0) AS cna_reached, IFNULL(SUM(CASE WHEN qm.status <> 3 AND qm.cna_date IS NULL THEN 1 ELSE 0 END), 0) AS direct_reached FROM users AS u LEFT JOIN quality_master AS qm ON u.user_id = qm.updated_by AND qm.is_updated = 1`;
+
+      let followUpQuery = `SELECT u.user_id, u.user_name, IFNULL(COUNT(qm.id), 0) AS total_followups, IFNULL(SUM(CASE WHEN qm.is_updated = 1 THEN 1 ELSE 0 END), 0) AS follow_up_handled, IFNULL(SUM(CASE WHEN qm.is_updated = 0 THEN 1 ELSE 0 END), 0) AS follow_up_unhandled FROM users AS u LEFT JOIN quality_master AS qm ON u.user_id = qm.updated_by`;
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(qm.updated_date AS DATE) BETWEEN ? AND ?`;
+        followUpQuery += ` AND CAST(qm.cna_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        followUpParams.push(start_date, end_date);
+      }
+
+      getQuery += ` WHERE u.roles LIKE '%Quality%'`;
+      followUpQuery += ` WHERE u.roles LIKE '%Quality%'`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND u.user_id IN (${placeholders})`;
+          followUpQuery += ` AND u.user_id IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          followUpParams.push(...user_ids);
+        } else {
+          getQuery += ` AND u.user_id = ?`;
+          followUpQuery += ` AND u.user_id = ?`;
+          queryParams.push(user_ids);
+          followUpParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` GROUP BY u.user_id, u.user_name`;
+      followUpQuery += ` GROUP BY u.user_id, u.user_name ORDER BY total_followups DESC`;
+
+      const [getUsers] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE roles LIKE '%Quality%'`
+      );
+
+      const [productivityResult] = await pool.query(getQuery, queryParams);
+      const [followupResult] = await pool.query(followUpQuery, followUpParams);
+
+      // If user only asked for raw Productivity or Followup, return them directly
+      if (type === "Productivity") {
+        return productivityResult;
+      }
+      if (type === "Followup") {
+        return followupResult;
+      }
+
+      const formattedResult = getUsers.map((item) => {
+        const filterProductivity =
+          productivityResult.find((p) => p.user_id === item.user_id) || {};
+        const followupFilter =
+          followupResult.find((f) => f.user_id === item.user_id) || {};
+
+        return {
+          ...item,
+          productivity_count: filterProductivity.total_count,
+          cna_moved: filterProductivity.not_reached,
+          cna_reached: filterProductivity.cna_reached,
+          direct_reached: filterProductivity.direct_reached,
+          total_followups: followupFilter.total_count,
+          follow_up_handled: followupFilter.handled,
+          follow_up_unhandled: followupFilter.unhandled,
+        };
+      });
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

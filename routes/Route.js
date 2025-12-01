@@ -336,4 +336,9 @@ router.put(
   verifyToken,
   LeadController.updateQualityFollowup
 );
+router.post(
+  "/qualityProductivity",
+  verifyToken,
+  DashboardController.qualityProductivity
+);
 module.exports = router;

@@ -206,6 +206,27 @@ const downloadUserWiseScoreBoard = async (request, response) => {
   }
 };
 
+const qualityProductivity = async (request, response) => {
+  const { user_ids, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.qualityProductivity(
+      user_ids,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScoreBoard,
   getHRDashboard,
@@ -217,4 +238,5 @@ module.exports = {
   getBranchWiseLeadCounts,
   downloadUserWiseLeads,
   downloadUserWiseScoreBoard,
+  qualityProductivity,
 };

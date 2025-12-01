@@ -1423,7 +1423,7 @@ const LeadModel = {
       let affectedRows = 0;
       if (id) {
         const [updateComment] = await pool.query(
-          `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, is_updated = 1 WHERE id = ?`,
+          `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = CURRENT_DATE, is_updated = 1 WHERE id = ?`,
           [comments, status, updated_by, id]
         );
 
@@ -1439,7 +1439,7 @@ const LeadModel = {
         }
       } else {
         const [insertComment] = await pool.query(
-          `INSERT INTO quality_master(lead_id, comments, status, updated_by, is_updated) VALUES(?, ?, ?, ?, 1)`,
+          `INSERT INTO quality_master(lead_id, comments, status, updated_by, updated_date, is_updated) VALUES(?, ?, ?, ?, CURRENT_DATE, 1)`,
           [lead_id, comments, status, updated_by]
         );
 
@@ -1447,8 +1447,8 @@ const LeadModel = {
 
         if (cna_date) {
           const [insertNextFollowup] = await pool.query(
-            `INSERT INTO quality_master(lead_id, cna_date) VALUES(?, ?)`,
-            [lead_id, cna_date]
+            `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
+            [lead_id, cna_date, updated_by]
           );
 
           affectedRows += insertNextFollowup.affectedRows;
@@ -1691,16 +1691,16 @@ const LeadModel = {
       if (getRecentID.length <= 0) throw new Error("Couldn't update follow-up");
 
       const [updateFollowUp] = await pool.query(
-        `UPDATE quality_master SET comments = ?, status = ?, cna_date = ?, updated_by = ? WHERE id = ?`,
-        [comments, status, cna_date, updated_by, getRecentID[0].id]
+        `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = CURRENT_DATE WHERE id = ?`,
+        [comments, status, updated_by, getRecentID[0].id]
       );
 
       affectedRows += updateFollowUp.affectedRows;
 
       if (cna_date) {
         const [insertNextFollowup] = await pool.query(
-          `INSERT INTO quality_master(lead_id, cna_date) VALUES(?, ?)`,
-          [lead_id, cna_date]
+          `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
+          [lead_id, cna_date, updated_by]
         );
 
         affectedRows += insertNextFollowup.affectedRows;
