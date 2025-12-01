@@ -1121,13 +1121,13 @@ const DashboardModel = {
 
         return {
           ...item,
-          productivity_count: filterProductivity.total_count,
-          cna_moved: filterProductivity.not_reached,
+          productivity_count: filterProductivity.productivity_count,
+          cna_moved: filterProductivity.cna_moved,
           cna_reached: filterProductivity.cna_reached,
           direct_reached: filterProductivity.direct_reached,
-          total_followups: followupFilter.total_count,
-          follow_up_handled: followupFilter.handled,
-          follow_up_unhandled: followupFilter.unhandled,
+          total_followups: followupFilter.total_followups,
+          follow_up_handled: followupFilter.follow_up_handled,
+          follow_up_unhandled: followupFilter.follow_up_unhandled,
         };
       });
 
