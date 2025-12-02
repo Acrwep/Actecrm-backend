@@ -142,19 +142,20 @@ async function insertLead(leadObj, sheetRowNumber) {
       [mapped.email, mapped.phone]
     );
 
-    let [res] = [];
+    let insertResult;
 
     if (isExists[0].lead_count <= 0) {
-      res = await pool.query(sql, params);
+      const [result] = await pool.query(sql, params);
+      insertResult = result; // result is the ResultSetHeader
     }
 
-    if (res.insertId && res.insertId > 0) {
+    if (insertResult && insertResult.insertId && insertResult.insertId > 0) {
       const [rows] = await pool.query(
         "SELECT * FROM website_leads WHERE id = ?",
-        [res.insertId]
+        [insertResult.insertId]
       );
       if (rows && rows.length === 1) {
-        return { ok: true, insertedId: res.insertId, row: rows[0] };
+        return { ok: true, insertedId: insertResult.insertId, row: rows[0] };
       } else {
         return { ok: false, error: "Inserted but read-back failed" };
       }
