@@ -13,17 +13,12 @@ const SHEET_NAMES = (
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-// const POLL_INTERVAL_MS =
-//   parseInt(process.env.POLL_INTERVAL_SECONDS || "10", 10) * 1000;
-// const POLL_INTERVAL_MS =
-//   parseInt(process.env.POLL_INTERVAL_MINUTES || "30", 10) * 60 * 1000;
-
-const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-// const POLL_INTERVAL_MS = 10 * 1000; // 10 seconds
+const POLL_INTERVAL_MS =
+  parseInt(process.env.POLL_INTERVAL_MINUTES || "1", 10) * 60 * 1000;
 
 const KEYFILE = path.join(
   __dirname,
-  process.env.KEYFILE || "serviceaccount.json"
+  process.env.KEYFILE || "acte-480005-9b15a4920cca.json"
 );
 
 const CHECKPOINT_FILE = path.join(__dirname, "checkpoint.json");
@@ -87,13 +82,22 @@ function mapSheetObjectToDb(leadObj) {
   };
 
   return {
-    name: get("Name") || get("name") || "",
-    phone: get("Phone") || get("phone") || "",
-    email: get("Email") || get("email") || "",
-    course: get("Course") || get("course") || "",
-    branch_id: get("BranchId") || get("branch_id") || get("branch") || null,
-    comments: get("Comments") || get("comments") || "",
-    status: get("Status") || get("status") || "",
+    name:
+      get("Name") || get("name") || get("Your Name") || get("YourName") || "",
+    phone:
+      get("Phone") ||
+      get("phone") ||
+      get("Mobile Number") ||
+      get("mobilenumber") ||
+      "",
+    email: get("Email") || get("email") || get("Your Email") || "",
+    course: get("Course") || get("course") || get("Select Course") || "",
+    // branch_id: get("BranchId") || get("branch_id") || get("branch") || null,
+    location: get("Location") || "",
+    comments: get("Comments") || get("comments") || get("Message") || "",
+    date: get("Date") || "",
+    time: get("Time") || "",
+    training: get("Training") || "",
   };
 }
 
@@ -112,17 +116,10 @@ async function insertLead(leadObj, sheetRowNumber) {
   const branchId = mapped.branch_id ? parseInt(mapped.branch_id, 10) : null;
 
   try {
-    const [getRegionID] = await pool.query(
-      `SELECT region_id FROM branches WHERE id = ?`,
-      [mapped.branch_id]
-    );
-    const region_id_val =
-      getRegionID && getRegionID[0] ? getRegionID[0].region_id : null;
-
     const sql = `
       INSERT INTO website_leads
-        (name, phone, email, course, region_id, branch_id, comments, status, sheet_row, source_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, phone, email, course, comments, location, date, time, training, status, sheet_row, source_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE id = id;
     `;
     const params = [
@@ -130,9 +127,11 @@ async function insertLead(leadObj, sheetRowNumber) {
       mapped.phone,
       mapped.email,
       mapped.course,
-      region_id_val,
-      branchId,
       mapped.comments,
+      mapped.location,
+      mapped.date,
+      mapped.time,
+      mapped.training,
       "Pending",
       sheetRowNumber, // NOTE: row number is per-tab
       sourceHash,
