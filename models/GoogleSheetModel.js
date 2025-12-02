@@ -131,7 +131,7 @@ async function insertLead(leadObj, sheetRowNumber) {
       mapped.location,
       mapped.date,
       mapped.time,
-      mapped.training,
+      mapped.training === "" ? "Classroom Training" : mapped.training,
       "Pending",
       sheetRowNumber, // NOTE: row number is per-tab
       sourceHash,
@@ -142,7 +142,8 @@ async function insertLead(leadObj, sheetRowNumber) {
       [mapped.email, mapped.phone]
     );
 
-    let res = [];
+    let [res] = [];
+
     if (isExists[0].lead_count <= 0) {
       res = await pool.query(sql, params);
     }
