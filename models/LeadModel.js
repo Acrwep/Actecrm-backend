@@ -413,7 +413,7 @@ const LeadModel = {
           );
 
           const [qualityHistory] = await pool.query(
-            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
+            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
             [item.id]
           );
           return {
@@ -609,7 +609,7 @@ const LeadModel = {
           );
 
           const [qualityHistory] = await pool.query(
-            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
+            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
             [item.id]
           );
           return {
