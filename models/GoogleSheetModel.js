@@ -137,18 +137,7 @@ async function insertLead(leadObj, sheetRowNumber) {
       sourceHash,
     ];
 
-    // const [isExists] = await pool.query(
-    //   `SELECT COUNT(id) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
-    //   [mapped.email, mapped.phone]
-    // );
-
     let insertResult;
-
-    // if (isExists[0].lead_count <= 0) {
-    //   const [result] = await pool.query(sql, params);
-    //   insertResult = result; // result is the ResultSetHeader
-    // }
-
     const [result] = await pool.query(sql, params);
     insertResult = result; // result is the ResultSetHeader
 

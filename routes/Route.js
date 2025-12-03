@@ -57,6 +57,7 @@ router.get("/getRegion", LeadController.getRegion);
 router.get("/getLeadAction", LeadController.getLeadAction);
 router.post("/websiteLead", LeadController.websiteLead);
 router.get("/getAllBranches", LeadController.getAllBranches);
+router.post("/getWebsiteLead", LeadController.getWebsiteLead);
 // Lead end
 
 // Payment start

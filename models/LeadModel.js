@@ -1714,6 +1714,78 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  getWebsiteLead: async (
+    name,
+    phone,
+    email,
+    course,
+    start_date,
+    end_date,
+    page,
+    limit
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, created_date FROM website_leads WHERE 1 = 1`;
+
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE 1 = 1`;
+
+      if (name) {
+        getQuery += ` AND name LIKE '%${name}%'`;
+        countQuery += ` AND name LIKE '%${name}%'`;
+      }
+
+      if (email) {
+        getQuery += ` AND email LIKE '%${email}%'`;
+        countQuery += ` AND email LIKE '%${email}%'`;
+      }
+
+      if (phone) {
+        getQuery += ` AND phone LIKE '%${phone}%'`;
+        countQuery += ` AND phone LIKE '%${phone}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND course LIKE '%${course}%'`;
+        countQuery += ` AND course LIKE '%${course}%'`;
+      }
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+      }
+
+      // Get total count
+      const [countResult] = await pool.query(countQuery, countParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY created_date DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      return {
+        data: result,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = LeadModel;

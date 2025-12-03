@@ -664,6 +664,32 @@ const updateQualityFollowup = async (request, response) => {
   }
 };
 
+const getWebsiteLead = async (request, response) => {
+  const { name, phone, email, course, start_date, end_date, page, limit } =
+    request.body;
+  try {
+    const result = await LeadModel.getWebsiteLead(
+      name,
+      phone,
+      email,
+      course,
+      start_date,
+      end_date,
+      page,
+      limit
+    );
+    return response.status(200).send({
+      message: "Website leads fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching website leads",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -692,4 +718,5 @@ module.exports = {
   updateQuality,
   qualityLeadFollowUps,
   updateQualityFollowup,
+  getWebsiteLead,
 };
