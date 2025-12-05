@@ -56,7 +56,7 @@ const generateToken = (user) => {
       position: user.position_id,
     },
     process.env.JWT_SECRET, // From .env file
-    { expiresIn: "1d" }
+    { expiresIn: "3d" }
   );
 };
 
