@@ -690,6 +690,37 @@ const getWebsiteLead = async (request, response) => {
   }
 };
 
+const updateJunkValue = async (request, response) => {
+  const { lead_id, is_junk } = request.body;
+  try {
+    const result = await LeadModel.updateJunkValue(lead_id, is_junk);
+    return response.status(200).send({
+      message: "Junk status updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating junk status",
+      details: error.message,
+    });
+  }
+};
+
+const moveToTrash = async (request, response) => {
+  try {
+    const result = await LeadModel.moveToTrash(request.params.id);
+    return response.status(200).send({
+      message: "Lead has been deleted",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while deleting lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -719,4 +750,6 @@ module.exports = {
   qualityLeadFollowUps,
   updateQualityFollowup,
   getWebsiteLead,
+  updateJunkValue,
+  moveToTrash,
 };

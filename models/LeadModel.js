@@ -808,7 +808,7 @@ const LeadModel = {
 
       let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
 
-      let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE 1 = 1`;
+      let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
 
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
@@ -1731,9 +1731,9 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, created_date FROM website_leads WHERE 1 = 1`;
+      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE 1 = 1`;
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
 
       if (name) {
         getQuery += ` AND name LIKE '%${name}%'`;
@@ -1776,8 +1776,17 @@ const LeadModel = {
 
       const [result] = await pool.query(getQuery, queryParams);
 
+      const formattedResult = result.map((item) => {
+        const formatedDate = formatToBackendIST(item.created_date);
+
+        return {
+          ...item,
+          created_date: formatedDate,
+        };
+      });
+
       return {
-        data: result,
+        data: formattedResult,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
@@ -1789,6 +1798,62 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  updateJunkValue: async (lead_id, is_junk) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM website_leads WHERE id = ?`,
+        [lead_id]
+      );
+
+      if (isExists.length <= 0) throw new Error("Invalid Id");
+
+      const [result] = await pool.query(
+        `UPDATE website_leads SET is_junk = ? WHERE id = ?`,
+        [is_junk, lead_id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  moveToTrash: async (lead_id) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM website_leads WHERE id = ?`,
+        [lead_id]
+      );
+
+      if (isExists.length <= 0) throw new Error("Invalid Id");
+
+      const [result] = await pool.query(
+        `UPDATE website_leads SET is_deleted = 1 WHERE id = ?`,
+        [lead_id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
+
+function formatToBackendIST(date) {
+  const istDate = new Date(
+    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const year = istDate.getFullYear();
+  const month = pad(istDate.getMonth() + 1);
+  const day = pad(istDate.getDate());
+  const hours = pad(istDate.getHours());
+  const minutes = pad(istDate.getMinutes());
+  const seconds = pad(istDate.getSeconds());
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
 module.exports = LeadModel;
