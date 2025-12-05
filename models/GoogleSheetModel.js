@@ -113,13 +113,19 @@ function computeHash(obj) {
 async function insertLead(leadObj, sheetRowNumber) {
   const mapped = mapSheetObjectToDb(leadObj);
   const sourceHash = computeHash(mapped);
-  const branchId = mapped.branch_id ? parseInt(mapped.branch_id, 10) : null;
 
   try {
+    const [isExists] = await pool.query(
+      `SELECT COUNT(*) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+      [mapped.email, mapped.phone]
+    );
+
+    let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
+
     const sql = `
       INSERT INTO website_leads
-        (name, phone, email, course, comments, location, date, time, training, status, sheet_row, source_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, phone, email, course, comments, location, date, time, training, status, sheet_row, source_hash, lead_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE id = id;
     `;
     const params = [
@@ -135,6 +141,7 @@ async function insertLead(leadObj, sheetRowNumber) {
       "Pending",
       sheetRowNumber, // NOTE: row number is per-tab
       sourceHash,
+      leadType,
     ];
 
     let insertResult;

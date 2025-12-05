@@ -691,9 +691,9 @@ const getWebsiteLead = async (request, response) => {
 };
 
 const updateJunkValue = async (request, response) => {
-  const { lead_id, is_junk } = request.body;
+  const { lead_ids, is_junk } = request.body;
   try {
-    const result = await LeadModel.updateJunkValue(lead_id, is_junk);
+    const result = await LeadModel.updateJunkValue(lead_ids, is_junk);
     return response.status(200).send({
       message: "Junk status updated successfully",
       data: result,
@@ -707,8 +707,9 @@ const updateJunkValue = async (request, response) => {
 };
 
 const moveToTrash = async (request, response) => {
+  const { lead_ids } = request.body;
   try {
-    const result = await LeadModel.moveToTrash(request.params.id);
+    const result = await LeadModel.moveToTrash(lead_ids);
     return response.status(200).send({
       message: "Lead has been deleted",
       data: result,
@@ -716,6 +717,22 @@ const moveToTrash = async (request, response) => {
   } catch (error) {
     response.status(500).send({
       message: "Error while deleting lead",
+      details: error.message,
+    });
+  }
+};
+
+const assignLiveLead = async (request, response) => {
+  const { user_id, lead_id } = request.body;
+  try {
+    const result = await LeadModel.assignLiveLead(user_id, lead_id);
+    return response.status(200).send({
+      message: "Lead assigned successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while assigning lead",
       details: error.message,
     });
   }
@@ -752,4 +769,5 @@ module.exports = {
   getWebsiteLead,
   updateJunkValue,
   moveToTrash,
+  assignLiveLead,
 };

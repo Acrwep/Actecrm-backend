@@ -59,7 +59,8 @@ router.post("/websiteLead", LeadController.websiteLead);
 router.get("/getAllBranches", LeadController.getAllBranches);
 router.post("/getWebsiteLead", LeadController.getWebsiteLead);
 router.put("/updateJunkValue", verifyToken, LeadController.updateJunkValue);
-router.delete("/moveToTrash/:id", verifyToken, LeadController.moveToTrash);
+router.put("/moveToTrash", verifyToken, LeadController.moveToTrash);
+router.put("/assignLiveLead", verifyToken, LeadController.assignLiveLead);
 // Lead end
 
 // Payment start

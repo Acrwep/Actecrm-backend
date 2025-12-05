@@ -808,7 +808,7 @@ const LeadModel = {
 
       let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
 
-      let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
+      let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
@@ -1731,9 +1731,9 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
+      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 0 AND is_deleted = 0`;
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
       if (name) {
         getQuery += ` AND name LIKE '%${name}%'`;
@@ -1799,18 +1799,24 @@ const LeadModel = {
     }
   },
 
-  updateJunkValue: async (lead_id, is_junk) => {
+  updateJunkValue: async (lead_ids, is_junk) => {
     try {
+      // Build placeholders (?, ?, ?)
+      const placeholders = lead_ids.map(() => "?").join(",");
       const [isExists] = await pool.query(
-        `SELECT id FROM website_leads WHERE id = ?`,
-        [lead_id]
+        `SELECT id FROM website_leads WHERE id IN (${placeholders})`,
+        [...lead_ids]
       );
 
-      if (isExists.length <= 0) throw new Error("Invalid Id");
+      if (isExists.length !== lead_ids.length) {
+        const foundIds = isExists.map((r) => r.id);
+        const missingIds = lead_ids.filter((id) => !foundIds.includes(id));
+        throw new Error(`Invalid Id(s): ${missingIds.join(", ")}`);
+      }
 
       const [result] = await pool.query(
-        `UPDATE website_leads SET is_junk = ? WHERE id = ?`,
-        [is_junk, lead_id]
+        `UPDATE website_leads SET is_junk = ? WHERE id IN (${placeholders})`,
+        [is_junk, ...lead_ids]
       );
 
       return result.affectedRows;
@@ -1819,7 +1825,33 @@ const LeadModel = {
     }
   },
 
-  moveToTrash: async (lead_id) => {
+  moveToTrash: async (lead_ids) => {
+    try {
+      // Build placeholders (?, ?, ?)
+      const placeholders = lead_ids.map(() => "?").join(",");
+      const [isExists] = await pool.query(
+        `SELECT id FROM website_leads WHERE id IN (${placeholders})`,
+        [...lead_ids]
+      );
+
+      if (isExists.length !== lead_ids.length) {
+        const foundIds = isExists.map((r) => r.id);
+        const missingIds = lead_ids.filter((id) => !foundIds.includes(id));
+        throw new Error(`Invalid Id(s): ${missingIds.join(", ")}`);
+      }
+
+      const [result] = await pool.query(
+        `UPDATE website_leads SET is_deleted = 1 WHERE id IN (${placeholders})`,
+        [...lead_ids]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  assignLiveLead: async (user_id, lead_id) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM website_leads WHERE id = ?`,
@@ -1829,8 +1861,8 @@ const LeadModel = {
       if (isExists.length <= 0) throw new Error("Invalid Id");
 
       const [result] = await pool.query(
-        `UPDATE website_leads SET is_deleted = 1 WHERE id = ?`,
-        [lead_id]
+        `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
+        [user_id, lead_id]
       );
 
       return result.affectedRows;
