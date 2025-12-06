@@ -1,11 +1,14 @@
 const pool = require("../config/dbconfig");
 
 const TrainerModel = {
-  getTechnologies: async () => {
+  getTechnologies: async (name) => {
     try {
-      const [tech] = await pool.query(
-        `SELECT id, name, price, offer_price FROM technologies WHERE is_active = 1`
-      );
+      let getQuery = `SELECT id, name, price, offer_price FROM technologies WHERE is_active = 1`;
+
+      if (name) {
+        getQuery += ` AND name LIKE '%${name}%'`;
+      }
+      const [tech] = await pool.query(getQuery);
       return tech;
     } catch (error) {
       throw new Error(error.message);
