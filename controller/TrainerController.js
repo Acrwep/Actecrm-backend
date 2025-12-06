@@ -288,9 +288,13 @@ const getCusByTrainer = async (request, response) => {
 };
 
 const addTechnologies = async (request, response) => {
-  const { course_name } = request.body;
+  const { course_name, price, offer_price } = request.body;
   try {
-    const result = await TrainerModel.addTechnologies(course_name);
+    const result = await TrainerModel.addTechnologies(
+      course_name,
+      price,
+      offer_price
+    );
     return response.status(201).send({
       message: "Course added successfully",
       data: result,
@@ -298,6 +302,42 @@ const addTechnologies = async (request, response) => {
   } catch (error) {
     response.status(500).send({
       message: "Error while adding course",
+      details: error.message,
+    });
+  }
+};
+
+const updateTechnologies = async (request, response) => {
+  const { id, course_name, price, offer_price } = request.body;
+  try {
+    const result = await TrainerModel.updateTechnologies(
+      id,
+      course_name,
+      price,
+      offer_price
+    );
+    return response.status(200).send({
+      message: "Course updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating course",
+      details: error.message,
+    });
+  }
+};
+
+const deleteTechnologies = async (request, response) => {
+  try {
+    const result = await TrainerModel.deleteTechnologies(request.params.id);
+    return response.status(200).send({
+      message: "Course has been deleted",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while deleting course",
       details: error.message,
     });
   }
@@ -348,4 +388,6 @@ module.exports = {
   addTechnologies,
   addSkills,
   getSkills,
+  updateTechnologies,
+  deleteTechnologies,
 };

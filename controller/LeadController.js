@@ -738,6 +738,32 @@ const assignLiveLead = async (request, response) => {
   }
 };
 
+const getJunkLeads = async (request, response) => {
+  const { name, phone, email, course, start_date, end_date, page, limit } =
+    request.body;
+  try {
+    const result = await LeadModel.getJunkLeads(
+      name,
+      phone,
+      email,
+      course,
+      start_date,
+      end_date,
+      page,
+      limit
+    );
+    return response.status(200).send({
+      message: "Junk leads fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching junk leads",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -770,4 +796,5 @@ module.exports = {
   updateJunkValue,
   moveToTrash,
   assignLiveLead,
+  getJunkLeads,
 };

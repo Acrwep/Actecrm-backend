@@ -4,7 +4,7 @@ const TrainerModel = {
   getTechnologies: async () => {
     try {
       const [tech] = await pool.query(
-        `SELECT id, name FROM technologies WHERE is_active = 1`
+        `SELECT id, name, price, offer_price FROM technologies WHERE is_active = 1`
       );
       return tech;
     } catch (error) {
@@ -679,18 +679,68 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
-  addTechnologies: async (course_name) => {
+  addTechnologies: async (course_name, price, offer_price) => {
     try {
       const [isNameExists] = await pool.query(
         `SELECT id FROM technologies WHERE name = ? AND is_active = 1`,
         [course_name]
       );
       if (isNameExists.length > 0)
+        throw new Error("The course name already exists.");
+
+      const [result] = await pool.query(
+        `INSERT INTO technologies(name, price, offer_price) VALUES(?, ?, ?)`,
+        [course_name, price, offer_price]
+      );
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateTechnologies: async (id, course_name, price, offer_price) => {
+    try {
+      const [isIdExists] = await pool.query(
+        `SELECT id FROM technologies WHERE id = ?`,
+        [id]
+      );
+
+      if (isIdExists.length <= 0) throw new Error("Invalid Id");
+
+      const [isNameExists] = await pool.query(
+        `SELECT id FROM technologies WHERE name = ? AND is_active = 1 AND id != ?`,
+        [course_name, id]
+      );
+
+      if (isNameExists.length > 0)
         throw new Error("The course name already exists");
 
       const [result] = await pool.query(
-        `INSERT INTO technologies(name) VALUES(?)`,
-        [course_name]
+        `UPDATE technologies SET name = ?, price = ?, offer_price = ? WHERE id = ?`,
+        [course_name, price, offer_price, id]
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  deleteTechnologies: async (id) => {
+    try {
+      const [isMapped] = await pool.query(
+        `SELECT COUNT(*) AS total FROM lead_master WHERE primary_course_id = ?`,
+        [id]
+      );
+
+      if (isMapped[0].total > 0)
+        throw new Error(
+          "Unable to delete because the course is mapped to lead"
+        );
+
+      const [result] = await pool.query(
+        `DELETE FROM technologies WHERE id = ?`,
+        [id]
       );
       return result.affectedRows;
     } catch (error) {

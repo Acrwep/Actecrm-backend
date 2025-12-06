@@ -350,4 +350,15 @@ router.post(
   verifyToken,
   DashboardController.qualityProductivity
 );
+router.put(
+  "/updateTechnologies",
+  verifyToken,
+  TrainerController.updateTechnologies
+);
+router.delete(
+  "/deleteTechnologies/:id",
+  verifyToken,
+  TrainerController.deleteTechnologies
+);
+router.post("/getJunkLeads", verifyToken, LeadController.getJunkLeads);
 module.exports = router;

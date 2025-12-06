@@ -14,7 +14,7 @@ const SHEET_NAMES = (
   .map((s) => s.trim())
   .filter(Boolean);
 const POLL_INTERVAL_MS =
-  parseInt(process.env.POLL_INTERVAL_MINUTES || "1", 10) * 60 * 1000;
+  parseInt(process.env.POLL_INTERVAL_MINUTES || "10", 10) * 1000;
 
 const KEYFILE = path.join(
   __dirname,

@@ -804,19 +804,24 @@ const LeadModel = {
       const followUpParams = [];
       const leadParams = [];
       const webParams = [];
+      const junkParams = [];
       let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE lf.is_updated = 0 AND c.id IS NULL`;
 
       let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
 
       let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
+      let junkQuery = `SELECT COUNT(*) AS junk_lead_count FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         webLeadsCount += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        junkQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
         webParams.push(start_date, end_date);
+        junkParams.push(start_date, end_date);
       }
 
       if (user_ids) {
@@ -842,10 +847,13 @@ const LeadModel = {
       const [getLeadCount] = await pool.query(leadCountQuery, leadParams);
 
       const [webResult] = await pool.query(webLeadsCount, webParams);
+
+      const [junkResult] = await pool.query(junkQuery, junkParams);
       return {
         follow_up_count: getFollowupCount[0].follow_up_count,
         total_lead_count: getLeadCount[0].total_lead_count,
         web_lead_count: webResult[0].web_lead_count,
+        junk_lead_count: junkResult[0].junk_lead_count,
       };
     } catch (error) {
       throw new Error(error.message);
@@ -1866,6 +1874,87 @@ const LeadModel = {
       );
 
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getJunkLeads: async (
+    name,
+    phone,
+    email,
+    course,
+    start_date,
+    end_date,
+    page,
+    limit
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+
+      if (name) {
+        getQuery += ` AND name LIKE '%${name}%'`;
+        countQuery += ` AND name LIKE '%${name}%'`;
+      }
+
+      if (email) {
+        getQuery += ` AND email LIKE '%${email}%'`;
+        countQuery += ` AND email LIKE '%${email}%'`;
+      }
+
+      if (phone) {
+        getQuery += ` AND phone LIKE '%${phone}%'`;
+        countQuery += ` AND phone LIKE '%${phone}%'`;
+      }
+
+      if (course) {
+        getQuery += ` AND course LIKE '%${course}%'`;
+        countQuery += ` AND course LIKE '%${course}%'`;
+      }
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+      }
+
+      // Get total count
+      const [countResult] = await pool.query(countQuery, countParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY created_date DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      const formattedResult = result.map((item) => {
+        const formatedDate = formatToBackendIST(item.created_date);
+
+        return {
+          ...item,
+          created_date: formatedDate,
+        };
+      });
+
+      return {
+        data: formattedResult,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }
