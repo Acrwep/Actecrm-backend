@@ -95,11 +95,12 @@ const getNotifications = async (req, res) => {
     const limitNumber = parseInt(limit, 10);
     const offset = (pageNumber - 1) * limitNumber;
 
-    const { data, total } = await notificationModel.getUserNotifications(
-      user_id,
-      limitNumber,
-      offset
-    );
+    const { data, total, lead_count } =
+      await notificationModel.getUserNotifications(
+        user_id,
+        limitNumber,
+        offset
+      );
 
     // range calculation
     const start = total === 0 ? 0 : offset + 1;
@@ -107,6 +108,7 @@ const getNotifications = async (req, res) => {
 
     return res.json({
       data,
+      lead_count,
       pagination: {
         total: total,
         label: `${start} to ${end} of ${total}`,

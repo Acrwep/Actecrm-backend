@@ -691,9 +691,9 @@ const getWebsiteLead = async (request, response) => {
 };
 
 const updateJunkValue = async (request, response) => {
-  const { lead_ids, is_junk } = request.body;
+  const { lead_ids, is_junk, reason } = request.body;
   try {
-    const result = await LeadModel.updateJunkValue(lead_ids, is_junk);
+    const result = await LeadModel.updateJunkValue(lead_ids, is_junk, reason);
     return response.status(200).send({
       message: "Junk status updated successfully",
       data: result,
@@ -723,9 +723,13 @@ const moveToTrash = async (request, response) => {
 };
 
 const assignLiveLead = async (request, response) => {
-  const { user_id, lead_id } = request.body;
+  const { user_id, lead_id, is_assigned } = request.body;
   try {
-    const result = await LeadModel.assignLiveLead(user_id, lead_id);
+    const result = await LeadModel.assignLiveLead(
+      user_id,
+      lead_id,
+      is_assigned
+    );
     return response.status(200).send({
       message: "Lead assigned successfully",
       data: result,

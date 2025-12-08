@@ -61,12 +61,16 @@ const notificationModel = {
       WHERE user_id = ?
     `;
 
+      const getLeadCount = `SELECT COUNT(*) AS total_leads FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
+
       const [rows] = await pool.query(dataQuery, [user_id, limit, offset]);
       const [countResult] = await pool.query(countQuery, [user_id]);
+      const [leadResult] = await pool.query(getLeadCount);
 
       return {
         data: rows,
         total: countResult[0].total,
+        lead_count: leadResult[0].total_leads,
       };
     } catch (error) {
       throw new Error(error.message);

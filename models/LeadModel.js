@@ -1807,7 +1807,7 @@ const LeadModel = {
     }
   },
 
-  updateJunkValue: async (lead_ids, is_junk) => {
+  updateJunkValue: async (lead_ids, is_junk, reason) => {
     try {
       // Build placeholders (?, ?, ?)
       const placeholders = lead_ids.map(() => "?").join(",");
@@ -1823,8 +1823,8 @@ const LeadModel = {
       }
 
       const [result] = await pool.query(
-        `UPDATE website_leads SET is_junk = ? WHERE id IN (${placeholders})`,
-        [is_junk, ...lead_ids]
+        `UPDATE website_leads SET is_junk = ?, junk_reason = ? WHERE id IN (${placeholders})`,
+        [is_junk, reason, ...lead_ids]
       );
 
       return result.affectedRows;
@@ -1859,8 +1859,9 @@ const LeadModel = {
     }
   },
 
-  assignLiveLead: async (user_id, lead_id) => {
+  assignLiveLead: async (user_id, lead_id, is_assigned) => {
     try {
+      let affectedRows = 0;
       const [isExists] = await pool.query(
         `SELECT id FROM website_leads WHERE id = ?`,
         [lead_id]
@@ -1868,12 +1869,31 @@ const LeadModel = {
 
       if (isExists.length <= 0) throw new Error("Invalid Id");
 
-      const [result] = await pool.query(
-        `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
-        [user_id, lead_id]
-      );
+      if (is_assigned === true) {
+        const [isAssigned] = await pool.query(
+          `SELECT id FROM website_leads WHERE id = ? AND assigned_to IS NOT NULL`,
+          [lead_id]
+        );
 
-      return result.affectedRows;
+        if (isAssigned.length > 0)
+          throw new Error("The lead has already been chosen by someone.");
+
+        const [result] = await pool.query(
+          `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
+          [user_id, lead_id]
+        );
+
+        affectedRows += result.affectedRows;
+      } else {
+        const [result] = await pool.query(
+          `UPDATE website_leads SET assigned_to = NULL WHERE id = ?`,
+          [lead_id]
+        );
+
+        affectedRows += result.affectedRows;
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
