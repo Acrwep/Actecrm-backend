@@ -1912,7 +1912,7 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+      let getQuery = `SELECT id, name, email, phone, course, comments, location, date, time, training, status, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
