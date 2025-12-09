@@ -366,4 +366,5 @@ router.post(
   verifyToken,
   DashboardController.postSalePerformance
 );
+router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 module.exports = router;
