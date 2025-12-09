@@ -1136,6 +1136,34 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  postSalePerformance: async (user_ids, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let sql = `SELECT SUM(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 ELSE 0 END) AS awaiting_trainer, SUM(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 ELSE 0 END) AS awaiting_trainer_verify, SUM(CASE WHEN c.status = 'Trainer Rejected' THEN 1 ELSE 0 END) AS rejected_trainer, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS verified_trainer, SUM(CASE WHEN c.status = 'Awaiting Verify' THEN 1 ELSE 0 END) AS awaiting_verify, SUM(CASE WHEN c.status = 'Awaiting Class' THEN 1 ELSE 0 END) AS awaiting_class, SUM(CASE WHEN c.status = 'Class Scheduled' THEN 1 ELSE 0 END) AS class_scheduled, SUM(CASE WHEN c.status = 'Escalated' THEN 1 ELSE 0 END) AS escalated, SUM(CASE WHEN c.status = 'Class Going' THEN 1 ELSE 0 END) AS class_going, SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END) AS google_review_count, SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END) AS linkedin_review_count, SUM(CASE WHEN c.status = 'Completed' THEN 1 ELSE 0 END) AS class_completed, SUM(CASE WHEN c.status = 'Videos Given' THEN 1 ELSE 0 END) AS videos_given FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          sql += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+        } else {
+          sql += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        sql += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      const [result] = await pool.query(sql, queryParams);
+      return result[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

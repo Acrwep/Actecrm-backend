@@ -361,4 +361,9 @@ router.delete(
   TrainerController.deleteTechnologies
 );
 router.post("/getJunkLeads", verifyToken, LeadController.getJunkLeads);
+router.post(
+  "/postSalePerformance",
+  verifyToken,
+  DashboardController.postSalePerformance
+);
 module.exports = router;
