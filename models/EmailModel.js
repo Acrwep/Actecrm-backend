@@ -900,7 +900,7 @@ const sendInvoicePdf = async (
             1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
             2) The refund requisition will not be accepted<br />
             3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.<br />
-            4) The registration fee is ₹2,000 (including GST) and it is non-refundable.
+            4) The registration fee is ₹2,000 and it is non-refundable.
         </div>
 
         <!-- FOOTER -->
@@ -1182,7 +1182,7 @@ const viewInvoicePdf = async (
             1) All Cheques / Drafts / Online Transfers to be made in favour of Acte Technologies Pvt Ltd<br />
             2) The refund requisition will not be accepted<br />
             3) Acte Technologies has rights to postpone/cancel courses due to instructor illness or natural calamities. No refund in this case.<br />
-            4) The registration fee is ₹2,000 (including GST) and it is non-refundable.
+            4) The registration fee is ₹2,000 and it is non-refundable.
         </div>
 
         <!-- FOOTER -->
