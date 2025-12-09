@@ -204,6 +204,7 @@ const PaymentModel = {
       let getQuery = `
                         SELECT
                             c.id,
+                            ROW_NUMBER() OVER (ORDER BY payment_summary.next_due_date ASC) AS row_num,
                             c.lead_id,
                             c.name,
                             c.student_id,

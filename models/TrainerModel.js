@@ -291,6 +291,7 @@ const TrainerModel = {
       const onBoardingParams = [];
       let getQuery = `SELECT
                           t.id,
+                          ROW_NUMBER() OVER (ORDER BY t.id DESC) AS row_num,
                           t.name,
                           t.trainer_id AS trainer_code,
                           t.mobile_phone_code,

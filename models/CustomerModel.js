@@ -140,6 +140,7 @@ const CustomerModel = {
       // Get customers query
       let getQuery = `SELECT
                             c.id,
+                            ROW_NUMBER() OVER (ORDER BY c.created_date DESC) AS row_num,
                             c.lead_id,
                             c.name,
                             c.student_id,
