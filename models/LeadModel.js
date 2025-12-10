@@ -1004,34 +1004,49 @@ const LeadModel = {
     }
   },
 
-  websiteLead: async (name, phone, email, course, branch_id, comments) => {
+  websiteLead: async (
+    name,
+    phone,
+    email,
+    course,
+    comments,
+    location,
+    training,
+    domain_origin
+  ) => {
     try {
+      const [isExists] = await pool.query(
+        `SELECT COUNT(*) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+        [email, phone]
+      );
+
+      let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
+
       const insertQuery = `INSERT INTO website_leads(
                               name,
                               phone,
                               email,
                               course,
-                              region_id,
-                              branch_id,
-                              comments
+                              comments,
+                              location,
+                              training,
+                              status,
+                              domain_origin,
+                              lead_type
                           )
-                          VALUES(?, ?, ?, ?, ?, ?, ?)`;
-
-      const [getRegion] = await pool.query(
-        `SELECT id, name FROM branches WHERE id = ? AND is_active = 1`,
-        [branch_id]
-      );
-
-      const region_id = getRegion.length > 0 ? getRegion[0].id : 0;
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       const values = [
         name,
         phone,
         email,
         course,
-        region_id,
-        branch_id,
         comments,
+        location,
+        training,
+        "Pending",
+        domain_origin,
+        leadType,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -1741,7 +1756,7 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted, created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
@@ -1914,7 +1929,7 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 

@@ -124,8 +124,8 @@ async function insertLead(leadObj, sheetRowNumber) {
 
     const sql = `
       INSERT INTO website_leads
-        (name, phone, email, course, comments, location, date, time, training, status, sheet_row, source_hash, lead_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, phone, email, course, comments, location, date, time, training, status, domain_origin, sheet_row, source_hash, lead_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE id = id;
     `;
     const params = [
@@ -139,6 +139,7 @@ async function insertLead(leadObj, sheetRowNumber) {
       mapped.time,
       mapped.training === "" ? "Classroom Training" : mapped.training,
       "Pending",
+      "acte.in",
       sheetRowNumber, // NOTE: row number is per-tab
       sourceHash,
       leadType,

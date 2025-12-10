@@ -465,15 +465,26 @@ const getFollowupCountByUser = async (request, response) => {
 };
 
 const websiteLead = async (request, response) => {
-  const { name, phone, email, course, branch_id, comments } = request.body;
+  const {
+    name,
+    phone,
+    email,
+    course,
+    comments,
+    location,
+    training,
+    domain_origin,
+  } = request.body;
   try {
     const result = await LeadModel.websiteLead(
       name,
       phone,
       email,
       course,
-      branch_id,
-      comments
+      comments,
+      location,
+      training,
+      domain_origin
     );
     return response.status(201).send({
       message: "Lead added successfully",
