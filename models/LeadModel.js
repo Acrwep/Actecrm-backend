@@ -1970,7 +1970,7 @@ const LeadModel = {
         if (result.affectedRows === 0) {
           throw new Error("Failed to assign lead");
         }
-      } else {
+      } else if (is_assigned === false) {
         // Unassign
         await conn.query(
           `UPDATE website_leads 
