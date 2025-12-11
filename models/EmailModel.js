@@ -952,7 +952,6 @@ const viewInvoicePdf = async (
   email,
   name,
   mobile,
-  area,
   convenience_fees,
   gst_amount,
   gst_percentage,
