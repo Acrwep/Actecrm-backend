@@ -1876,43 +1876,100 @@ const LeadModel = {
     }
   },
 
+  // assignLiveLead: async (user_id, lead_id, is_assigned) => {
+  //   try {
+  //     let affectedRows = 0;
+  //     const [isExists] = await pool.query(
+  //       `SELECT id FROM website_leads WHERE id = ?`,
+  //       [lead_id]
+  //     );
+
+  //     if (isExists.length <= 0) throw new Error("Invalid Id");
+
+  //     if (is_assigned === true) {
+  //       const [isAssigned] = await pool.query(
+  //         `SELECT id FROM website_leads WHERE id = ? AND assigned_to IS NOT NULL`,
+  //         [lead_id]
+  //       );
+
+  //       if (isAssigned.length > 0)
+  //         throw new Error("The lead has already been chosen by someone.");
+
+  //       const [result] = await pool.query(
+  //         `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
+  //         [user_id, lead_id]
+  //       );
+
+  //       affectedRows += result.affectedRows;
+  //     } else {
+  //       const [result] = await pool.query(
+  //         `UPDATE website_leads SET assigned_to = NULL WHERE id = ?`,
+  //         [lead_id]
+  //       );
+
+  //       affectedRows += result.affectedRows;
+  //     }
+
+  //     return affectedRows;
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
+
   assignLiveLead: async (user_id, lead_id, is_assigned) => {
+    const conn = await pool.getConnection();
+
     try {
-      let affectedRows = 0;
-      const [isExists] = await pool.query(
-        `SELECT id FROM website_leads WHERE id = ?`,
+      await conn.beginTransaction();
+
+      // Lock the row (only ONE user can read/modify)
+      const [rows] = await conn.query(
+        `SELECT assigned_to 
+       FROM website_leads 
+       WHERE id = ? 
+       FOR UPDATE`,
         [lead_id]
       );
 
-      if (isExists.length <= 0) throw new Error("Invalid Id");
+      if (rows.length === 0) {
+        throw new Error("Invalid lead id");
+      }
+
+      const currentAssigned = rows[0].assigned_to;
 
       if (is_assigned === true) {
-        const [isAssigned] = await pool.query(
-          `SELECT id FROM website_leads WHERE id = ? AND assigned_to IS NOT NULL`,
-          [lead_id]
-        );
-
-        if (isAssigned.length > 0)
+        if (currentAssigned !== null) {
           throw new Error("The lead has already been chosen by someone.");
+        }
 
-        const [result] = await pool.query(
-          `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
+        // Assign
+        const [result] = await conn.query(
+          `UPDATE website_leads 
+         SET assigned_to = ?
+         WHERE id = ?`,
           [user_id, lead_id]
         );
 
-        affectedRows += result.affectedRows;
+        if (result.affectedRows === 0) {
+          throw new Error("Failed to assign lead");
+        }
       } else {
-        const [result] = await pool.query(
-          `UPDATE website_leads SET assigned_to = NULL WHERE id = ?`,
+        // Unassign
+        await conn.query(
+          `UPDATE website_leads 
+         SET assigned_to = NULL 
+         WHERE id = ?`,
           [lead_id]
         );
-
-        affectedRows += result.affectedRows;
       }
 
-      return affectedRows;
+      await conn.commit();
+      return { success: true };
     } catch (error) {
+      await conn.rollback();
       throw new Error(error.message);
+    } finally {
+      conn.release();
     }
   },
 
