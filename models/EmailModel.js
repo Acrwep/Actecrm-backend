@@ -811,7 +811,7 @@ const sendInvoicePdf = async (
               No 1A Sai Adhithya Building, Taramani Link Rd,<br />
               Velachery, Chennai, Tamil Nadu 600042<br />
               Phone: +91 89259 09207<br />
-              GST No: 33AAQCA617L1Z9
+              GST No: 33AAQCA7617L1Z9
             </div>
         </div>
 
@@ -952,6 +952,7 @@ const viewInvoicePdf = async (
   email,
   name,
   mobile,
+  area,
   convenience_fees,
   gst_amount,
   gst_percentage,
@@ -1093,7 +1094,7 @@ const viewInvoicePdf = async (
               No 1A Sai Adhithya Building, Taramani Link Rd,<br />
               Velachery, Chennai, Tamil Nadu 600042<br />
               Phone: +91 89259 09207<br />
-              GST No: 33AAQCA617L1Z9
+              GST No: 33AAQCA7617L1Z9
             </div>
         </div>
 
