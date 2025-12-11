@@ -1750,6 +1750,7 @@ const LeadModel = {
     course,
     start_date,
     end_date,
+    region_type,
     page,
     limit
   ) => {
@@ -1785,6 +1786,22 @@ const LeadModel = {
         countQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
+      }
+
+      let prefix;
+      if (region_type) {
+        const match = region_type.match(/^[A-Za-z]+/);
+        prefix = match ? match[0] : "";
+      }
+
+      if (prefix !== "" && prefix === "HUB") {
+        getQuery += ` AND training = 'Online Training'`;
+        countQuery += ` AND training = 'Online Training'`;
+      }
+
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += ` AND training = 'Classroom Training'`;
+        countQuery += ` AND training = 'Classroom Training'`;
       }
 
       // Get total count

@@ -676,8 +676,17 @@ const updateQualityFollowup = async (request, response) => {
 };
 
 const getWebsiteLead = async (request, response) => {
-  const { name, phone, email, course, start_date, end_date, page, limit } =
-    request.body;
+  const {
+    name,
+    phone,
+    email,
+    course,
+    start_date,
+    end_date,
+    region_type,
+    page,
+    limit,
+  } = request.body;
   try {
     const result = await LeadModel.getWebsiteLead(
       name,
@@ -686,6 +695,7 @@ const getWebsiteLead = async (request, response) => {
       course,
       start_date,
       end_date,
+      region_type,
       page,
       limit
     );
