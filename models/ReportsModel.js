@@ -2210,7 +2210,7 @@ const ReportModel = {
     }
   },
 
-  monthWiseCollection1: async (user_ids, start_date, end_date, branch_id) => {
+  monthWiseCollection: async (user_ids, start_date, end_date, branch_id) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection, DATE_FORMAT(c.created_date, '%M %Y') month_name, DATE_FORMAT(c.created_date, '%m-%Y') ym FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE pt.payment_status <> 'Rejected'`;
@@ -2238,6 +2238,8 @@ const ReportModel = {
 
       getQuery += ` GROUP BY month_name, ym ORDER BY ym ASC`;
 
+      console.log("query", getQuery);
+
       const [result] = await pool.query(getQuery, queryParams);
       const formattedResult = result.map((item) => {
         return {
@@ -2249,201 +2251,6 @@ const ReportModel = {
       return formattedResult;
     } catch (error) {
       throw new Error(error.message);
-    }
-  },
-
-  monthWiseCollection2: async (
-    user_ids,
-    start_date,
-    end_date,
-    branch_id,
-    boundaryDay = 26
-  ) => {
-    try {
-      // helpers
-      const toNum = (v) => {
-        if (v === null || v === undefined) return 0;
-        const n = Number(v);
-        return Number.isNaN(n) ? 0 : n;
-      };
-
-      // normalize boundaryDay
-      boundaryDay = Number(boundaryDay) || 26;
-      if (boundaryDay < 1) boundaryDay = 1;
-      if (boundaryDay > 31) boundaryDay = 31;
-
-      const parseToDateOnly = (d) => {
-        if (!d) return null;
-        if (d instanceof Date && !isNaN(d)) {
-          const dt = new Date(d.getTime());
-          dt.setHours(0, 0, 0, 0);
-          return dt;
-        }
-        const iso =
-          typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
-            ? `${d}T00:00:00`
-            : d;
-        const dt = new Date(iso);
-        if (isNaN(dt)) return null;
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-      };
-
-      const formatDateTimeSQL = (dt) => {
-        const z = (n) => n.toString().padStart(2, "0");
-        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
-        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
-      };
-
-      // validate & build half-open range
-      const startDateOnly = parseToDateOnly(start_date);
-      const endDateOnly = parseToDateOnly(end_date);
-      if (!startDateOnly || !endDateOnly) {
-        throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
-        );
-      }
-      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
-      const endExclusive = new Date(endDateOnly.getTime());
-      endExclusive.setDate(endExclusive.getDate() + 1);
-      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
-
-      // build aggregate query (group by mapped month using pt.invoice_date)
-      const b = boundaryDay;
-      let q = `
-      SELECT
-        IFNULL(SUM(pt.amount), 0) AS collection,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%M %Y'
-        ) AS month_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%Y-%m'
-        ) AS ym
-      FROM payment_trans pt
-      INNER JOIN payment_master pm ON pt.payment_master_id = pm.id
-      INNER JOIN customers c ON c.lead_id = pm.lead_id
-      INNER JOIN lead_master l ON l.id = c.lead_id
-      WHERE pt.payment_status <> 'Rejected'
-        AND pt.invoice_date >= ? AND pt.invoice_date < ?
-    `;
-
-      const params = [startDateTimeSQL, endExclusiveDateTimeSQL];
-
-      // optional user filter
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const ph = user_ids.map(() => "?").join(", ");
-          q += ` AND l.assigned_to IN (${ph})`;
-          params.push(...user_ids);
-        } else {
-          q += ` AND l.assigned_to = ?`;
-          params.push(user_ids);
-        }
-      }
-
-      // optional branch filter
-      if (branch_id) {
-        q += ` AND c.branch_id = ?`;
-        params.push(branch_id);
-      }
-
-      q += ` GROUP BY ym, month_name ORDER BY ym ASC`;
-
-      const [rows] = await pool.query(q, params);
-
-      // build months list using same boundary logic so months with zero appear
-      const monthNames = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ];
-      const monthAbbrev = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-
-      const getMappedMonthStart = (dateInput) => {
-        const d = new Date(dateInput.getTime());
-        const day = d.getDate();
-        if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
-        d.setDate(1);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      };
-
-      const formatLabel = (d) =>
-        `${monthNames[d.getMonth()]} ${d.getFullYear()}`; // "January 2025"
-      const formatAbbrev = (d) =>
-        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`; // "Jan 2025"
-      const monthKeyFromDate = (d) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        return `${y}-${m}`; // "2025-01"
-      };
-
-      const getMonths = (startDateStr, endDateStr) => {
-        const sDate = parseToDateOnly(startDateStr);
-        const eDate = parseToDateOnly(endDateStr);
-        if (!sDate || !eDate) return [];
-        const startMapped = getMappedMonthStart(sDate);
-        const endMapped = getMappedMonthStart(eDate);
-        const months = [];
-        const cur = new Date(startMapped.getTime());
-        while (cur <= endMapped) {
-          months.push({
-            label: formatLabel(cur), // "January 2025"
-            abbrev: formatAbbrev(cur), // "Jan 2025"
-            key: monthKeyFromDate(cur), // "2025-01"
-            d: new Date(cur.getTime()),
-          });
-          cur.setMonth(cur.getMonth() + 1);
-        }
-        return months;
-      };
-
-      const months = getMonths(start_date, end_date);
-
-      // build map from query results keyed by ym (YYYY-MM)
-      const map = {};
-      (rows || []).forEach((r) => {
-        map[r.ym] = toNum(r.collection);
-      });
-
-      // produce final array: one object per mapped month (month_name = "Jan 2025")
-      const result = months.map((m) => ({
-        month_name: m.abbrev, // "Jan 2025"
-        collection: Number((map[m.key] ?? 0).toFixed(2)),
-      }));
-
-      return result;
-    } catch (error) {
-      throw new Error(error && error.message ? error.message : String(error));
     }
   },
 

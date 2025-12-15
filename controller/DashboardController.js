@@ -247,6 +247,48 @@ const postSalePerformance = async (request, response) => {
   }
 };
 
+const getRegionWiseLeadCounts = async (request, response) => {
+  const { region_id, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.getRegionWiseLeadCounts(
+      region_id,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getRegionWiseScoreBoard = async (request, response) => {
+  const { region_id, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.getRegionWiseScoreBoard(
+      region_id,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScoreBoard,
   getHRDashboard,
@@ -260,4 +302,6 @@ module.exports = {
   downloadUserWiseScoreBoard,
   qualityProductivity,
   postSalePerformance,
+  getRegionWiseLeadCounts,
+  getRegionWiseScoreBoard,
 };

@@ -144,7 +144,7 @@ const reportRADashBoard = async (request, response) => {
 const monthWiseCollection = async (request, response) => {
   const { user_ids, start_date, end_date, branch_id } = request.body;
   try {
-    const result = await ReportModel.monthWiseCollection2(
+    const result = await ReportModel.monthWiseCollection(
       user_ids,
       start_date,
       end_date,

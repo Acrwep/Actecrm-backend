@@ -375,4 +375,14 @@ router.post(
   verifyToken,
   WhatsAppController.sendWhatsAppMessage
 );
+router.post(
+  "/getRegionWiseLeadCounts",
+  verifyToken,
+  DashboardController.getRegionWiseLeadCounts
+);
+router.post(
+  "/getRegionWiseScoreBoard",
+  verifyToken,
+  DashboardController.getRegionWiseScoreBoard
+);
 module.exports = router;
