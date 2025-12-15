@@ -199,7 +199,7 @@ async function pollMultipleSheets(sheetsClient) {
     const lastRowCount = checkpointForSheet.lastRowCount || 0;
 
     if (rows.length <= 1) {
-      console.log(new Date().toISOString(), `[${sheetName}] No data found.`);
+      // console.log(new Date().toISOString(), `[${sheetName}] No data found.`);
       // still ensure checkpoint exists
       checkpoints[sheetName] = { lastRowCount: lastRowCount };
       continue;
@@ -209,10 +209,10 @@ async function pollMultipleSheets(sheetsClient) {
     if (totalDataRows > lastRowCount) {
       const allObjects = rowsToObjects(rows); // all data rows for this sheet
       const newRows = allObjects.slice(lastRowCount);
-      console.log(
-        new Date().toISOString(),
-        `[${sheetName}] Found ${newRows.length} new row(s).`
-      );
+      // console.log(
+      //   new Date().toISOString(),
+      //   `[${sheetName}] Found ${newRows.length} new row(s).`
+      // );
 
       const startIndex = lastRowCount; // 0-based index in allObjects for first new row
       for (let j = 0; j < newRows.length; j++) {
@@ -228,13 +228,13 @@ async function pollMultipleSheets(sheetsClient) {
           );
           if (result.ok) {
             if (result.duplicate) {
-              console.log(
-                `[${sheetName}] Row ${sheetRowNumber} duplicate (already inserted).`
-              );
+              // console.log(
+              //   `[${sheetName}] Row ${sheetRowNumber} duplicate (already inserted).`
+              // );
             } else {
-              console.log(
-                `[${sheetName}] Inserted row ${sheetRowNumber} => id=${result.insertedId}`
-              );
+              // console.log(
+              //   `[${sheetName}] Inserted row ${sheetRowNumber} => id=${result.insertedId}`
+              // );
             }
           } else {
             console.error(
@@ -257,9 +257,9 @@ async function pollMultipleSheets(sheetsClient) {
 
       checkpoints[sheetName] = { lastRowCount: totalDataRows };
       saveCheckpoint(checkpoints);
-      console.log(`[${sheetName}] Checkpoint updated: ${totalDataRows}`);
+      // console.log(`[${sheetName}] Checkpoint updated: ${totalDataRows}`);
     } else {
-      console.log(new Date().toISOString(), `[${sheetName}] No new rows.`);
+      // console.log(new Date().toISOString(), `[${sheetName}] No new rows.`);
       // ensure checkpoint exists
       checkpoints[sheetName] = { lastRowCount: lastRowCount };
       saveCheckpoint(checkpoints);
