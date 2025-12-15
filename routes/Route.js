@@ -15,6 +15,7 @@ const ServerController = require("../controller/ServerController");
 const NotificationController = require("../controller/NotificationController");
 const ReportController = require("../controller/ReportsController");
 const TemplateController = require("../controller/EmailTemplateController");
+const WhatsAppController = require("../controller/WhatsAppController");
 
 router.post("/login", LoginController.login);
 
@@ -367,4 +368,11 @@ router.post(
   DashboardController.postSalePerformance
 );
 router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
+
+//whatsapp
+router.post(
+  "/sendWhatsAppMessage",
+  verifyToken,
+  WhatsAppController.sendWhatsAppMessage
+);
 module.exports = router;

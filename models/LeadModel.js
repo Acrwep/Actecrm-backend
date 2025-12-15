@@ -1757,78 +1757,89 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, is_deleted, created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
+      // MUST convert to IST for correct filtering
+      const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
 
-      if (name) {
-        getQuery += ` AND name LIKE '%${name}%'`;
-        countQuery += ` AND name LIKE '%${name}%'`;
-      }
+      let baseCondition = `
+      is_junk = 0 
+      AND is_deleted = 0 
+      AND (assigned_to IS NULL OR assigned_to = '')
+    `;
 
-      if (email) {
-        getQuery += ` AND email LIKE '%${email}%'`;
-        countQuery += ` AND email LIKE '%${email}%'`;
-      }
+      let getQuery = `
+      SELECT 
+        ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
+        id, name, email, phone, course, comments, location, date, time,
+        training, status, is_junk, is_deleted,
+        ${dateColumn} AS created_date_ist,
+        lead_type, assigned_to, domain_origin
+      FROM website_leads
+      WHERE ${baseCondition}
+    `;
 
-      if (phone) {
-        getQuery += ` AND phone LIKE '%${phone}%'`;
-        countQuery += ` AND phone LIKE '%${phone}%'`;
-      }
+      let countQuery = `
+      SELECT COUNT(*) AS total
+      FROM website_leads
+      WHERE ${baseCondition}
+    `;
 
-      if (course) {
-        getQuery += ` AND course LIKE '%${course}%'`;
-        countQuery += ` AND course LIKE '%${course}%'`;
-      }
+      const addCondition = (field, value) => {
+        getQuery += ` AND ${field} LIKE ?`;
+        countQuery += ` AND ${field} LIKE ?`;
+        queryParams.push(`%${value}%`);
+        countParams.push(`%${value}%`);
+      };
 
+      if (name) addCondition("name", name);
+      if (email) addCondition("email", email);
+      if (phone) addCondition("phone", phone);
+      if (course) addCondition("course", course);
+
+      // FINAL FIX ⚡⚡⚡
       if (start_date && end_date) {
-        getQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
       }
 
       let prefix;
-      if (region_type) {
-        const match = region_type.match(/^[A-Za-z]+/);
-        prefix = match ? match[0] : "";
-      }
+      // if (region_type) {
+      //   const match = region_type.match(/^[A-Za-z]+/);
+      //   prefix = match ? match[0] : "";
+      // }
 
-      if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND training = 'Online Training'`;
-        countQuery += ` AND training = 'Online Training'`;
-      }
+      // if (prefix !== "" && prefix === "HUB") {
+      //   getQuery += ` AND training = 'Online Training'`;
+      //   countQuery += ` AND training = 'Online Training'`;
+      // }
 
-      if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND training = 'Classroom Training'`;
-        countQuery += ` AND training = 'Classroom Training'`;
-      }
+      // if (prefix === "BNG" || prefix === "CHN") {
+      //   getQuery += ` AND training = 'Classroom Training'`;
+      //   countQuery += ` AND training = 'Classroom Training'`;
+      // }
 
-      // Get total count
-      const [countResult] = await pool.query(countQuery, countParams);
-      const total = countResult[0]?.total || 0;
-
-      // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY created_date DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [result] = await pool.query(getQuery, queryParams);
+      const [countResult] = await pool.query(countQuery, countParams);
+      const total = countResult[0]?.total || 0;
 
-      const formattedResult = result.map((item) => {
-        const formatedDate = formatToBackendIST(item.created_date);
+      const [rows] = await pool.query(getQuery, queryParams);
 
-        return {
-          ...item,
-          created_date: formatedDate,
-        };
-      });
+      // ❌ REMOVE extra conversion — already converted in MySQL
+      const formattedData = rows.map((item) => ({
+        ...item,
+        created_date: item.created_date_ist,
+      }));
 
       return {
-        data: formattedResult,
+        data: formattedData,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
