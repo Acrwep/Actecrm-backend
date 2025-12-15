@@ -1771,7 +1771,7 @@ const LeadModel = {
       SELECT 
         ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
         id, name, email, phone, course, comments, location, date, time,
-        training, status, is_junk, is_deleted,
+        training, corporate_training, status, is_junk, is_deleted,
         ${dateColumn} AS created_date_ist,
         lead_type, assigned_to, domain_origin
       FROM website_leads
@@ -2014,7 +2014,7 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, domain_origin, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
