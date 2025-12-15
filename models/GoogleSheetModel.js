@@ -98,6 +98,9 @@ function mapSheetObjectToDb(leadObj) {
     date: get("Date") || "",
     time: get("Time") || "",
     training: get("Training") || "",
+    trainingMode: get("TrainingMode") || "",
+    onlineLocation: get("online_location") || "",
+    corporateTraining: get("corporate_training") || "",
   };
 }
 
@@ -110,22 +113,58 @@ function computeHash(obj) {
     .slice(0, 32);
 }
 
-async function insertLead(leadObj, sheetRowNumber) {
+async function insertLead(leadObj, sheetRowNumber, sheetName) {
   const mapped = mapSheetObjectToDb(leadObj);
   const sourceHash = computeHash(mapped);
 
   try {
-    const [isExists] = await pool.query(
-      `SELECT COUNT(*) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
-      [mapped.email, mapped.phone]
-    );
+    // Build existence query dynamically to avoid LIKE '%%' when values are empty
+    const whereParts = [];
+    const values = [];
 
-    let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
+    if (mapped.email && String(mapped.email).trim() !== "") {
+      whereParts.push("email COLLATE utf8mb4_unicode_ci = ?");
+      values.push(mapped.email.trim());
+    }
+    if (mapped.phone && String(mapped.phone).trim() !== "") {
+      whereParts.push("phone COLLATE utf8mb4_unicode_ci = ?");
+      values.push(mapped.phone.trim());
+    }
+
+    // If neither email nor phone present, do not run existence check (treat as new)
+    let leadCount = 0;
+    if (whereParts.length > 0) {
+      const [rows] = await pool.query(
+        `SELECT COUNT(*) AS lead_count FROM website_leads WHERE (${whereParts.join(
+          " OR "
+        )})`,
+        values
+      );
+      leadCount = rows && rows[0] ? rows[0].lead_count : 0;
+    }
+
+    const leadType = leadCount > 0 ? "Existing" : "New";
+
+    let trainingMode;
+    let trainingLocation;
+
+    if (mapped.trainingMode === "Online Training") {
+      trainingMode = "Online Training";
+      trainingLocation = mapped.onlineLocation;
+    } else if (
+      mapped.trainingMode === "Yes, We're Interested in Corporate Training"
+    ) {
+      trainingMode = "Corporate Training";
+      trainingLocation = "";
+    } else {
+      trainingMode = "Classroom Training";
+      trainingLocation = mapped.trainingMode;
+    }
 
     const sql = `
       INSERT INTO website_leads
-        (name, phone, email, course, comments, location, date, time, training, status, domain_origin, sheet_row, source_hash, lead_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (name, phone, email, course, comments, location, date, time, training, corporate_training, status, domain_origin, sheet_row, source_hash, lead_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE id = id;
     `;
     const params = [
@@ -134,10 +173,11 @@ async function insertLead(leadObj, sheetRowNumber) {
       mapped.email,
       mapped.course,
       mapped.comments,
-      mapped.location,
+      trainingLocation,
       mapped.date,
       mapped.time,
-      mapped.training === "" ? "Classroom Training" : mapped.training,
+      trainingMode,
+      mapped.corporateTraining,
       "Pending",
       "acte.in",
       sheetRowNumber, // NOTE: row number is per-tab
@@ -145,36 +185,14 @@ async function insertLead(leadObj, sheetRowNumber) {
       leadType,
     ];
 
-    let insertResult;
     const [result] = await pool.query(sql, params);
-    insertResult = result; // result is the ResultSetHeader
-
-    if (insertResult && insertResult.insertId && insertResult.insertId > 0) {
-      const [rows] = await pool.query(
-        "SELECT * FROM website_leads WHERE id = ?",
-        [insertResult.insertId]
-      );
-      if (rows && rows.length === 1) {
-        return { ok: true, insertedId: insertResult.insertId, row: rows[0] };
-      } else {
-        return { ok: false, error: "Inserted but read-back failed" };
-      }
+    if (result && result.insertId && result.insertId > 0) {
+      return { ok: true, insertedId: result.insertId };
     } else {
-      // duplicate or no insertId
-      const [rows] = await pool.execute(
-        "SELECT * FROM website_leads WHERE sheet_row = ?",
-        [sheetRowNumber]
-      );
-      if (rows && rows.length === 1) {
-        return { ok: true, duplicate: true, row: rows[0] };
-      } else {
-        return { ok: false, error: "No insert id and no sheet_row match" };
-      }
+      // If insert didn't return insertId for some reason, still return ok=false with info
+      return { ok: false, error: "No insertId returned" };
     }
   } catch (err) {
-    if (err && err.code === "ER_DUP_ENTRY") {
-      return { ok: true, duplicate: true, error: err.message };
-    }
     return { ok: false, error: err.message || String(err) };
   }
 }
@@ -236,14 +254,15 @@ async function pollMultipleSheets(sheetsClient) {
               //   `[${sheetName}] Inserted row ${sheetRowNumber} => id=${result.insertedId}`
               // );
             }
+            console.log(
+              `[${sheetName}] Inserted row ${sheetRowNumber} => id=${result.insertedId}`
+            );
           } else {
+            // Log error and continue — do not break
             console.error(
               `[${sheetName}] Failed to insert row ${sheetRowNumber}:`,
               result.error
             );
-            // do not update checkpoint for this sheet (so it will retry next poll)
-            // skip remaining new rows for this sheet to avoid advancing checkpoint incorrectly
-            break;
           }
         } catch (err) {
           console.error(
