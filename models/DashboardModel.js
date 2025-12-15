@@ -1175,7 +1175,7 @@ const DashboardModel = {
 
       let followupQuery = `SELECT r.id AS region_id, r.name AS region_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id`;
 
-      let joiningQuery = `SELECT b.id AS region_id, b.name AS region_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
+      let joiningQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
 
       // Filter by date range
       if (start_date && end_date) {
