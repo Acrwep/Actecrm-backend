@@ -803,6 +803,7 @@ const LeadModel = {
 
   getLeadCount: async (user_ids, start_date, end_date) => {
     try {
+      const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
       const followUpParams = [];
       const leadParams = [];
       const webParams = [];
@@ -818,7 +819,7 @@ const LeadModel = {
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        webLeadsCount += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         junkQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
