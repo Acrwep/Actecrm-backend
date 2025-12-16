@@ -1805,20 +1805,20 @@ const LeadModel = {
       }
 
       let prefix;
-      // if (region_type) {
-      //   const match = region_type.match(/^[A-Za-z]+/);
-      //   prefix = match ? match[0] : "";
-      // }
+      if (region_type) {
+        const match = region_type.match(/^[A-Za-z]+/);
+        prefix = match ? match[0] : "";
+      }
 
-      // if (prefix !== "" && prefix === "HUB") {
-      //   getQuery += ` AND training = 'Online Training'`;
-      //   countQuery += ` AND training = 'Online Training'`;
-      // }
+      if (prefix !== "" && prefix === "HUB") {
+        getQuery += ` AND training = 'Online Training'`;
+        countQuery += ` AND training = 'Online Training'`;
+      }
 
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += ` AND training = 'Classroom Training'`;
-      //   countQuery += ` AND training = 'Classroom Training'`;
-      // }
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += ` AND training = 'Classroom Training'`;
+        countQuery += ` AND training = 'Classroom Training'`;
+      }
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;

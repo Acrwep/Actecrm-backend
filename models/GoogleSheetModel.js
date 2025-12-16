@@ -150,12 +150,10 @@ async function insertLead(leadObj, sheetRowNumber, sheetName) {
     let trainingMode;
     let trainingLocation;
 
-    if (mapped.trainingMode === "Online Training") {
+    if (mapped.trainingMode.includes("Online Training")) {
       trainingMode = "Online Training";
       trainingLocation = mapped.onlineLocation;
-    } else if (
-      mapped.trainingMode === "Yes, We're Interested in Corporate Training"
-    ) {
+    } else if (mapped.trainingMode.includes("Corporate Training")) {
       trainingMode = "Corporate Training";
       trainingLocation = "";
     } else {
