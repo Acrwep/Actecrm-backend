@@ -23,8 +23,6 @@ const KEYFILE = path.join(
 
 const CHECKPOINT_FILE = path.join(__dirname, "..", "checkpoint.json");
 
-console.log("CHECKPOINT_FILE", CHECKPOINT_FILE);
-
 if (!SPREADSHEET_ID) {
   console.error("Please set SPREADSHEET_ID in .env");
   process.exit(1);

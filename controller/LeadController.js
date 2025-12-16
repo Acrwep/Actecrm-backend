@@ -474,6 +474,7 @@ const websiteLead = async (request, response) => {
     location,
     training,
     domain_origin,
+    corporate_training,
   } = request.body;
   try {
     const result = await LeadModel.websiteLead(
@@ -484,7 +485,8 @@ const websiteLead = async (request, response) => {
       comments,
       location,
       training,
-      domain_origin
+      domain_origin,
+      corporate_training
     );
     return response.status(201).send({
       message: "Lead added successfully",

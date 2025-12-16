@@ -1012,7 +1012,8 @@ const LeadModel = {
     comments,
     location,
     training,
-    domain_origin
+    domain_origin,
+    corporate_training
   ) => {
     try {
       const [isExists] = await pool.query(
@@ -1030,11 +1031,12 @@ const LeadModel = {
                               comments,
                               location,
                               training,
+                              corporate_training,
                               status,
                               domain_origin,
                               lead_type
                           )
-                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       const values = [
         name,
@@ -1044,6 +1046,7 @@ const LeadModel = {
         comments,
         location,
         training,
+        corporate_training,
         "Pending",
         domain_origin,
         leadType,
@@ -1796,7 +1799,6 @@ const LeadModel = {
       if (phone) addCondition("phone", phone);
       if (course) addCondition("course", course);
 
-      // FINAL FIX ⚡⚡⚡
       if (start_date && end_date) {
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
@@ -1811,13 +1813,13 @@ const LeadModel = {
       }
 
       if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND training = 'Online Training'`;
-        countQuery += ` AND training = 'Online Training'`;
+        getQuery += ` AND training LIKE '%Online%'`;
+        countQuery += ` AND training LIKE '%Online%'`;
       }
 
       if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND training = 'Classroom Training'`;
-        countQuery += ` AND training = 'Classroom Training'`;
+        getQuery += ` AND training LIKE '%Class%'`;
+        countQuery += ` AND training LIKE '%Class%'`;
       }
 
       const pageNumber = parseInt(page, 10) || 1;
