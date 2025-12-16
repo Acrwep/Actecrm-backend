@@ -2762,6 +2762,110 @@ const ReportModel = {
       throw new Error(error && error.message ? error.message : String(error));
     }
   },
+
+  getTopPerformingReport: async (
+    user_ids,
+    region_id,
+    branch_id,
+    start_date,
+    end_date
+  ) => {
+    try {
+      const queryParams = [];
+      const totalLeadParams = [];
+      let getQuery = `WITH RECURSIVE date_range AS (
+                          SELECT DATE(?) AS dt
+                          UNION ALL
+                          SELECT DATE_ADD(dt, INTERVAL 1 DAY)
+                          FROM date_range
+                          WHERE dt < ?
+                      )
+                      SELECT
+                          lt.name,
+                          dr.dt AS date,
+                          COUNT(l.id) AS lead_count,
+                          SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
+                          IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
+                          IFNULL(SUM(pt.amount), 0) AS collection,
+                          (IFNULL(SUM(pm.total_amount), 0) - IFNULL(SUM(pt.amount), 0)) AS pending
+                      FROM date_range dr
+                      CROSS JOIN lead_type lt
+                      LEFT JOIN lead_master l
+                          ON CAST(l.created_date AS DATE) = dr.dt
+                          AND lt.id = l.lead_type_id`;
+
+      let totalLeadQuery = `SELECT
+                                lt.name,
+                                COUNT(l.id) AS lead_count,
+                                SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
+                                IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
+                                IFNULL(SUM(pt.amount), 0) AS collection,
+                                (IFNULL(SUM(pm.total_amount), 0) - IFNULL(SUM(pt.amount), 0)) AS pending
+                            FROM lead_type lt
+                            LEFT JOIN lead_master l
+                              ON lt.id = l.lead_type_id AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+
+      if (start_date && end_date) {
+        queryParams.push(start_date, end_date);
+        totalLeadParams.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        getQuery += ` AND l.region_id = ?`;
+        totalLeadQuery += ` AND l.region_id = ?`;
+        queryParams.push(region_id);
+        totalLeadParams.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += ` AND l.branch_id = ?`;
+        totalLeadQuery += ` AND l.branch_id = ?`;
+        queryParams.push(branch_id);
+        totalLeadParams.push(branch_id);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          totalLeadQuery += ` AND l.assigned_to IN (${placeholders})`;
+          queryParams.push(...user_ids);
+          totalLeadParams.push(...user_ids);
+        } else {
+          getQuery += ` AND l.assigned_to = ?`;
+          totalLeadQuery += ` AND l.assigned_to = ?`;
+          queryParams.push(user_ids);
+          totalLeadParams.push(user_ids);
+        }
+      }
+
+      getQuery += ` LEFT JOIN customers c ON c.lead_id = l.id
+                    LEFT JOIN payment_master pm ON l.id = pm.lead_id
+                    LEFT JOIN payment_trans pt
+                        ON pm.id = pt.payment_master_id
+                        AND pt.payment_status <> 'Rejected'
+                    GROUP BY lt.name, dr.dt
+                    ORDER BY lt.name, dr.dt`;
+
+      totalLeadQuery += ` LEFT JOIN customers c ON c.lead_id = l.id
+                          LEFT JOIN payment_master pm ON l.id = pm.lead_id
+                          LEFT JOIN payment_trans pt
+                              ON pm.id = pt.payment_master_id
+                              AND pt.payment_status <> 'Rejected'
+                          GROUP BY lt.name`;
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      const [getTotalLead] = await pool.query(totalLeadQuery, totalLeadParams);
+
+      return {
+        data: result,
+        total_result: getTotalLead,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;

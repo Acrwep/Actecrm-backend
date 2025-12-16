@@ -385,4 +385,10 @@ router.post(
   verifyToken,
   DashboardController.getRegionWiseScoreBoard
 );
+
+router.post(
+  "/getTopPerformingReport",
+  verifyToken,
+  ReportController.getTopPerformingReport
+);
 module.exports = router;
