@@ -2947,6 +2947,71 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  getRegionWiseFinance: async (start_date, end_date, type) => {
+    try {
+      let finalResult;
+      let getQuery = `WITH RECURSIVE date_range AS (
+                          SELECT DATE(?) AS dt
+                          UNION ALL
+                          SELECT DATE_ADD(dt, INTERVAL 1 DAY) FROM date_range WHERE dt < DATE(?)
+                      ),
+                      date_wise_collection AS (
+                          SELECT
+                              r.name AS region_name,
+                              DATE(pt.invoice_date) AS invoice_date,
+                              SUM(pt.amount) AS collection
+                          FROM region r
+                          LEFT JOIN customers c ON c.region_id = r.id
+                          LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
+                          LEFT JOIN payment_trans pt
+                              ON pt.payment_master_id = pm.id
+                            AND pt.payment_status <> 'Rejected'
+                          GROUP BY r.name, DATE(pt.invoice_date)
+                      )
+                      SELECT
+                          dr.dt AS date,
+                          IFNULL(SUM(CASE WHEN dwc.region_name = 'Bangalore' THEN dwc.collection END), 0) AS bangalore,
+                          IFNULL(SUM(CASE WHEN dwc.region_name = 'Chennai' THEN dwc.collection END), 0) AS chennai,
+                          IFNULL(SUM(CASE WHEN dwc.region_name = 'Hub' THEN dwc.collection END), 0) AS hub,
+                          IFNULL(SUM(dwc.collection), 0) AS total
+                      FROM date_range dr
+                      LEFT JOIN date_wise_collection dwc
+                          ON dwc.invoice_date = dr.dt
+                      GROUP BY dr.dt
+                      ORDER BY dr.dt;`;
+
+      if (type === "Region") {
+        const [result] = await pool.query(getQuery, [start_date, end_date]);
+
+        let over_all_total = 0;
+        let bangalore_total = 0;
+        let chennai_total = 0;
+        let hub_total = 0;
+
+        result.map((item) => {
+          (bangalore_total += Number(item.bangalore)),
+            (chennai_total += Number(item.chennai)),
+            (hub_total += Number(item.hub)),
+            (over_all_total += Number(item.total));
+        });
+
+        finalResult = {
+          day_wise: result,
+          over_all: {
+            bangalore_total,
+            chennai_total,
+            hub_total,
+            over_all_total,
+          },
+        };
+      }
+
+      return finalResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;

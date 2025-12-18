@@ -224,6 +224,26 @@ const getTopPerformingReport = async (request, response) => {
   }
 };
 
+const getRegionWiseFinance = async (request, response) => {
+  const { start_date, end_date, type } = request.body;
+  try {
+    const result = await ReportModel.getRegionWiseFinance(
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -236,4 +256,5 @@ module.exports = {
   reportUserWiseQuality,
   reportPostSale,
   getTopPerformingReport,
+  getRegionWiseFinance,
 };
