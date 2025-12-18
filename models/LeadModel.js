@@ -1064,7 +1064,7 @@ const LeadModel = {
         course,
         comments,
         location,
-        training,
+        trainingMode,
         corporate_training,
         "Pending",
         domain_origin,
