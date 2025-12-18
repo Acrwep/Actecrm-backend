@@ -2773,83 +2773,114 @@ const ReportModel = {
     try {
       const queryParams = [];
       const totalLeadParams = [];
-      const getTotalParams = [];
-      let getQuery = `WITH RECURSIVE date_range AS (
+      let getQuery = `WITH RECURSIVE
+                          date_range AS(
                           SELECT DATE(?) AS dt
                           UNION ALL
-                          SELECT DATE_ADD(dt, INTERVAL 1 DAY)
-                          FROM date_range
-                          WHERE dt < ?
+                        SELECT DATE_ADD(dt, INTERVAL 1 DAY) FROM date_range WHERE dt < DATE(?)
                       ),
-                      payment_trans_agg AS (
+                      total_collection AS (
                           SELECT
-                              payment_master_id,
-                              SUM(amount) AS total_collection
-                          FROM payment_trans
-                          WHERE payment_status <> 'Rejected'
-                          GROUP BY payment_master_id
+                                lt.id,
+                                CAST(pt.invoice_date AS DATE) AS invoice_date,
+                                IFNULL(SUM(pt.amount),
+                                0) AS collection
+                            FROM lead_type AS lt
+                            LEFT JOIN lead_master AS lm ON
+                                lt.id = lm.lead_type_id
+                            LEFT JOIN payment_master AS pm ON
+                                lm.id = pm.lead_id
+                            LEFT JOIN payment_trans AS pt ON
+                                pm.id = pt.payment_master_id
+                            WHERE pt.payment_status <> 'Rejected'
+                            GROUP BY lt.id, invoice_date
+                      ),
+                      payment_trans_agg AS(
+                          SELECT
+                              pm.lead_id,
+                              SUM(pt.amount) AS total_collection
+                          FROM
+                              payment_master pm
+                          INNER JOIN payment_trans pt ON
+                              pm.id = pt.payment_master_id
+                          WHERE
+                              pt.payment_status <> 'Rejected'
+                          GROUP BY
+                              pm.lead_id
                       )
                       SELECT
                           lt.name,
-                          dr.dt AS date,
+                          dr.dt AS DATE,
                           COUNT(l.id) AS lead_count,
                           SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
-                          IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
-                          IFNULL(SUM(pta.total_collection), 0) AS collection,
-                                (IFNULL(SUM(pm.total_amount), 0) - IFNULL(SUM(pta.total_collection), 0)) AS pending
+                          SUM(IFNULL(pm.total_amount, 0)) AS sale_volume,
+                          SUM(IFNULL(pta.total_collection, 0)) AS collection,
+                          (SUM(IFNULL(pm.total_amount, 0)) - SUM(IFNULL(pta.total_collection, 0))) AS pending,
+                          IFNULL(tc.collection, 0) AS total_collection
                       FROM date_range dr
                       CROSS JOIN lead_type lt
                       LEFT JOIN lead_master l
                           ON CAST(l.created_date AS DATE) = dr.dt
                           AND lt.id = l.lead_type_id`;
 
-      let totalLeadQuery = `WITH payment_trans_agg AS (
+      let totalLeadQuery = `WITH total_collection AS (
+                                                      SELECT
+                                                            lt.id,
+                                                            IFNULL(SUM(pt.amount),
+                                                            0) AS collection
+                                                        FROM lead_type AS lt
+                                                        LEFT JOIN lead_master AS lm ON
+                                                            lt.id = lm.lead_type_id
+                                                        LEFT JOIN payment_master AS pm ON
+                                                            lm.id = pm.lead_id
+                                                        LEFT JOIN payment_trans AS pt ON
+                                                            pm.id = pt.payment_master_id
+                                                        WHERE pt.payment_status <> 'Rejected'
+                                              AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?
+                                                        GROUP BY lt.id
+                                                  ),
+                            payment_trans_agg AS(
                                 SELECT
-                                    payment_master_id,
-                                    SUM(amount) AS total_collection
-                                FROM payment_trans
-                                WHERE payment_status <> 'Rejected'
-                                GROUP BY payment_master_id
+                                    pm.lead_id,
+                                    SUM(pt.amount) AS total_collection
+                                FROM
+                                    payment_master pm
+                                INNER JOIN payment_trans pt ON
+                                    pm.id = pt.payment_master_id
+                                WHERE
+                                    pt.payment_status <> 'Rejected'
+                                GROUP BY
+                                    pm.lead_id
                             )
                             SELECT
                                 lt.name,
-                                COUNT(DISTINCT l.id) AS lead_count,
-                                COUNT(DISTINCT c.id) AS converted_to_customer,
-                                IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
-                                IFNULL(SUM(pta.total_collection), 0) AS collection,
-                                (IFNULL(SUM(pm.total_amount), 0) - IFNULL(SUM(pta.total_collection), 0)) AS pending
+                                COUNT(l.id) AS lead_count,
+                                SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
+                                SUM(IFNULL(pm.total_amount, 0)) AS sale_volume,
+                                SUM(IFNULL(pta.total_collection, 0)) AS collection,
+                                (SUM(IFNULL(pm.total_amount, 0)) - SUM(IFNULL(pta.total_collection, 0))) AS pending,
+                                IFNULL(tc.collection, 0) AS total_collection
                             FROM lead_type lt
-                            LEFT JOIN lead_master l
-                                ON l.lead_type_id = lt.id
-                                AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-
-      let getTotalCount = `SELECT
-                                COUNT(l.id) AS lead_count
-                            FROM lead_master l
-                              WHERE CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+                            LEFT JOIN lead_master l ON
+                                l.lead_type_id = lt.id AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
 
       if (start_date && end_date) {
         queryParams.push(start_date, end_date);
-        totalLeadParams.push(start_date, end_date);
-        getTotalParams.push(start_date, end_date);
+        totalLeadParams.push(start_date, end_date, start_date, end_date);
       }
 
       if (region_id) {
         getQuery += ` AND l.region_id = ?`;
         totalLeadQuery += ` AND l.region_id = ?`;
-        getTotalCount += ` AND l.region_id = ?`;
         queryParams.push(region_id);
         totalLeadParams.push(region_id);
-        getTotalParams.push(region_id);
       }
 
       if (branch_id) {
         getQuery += ` AND l.branch_id = ?`;
         totalLeadQuery += ` AND l.branch_id = ?`;
-        getTotalCount += ` AND l.branch_id = ?`;
         queryParams.push(branch_id);
         totalLeadParams.push(branch_id);
-        getTotalParams.push(branch_id);
       }
 
       if (user_ids) {
@@ -2857,41 +2888,60 @@ const ReportModel = {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
           totalLeadQuery += ` AND l.assigned_to IN (${placeholders})`;
-          getTotalCount += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
           totalLeadParams.push(...user_ids);
-          getTotalParams.push(...user_ids);
         } else {
           getQuery += ` AND l.assigned_to = ?`;
           totalLeadQuery += ` AND l.assigned_to = ?`;
-          getTotalCount += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
           totalLeadParams.push(user_ids);
-          getTotalParams.push(user_ids);
         }
       }
 
       getQuery += ` LEFT JOIN customers c ON c.lead_id = l.id
                     LEFT JOIN payment_master pm ON l.id = pm.lead_id
-                    LEFT JOIN payment_trans_agg pta ON pta.payment_master_id = pm.id
+                    LEFT JOIN payment_trans_agg pta ON pta.lead_id = l.id
+                    LEFT JOIN total_collection AS tc ON dr.dt = tc.invoice_date AND lt.id = tc.id
                     GROUP BY lt.name, dr.dt
                     ORDER BY lt.name, dr.dt`;
 
       totalLeadQuery += ` LEFT JOIN customers c ON c.lead_id = l.id
-                          LEFT JOIN payment_master pm ON l.id = pm.lead_id
-                          LEFT JOIN payment_trans_agg pta ON pta.payment_master_id = pm.id
-                          GROUP BY lt.name`;
+                          LEFT JOIN payment_master pm ON pm.lead_id = l.id
+                          LEFT JOIN payment_trans_agg pta ON pta.lead_id = l.id
+                          LEFT JOIN total_collection AS tc ON lt.id = tc.id
+                          GROUP BY lt.name
+                          ORDER BY lt.name`;
 
       const [result] = await pool.query(getQuery, queryParams);
 
       const [getTotalLead] = await pool.query(totalLeadQuery, totalLeadParams);
 
-      const [totalCount] = await pool.query(getTotalCount, getTotalParams);
+      let lead_count = 0;
+      let converted_to_customer = 0;
+      let sale_volume = 0;
+      let collection = 0;
+      let pending = 0;
+      let total_collection = 0;
+      getTotalLead.map((item) => {
+        lead_count += Number(item.lead_count);
+        converted_to_customer += Number(item.converted_to_customer);
+        sale_volume += Number(item.sale_volume);
+        collection += Number(item.collection);
+        pending += Number(item.pending);
+        total_collection += Number(item.total_collection);
+      });
 
       return {
         data: result,
         total_result: getTotalLead,
-        total_lead_count: totalCount,
+        total_lead_count: {
+          lead_count,
+          converted_to_customer,
+          sale_volume,
+          collection,
+          pending,
+          total_collection,
+        },
       };
     } catch (error) {
       throw new Error(error.message);
