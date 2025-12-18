@@ -172,6 +172,7 @@ const getLeads = async (request, response) => {
     page,
     limit,
     course,
+    lead_type,
   } = request.body;
   try {
     const leads = await LeadModel.getLeads(
@@ -184,7 +185,8 @@ const getLeads = async (request, response) => {
       user_ids,
       page,
       limit,
-      course
+      course,
+      lead_type
     );
     return response.status(200).send({
       message: "Leads fetched successfully",

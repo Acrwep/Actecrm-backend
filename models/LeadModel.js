@@ -243,7 +243,8 @@ const LeadModel = {
     user_ids,
     page,
     limit,
-    course
+    course,
+    lead_type
   ) => {
     try {
       const queryParams = [];
@@ -370,6 +371,13 @@ const LeadModel = {
       if (course) {
         getQuery += ` AND pt.name LIKE '%${course}%'`;
         countQuery += ` AND pt.name LIKE '%${course}%'`;
+      }
+
+      if (lead_type) {
+        getQuery += ` AND l.lead_type_id = ?`;
+        countQuery += ` AND l.lead_type_id = ?`;
+        queryParams.push(lead_type);
+        countQueryParams.push(lead_type);
       }
 
       if (lead_status_id) {
@@ -1023,6 +1031,16 @@ const LeadModel = {
       );
 
       let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
+
+      let trainingMode;
+
+      if (training.includes("Online")) {
+        trainingMode = "Online Training";
+      } else if (training.includes("Corporate")) {
+        trainingMode = "Corporate Training";
+      } else {
+        trainingMode = "Classroom Training";
+      }
 
       const insertQuery = `INSERT INTO website_leads(
                               name,
@@ -1774,7 +1792,7 @@ const LeadModel = {
       let getQuery = `
       SELECT 
         ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
-        id, name, email, phone, course, comments, location, date, time,
+        id, name, email, phone, course, comments, IFNULL(location, '') AS location, date, time,
         training, corporate_training, status, is_junk, is_deleted,
         ${dateColumn} AS created_date_ist,
         lead_type, assigned_to, domain_origin
@@ -1814,8 +1832,8 @@ const LeadModel = {
       }
 
       if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND training LIKE '%Online%'`;
-        countQuery += ` AND training LIKE '%Online%'`;
+        getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+        countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
       }
 
       if (prefix === "BNG" || prefix === "CHN") {
