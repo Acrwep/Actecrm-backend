@@ -3002,28 +3002,18 @@ const ReportModel = {
                             SELECT
                                 dr.dt AS date,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Anna Nagar' THEN dwc.collection END), 0) AS anna_nagar,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Maraimalai Nagar' THEN dwc.collection END), 0) AS maraimalai_nagar,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'OMR' THEN dwc.collection END), 0) AS omr,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Porur' THEN dwc.collection END), 0) AS porur,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Siruseri' THEN dwc.collection END), 0) AS siruseri,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'T.Nagar' THEN dwc.collection END), 0) AS t_nagar,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Thambaram' THEN dwc.collection END), 0) AS thambaram,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Thiruvanmiyur' THEN dwc.collection END), 0) AS thiruvanmiyur,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Velachery' THEN dwc.collection END), 0) AS velachery,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'BTM Layout' THEN dwc.collection END), 0) AS btm_layout,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Electronic city' THEN dwc.collection END), 0) AS e_city,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Hebbal' THEN dwc.collection END), 0) AS hebbal,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'HSR Layout' THEN dwc.collection END), 0) AS hsr_layout,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Indira Nagar' THEN dwc.collection END), 0) AS indira_nagar,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Jaya Nagar' THEN dwc.collection END), 0) AS jaya_nagar,
-                                IFNULL(SUM(CASE WHEN dwc.branch_name = 'Kalyan Nagar' THEN dwc.collection END), 0) AS kalyan_nagar,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Marathahalli' THEN dwc.collection END), 0) AS marathahalli,
                                 IFNULL(SUM(CASE WHEN dwc.branch_name = 'Rajaji Nagar' THEN dwc.collection END), 0) AS rajaji_nagar,
                                 IFNULL(SUM(dwc.collection), 0) AS total
                             FROM date_range dr
                             LEFT JOIN date_wise_collection dwc
                                 ON dwc.invoice_date = dr.dt
-                            WHERE dwc.branch_name <> 'Online'
+                                AND dwc.branch_name <> 'Online'
                             GROUP BY dr.dt
                             ORDER BY dr.dt;`;
 
@@ -3061,69 +3051,49 @@ const ReportModel = {
         ]);
 
         let anna_nagar_total = 0;
-        let maraimalai_nagar_total = 0;
         let omr_total = 0;
         let porur_total = 0;
-        let siruseri_total = 0;
-        let t_nagar_total = 0;
-        let thambaram_total = 0;
-        let thiruvanmiyur_total = 0;
         let velachery_total = 0;
         let btm_layout_total = 0;
         let e_city_total = 0;
-        let hebbal_total = 0;
-        let hsr_layout_total = 0;
-        let indira_nagar_total = 0;
-        let jaya_nagar_total = 0;
-        let kalyan_nagar_total = 0;
         let marathahalli_total = 0;
         let rajaji_nagar = 0;
         let over_all_total = 0;
 
+        let chennai_total = 0;
+        let bangalore_total = 0;
+
         result.map((item) => {
           (anna_nagar_total += Number(item.anna_nagar)),
-            (maraimalai_nagar_total += Number(item.maraimalai_nagar)),
             (omr_total += Number(item.omr)),
             (porur_total += Number(item.porur)),
-            (siruseri_total += Number(item.siruseri)),
-            (t_nagar_total += Number(item.t_nagar)),
-            (thambaram_total += Number(item.thambaram)),
-            (thiruvanmiyur_total += Number(item.thiruvanmiyur)),
             (velachery_total += Number(item.velachery)),
             (btm_layout_total += Number(item.btm_layout)),
             (e_city_total += Number(item.e_city)),
-            (hebbal_total += Number(item.hebbal)),
-            (hsr_layout_total += Number(item.hsr_layout)),
-            (indira_nagar_total += Number(item.indira_nagar)),
-            (jaya_nagar_total += Number(item.jaya_nagar)),
-            (kalyan_nagar_total += Number(item.kalyan_nagar)),
             (marathahalli_total += Number(item.marathahalli)),
             (rajaji_nagar += Number(item.rajaji_nagar)),
             (over_all_total += Number(item.total));
         });
 
+        chennai_total =
+          anna_nagar_total + omr_total + porur_total + velachery_total;
+        bangalore_total =
+          btm_layout_total + e_city_total + rajaji_nagar + marathahalli_total;
+
         finalResult = {
           day_wise: result,
           over_all: {
             anna_nagar_total,
-            maraimalai_nagar_total,
             omr_total,
             porur_total,
-            siruseri_total,
-            t_nagar_total,
-            thambaram_total,
-            thiruvanmiyur_total,
             velachery_total,
             btm_layout_total,
             e_city_total,
-            hebbal_total,
-            hsr_layout_total,
-            indira_nagar_total,
-            jaya_nagar_total,
-            kalyan_nagar_total,
             marathahalli_total,
             rajaji_nagar,
             over_all_total,
+            chennai_total,
+            bangalore_total,
           },
         };
       }
