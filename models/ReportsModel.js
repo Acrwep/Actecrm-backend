@@ -3017,6 +3017,37 @@ const ReportModel = {
                             GROUP BY dr.dt
                             ORDER BY dr.dt;`;
 
+      let getPaymodeQuery = `WITH RECURSIVE date_range AS (
+                                SELECT DATE(?) AS dt
+                                UNION ALL
+                                SELECT DATE_ADD(dt, INTERVAL 1 DAY) FROM date_range WHERE dt < DATE(?)
+                            ),
+                            date_wise_collection AS (
+                                SELECT
+                                    p.name AS paymode_name,
+                                    DATE(pt.invoice_date) AS invoice_date,
+                                    IFNULL(SUM(pt.amount), 0) AS collection
+                                FROM payment_mode p
+                                LEFT JOIN payment_trans pt
+                                    ON pt.paymode_id = p.id
+                                  AND pt.payment_status <> 'Rejected'
+                                GROUP BY p.name, DATE(pt.invoice_date)
+                            )
+                            SELECT
+                                dr.dt AS date,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'CASH' THEN dwc.collection END), 0) AS cash,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'CARD' THEN dwc.collection END), 0) AS card,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'BANK' THEN dwc.collection END), 0) AS bank,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'UPI' THEN dwc.collection END), 0) AS upi,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY' THEN dwc.collection END), 0) AS razorpay,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY-UPI' THEN dwc.collection END), 0) AS razorpay_upi,
+                                IFNULL(SUM(dwc.collection), 0) AS total
+                            FROM date_range dr
+                            LEFT JOIN date_wise_collection dwc
+                                ON dwc.invoice_date = dr.dt
+                            GROUP BY dr.dt
+                            ORDER BY dr.dt;`;
+
       if (type === "Region") {
         const [result] = await pool.query(getRegionQuery, [
           start_date,
@@ -3096,6 +3127,43 @@ const ReportModel = {
             bangalore_total,
           },
         };
+      } else if (type === "Paymode") {
+        const [result] = await pool.query(getPaymodeQuery, [
+          start_date,
+          end_date,
+        ]);
+
+        let cash_total = 0;
+        let card_total = 0;
+        let bank_total = 0;
+        let upi_total = 0;
+        let razorpay_total = 0;
+        let razorpay_upi_total = 0;
+        let over_all_total = 0;
+        result.map((item) => {
+          (cash_total += Number(item.cash)),
+            (card_total += Number(item.card)),
+            (bank_total += Number(item.bank)),
+            (upi_total += Number(item.upi)),
+            (razorpay_total += Number(item.razorpay)),
+            (razorpay_upi_total += Number(item.razorpay_upi)),
+            (over_all_total += Number(item.total));
+        });
+
+        finalResult = {
+          day_wise: result,
+          over_all: {
+            cash_total,
+            card_total,
+            bank_total,
+            upi_total,
+            razorpay_total,
+            razorpay_upi_total,
+            over_all_total,
+          },
+        };
+      } else {
+        finalResult = [];
       }
 
       return finalResult;
