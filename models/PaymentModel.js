@@ -33,7 +33,8 @@ const PaymentModel = {
     placement_support,
     batch_track_id,
     enrolled_course,
-    is_server_required
+    is_server_required,
+    place_of_payment
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -58,6 +59,11 @@ const PaymentModel = {
       if (masterInsert.affectedRows <= 0)
         throw new Error("Error while making payment");
 
+      const [getUserId] = await pool.query(
+        `SELECT id, user_id FROM users WHERE user_id = ?`,
+        [updated_by]
+      );
+
       const invoiceNo = generateInvoiceNumber();
 
       const paymentTransQuery = `INSERT INTO payment_trans(
@@ -71,9 +77,11 @@ const PaymentModel = {
                                       payment_status,
                                       next_due_date,
                                       created_date,
-                                      paid_date
+                                      paid_date,
+                                      collected_by,
+                                      place_of_payment
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
         invoiceNo,
@@ -86,6 +94,8 @@ const PaymentModel = {
         next_due_date,
         created_date,
         paid_date,
+        getUserId[0].id,
+        place_of_payment,
       ];
 
       const [transInsert] = await pool.query(paymentTransQuery, transValues);
@@ -498,7 +508,9 @@ const PaymentModel = {
     payment_status,
     next_due_date,
     created_date,
-    paid_date
+    paid_date,
+    place_of_payment,
+    collected_by
   ) => {
     try {
       // Check whether the previous payment is still pending stage
@@ -517,6 +529,11 @@ const PaymentModel = {
       if (parseFloat(paid_amount) > getPendingFees[0].balance_amount)
         throw new Error("Amount should be equal to or less then pending fees");
 
+      const [getUserId] = await pool.query(
+        `SELECT id, user_id FROM users WHERE user_id = ?`,
+        [collected_by]
+      );
+
       const invoiceNo = generateInvoiceNumber();
       const paymentTransQuery = `INSERT INTO payment_trans(
                                       payment_master_id,
@@ -530,9 +547,11 @@ const PaymentModel = {
                                       next_due_date,
                                       created_date,
                                       paid_date,
-                                      is_second_due
+                                      is_second_due,
+                                      collected_by,
+                                      place_of_payment
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`;
       const transValues = [
         payment_master_id,
         invoiceNo,
@@ -545,6 +564,8 @@ const PaymentModel = {
         next_due_date,
         created_date,
         paid_date,
+        getUserId[0].id,
+        place_of_payment,
       ];
 
       const [transInsert] = await pool.query(paymentTransQuery, transValues);
@@ -580,7 +601,8 @@ const PaymentModel = {
     payment_screenshot,
     paid_date,
     next_due_date,
-    payment_trans_id
+    payment_trans_id,
+    place_of_payment
   ) => {
     try {
       const [isIdExists] = await pool.query(
@@ -603,6 +625,7 @@ const PaymentModel = {
                       payment_status = "Verify Pending",
                       paid_date = ?,
                       next_due_date = ?,
+                      place_of_payment = ?,
                       is_last_pay_rejected = 0`;
 
       sql +=
@@ -620,6 +643,7 @@ const PaymentModel = {
         payment_screenshot,
         paid_date,
         next_due_date,
+        place_of_payment,
         payment_trans_id,
       ];
 

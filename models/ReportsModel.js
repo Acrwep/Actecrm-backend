@@ -3171,6 +3171,133 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  getTransactionWiseReport: async (start_date, end_date) => {
+    try {
+      const getQuery = `SELECT
+                            x.trans_id,
+                            x.master_id,
+                            x.entry_date,
+                            x.paid_date,
+                            x.region_name,
+                            x.branch_name,
+                            x.closed_by,
+                            x.cus_name,
+                            x.cus_phone,
+                            x.course_name,
+                            x.place_of_payment,
+                            x.course_fees,
+                            x.gst_amount,
+                            x.total_course_fees,
+                            x.paid_amount,
+                            x.convenience_fees,
+                            x.collected_fees,
+                            x.transacted_to,
+                            x.collected_by,
+                            x.payment_status,
+                            x.verified_date,
+                            x.is_second_due,
+                            x.cus_reg_date,
+                            CASE
+                                WHEN x.paid_month = x.current_month
+                                    AND x.cus_month = x.current_month
+                                    AND x.is_second_due = 0
+                                THEN 'New'
+                                WHEN x.paid_month = x.current_month
+                                    AND x.cus_month = x.current_month
+                                    AND x.is_second_due = 1
+                                THEN 'CMJ'
+                                WHEN x.paid_month = x.current_month
+                                    AND x.cus_month = DATE_SUB(x.current_month, INTERVAL 1 MONTH)
+                                THEN 'LMJ'
+                                WHEN x.paid_month = x.current_month
+                                    AND x.cus_month = DATE_SUB(x.current_month, INTERVAL 2 MONTH)
+                                THEN 'PMJ'
+                                ELSE 'Other'
+                            END AS collection_type
+                        FROM (
+                            SELECT
+                                pt.id AS trans_id,
+                                pt.payment_master_id AS master_id,
+                                CAST(pt.created_date AS DATE) AS entry_date,
+                                pt.invoice_date AS paid_date,
+                                r.name AS region_name,
+                                b.name AS branch_name,
+                                u.user_name AS closed_by,
+                                c.name AS cus_name,
+                                c.phone AS cus_phone,
+                                t.name AS course_name,
+                                IFNULL(pt.place_of_payment, '') AS place_of_payment,
+                              l.primary_fees AS course_fees,
+                              pm.gst_amount,
+                              pm.total_amount AS total_course_fees,
+                                IFNULL(pt.amount, 0) AS paid_amount,
+                                IFNULL(pt.convenience_fees, 0) AS convenience_fees,
+                                (pt.amount + pt.convenience_fees) AS collected_fees,
+                                p.name AS transacted_to,
+                                cu.user_name AS collected_by,
+                                pt.payment_status,
+                                pt.verified_date,
+                                pt.is_second_due,
+                                CAST(c.created_date AS DATE) AS cus_reg_date,
+                                CASE 
+                                    WHEN DAY(pt.invoice_date) >= 26
+                                    THEN DATE_FORMAT(pt.invoice_date, '%Y-%m-26')
+                                    ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26')
+                                END AS paid_month,
+                                CASE 
+                                    WHEN DAY(c.created_date) >= 26
+                                    THEN DATE_FORMAT(c.created_date, '%Y-%m-26')
+                                    ELSE DATE_FORMAT(DATE_SUB(c.created_date, INTERVAL 1 MONTH), '%Y-%m-26')
+                                END AS cus_month,
+                                CASE 
+                                    WHEN DAY(pt.invoice_date) >= 26
+                                    THEN DATE_FORMAT(pt.invoice_date, '%Y-%m-26')
+                                    ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26')
+                                END AS current_month
+                            FROM payment_trans pt
+                            INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
+                            INNER JOIN customers c ON c.lead_id = pm.lead_id
+                            INNER JOIN region r ON r.id = c.region_id
+                            INNER JOIN branches b ON b.id = c.branch_id
+                            INNER JOIN payment_mode p ON p.id = pt.paymode_id
+                            INNER JOIN technologies t ON t.id = c.enrolled_course
+                            INNER JOIN lead_master l ON l.id = c.lead_id
+                            INNER JOIN users u ON u.user_id = l.assigned_to
+                            LEFT JOIN users cu ON pt.collected_by = cu.id
+                            WHERE pt.payment_status <> 'Rejected'
+                              AND pt.invoice_date BETWEEN ? AND ?
+                        ) x
+                        ORDER BY x.entry_date, x.trans_id;`;
+
+      const [result] = await pool.query(getQuery, [start_date, end_date]);
+
+      const formattedResult = await Promise.all(
+        result.map(async (item) => {
+          let feesBalance = 0;
+          let balance = 0;
+          const [paidAmount] = await pool.query(
+            `SELECT IFNULL(SUM(amount), 0) AS paid_amount FROM payment_trans WHERE payment_master_id = ? AND id < ? AND payment_status <> 'Rejected';`,
+            [item.master_id, item.trans_id]
+          );
+
+          feesBalance =
+            Number(item.total_course_fees) - paidAmount[0].paid_amount;
+          balance = feesBalance - Number(item.paid_amount);
+
+          return {
+            ...item,
+            fees_balance: feesBalance,
+            balance_due: balance,
+          };
+        })
+      );
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;

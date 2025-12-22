@@ -38,6 +38,7 @@ const createPayment = async (request, response) => {
     batch_track_id,
     enrolled_course,
     is_server_required,
+    place_of_payment,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -60,7 +61,8 @@ const createPayment = async (request, response) => {
       placement_support,
       batch_track_id,
       enrolled_course,
-      is_server_required
+      is_server_required,
+      place_of_payment
     );
     return response.status(201).send({
       messages: "Payment successfull",
@@ -163,6 +165,8 @@ const partPayment = async (request, response) => {
     next_due_date,
     created_date,
     paid_date,
+    place_of_payment,
+    collected_by,
   } = request.body;
   try {
     const result = await PaymentModel.partPayment(
@@ -175,7 +179,9 @@ const partPayment = async (request, response) => {
       payment_status,
       next_due_date,
       created_date,
-      paid_date
+      paid_date,
+      place_of_payment,
+      collected_by
     );
 
     return response.status(201).send({
@@ -220,6 +226,7 @@ const updatePayment = async (request, response) => {
     paid_date,
     next_due_date,
     payment_trans_id,
+    place_of_payment,
   } = request.body;
   try {
     const result = await PaymentModel.updatePayment(
@@ -230,7 +237,8 @@ const updatePayment = async (request, response) => {
       payment_screenshot,
       paid_date,
       next_due_date,
-      payment_trans_id
+      payment_trans_id,
+      place_of_payment
     );
     return response.status(200).send({
       messages: "Payment updated successfully",

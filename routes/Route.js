@@ -396,4 +396,9 @@ router.post(
   verifyToken,
   ReportController.getRegionWiseFinance
 );
+router.post(
+  "/getTransactionWiseReport",
+  verifyToken,
+  ReportController.getTransactionWiseReport
+);
 module.exports = router;
