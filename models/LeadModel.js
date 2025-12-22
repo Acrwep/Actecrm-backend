@@ -1853,14 +1853,19 @@ const LeadModel = {
 
       const [rows] = await pool.query(getQuery, queryParams);
 
-      // ❌ REMOVE extra conversion — already converted in MySQL
       const formattedData = rows.map((item) => ({
         ...item,
         created_date: item.created_date_ist,
       }));
 
+      const [getLeadCount] = await pool.query(
+        `SELECT COUNT(*) AS today_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) BETWEEN ? AND ?`,
+        [start_date, end_date]
+      );
+
       return {
         data: formattedData,
+        lead_count: getLeadCount[0].today_count,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
