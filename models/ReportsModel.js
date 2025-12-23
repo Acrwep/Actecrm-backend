@@ -1143,6 +1143,7 @@ const ReportModel = {
 
   reportBranchWiseScoreBoard: async (
     region_id,
+    branch_id,
     start_date,
     end_date,
     boundaryDay = 26
@@ -1199,24 +1200,42 @@ const ReportModel = {
       let regionSuffix = "";
       let branchFetchRegionWhere = "";
       const regionParams = [];
+
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
           [region_id]
         );
-        if (getRegion && getRegion[0]) {
+
+        if (getRegion.length) {
           const rname = getRegion[0].name;
-          if (rname === "Chennai" || rname === "Bangalore") {
-            regionSuffix = ` AND b.region_id = ? AND b.name <> 'Online'`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1 AND name <> 'Online'`;
-          } else if (rname === "Hub") {
-            regionSuffix = ` AND b.region_id = ?`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
-          } else {
-            regionSuffix = ` AND b.region_id = ?`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
+
+          // ---------- REGION + BRANCH ----------
+          if (branch_id) {
+            regionSuffix = ` AND b.region_id = ? AND b.id = ?`;
+            branchFetchRegionWhere = ` WHERE region_id = ? AND id = ? AND is_active = 1`;
+
+            // Exclude Online branch only for Chennai & Bangalore
+            if (["Chennai", "Bangalore"].includes(rname)) {
+              regionSuffix += ` AND b.name <> 'Online'`;
+              branchFetchRegionWhere += ` AND name <> 'Online'`;
+            }
+
+            regionParams.push(region_id, branch_id);
           }
-          regionParams.push(region_id);
+
+          // ---------- ONLY REGION ----------
+          else {
+            if (["Chennai", "Bangalore"].includes(rname)) {
+              regionSuffix = ` AND b.region_id = ? AND b.name <> 'Online'`;
+              branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1 AND name <> 'Online'`;
+            } else {
+              regionSuffix = ` AND b.region_id = ?`;
+              branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
+            }
+
+            regionParams.push(region_id);
+          }
         }
       } else {
         branchFetchRegionWhere = ` WHERE is_active = 1`;
@@ -1420,7 +1439,14 @@ const ReportModel = {
 
       // --- assemble branch list: fetch all branches matching region (so every branch is included) ------
       const branchFetchQuery = `SELECT id AS branch_id, name AS branch_name FROM branches ${branchFetchRegionWhere}`;
-      const branchFetchParams = region_id ? [region_id] : [];
+      const branchFetchParams = [];
+
+      if (region_id && branch_id) {
+        branchFetchParams.push(region_id, branch_id);
+      } else if (region_id) {
+        branchFetchParams.push(region_id);
+      }
+
       const [branchRows] = await pool.query(
         branchFetchQuery,
         branchFetchParams
@@ -1467,6 +1493,7 @@ const ReportModel = {
 
   reportBranchWiseLeads: async (
     region_id,
+    branch_id,
     start_date,
     end_date,
     boundaryDay = 26
@@ -1523,24 +1550,42 @@ const ReportModel = {
       let regionSuffix = "";
       let branchFetchRegionWhere = "";
       const regionParams = [];
+
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
           [region_id]
         );
-        if (getRegion && getRegion[0]) {
+
+        if (getRegion.length) {
           const rname = getRegion[0].name;
-          if (rname === "Chennai" || rname === "Bangalore") {
-            regionSuffix = ` AND b.region_id = ? AND b.name <> 'Online'`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1 AND name <> 'Online'`;
-          } else if (rname === "Hub") {
-            regionSuffix = ` AND b.region_id = ?`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
-          } else {
-            regionSuffix = ` AND b.region_id = ?`;
-            branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
+
+          // ---------- REGION + BRANCH ----------
+          if (branch_id) {
+            regionSuffix = ` AND b.region_id = ? AND b.id = ?`;
+            branchFetchRegionWhere = ` WHERE region_id = ? AND id = ? AND is_active = 1`;
+
+            // Exclude Online branch only for Chennai & Bangalore
+            if (["Chennai", "Bangalore"].includes(rname)) {
+              regionSuffix += ` AND b.name <> 'Online'`;
+              branchFetchRegionWhere += ` AND name <> 'Online'`;
+            }
+
+            regionParams.push(region_id, branch_id);
           }
-          regionParams.push(region_id);
+
+          // ---------- ONLY REGION ----------
+          else {
+            if (["Chennai", "Bangalore"].includes(rname)) {
+              regionSuffix = ` AND b.region_id = ? AND b.name <> 'Online'`;
+              branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1 AND name <> 'Online'`;
+            } else {
+              regionSuffix = ` AND b.region_id = ?`;
+              branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1`;
+            }
+
+            regionParams.push(region_id);
+          }
         }
       } else {
         branchFetchRegionWhere = ` WHERE is_active = 1`;
@@ -1732,7 +1777,14 @@ const ReportModel = {
 
       // --- assemble branch list (all branches for region or all active branches) ---
       const branchFetchQuery = `SELECT id AS branch_id, name AS branch_name FROM branches ${branchFetchRegionWhere}`;
-      const branchFetchParams = region_id ? [region_id] : [];
+      const branchFetchParams = [];
+
+      if (region_id && branch_id) {
+        branchFetchParams.push(region_id, branch_id);
+      } else if (region_id) {
+        branchFetchParams.push(region_id);
+      }
+
       const [branchRows] = await pool.query(
         branchFetchQuery,
         branchFetchParams

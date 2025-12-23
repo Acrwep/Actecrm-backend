@@ -62,10 +62,11 @@ const reportUserWiseLead = async (request, response) => {
 };
 
 const reportBranchWiseScoreBoard = async (request, response) => {
-  const { region_id, start_date, end_date } = request.body;
+  const { region_id, branch_id, start_date, end_date } = request.body;
   try {
     const result = await ReportModel.reportBranchWiseScoreBoard(
       region_id,
+      branch_id,
       start_date,
       end_date
     );
@@ -82,10 +83,11 @@ const reportBranchWiseScoreBoard = async (request, response) => {
 };
 
 const reportBranchWiseLeads = async (request, response) => {
-  const { region_id, start_date, end_date } = request.body;
+  const { region_id, branch_id, start_date, end_date } = request.body;
   try {
     const result = await ReportModel.reportBranchWiseLeads(
       region_id,
+      branch_id,
       start_date,
       end_date
     );
