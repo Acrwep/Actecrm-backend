@@ -1831,14 +1831,29 @@ const LeadModel = {
         prefix = match ? match[0] : "";
       }
 
-      if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-        countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+      const courseFilter = `
+                          (
+                            LOWER(course) LIKE '%data analytics%'
+                            OR LOWER(course) LIKE 'Data science'
+                            OR LOWER(course) LIKE '%fullstack Developer%'
+                            OR LOWER(course) LIKE '%software testing%'
+                            OR LOWER(course) LIKE '%cloud computing%'
+                            OR LOWER(course) LIKE '%digital marketing%'
+                            OR LOWER(course) LIKE '%machine learning%'
+                            OR LOWER(course) LIKE '%gen ai%'
+                            OR LOWER(course) LIKE '%sap fico%'
+                            OR LOWER(course) LIKE '%sap mm%'
+                          )`;
+
+      if (prefix === "HUB") {
+        getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+
+        countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
       }
 
       if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND training LIKE '%Class%'`;
-        countQuery += ` AND training LIKE '%Class%'`;
+        getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+        countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
       }
 
       const pageNumber = parseInt(page, 10) || 1;
