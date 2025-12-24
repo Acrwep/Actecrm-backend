@@ -793,6 +793,63 @@ const getJunkLeads = async (request, response) => {
   }
 };
 
+const manualAssign = async (request, response) => {
+  const { user_id, assigned_by, lead_id, is_assigned } = request.body;
+  try {
+    const result = await LeadModel.manualAssign(
+      user_id,
+      assigned_by,
+      lead_id,
+      is_assigned
+    );
+    return response.status(200).send({
+      message: "Lead assigned successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while assigning lead",
+      details: error.message,
+    });
+  }
+};
+
+const getAssignedLeads = async (request, response) => {
+  const {
+    name,
+    phone,
+    email,
+    course,
+    start_date,
+    end_date,
+    user_id,
+    page,
+    limit,
+  } = request.body;
+  try {
+    const result = await LeadModel.getAssignedLeads(
+      name,
+      phone,
+      email,
+      course,
+      start_date,
+      end_date,
+      user_id,
+      page,
+      limit
+    );
+    return response.status(200).send({
+      message: "Assigned leads fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching assigned leads",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -826,4 +883,6 @@ module.exports = {
   moveToTrash,
   assignLiveLead,
   getJunkLeads,
+  manualAssign,
+  getAssignedLeads,
 };

@@ -1834,8 +1834,8 @@ const LeadModel = {
       const courseFilter = `
                           (
                             LOWER(course) LIKE '%data analytics%'
-                            OR LOWER(course) LIKE 'Data science'
-                            OR LOWER(course) LIKE '%fullstack Developer%'
+                            OR LOWER(course) LIKE 'data science'
+                            OR LOWER(course) LIKE '%fullstack developer%'
                             OR LOWER(course) LIKE '%software testing%'
                             OR LOWER(course) LIKE '%cloud computing%'
                             OR LOWER(course) LIKE '%digital marketing%'
@@ -1944,46 +1944,6 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
-
-  // assignLiveLead: async (user_id, lead_id, is_assigned) => {
-  //   try {
-  //     let affectedRows = 0;
-  //     const [isExists] = await pool.query(
-  //       `SELECT id FROM website_leads WHERE id = ?`,
-  //       [lead_id]
-  //     );
-
-  //     if (isExists.length <= 0) throw new Error("Invalid Id");
-
-  //     if (is_assigned === true) {
-  //       const [isAssigned] = await pool.query(
-  //         `SELECT id FROM website_leads WHERE id = ? AND assigned_to IS NOT NULL`,
-  //         [lead_id]
-  //       );
-
-  //       if (isAssigned.length > 0)
-  //         throw new Error("The lead has already been chosen by someone.");
-
-  //       const [result] = await pool.query(
-  //         `UPDATE website_leads SET assigned_to = ? WHERE id = ?`,
-  //         [user_id, lead_id]
-  //       );
-
-  //       affectedRows += result.affectedRows;
-  //     } else {
-  //       const [result] = await pool.query(
-  //         `UPDATE website_leads SET assigned_to = NULL WHERE id = ?`,
-  //         [lead_id]
-  //       );
-
-  //       affectedRows += result.affectedRows;
-  //     }
-
-  //     return affectedRows;
-  //   } catch (error) {
-  //     throw new Error(error.message);
-  //   }
-  // },
 
   assignLiveLead: async (user_id, lead_id, is_assigned) => {
     const conn = await pool.getConnection();
@@ -2111,6 +2071,138 @@ const LeadModel = {
 
       return {
         data: formattedResult,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  manualAssign: async (user_id, assigned_by, lead_id, is_assigned) => {
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      // Lock the row (only ONE user can read/modify)
+      const [rows] = await conn.query(
+        `SELECT assigned_to 
+       FROM website_leads 
+       WHERE id = ? 
+       FOR UPDATE`,
+        [lead_id]
+      );
+
+      if (rows.length === 0) {
+        throw new Error("Invalid lead id");
+      }
+
+      const currentAssigned = rows[0].assigned_to;
+
+      if (is_assigned === true) {
+        if (currentAssigned !== null) {
+          throw new Error("The lead has already been chosen by someone.");
+        }
+
+        // Assign
+        const [result] = await conn.query(
+          `UPDATE website_leads 
+         SET assigned_to = ?, assigned_by = ?
+         WHERE id = ?`,
+          [user_id, assigned_by, lead_id]
+        );
+
+        if (result.affectedRows === 0) {
+          throw new Error("Failed to assign lead");
+        }
+      } else if (is_assigned === false) {
+        // Unassign
+        await conn.query(
+          `UPDATE website_leads 
+         SET assigned_to = NULL, assigned_by = NULL
+         WHERE id = ?`,
+          [lead_id]
+        );
+      }
+
+      await conn.commit();
+      return { success: true };
+    } catch (error) {
+      await conn.rollback();
+      throw new Error(error.message);
+    } finally {
+      conn.release();
+    }
+  },
+
+  getAssignedLeads: async (
+    name,
+    phone,
+    email,
+    course,
+    start_date,
+    end_date,
+    user_id,
+    page,
+    limit
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+
+      // MUST convert to IST for correct filtering
+      const dateColumn = "CONVERT_TZ(l.created_date, '+00:00', '+05:30')";
+
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, ${dateColumn} AS created_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+
+      queryParams.push(user_id, user_id);
+      countParams.push(user_id, user_id);
+
+      const addCondition = (field, value) => {
+        getQuery += ` AND ${field} LIKE ?`;
+        countQuery += ` AND ${field} LIKE ?`;
+        queryParams.push(`%${value}%`);
+        countParams.push(`%${value}%`);
+      };
+
+      if (name) addCondition("name", name);
+      if (email) addCondition("email", email);
+      if (phone) addCondition("phone", phone);
+      if (course) addCondition("course", course);
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+      }
+
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [countResult] = await pool.query(countQuery, countParams);
+      const total = countResult[0]?.total || 0;
+
+      const [rows] = await pool.query(getQuery, queryParams);
+
+      const formattedData = rows.map((item) => ({
+        ...item,
+        created_date: item.created_date_ist,
+      }));
+
+      return {
+        data: formattedData,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

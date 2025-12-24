@@ -948,18 +948,26 @@ const ReportModel = {
 
       // --- build user list: either provided or all Sale users -----------
       let userList = [];
+
       if (user_ids) {
-        if (Array.isArray(user_ids)) userList = Array.from(new Set(user_ids));
-        else userList = [user_ids];
+        const ids = Array.isArray(user_ids) ? user_ids : [user_ids];
+
+        const placeholders = ids.map(() => "?").join(", ");
+        const [urows] = await pool.query(
+          `SELECT user_id
+    FROM users
+    WHERE roles LIKE '%Sale%'
+      AND user_id IN (${placeholders})`,
+          ids
+        );
+
+        userList = urows.map((r) => r.user_id);
       } else {
-        // fetch all sale users
         const [urows] = await pool.query(
           `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`
         );
-        userList = (urows || []).map((r) => r.user_id);
+        userList = urows.map((r) => r.user_id);
       }
-
-      if (userList.length === 0) return []; // nothing to do
 
       // --- prepare user placeholder and params for queries --------------
       const userPlaceholders = userList.map(() => "?").join(", ");

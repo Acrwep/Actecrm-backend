@@ -401,4 +401,6 @@ router.post(
   verifyToken,
   ReportController.getTransactionWiseReport
 );
+router.put("/manualAssign", verifyToken, LeadController.manualAssign);
+router.post("/getAssignedLeads", verifyToken, LeadController.getAssignedLeads);
 module.exports = router;
