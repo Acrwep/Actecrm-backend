@@ -794,12 +794,12 @@ const getJunkLeads = async (request, response) => {
 };
 
 const manualAssign = async (request, response) => {
-  const { user_id, assigned_by, lead_id, is_assigned } = request.body;
+  const { user_id, assigned_by, lead_ids, is_assigned } = request.body;
   try {
     const result = await LeadModel.manualAssign(
       user_id,
       assigned_by,
-      lead_id,
+      lead_ids,
       is_assigned
     );
     return response.status(200).send({

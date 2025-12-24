@@ -2083,50 +2083,59 @@ const LeadModel = {
     }
   },
 
-  manualAssign: async (user_id, assigned_by, lead_id, is_assigned) => {
+  manualAssign: async (user_id, assigned_by, lead_ids, is_assigned) => {
     const conn = await pool.getConnection();
 
     try {
       await conn.beginTransaction();
 
-      // Lock the row (only ONE user can read/modify)
-      const [rows] = await conn.query(
-        `SELECT assigned_to 
-       FROM website_leads 
-       WHERE id = ? 
-       FOR UPDATE`,
-        [lead_id]
-      );
-
-      if (rows.length === 0) {
-        throw new Error("Invalid lead id");
+      if (!Array.isArray(lead_ids) || lead_ids.length === 0) {
+        throw new Error("lead_ids must be a non-empty array");
       }
 
-      const currentAssigned = rows[0].assigned_to;
+      // Lock all selected leads
+      const [rows] = await conn.query(
+        `SELECT id, assigned_to
+       FROM website_leads
+       WHERE id IN (?)
+       FOR UPDATE`,
+        [lead_ids]
+      );
+
+      if (rows.length !== lead_ids.length) {
+        throw new Error("One or more lead IDs are invalid");
+      }
 
       if (is_assigned === true) {
-        if (currentAssigned !== null) {
-          throw new Error("The lead has already been chosen by someone.");
+        // Check already assigned leads
+        const alreadyAssigned = rows.filter((r) => r.assigned_to !== null);
+
+        if (alreadyAssigned.length > 0) {
+          throw new Error(
+            `Some leads are already assigned: ${alreadyAssigned
+              .map((l) => l.id)
+              .join(", ")}`
+          );
         }
 
-        // Assign
+        // Assign all
         const [result] = await conn.query(
-          `UPDATE website_leads 
+          `UPDATE website_leads
          SET assigned_to = ?, assigned_by = ?
-         WHERE id = ?`,
-          [user_id, assigned_by, lead_id]
+         WHERE id IN (?)`,
+          [user_id, assigned_by, lead_ids]
         );
 
-        if (result.affectedRows === 0) {
-          throw new Error("Failed to assign lead");
+        if (result.affectedRows !== lead_ids.length) {
+          throw new Error("Failed to assign all leads");
         }
       } else if (is_assigned === false) {
-        // Unassign
+        // Unassign all
         await conn.query(
-          `UPDATE website_leads 
+          `UPDATE website_leads
          SET assigned_to = NULL, assigned_by = NULL
-         WHERE id = ?`,
-          [lead_id]
+         WHERE id IN (?)`,
+          [lead_ids]
         );
       }
 
@@ -2134,7 +2143,7 @@ const LeadModel = {
       return { success: true };
     } catch (error) {
       await conn.rollback();
-      throw new Error(error.message);
+      throw error;
     } finally {
       conn.release();
     }
