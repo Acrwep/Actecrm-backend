@@ -834,7 +834,7 @@ const LeadModel = {
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         junkQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        assignQuery += ` AND CAST(CONVERT_TZ(l.created_date, '+00:00', '+05:30') AS DATE) BETWEEN ? AND ?`;
+        assignQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
         webParams.push(start_date, end_date);
@@ -2093,7 +2093,13 @@ const LeadModel = {
     }
   },
 
-  manualAssign: async (user_id, assigned_by, lead_ids, is_assigned) => {
+  manualAssign: async (
+    user_id,
+    assigned_by,
+    lead_ids,
+    is_assigned,
+    assigned_date
+  ) => {
     const conn = await pool.getConnection();
 
     try {
@@ -2131,7 +2137,7 @@ const LeadModel = {
         // Assign all
         const [result] = await conn.query(
           `UPDATE website_leads
-         SET assigned_to = ?, assigned_by = ?
+         SET assigned_to = ?, assigned_by = ?, assigned_date = ?
          WHERE id IN (?)`,
           [user_id, assigned_by, lead_ids]
         );
@@ -2143,7 +2149,7 @@ const LeadModel = {
         // Unassign all
         await conn.query(
           `UPDATE website_leads
-         SET assigned_to = NULL, assigned_by = NULL
+         SET assigned_to = NULL, assigned_by = NULL, assigned_date = NULL
          WHERE id IN (?)`,
           [lead_ids]
         );
@@ -2174,10 +2180,7 @@ const LeadModel = {
       const queryParams = [];
       const countParams = [];
 
-      // MUST convert to IST for correct filtering
-      const dateColumn = "CONVERT_TZ(l.created_date, '+00:00', '+05:30')";
-
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, ${dateColumn} AS created_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY l.assigned_date DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, l.assigned_date AS assigned_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
 
@@ -2197,8 +2200,8 @@ const LeadModel = {
       if (course) addCondition("course", course);
 
       if (start_date && end_date) {
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        getQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
       }
