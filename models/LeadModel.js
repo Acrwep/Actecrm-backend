@@ -809,30 +809,37 @@ const LeadModel = {
     }
   },
 
-  getLeadCount: async (user_ids, start_date, end_date) => {
+  getLeadCount: async (user_ids, start_date, end_date, login_by) => {
     try {
       const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
       const followUpParams = [];
       const leadParams = [];
       const webParams = [];
       const junkParams = [];
+      const assignParams = [];
       let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE lf.is_updated = 0 AND c.id IS NULL`;
 
       let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
 
       let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
+      let assignQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+
       let junkQuery = `SELECT COUNT(*) AS junk_lead_count FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+
+      assignParams.push(login_by, login_by);
 
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        junkQuery += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        junkQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        junkQuery += ` AND CAST(CONVERT_TZ(l.created_date, '+00:00', '+05:30') AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
         webParams.push(start_date, end_date);
         junkParams.push(start_date, end_date);
+        assignParams.push(start_date, end_date);
       }
 
       if (user_ids) {
@@ -860,11 +867,14 @@ const LeadModel = {
       const [webResult] = await pool.query(webLeadsCount, webParams);
 
       const [junkResult] = await pool.query(junkQuery, junkParams);
+
+      const [assignLeads] = await pool.query(assignQuery, assignParams);
       return {
         follow_up_count: getFollowupCount[0].follow_up_count,
         total_lead_count: getLeadCount[0].total_lead_count,
         web_lead_count: webResult[0].web_lead_count,
         junk_lead_count: junkResult[0].junk_lead_count,
+        assign_lead_count: assignLeads[0].total,
       };
     } catch (error) {
       throw new Error(error.message);
