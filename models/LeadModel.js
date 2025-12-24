@@ -834,7 +834,7 @@ const LeadModel = {
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         junkQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        junkQuery += ` AND CAST(CONVERT_TZ(l.created_date, '+00:00', '+05:30') AS DATE) BETWEEN ? AND ?`;
+        assignQuery += ` AND CAST(CONVERT_TZ(l.created_date, '+00:00', '+05:30') AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
         webParams.push(start_date, end_date);
