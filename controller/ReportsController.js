@@ -24,7 +24,7 @@ const reportScoreBoard = async (request, response) => {
 const reportUserWiseScoreBoard = async (request, response) => {
   const { user_ids, start_date, end_date } = request.body;
   try {
-    const result = await ReportModel.reportUserWiseScoreBoard(
+    const result = await ReportModel.reportUserWiseScoreBoard1(
       user_ids,
       start_date,
       end_date
@@ -266,11 +266,12 @@ const getTransactionWiseReport = async (request, response) => {
 };
 
 const getUserwiseTransaction = async (request, response) => {
-  const { start_date, end_date } = request.body;
+  const { start_date, end_date, user_ids } = request.body;
   try {
     const result = await ReportModel.getUserwiseTransaction(
       start_date,
-      end_date
+      end_date,
+      user_ids
     );
     return response.status(200).send({
       message: "Data fetched successfully",

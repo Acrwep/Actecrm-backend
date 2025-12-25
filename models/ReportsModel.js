@@ -819,6 +819,297 @@ const ReportModel = {
     }
   },
 
+  reportUserWiseScoreBoard1: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26
+  ) => {
+    try {
+      // ---------------------------------------------------------------------
+      // Helpers
+      // ---------------------------------------------------------------------
+      const toNum = (v) => {
+        if (v === null || v === undefined) return 0;
+        const n = Number(v);
+        return Number.isNaN(n) ? 0 : n;
+      };
+
+      boundaryDay = Number(boundaryDay) || 26;
+      boundaryDay = Math.min(Math.max(boundaryDay, 1), 31);
+
+      const parseToDateOnly = (d) => {
+        if (!d) return null;
+        const dt = new Date(d);
+        if (isNaN(dt)) return null;
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+
+      const formatDateTimeSQL = (dt) => {
+        const z = (n) => n.toString().padStart(2, "0");
+        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
+          dt.getDate()
+        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
+      };
+
+      const startDateOnly = parseToDateOnly(start_date);
+      const endDateOnly = parseToDateOnly(end_date);
+      if (!startDateOnly || !endDateOnly) {
+        throw new Error("Invalid date range");
+      }
+
+      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
+      const endExclusive = new Date(endDateOnly);
+      endExclusive.setDate(endExclusive.getDate() + 1);
+      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
+
+      // ---------------------------------------------------------------------
+      // ✅ STEP 1: Resolve ONLY Sale users (SOURCE OF TRUTH)
+      // ---------------------------------------------------------------------
+      let saleUserIds = [];
+
+      if (user_ids) {
+        const ids = Array.isArray(user_ids) ? user_ids : [user_ids];
+        const ph = ids.map(() => "?").join(",");
+
+        const [rows] = await pool.query(
+          `
+        SELECT user_id
+        FROM users
+        WHERE roles LIKE '%Sale%'
+          AND user_id IN (${ph})
+        `,
+          ids
+        );
+
+        saleUserIds = rows.map((r) => r.user_id);
+      } else {
+        const [rows] = await pool.query(
+          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`
+        );
+        saleUserIds = rows.map((r) => r.user_id);
+      }
+
+      if (saleUserIds.length === 0) return [];
+
+      const saleUserPlaceholders = saleUserIds.map(() => "?").join(",");
+
+      // ---------------------------------------------------------------------
+      // SQL QUERIES
+      // ---------------------------------------------------------------------
+      const b = boundaryDay;
+
+      const saleVolumeQuery = `
+      SELECT 
+        u.user_id,
+        DATE_FORMAT(
+          CASE WHEN DAY(c.created_date) >= ${b}
+            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+            ELSE c.created_date END,
+          '%M %Y'
+        ) AS sale_month,
+        DATE_FORMAT(
+          CASE WHEN DAY(c.created_date) >= ${b}
+            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+            ELSE c.created_date END,
+          '%Y-%m'
+        ) AS ym,
+        IFNULL(SUM(pm.total_amount), 0) AS sale_volume
+      FROM users u
+      JOIN lead_master l ON l.assigned_to = u.user_id
+      JOIN customers c ON c.lead_id = l.id
+      LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
+      WHERE u.user_id IN (${saleUserPlaceholders})
+        AND c.created_date >= ?
+        AND c.created_date < ?
+      GROUP BY u.user_id, ym, sale_month
+    `;
+
+      const collectionQuery = `
+      SELECT 
+        u.user_id,
+        DATE_FORMAT(
+          CASE WHEN DAY(c.created_date) >= ${b}
+            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+            ELSE c.created_date END,
+          '%M %Y'
+        ) AS sale_month,
+        DATE_FORMAT(
+          CASE WHEN DAY(c.created_date) >= ${b}
+            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+            ELSE c.created_date END,
+          '%Y-%m'
+        ) AS ym,
+        IFNULL(SUM(pt.amount), 0) AS collection
+      FROM users u
+      JOIN lead_master l ON l.assigned_to = u.user_id
+      JOIN customers c ON c.lead_id = l.id
+      JOIN payment_master pm ON pm.lead_id = c.lead_id
+      JOIN payment_trans pt 
+        ON pt.payment_master_id = pm.id
+       AND pt.payment_status <> 'Rejected'
+      WHERE u.user_id IN (${saleUserPlaceholders})
+        AND c.created_date >= ?
+        AND c.created_date < ?
+      GROUP BY u.user_id, ym, sale_month
+    `;
+
+      const totalCollectionQuery = `
+      SELECT 
+        u.user_id,
+        DATE_FORMAT(
+          CASE WHEN DAY(pt.invoice_date) >= ${b}
+            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
+            ELSE pt.invoice_date END,
+          '%M %Y'
+        ) AS sale_month,
+        DATE_FORMAT(
+          CASE WHEN DAY(pt.invoice_date) >= ${b}
+            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
+            ELSE pt.invoice_date END,
+          '%Y-%m'
+        ) AS ym,
+        IFNULL(SUM(pt.amount), 0) AS total_collection
+      FROM users u
+      JOIN lead_master l ON l.assigned_to = u.user_id
+      JOIN customers c ON c.lead_id = l.id
+      JOIN payment_master pm ON pm.lead_id = c.lead_id
+      JOIN payment_trans pt 
+        ON pt.payment_master_id = pm.id
+       AND pt.payment_status <> 'Rejected'
+      WHERE u.user_id IN (${saleUserPlaceholders})
+        AND pt.invoice_date >= ?
+        AND pt.invoice_date < ?
+      GROUP BY u.user_id, ym, sale_month
+    `;
+
+      // ---------------------------------------------------------------------
+      // Execute queries
+      // ---------------------------------------------------------------------
+      const baseParams = [
+        ...saleUserIds,
+        startDateTimeSQL,
+        endExclusiveDateTimeSQL,
+      ];
+
+      const [saleRows] = await pool.query(saleVolumeQuery, baseParams);
+      const [collectionRows] = await pool.query(collectionQuery, baseParams);
+      const [totalRows] = await pool.query(totalCollectionQuery, baseParams);
+
+      // ---------------------------------------------------------------------
+      // Build maps
+      // ---------------------------------------------------------------------
+      const saleMap = {};
+      saleRows.forEach((r) => {
+        saleMap[`${r.sale_month}||${r.user_id}`] = toNum(r.sale_volume);
+      });
+
+      const collectionMap = {};
+      collectionRows.forEach((r) => {
+        collectionMap[`${r.sale_month}||${r.user_id}`] = toNum(r.collection);
+      });
+
+      const totalMap = {};
+      totalRows.forEach((r) => {
+        totalMap[`${r.sale_month}||${r.user_id}`] = toNum(r.total_collection);
+      });
+
+      // ---------------------------------------------------------------------
+      // Fetch user names (Sale users only)
+      // ---------------------------------------------------------------------
+      const [userRows] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id IN (${saleUserPlaceholders})`,
+        saleUserIds
+      );
+
+      const userNameMap = {};
+      userRows.forEach((r) => {
+        userNameMap[r.user_id] = r.user_name;
+      });
+
+      // ---------------------------------------------------------------------
+      // Month list (same logic)
+      // ---------------------------------------------------------------------
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const monthAbbrev = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      const getMappedMonthStart = (d) => {
+        const dt = new Date(d);
+        if (dt.getDate() >= boundaryDay) dt.setMonth(dt.getMonth() + 1);
+        dt.setDate(1);
+        dt.setHours(0, 0, 0, 0);
+        return dt;
+      };
+
+      const months = [];
+      let cur = getMappedMonthStart(startDateOnly);
+      const end = getMappedMonthStart(endDateOnly);
+
+      while (cur <= end) {
+        months.push({
+          label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`,
+          abbrev: `${monthAbbrev[cur.getMonth()]} ${cur.getFullYear()}`,
+        });
+        cur.setMonth(cur.getMonth() + 1);
+      }
+
+      // ---------------------------------------------------------------------
+      // Final result
+      // ---------------------------------------------------------------------
+      const result = [];
+
+      for (const uid of saleUserIds) {
+        for (const m of months) {
+          const sale = saleMap[`${m.label}||${uid}`] || 0;
+          const collection = collectionMap[`${m.label}||${uid}`] || 0;
+          const total = totalMap[`${m.label}||${uid}`] || 0;
+
+          result.push({
+            user_id: uid,
+            user_name: userNameMap[uid] || "",
+            month: m.abbrev,
+            label: m.label,
+            sale_volume: sale,
+            collection,
+            total_collection: total,
+            pending: Math.max(0, sale - collection),
+          });
+        }
+      }
+
+      return result;
+    } catch (err) {
+      throw new Error(err?.message || String(err));
+    }
+  },
+
   reportUserWiseLead: async (
     user_ids,
     start_date,
@@ -3361,12 +3652,17 @@ const ReportModel = {
     }
   },
 
-  getUserwiseTransaction: async (start_date, end_date) => {
+  getUserwiseTransaction: async (start_date, end_date, user_ids) => {
     try {
-      const [result] = await pool.query(`CALL sp_date_wise_collection (?, ?)`, [
-        start_date,
-        end_date,
-      ]);
+      const userIdsParam =
+        Array.isArray(user_ids) && user_ids.length > 0
+          ? user_ids.join(",")
+          : null;
+
+      const [result] = await pool.query(
+        `CALL sp_date_wise_collection (?, ?, ?)`,
+        [start_date, end_date, userIdsParam]
+      );
 
       return result;
     } catch (error) {
