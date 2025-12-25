@@ -265,6 +265,25 @@ const getTransactionWiseReport = async (request, response) => {
   }
 };
 
+const getUserwiseTransaction = async (request, response) => {
+  const { start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.getUserwiseTransaction(
+      start_date,
+      end_date
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -279,4 +298,5 @@ module.exports = {
   getTopPerformingReport,
   getRegionWiseFinance,
   getTransactionWiseReport,
+  getUserwiseTransaction,
 };

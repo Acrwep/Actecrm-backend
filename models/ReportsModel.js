@@ -3360,6 +3360,19 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  getUserwiseTransaction: async (start_date, end_date) => {
+    try {
+      const [result] = await pool.query(`CALL sp_date_wise_collection (?, ?)`, [
+        start_date,
+        end_date,
+      ]);
+
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;
