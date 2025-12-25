@@ -3664,7 +3664,7 @@ const ReportModel = {
         [start_date, end_date, userIdsParam]
       );
 
-      return result;
+      return result[0];
     } catch (error) {
       throw new Error(error.message);
     }
