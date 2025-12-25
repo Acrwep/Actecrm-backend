@@ -24,7 +24,7 @@ const reportScoreBoard = async (request, response) => {
 const reportUserWiseScoreBoard = async (request, response) => {
   const { user_ids, start_date, end_date } = request.body;
   try {
-    const result = await ReportModel.reportUserWiseScoreBoard1(
+    const result = await ReportModel.reportUserWiseScoreBoard(
       user_ids,
       start_date,
       end_date

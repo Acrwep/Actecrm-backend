@@ -447,6 +447,378 @@ const ReportModel = {
     }
   },
 
+  // reportUserWiseScoreBoard: async (
+  //   user_ids,
+  //   start_date,
+  //   end_date,
+  //   boundaryDay = 26
+  // ) => {
+  //   try {
+  //     // --- Helpers ---------------------------------------------------------
+  //     const toNum = (v) => {
+  //       if (v === null || v === undefined) return 0;
+  //       const n = Number(v);
+  //       return Number.isNaN(n) ? 0 : n;
+  //     };
+
+  //     boundaryDay = Number(boundaryDay) || 26;
+  //     if (boundaryDay < 1) boundaryDay = 1;
+  //     if (boundaryDay > 31) boundaryDay = 31;
+
+  //     const parseToDateOnly = (d) => {
+  //       if (!d) return null;
+  //       if (d instanceof Date && !isNaN(d)) {
+  //         const dt = new Date(d.getTime());
+  //         dt.setHours(0, 0, 0, 0);
+  //         return dt;
+  //       }
+  //       const iso =
+  //         typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
+  //           ? `${d}T00:00:00`
+  //           : d;
+  //       const dt = new Date(iso);
+  //       if (isNaN(dt)) return null;
+  //       dt.setHours(0, 0, 0, 0);
+  //       return dt;
+  //     };
+
+  //     const formatDateTimeSQL = (dt) => {
+  //       const z = (n) => n.toString().padStart(2, "0");
+  //       return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
+  //         dt.getDate()
+  //       )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
+  //     };
+
+  //     const startDateOnly = parseToDateOnly(start_date);
+  //     const endDateOnly = parseToDateOnly(end_date);
+  //     if (!startDateOnly || !endDateOnly) {
+  //       throw new Error(
+  //         "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+  //       );
+  //     }
+  //     const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
+  //     const endExclusiveDate = new Date(endDateOnly.getTime());
+  //     endExclusiveDate.setDate(endExclusiveDate.getDate() + 1);
+  //     const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusiveDate);
+
+  //     // --- SQL queries (per-user, per-mapped-month) ------------------------
+  //     // sale -> grouped by pm.created_date (payment_master)
+  //     // collection/total_collection -> grouped by pt.invoice_date (payment_trans.invoice_date)
+  //     const b = boundaryDay;
+
+  //     const saleVolumeQuery = `
+  //     SELECT
+  //       u.user_id,
+  //       u.user_name,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(c.created_date AS DATE) END,
+  //         '%M %Y'
+  //       ) AS sale_month,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(c.created_date AS DATE) END,
+  //         '%Y-%m'
+  //       ) AS ym,
+  //       IFNULL(SUM(pm.total_amount), 0) AS sale_volume
+  //     FROM users AS u
+  //     LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
+  //     LEFT JOIN customers AS c ON c.lead_id = l.id
+  //     LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+  //     WHERE u.roles LIKE '%Sale%'
+  //       AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+
+  //     const collectionQuery = `
+  //     SELECT
+  //       u.user_id,
+  //       u.user_name,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(c.created_date AS DATE) END,
+  //         '%M %Y'
+  //       ) AS sale_month,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(c.created_date AS DATE) END,
+  //         '%Y-%m'
+  //       ) AS ym,
+  //       IFNULL(SUM(pt.amount), 0) AS collection
+  //     FROM users AS u
+  //     LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
+  //     LEFT JOIN customers AS c ON c.lead_id = l.id
+  //     LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+  //     LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
+  //     WHERE u.roles LIKE '%Sale%'
+  //       AND CAST(c.created_date AS DATE) BETWEEN ? AND ?
+  //   `;
+
+  //     const totalCollectionQuery = `
+  //     SELECT
+  //       u.user_id,
+  //       u.user_name,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(pt.invoice_date AS DATE) END,
+  //         '%M %Y'
+  //       ) AS sale_month,
+  //       DATE_FORMAT(
+  //         CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
+  //           THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
+  //           ELSE CAST(pt.invoice_date AS DATE) END,
+  //         '%Y-%m'
+  //       ) AS ym,
+  //       IFNULL(SUM(pt.amount), 0) AS total_collection
+  //     FROM users AS u
+  //     LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
+  //     LEFT JOIN customers AS c ON c.lead_id = l.id
+  //     LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+  //     LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
+  //     WHERE u.roles LIKE '%Sale%'
+  //       AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?
+  //   `;
+
+  //     // --- apply user filter suffixes & prepare params --------------------
+  //     const baseParamsSale = [startDateTimeSQL, endExclusiveDateTimeSQL];
+  //     const baseParamsCollection = [startDateTimeSQL, endExclusiveDateTimeSQL];
+  //     const baseParamsTotal = [startDateTimeSQL, endExclusiveDateTimeSQL];
+
+  //     let userFilterSuffix = "";
+  //     if (user_ids) {
+  //       if (Array.isArray(user_ids) && user_ids.length > 0) {
+  //         const ph = user_ids.map(() => "?").join(", ");
+  //         userFilterSuffix = ` AND u.user_id IN (${ph})`;
+  //         baseParamsSale.push(...user_ids);
+  //         baseParamsCollection.push(...user_ids);
+  //         baseParamsTotal.push(...user_ids);
+  //       } else {
+  //         userFilterSuffix = ` AND u.user_id = ?`;
+  //         baseParamsSale.push(user_ids);
+  //         baseParamsCollection.push(user_ids);
+  //         baseParamsTotal.push(user_ids);
+  //       }
+  //     }
+
+  //     const finalSaleQuery =
+  //       saleVolumeQuery +
+  //       userFilterSuffix +
+  //       " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, sale_volume DESC";
+  //     const finalCollectionQuery =
+  //       collectionQuery +
+  //       userFilterSuffix +
+  //       " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, collection DESC";
+  //     const finalTotalQuery =
+  //       totalCollectionQuery +
+  //       userFilterSuffix +
+  //       " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, total_collection DESC";
+
+  //     // --- execute queries -------------------------------------------------
+  //     const [saleRows] = await pool.query(finalSaleQuery, baseParamsSale);
+  //     const [collectionRows] = await pool.query(
+  //       finalCollectionQuery,
+  //       baseParamsCollection
+  //     );
+
+  //     const [totalRows] = await pool.query(finalTotalQuery, baseParamsTotal);
+
+  //     // --- build maps keyed by month + user_id ------------------------------
+  //     const saleMap = (saleRows || []).reduce((acc, r) => {
+  //       const key = `${r.sale_month}||${r.user_id}`;
+  //       acc[key] = toNum(r.sale_volume);
+  //       return acc;
+  //     }, {});
+  //     const collectionMap = (collectionRows || []).reduce((acc, r) => {
+  //       const key = `${r.sale_month}||${r.user_id}`;
+  //       acc[key] = toNum(r.collection);
+  //       return acc;
+  //     }, {});
+  //     const totalMap = (totalRows || []).reduce((acc, r) => {
+  //       const key = `${r.sale_month}||${r.user_id}`;
+  //       acc[key] = toNum(r.total_collection);
+  //       return acc;
+  //     }, {});
+
+  //     // --- compute month list using same boundary logic --------------------
+  //     const monthNames = [
+  //       "January",
+  //       "February",
+  //       "March",
+  //       "April",
+  //       "May",
+  //       "June",
+  //       "July",
+  //       "August",
+  //       "September",
+  //       "October",
+  //       "November",
+  //       "December",
+  //     ];
+  //     const monthAbbrev = [
+  //       "Jan",
+  //       "Feb",
+  //       "Mar",
+  //       "Apr",
+  //       "May",
+  //       "Jun",
+  //       "Jul",
+  //       "Aug",
+  //       "Sep",
+  //       "Oct",
+  //       "Nov",
+  //       "Dec",
+  //     ];
+  //     const getMappedMonthStart = (dateInput) => {
+  //       const d = new Date(dateInput.getTime());
+  //       const day = d.getDate();
+  //       if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
+  //       d.setDate(1);
+  //       d.setHours(0, 0, 0, 0);
+  //       return d;
+  //     };
+  //     const formatLabel = (d) =>
+  //       `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+  //     const formatAbbrev = (d) =>
+  //       `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`; // "Jan 2025"
+
+  //     const getMonths = (startDateStr, endDateStr) => {
+  //       const sDate = parseToDateOnly(startDateStr);
+  //       const eDate = parseToDateOnly(endDateStr);
+  //       if (!sDate || !eDate) return [];
+  //       const startMapped = getMappedMonthStart(sDate);
+  //       const endMapped = getMappedMonthStart(eDate);
+  //       const months = [];
+  //       const cur = new Date(startMapped.getTime());
+  //       while (cur <= endMapped) {
+  //         months.push({
+  //           label: formatLabel(cur),
+  //           abbrev: formatAbbrev(cur),
+  //           d: new Date(cur.getTime()),
+  //         });
+  //         cur.setMonth(cur.getMonth() + 1);
+  //       }
+  //       return months;
+  //     };
+
+  //     const months = getMonths(start_date, end_date);
+
+  //     // --- assemble user list (either from user_ids or from query rows) ----
+  //     const userSet = new Set();
+  //     if (user_ids) {
+  //       if (Array.isArray(user_ids)) user_ids.forEach((u) => userSet.add(u));
+  //       else userSet.add(user_ids);
+  //     } else {
+  //       (saleRows || []).forEach((r) => userSet.add(r.user_id));
+  //       (collectionRows || []).forEach((r) => userSet.add(r.user_id));
+  //       (totalRows || []).forEach((r) => userSet.add(r.user_id));
+  //     }
+
+  //     const userIds = Array.from(userSet);
+  //     if (userIds.length === 0) return [];
+
+  //     // --- fetch user names in batch --------------------------------------
+  //     const [userRows] = await pool.query(
+  //       `SELECT user_id, user_name FROM users WHERE user_id IN (${userIds
+  //         .map(() => "?")
+  //         .join(", ")})`,
+  //       userIds
+  //     );
+  //     const userNameMap = (userRows || []).reduce((acc, r) => {
+  //       acc[r.user_id] = r.user_name;
+  //       return acc;
+  //     }, {});
+
+  //     // --- Batch load targets for all users × months ----------------------
+  //     // patterns like '%Jan 2025%'
+  //     const monthPatterns = months.map((m) => `%${m.abbrev}%`);
+  //     const targetParams = [...userIds, ...monthPatterns];
+  //     const targetWhere =
+  //       (userIds.length > 0
+  //         ? `user_id IN (${userIds.map(() => "?").join(", ")})`
+  //         : "1=0") +
+  //       " AND (" +
+  //       (monthPatterns.length > 0
+  //         ? monthPatterns.map(() => "target_month LIKE ?").join(" OR ")
+  //         : "1=0") +
+  //       ")";
+
+  //     const [targetRows] = await pool.query(
+  //       `SELECT id, user_id, target_month, target_value FROM user_target_master WHERE ${targetWhere} ORDER BY id DESC`,
+  //       targetParams
+  //     );
+
+  //     // Build targetMap keyed by `${user_id}||${m.abbrev}` (latest id wins)
+  //     const targetMap = {};
+  //     (targetRows || []).forEach((tr) => {
+  //       if (!tr.target_month || typeof tr.target_month !== "string") return;
+  //       for (const m of months) {
+  //         if (tr.target_month.includes(m.abbrev)) {
+  //           const key = `${tr.user_id}||${m.abbrev}`; // e.g. "U001||Jan 2025"
+  //           if (!targetMap[key] || tr.id > targetMap[key].id) {
+  //             targetMap[key] = {
+  //               id: tr.id,
+  //               target_month: tr.target_month,
+  //               target_value: toNum(tr.target_value),
+  //             };
+  //           }
+  //         }
+  //       }
+  //     });
+
+  //     // --- Build final per-user array -------------------------------------
+  //     const result = [];
+
+  //     for (const uid of userIds) {
+  //       const user_name = userNameMap[uid] || "";
+
+  //       for (const mObj of months) {
+  //         const mLabel = mObj.label; // "January 2025"
+  //         const mAbbrev = mObj.abbrev; // "Jan 2025"
+
+  //         const sale_volume = saleMap[`${mLabel}||${uid}`] ?? 0;
+  //         const collection = collectionMap[`${mLabel}||${uid}`] ?? 0;
+  //         const total_collection = totalMap[`${mLabel}||${uid}`] ?? 0;
+
+  //         // pending = sale - total_collection (unpaid amount)
+  //         const pending = Math.max(0, sale_volume - collection);
+
+  //         // Targets: key is `${uid}||${mAbbrev}` ("U001||Jan 2025")
+  //         const tKey = `${uid}||${mAbbrev}`;
+  //         const matchedTarget = targetMap[tKey] || null;
+  //         const target_value = matchedTarget
+  //           ? toNum(matchedTarget.target_value)
+  //           : 0;
+  //         const target_month = matchedTarget ? matchedTarget.target_month : "";
+  //         const percentage =
+  //           target_value > 0
+  //             ? Number(((total_collection / target_value) * 100).toFixed(2))
+  //             : 0;
+
+  //         result.push({
+  //           user_id: uid,
+  //           user_name: user_name,
+  //           month: mAbbrev, // "Jan 2025"
+  //           label: mLabel, // "January 2025"
+  //           sale_volume: Number(sale_volume.toFixed(2)),
+  //           collection: Number(collection.toFixed(2)),
+  //           total_collection: Number(total_collection.toFixed(2)),
+  //           pending: Number(pending.toFixed(2)),
+  //           target_month,
+  //           target_value: Number(target_value.toFixed(2)),
+  //           percentage,
+  //         });
+  //       }
+  //     }
+
+  //     return result;
+  //   } catch (error) {
+  //     throw new Error(error && error.message ? error.message : String(error));
+  //   }
+  // },
+
   reportUserWiseScoreBoard: async (
     user_ids,
     start_date,
@@ -454,435 +826,37 @@ const ReportModel = {
     boundaryDay = 26
   ) => {
     try {
-      // --- Helpers ---------------------------------------------------------
-      const toNum = (v) => {
-        if (v === null || v === undefined) return 0;
-        const n = Number(v);
-        return Number.isNaN(n) ? 0 : n;
-      };
+      const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 
-      boundaryDay = Number(boundaryDay) || 26;
-      if (boundaryDay < 1) boundaryDay = 1;
-      if (boundaryDay > 31) boundaryDay = 31;
+      boundaryDay = Math.min(Math.max(Number(boundaryDay) || 26, 1), 31);
 
-      const parseToDateOnly = (d) => {
-        if (!d) return null;
-        if (d instanceof Date && !isNaN(d)) {
-          const dt = new Date(d.getTime());
-          dt.setHours(0, 0, 0, 0);
-          return dt;
-        }
-        const iso =
-          typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
-            ? `${d}T00:00:00`
-            : d;
-        const dt = new Date(iso);
-        if (isNaN(dt)) return null;
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-      };
-
-      const formatDateTimeSQL = (dt) => {
-        const z = (n) => n.toString().padStart(2, "0");
-        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
-        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
-      };
-
-      const startDateOnly = parseToDateOnly(start_date);
-      const endDateOnly = parseToDateOnly(end_date);
-      if (!startDateOnly || !endDateOnly) {
-        throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
-        );
-      }
-      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
-      const endExclusiveDate = new Date(endDateOnly.getTime());
-      endExclusiveDate.setDate(endExclusiveDate.getDate() + 1);
-      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusiveDate);
-
-      // --- SQL queries (per-user, per-mapped-month) ------------------------
-      // sale -> grouped by pm.created_date (payment_master)
-      // collection/total_collection -> grouped by pt.invoice_date (payment_trans.invoice_date)
-      const b = boundaryDay;
-
-      const saleVolumeQuery = `
-      SELECT 
-        u.user_id,
-        u.user_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%Y-%m'
-        ) AS ym,
-        IFNULL(SUM(pm.total_amount), 0) AS sale_volume
-      FROM users AS u
-      LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
-      LEFT JOIN customers AS c ON c.lead_id = l.id
-      LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-      WHERE u.roles LIKE '%Sale%'
-        AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-
-      const collectionQuery = `
-      SELECT 
-        u.user_id,
-        u.user_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%Y-%m'
-        ) AS ym,
-        IFNULL(SUM(pt.amount), 0) AS collection
-      FROM users AS u
-      LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
-      LEFT JOIN customers AS c ON c.lead_id = l.id
-      LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
-      WHERE u.roles LIKE '%Sale%'
-        AND CAST(c.created_date AS DATE) BETWEEN ? AND ?
-    `;
-
-      const totalCollectionQuery = `
-      SELECT 
-        u.user_id,
-        u.user_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE) END,
-          '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE) END,
-          '%Y-%m'
-        ) AS ym,
-        IFNULL(SUM(pt.amount), 0) AS total_collection
-      FROM users AS u
-      LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
-      LEFT JOIN customers AS c ON c.lead_id = l.id
-      LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
-      WHERE u.roles LIKE '%Sale%'
-        AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?
-    `;
-
-      // --- apply user filter suffixes & prepare params --------------------
-      const baseParamsSale = [startDateTimeSQL, endExclusiveDateTimeSQL];
-      const baseParamsCollection = [startDateTimeSQL, endExclusiveDateTimeSQL];
-      const baseParamsTotal = [startDateTimeSQL, endExclusiveDateTimeSQL];
-
-      let userFilterSuffix = "";
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const ph = user_ids.map(() => "?").join(", ");
-          userFilterSuffix = ` AND u.user_id IN (${ph})`;
-          baseParamsSale.push(...user_ids);
-          baseParamsCollection.push(...user_ids);
-          baseParamsTotal.push(...user_ids);
-        } else {
-          userFilterSuffix = ` AND u.user_id = ?`;
-          baseParamsSale.push(user_ids);
-          baseParamsCollection.push(user_ids);
-          baseParamsTotal.push(user_ids);
-        }
-      }
-
-      const finalSaleQuery =
-        saleVolumeQuery +
-        userFilterSuffix +
-        " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, sale_volume DESC";
-      const finalCollectionQuery =
-        collectionQuery +
-        userFilterSuffix +
-        " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, collection DESC";
-      const finalTotalQuery =
-        totalCollectionQuery +
-        userFilterSuffix +
-        " GROUP BY ym, sale_month, u.user_id, u.user_name ORDER BY ym ASC, total_collection DESC";
-
-      // --- execute queries -------------------------------------------------
-      const [saleRows] = await pool.query(finalSaleQuery, baseParamsSale);
-      const [collectionRows] = await pool.query(
-        finalCollectionQuery,
-        baseParamsCollection
-      );
-
-      const [totalRows] = await pool.query(finalTotalQuery, baseParamsTotal);
-
-      // --- build maps keyed by month + user_id ------------------------------
-      const saleMap = (saleRows || []).reduce((acc, r) => {
-        const key = `${r.sale_month}||${r.user_id}`;
-        acc[key] = toNum(r.sale_volume);
-        return acc;
-      }, {});
-      const collectionMap = (collectionRows || []).reduce((acc, r) => {
-        const key = `${r.sale_month}||${r.user_id}`;
-        acc[key] = toNum(r.collection);
-        return acc;
-      }, {});
-      const totalMap = (totalRows || []).reduce((acc, r) => {
-        const key = `${r.sale_month}||${r.user_id}`;
-        acc[key] = toNum(r.total_collection);
-        return acc;
-      }, {});
-
-      // --- compute month list using same boundary logic --------------------
-      const monthNames = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ];
-      const monthAbbrev = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
-      const getMappedMonthStart = (dateInput) => {
-        const d = new Date(dateInput.getTime());
-        const day = d.getDate();
-        if (day >= boundaryDay) d.setMonth(d.getMonth() + 1);
-        d.setDate(1);
-        d.setHours(0, 0, 0, 0);
-        return d;
-      };
-      const formatLabel = (d) =>
-        `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      const formatAbbrev = (d) =>
-        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`; // "Jan 2025"
-
-      const getMonths = (startDateStr, endDateStr) => {
-        const sDate = parseToDateOnly(startDateStr);
-        const eDate = parseToDateOnly(endDateStr);
-        if (!sDate || !eDate) return [];
-        const startMapped = getMappedMonthStart(sDate);
-        const endMapped = getMappedMonthStart(eDate);
-        const months = [];
-        const cur = new Date(startMapped.getTime());
-        while (cur <= endMapped) {
-          months.push({
-            label: formatLabel(cur),
-            abbrev: formatAbbrev(cur),
-            d: new Date(cur.getTime()),
-          });
-          cur.setMonth(cur.getMonth() + 1);
-        }
-        return months;
-      };
-
-      const months = getMonths(start_date, end_date);
-
-      // --- assemble user list (either from user_ids or from query rows) ----
-      const userSet = new Set();
-      if (user_ids) {
-        if (Array.isArray(user_ids)) user_ids.forEach((u) => userSet.add(u));
-        else userSet.add(user_ids);
-      } else {
-        (saleRows || []).forEach((r) => userSet.add(r.user_id));
-        (collectionRows || []).forEach((r) => userSet.add(r.user_id));
-        (totalRows || []).forEach((r) => userSet.add(r.user_id));
-      }
-
-      const userIds = Array.from(userSet);
-      if (userIds.length === 0) return [];
-
-      // --- fetch user names in batch --------------------------------------
-      const [userRows] = await pool.query(
-        `SELECT user_id, user_name FROM users WHERE user_id IN (${userIds
-          .map(() => "?")
-          .join(", ")})`,
-        userIds
-      );
-      const userNameMap = (userRows || []).reduce((acc, r) => {
-        acc[r.user_id] = r.user_name;
-        return acc;
-      }, {});
-
-      // --- Batch load targets for all users × months ----------------------
-      // patterns like '%Jan 2025%'
-      const monthPatterns = months.map((m) => `%${m.abbrev}%`);
-      const targetParams = [...userIds, ...monthPatterns];
-      const targetWhere =
-        (userIds.length > 0
-          ? `user_id IN (${userIds.map(() => "?").join(", ")})`
-          : "1=0") +
-        " AND (" +
-        (monthPatterns.length > 0
-          ? monthPatterns.map(() => "target_month LIKE ?").join(" OR ")
-          : "1=0") +
-        ")";
-
-      const [targetRows] = await pool.query(
-        `SELECT id, user_id, target_month, target_value FROM user_target_master WHERE ${targetWhere} ORDER BY id DESC`,
-        targetParams
-      );
-
-      // Build targetMap keyed by `${user_id}||${m.abbrev}` (latest id wins)
-      const targetMap = {};
-      (targetRows || []).forEach((tr) => {
-        if (!tr.target_month || typeof tr.target_month !== "string") return;
-        for (const m of months) {
-          if (tr.target_month.includes(m.abbrev)) {
-            const key = `${tr.user_id}||${m.abbrev}`; // e.g. "U001||Jan 2025"
-            if (!targetMap[key] || tr.id > targetMap[key].id) {
-              targetMap[key] = {
-                id: tr.id,
-                target_month: tr.target_month,
-                target_value: toNum(tr.target_value),
-              };
-            }
-          }
-        }
-      });
-
-      // --- Build final per-user array -------------------------------------
-      const result = [];
-
-      for (const uid of userIds) {
-        const user_name = userNameMap[uid] || "";
-
-        for (const mObj of months) {
-          const mLabel = mObj.label; // "January 2025"
-          const mAbbrev = mObj.abbrev; // "Jan 2025"
-
-          const sale_volume = saleMap[`${mLabel}||${uid}`] ?? 0;
-          const collection = collectionMap[`${mLabel}||${uid}`] ?? 0;
-          const total_collection = totalMap[`${mLabel}||${uid}`] ?? 0;
-
-          // pending = sale - total_collection (unpaid amount)
-          const pending = Math.max(0, sale_volume - collection);
-
-          // Targets: key is `${uid}||${mAbbrev}` ("U001||Jan 2025")
-          const tKey = `${uid}||${mAbbrev}`;
-          const matchedTarget = targetMap[tKey] || null;
-          const target_value = matchedTarget
-            ? toNum(matchedTarget.target_value)
-            : 0;
-          const target_month = matchedTarget ? matchedTarget.target_month : "";
-          const percentage =
-            target_value > 0
-              ? Number(((total_collection / target_value) * 100).toFixed(2))
-              : 0;
-
-          result.push({
-            user_id: uid,
-            user_name: user_name,
-            month: mAbbrev, // "Jan 2025"
-            label: mLabel, // "January 2025"
-            sale_volume: Number(sale_volume.toFixed(2)),
-            collection: Number(collection.toFixed(2)),
-            total_collection: Number(total_collection.toFixed(2)),
-            pending: Number(pending.toFixed(2)),
-            target_month,
-            target_value: Number(target_value.toFixed(2)),
-            percentage,
-          });
-        }
-      }
-
-      return result;
-    } catch (error) {
-      throw new Error(error && error.message ? error.message : String(error));
-    }
-  },
-
-  reportUserWiseScoreBoard1: async (
-    user_ids,
-    start_date,
-    end_date,
-    boundaryDay = 26
-  ) => {
-    try {
-      // ---------------------------------------------------------------------
-      // Helpers
-      // ---------------------------------------------------------------------
-      const toNum = (v) => {
-        if (v === null || v === undefined) return 0;
-        const n = Number(v);
-        return Number.isNaN(n) ? 0 : n;
-      };
-
-      boundaryDay = Number(boundaryDay) || 26;
-      boundaryDay = Math.min(Math.max(boundaryDay, 1), 31);
-
-      const parseToDateOnly = (d) => {
-        if (!d) return null;
+      const parseDate = (d) => {
         const dt = new Date(d);
         if (isNaN(dt)) return null;
         dt.setHours(0, 0, 0, 0);
         return dt;
       };
 
-      const formatDateTimeSQL = (dt) => {
-        const z = (n) => n.toString().padStart(2, "0");
-        return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
-        )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
-      };
+      const startDate = parseDate(start_date);
+      const endDate = parseDate(end_date);
+      if (!startDate || !endDate) throw new Error("Invalid date");
 
-      const startDateOnly = parseToDateOnly(start_date);
-      const endDateOnly = parseToDateOnly(end_date);
-      if (!startDateOnly || !endDateOnly) {
-        throw new Error("Invalid date range");
-      }
-
-      const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
-      const endExclusive = new Date(endDateOnly);
+      const endExclusive = new Date(endDate);
       endExclusive.setDate(endExclusive.getDate() + 1);
-      const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
 
-      // ---------------------------------------------------------------------
-      // ✅ STEP 1: Resolve ONLY Sale users (SOURCE OF TRUTH)
-      // ---------------------------------------------------------------------
+      /* ----------------------------------------------------
+       STEP 1: Resolve Sale users (SOURCE OF TRUTH)
+    ---------------------------------------------------- */
       let saleUserIds = [];
 
       if (user_ids) {
         const ids = Array.isArray(user_ids) ? user_ids : [user_ids];
-        const ph = ids.map(() => "?").join(",");
-
         const [rows] = await pool.query(
-          `
-        SELECT user_id
-        FROM users
-        WHERE roles LIKE '%Sale%'
-          AND user_id IN (${ph})
-        `,
+          `SELECT user_id FROM users WHERE roles LIKE '%Sale%' AND user_id IN (${ids
+            .map(() => "?")
+            .join(",")})`,
           ids
         );
-
         saleUserIds = rows.map((r) => r.user_id);
       } else {
         const [rows] = await pool.query(
@@ -891,16 +865,16 @@ const ReportModel = {
         saleUserIds = rows.map((r) => r.user_id);
       }
 
-      if (saleUserIds.length === 0) return [];
+      if (!saleUserIds.length) return [];
+      const ph = saleUserIds.map(() => "?").join(",");
 
-      const saleUserPlaceholders = saleUserIds.map(() => "?").join(",");
-
-      // ---------------------------------------------------------------------
-      // SQL QUERIES
-      // ---------------------------------------------------------------------
+      /* ----------------------------------------------------
+       STEP 2: Queries (UNCHANGED)
+    ---------------------------------------------------- */
       const b = boundaryDay;
 
-      const saleVolumeQuery = `
+      const [saleRows] = await pool.query(
+        `
       SELECT 
         u.user_id,
         DATE_FORMAT(
@@ -909,24 +883,21 @@ const ReportModel = {
             ELSE c.created_date END,
           '%M %Y'
         ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(c.created_date) >= ${b}
-            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-            ELSE c.created_date END,
-          '%Y-%m'
-        ) AS ym,
         IFNULL(SUM(pm.total_amount), 0) AS sale_volume
       FROM users u
       JOIN lead_master l ON l.assigned_to = u.user_id
       JOIN customers c ON c.lead_id = l.id
       LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
-      WHERE u.user_id IN (${saleUserPlaceholders})
+      WHERE u.user_id IN (${ph})
         AND c.created_date >= ?
         AND c.created_date < ?
-      GROUP BY u.user_id, ym, sale_month
-    `;
+      GROUP BY u.user_id, sale_month
+    `,
+        [...saleUserIds, startDate, endExclusive]
+      );
 
-      const collectionQuery = `
+      const [collectionRows] = await pool.query(
+        `
       SELECT 
         u.user_id,
         DATE_FORMAT(
@@ -935,27 +906,23 @@ const ReportModel = {
             ELSE c.created_date END,
           '%M %Y'
         ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(c.created_date) >= ${b}
-            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-            ELSE c.created_date END,
-          '%Y-%m'
-        ) AS ym,
         IFNULL(SUM(pt.amount), 0) AS collection
       FROM users u
       JOIN lead_master l ON l.assigned_to = u.user_id
       JOIN customers c ON c.lead_id = l.id
       JOIN payment_master pm ON pm.lead_id = c.lead_id
-      JOIN payment_trans pt 
-        ON pt.payment_master_id = pm.id
+      JOIN payment_trans pt ON pt.payment_master_id = pm.id
        AND pt.payment_status <> 'Rejected'
-      WHERE u.user_id IN (${saleUserPlaceholders})
+      WHERE u.user_id IN (${ph})
         AND c.created_date >= ?
         AND c.created_date < ?
-      GROUP BY u.user_id, ym, sale_month
-    `;
+      GROUP BY u.user_id, sale_month
+    `,
+        [...saleUserIds, startDate, endExclusive]
+      );
 
-      const totalCollectionQuery = `
+      const [totalRows] = await pool.query(
+        `
       SELECT 
         u.user_id,
         DATE_FORMAT(
@@ -964,73 +931,71 @@ const ReportModel = {
             ELSE pt.invoice_date END,
           '%M %Y'
         ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(pt.invoice_date) >= ${b}
-            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
-            ELSE pt.invoice_date END,
-          '%Y-%m'
-        ) AS ym,
         IFNULL(SUM(pt.amount), 0) AS total_collection
       FROM users u
       JOIN lead_master l ON l.assigned_to = u.user_id
       JOIN customers c ON c.lead_id = l.id
       JOIN payment_master pm ON pm.lead_id = c.lead_id
-      JOIN payment_trans pt 
-        ON pt.payment_master_id = pm.id
+      JOIN payment_trans pt ON pt.payment_master_id = pm.id
        AND pt.payment_status <> 'Rejected'
-      WHERE u.user_id IN (${saleUserPlaceholders})
+      WHERE u.user_id IN (${ph})
         AND pt.invoice_date >= ?
         AND pt.invoice_date < ?
-      GROUP BY u.user_id, ym, sale_month
-    `;
+      GROUP BY u.user_id, sale_month
+    `,
+        [...saleUserIds, startDate, endExclusive]
+      );
 
-      // ---------------------------------------------------------------------
-      // Execute queries
-      // ---------------------------------------------------------------------
-      const baseParams = [
-        ...saleUserIds,
-        startDateTimeSQL,
-        endExclusiveDateTimeSQL,
-      ];
-
-      const [saleRows] = await pool.query(saleVolumeQuery, baseParams);
-      const [collectionRows] = await pool.query(collectionQuery, baseParams);
-      const [totalRows] = await pool.query(totalCollectionQuery, baseParams);
-
-      // ---------------------------------------------------------------------
-      // Build maps
-      // ---------------------------------------------------------------------
-      const saleMap = {};
-      saleRows.forEach((r) => {
-        saleMap[`${r.sale_month}||${r.user_id}`] = toNum(r.sale_volume);
-      });
-
-      const collectionMap = {};
-      collectionRows.forEach((r) => {
-        collectionMap[`${r.sale_month}||${r.user_id}`] = toNum(r.collection);
-      });
-
-      const totalMap = {};
-      totalRows.forEach((r) => {
-        totalMap[`${r.sale_month}||${r.user_id}`] = toNum(r.total_collection);
-      });
-
-      // ---------------------------------------------------------------------
-      // Fetch user names (Sale users only)
-      // ---------------------------------------------------------------------
-      const [userRows] = await pool.query(
-        `SELECT user_id, user_name FROM users WHERE user_id IN (${saleUserPlaceholders})`,
+      /* ----------------------------------------------------
+       STEP 3: TARGET LOGIC (RESTORED)
+    ---------------------------------------------------- */
+      const [targetRows] = await pool.query(
+        `
+      SELECT id, user_id, target_month, target_value
+      FROM user_target_master
+      WHERE user_id IN (${ph})
+      ORDER BY id DESC
+    `,
         saleUserIds
       );
 
-      const userNameMap = {};
-      userRows.forEach((r) => {
-        userNameMap[r.user_id] = r.user_name;
+      const targetMap = {};
+      targetRows.forEach((t) => {
+        if (!targetMap[t.user_id]) {
+          targetMap[t.user_id] = {
+            target_month: t.target_month,
+            target_value: toNum(t.target_value),
+          };
+        }
       });
 
-      // ---------------------------------------------------------------------
-      // Month list (same logic)
-      // ---------------------------------------------------------------------
+      /* ----------------------------------------------------
+       STEP 4: Maps
+    ---------------------------------------------------- */
+      const mapBy = (rows, key, val) =>
+        rows.reduce((a, r) => {
+          a[`${r.sale_month}||${r.user_id}`] = toNum(r[val]);
+          return a;
+        }, {});
+
+      const saleMap = mapBy(saleRows, "sale_month", "sale_volume");
+      const collectionMap = mapBy(collectionRows, "sale_month", "collection");
+      const totalMap = mapBy(totalRows, "sale_month", "total_collection");
+
+      /* ----------------------------------------------------
+       STEP 5: User names
+    ---------------------------------------------------- */
+      const [users] = await pool.query(
+        `SELECT user_id, user_name FROM users WHERE user_id IN (${ph})`,
+        saleUserIds
+      );
+      const userNameMap = {};
+      users.forEach((u) => (userNameMap[u.user_id] = u.user_name));
+
+      /* ----------------------------------------------------
+   STEP 5.5: Build MONTHS array (SOURCE OF TRUTH)
+---------------------------------------------------- */
+
       const monthNames = [
         "January",
         "February",
@@ -1045,6 +1010,7 @@ const ReportModel = {
         "November",
         "December",
       ];
+
       const monthAbbrev = [
         "Jan",
         "Feb",
@@ -1069,8 +1035,8 @@ const ReportModel = {
       };
 
       const months = [];
-      let cur = getMappedMonthStart(startDateOnly);
-      const end = getMappedMonthStart(endDateOnly);
+      let cur = getMappedMonthStart(startDate);
+      const end = getMappedMonthStart(endDate);
 
       while (cur <= end) {
         months.push({
@@ -1080,9 +1046,9 @@ const ReportModel = {
         cur.setMonth(cur.getMonth() + 1);
       }
 
-      // ---------------------------------------------------------------------
-      // Final result
-      // ---------------------------------------------------------------------
+      /* ----------------------------------------------------
+       STEP 6: Final response (PROPER)
+    ---------------------------------------------------- */
       const result = [];
 
       for (const uid of saleUserIds) {
@@ -1091,22 +1057,36 @@ const ReportModel = {
           const collection = collectionMap[`${m.label}||${uid}`] || 0;
           const total = totalMap[`${m.label}||${uid}`] || 0;
 
+          const pending = Math.max(0, sale - collection).toFixed(2);
+
+          const target = targetMap[uid] || {
+            target_value: 0,
+            target_month: "",
+          };
+          const percentage =
+            target.target_value > 0
+              ? Number(((total / target.target_value) * 100).toFixed(2))
+              : 0;
+
           result.push({
             user_id: uid,
             user_name: userNameMap[uid] || "",
-            month: m.abbrev,
-            label: m.label,
+            month: m.abbrev, // "Nov 2025"
+            label: m.label, // "November 2025"
             sale_volume: sale,
             collection,
             total_collection: total,
-            pending: Math.max(0, sale - collection),
+            pending,
+            target_month: target.target_month,
+            target_value: target.target_value,
+            percentage,
           });
         }
       }
 
       return result;
     } catch (err) {
-      throw new Error(err?.message || String(err));
+      throw new Error(err.message || String(err));
     }
   },
 
