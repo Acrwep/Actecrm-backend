@@ -3368,7 +3368,7 @@ const ReportModel = {
         end_date,
       ]);
 
-      return result;
+      return result[0];
     } catch (error) {
       throw new Error(error.message);
     }
