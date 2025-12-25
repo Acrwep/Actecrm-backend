@@ -821,6 +821,22 @@ const manualAssign = async (request, response) => {
   }
 };
 
+const updateLeadStatus = async (request, response) => {
+  const { lead_id } = request.body;
+  try {
+    const result = await LeadModel.updateLeadStatus(lead_id);
+    return response.status(200).send({
+      message: "Lead updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating lead",
+      details: error.message,
+    });
+  }
+};
+
 const getAssignedLeads = async (request, response) => {
   const {
     name,
@@ -892,4 +908,5 @@ module.exports = {
   getJunkLeads,
   manualAssign,
   getAssignedLeads,
+  updateLeadStatus,
 };

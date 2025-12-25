@@ -403,4 +403,5 @@ router.post(
 );
 router.put("/manualAssign", verifyToken, LeadController.manualAssign);
 router.post("/getAssignedLeads", verifyToken, LeadController.getAssignedLeads);
+router.put("/updateLeadStatus", verifyToken, LeadController.updateLeadStatus);
 module.exports = router;

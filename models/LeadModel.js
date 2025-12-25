@@ -823,7 +823,7 @@ const LeadModel = {
 
       let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
 
-      let assignQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let assignQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
 
       let junkQuery = `SELECT COUNT(*) AS junk_lead_count FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
 
@@ -2139,7 +2139,7 @@ const LeadModel = {
           `UPDATE website_leads
          SET assigned_to = ?, assigned_by = ?, assigned_date = ?
          WHERE id IN (?)`,
-          [user_id, assigned_by, lead_ids]
+          [user_id, assigned_by, assigned_date, lead_ids]
         );
 
         if (result.affectedRows !== lead_ids.length) {
@@ -2180,9 +2180,9 @@ const LeadModel = {
       const queryParams = [];
       const countParams = [];
 
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY l.assigned_date DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, l.assigned_date AS assigned_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY l.assigned_date DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, l.assigned_date AS assigned_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
 
       queryParams.push(user_id, user_id);
       countParams.push(user_id, user_id);
@@ -2232,6 +2232,26 @@ const LeadModel = {
           totalPages: Math.ceil(total / limitNumber),
         },
       };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateLeadStatus: async (lead_id) => {
+    try {
+      const [isLeadExists] = await pool.query(
+        `SELECT * FROM website_leads WHERE id = ?`,
+        [lead_id]
+      );
+
+      if (isLeadExists.length <= 0) throw new Error("Invalid Id");
+
+      const [result] = await pool.query(
+        `UPDATE website_leads SET status = 'Converted' WHERE id = ?`,
+        [lead_id]
+      );
+
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
