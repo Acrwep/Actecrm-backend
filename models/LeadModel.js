@@ -2210,7 +2210,7 @@ const LeadModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY l.assigned_date DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       const [countResult] = await pool.query(countQuery, countParams);
