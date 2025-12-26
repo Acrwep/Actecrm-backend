@@ -3471,19 +3471,27 @@ const ReportModel = {
         ]);
 
         let cash_total = 0;
-        let card_total = 0;
-        let bank_total = 0;
+        let sbi_pos_total = 0;
+        let sbi_bank_total = 0;
         let upi_total = 0;
         let razorpay_total = 0;
         let razorpay_upi_total = 0;
+        let axis_bank_total = 0;
+        let hdfc_bank_total = 0;
+        let tds_total = 0;
+        let razorpay_pos_total = 0;
         let over_all_total = 0;
         result.map((item) => {
           (cash_total += Number(item.cash)),
-            (card_total += Number(item.card)),
-            (bank_total += Number(item.bank)),
+            (sbi_pos_total += Number(item.sbi_pos)),
+            (sbi_bank_total += Number(item.sbi_bank)),
             (upi_total += Number(item.upi)),
             (razorpay_total += Number(item.razorpay)),
             (razorpay_upi_total += Number(item.razorpay_upi)),
+            (axis_bank_total += Number(item.axis_bank)),
+            (hdfc_bank_total += Number(item.hdfc_bank)),
+            (tds_total += Number(item.tds)),
+            (razorpay_pos_total += Number(item.razorpay_pos)),
             (over_all_total += Number(item.total));
         });
 
@@ -3491,11 +3499,15 @@ const ReportModel = {
           day_wise: result,
           over_all: {
             cash_total,
-            card_total,
-            bank_total,
+            sbi_pos_total,
+            sbi_bank_total,
             upi_total,
             razorpay_total,
             razorpay_upi_total,
+            axis_bank_total,
+            hdfc_bank_total,
+            tds_total,
+            razorpay_pos_total,
             over_all_total,
           },
         };
