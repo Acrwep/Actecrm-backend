@@ -3369,11 +3369,15 @@ const ReportModel = {
                             SELECT
                                 dr.dt AS date,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'CASH' THEN dwc.collection END), 0) AS cash,
-                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'CARD' THEN dwc.collection END), 0) AS card,
-                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'BANK' THEN dwc.collection END), 0) AS bank,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'SBI POS' THEN dwc.collection END), 0) AS sbi_pos,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'SBI BANK' THEN dwc.collection END), 0) AS sbi_bank,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'UPI' THEN dwc.collection END), 0) AS upi,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY' THEN dwc.collection END), 0) AS razorpay,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY-UPI' THEN dwc.collection END), 0) AS razorpay_upi,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'AXIS BANK' THEN dwc.collection END), 0) AS axis_bank,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'HDFC BANK' THEN dwc.collection END), 0) AS hdfc_bank,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'TDS' THEN dwc.collection END), 0) AS tds,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY POS' THEN dwc.collection END), 0) AS razorpay_pos,
                                 IFNULL(SUM(dwc.collection), 0) AS total
                             FROM date_range dr
                             LEFT JOIN date_wise_collection dwc
