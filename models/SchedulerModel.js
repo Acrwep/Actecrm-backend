@@ -19,6 +19,7 @@ if (!admin.apps.length) {
 let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
 let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
 let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
+let liveLeadTime = "* * * * * *"; // Schedule: Runs every seconds
 
 // Configure log file path
 const logFilePath = path.join(__dirname, "cron_job_logs.txt");
@@ -300,6 +301,65 @@ const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
   }
 });
 
+const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
+  const conn = await pool.getConnection();
+
+  try {
+    // 1️⃣ Get unnotified leads (IDs only)
+    const [leads] = await conn.query(`
+      SELECT id
+      FROM website_leads
+      WHERE is_notified = 0
+        AND is_junk = 0
+        AND is_deleted = 0
+    `);
+
+    if (leads.length === 0) return;
+
+    const leadIds = leads.map((l) => l.id);
+
+    // 2️⃣ Get all active Sale users tokens
+    const [tokens] = await conn.query(`
+      SELECT ut.token
+      FROM user_tokens ut
+      JOIN users u ON u.user_id = ut.user_id
+      WHERE u.is_active = 1
+        AND u.roles LIKE '%Sale%'
+        AND ut.token IS NOT NULL
+    `);
+
+    if (tokens.length === 0) return;
+
+    const fcmTokens = tokens.map((t) => t.token);
+
+    // 3️⃣ Send notification to all Sale users
+    const message = {
+      tokens: fcmTokens,
+      notification: {
+        title: "New Lead Available",
+        body: `You have ${leadIds.length} new lead(s)`,
+      },
+      data: {
+        type: "NEW_LEAD",
+      },
+    };
+
+    await admin.messaging().sendEachForMulticast(message);
+
+    // 4️⃣ Update ONLY processed leads
+    await conn.query(
+      `UPDATE website_leads
+       SET is_notified = 1
+       WHERE id IN (?)`,
+      [leadIds]
+    );
+  } catch (err) {
+    console.error("Lead notify error:", err);
+  } finally {
+    conn.release();
+  }
+});
+
 // Log when the job is first scheduled
 logToFile(`Cron job scheduled to run at pattern: ${scheduleTime}`);
 
@@ -309,4 +369,5 @@ module.exports = {
   job,
   nextFollowupNotify,
   nextDueDateNotify,
+  liveLeadNotify,
 };
