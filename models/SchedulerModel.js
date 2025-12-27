@@ -17,8 +17,8 @@ if (!admin.apps.length) {
 }
 
 let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
-let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
-let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 15 minutes
+let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
+let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let liveLeadTime = "* * * * * *"; // Schedule: Runs every seconds
 
 // Configure log file path
@@ -305,7 +305,7 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
   const conn = await pool.getConnection();
 
   try {
-    // 1️⃣ Get unnotified leads (IDs only)
+    // 1️⃣ Get unnotified leads
     const [leads] = await conn.query(`
       SELECT id
       FROM website_leads
@@ -318,7 +318,7 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
 
     const leadIds = leads.map((l) => l.id);
 
-    // 2️⃣ Get all active Sale users tokens
+    // 2️⃣ Get ONE Sale user token
     const [tokens] = await conn.query(`
       SELECT ut.token
       FROM user_tokens ut
@@ -326,16 +326,18 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
       WHERE u.is_active = 1
         AND u.roles LIKE '%Sale%'
         AND ut.token IS NOT NULL
+      LIMIT 1
     `);
 
     if (tokens.length === 0) return;
 
-    const fcmTokens = tokens.map((t) => t.token);
+    const token = tokens[0].token;
 
-    // 3️⃣ Send notification to all Sale users
-    const message = {
-      tokens: fcmTokens,
+    // 3️⃣ Correct payload
+    const payload = {
+      token: token, // ✅ REQUIRED
       notification: {
+        // ✅ Use notification (visible)
         title: "New Lead Available",
         body: `You have ${leadIds.length} new lead(s)`,
       },
@@ -344,9 +346,11 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
       },
     };
 
-    await admin.messaging().sendEachForMulticast(message);
+    console.log("ppp", payload);
 
-    // 4️⃣ Update ONLY processed leads
+    await admin.messaging().send(payload);
+
+    // 4️⃣ Update processed leads
     await conn.query(
       `UPDATE website_leads
        SET is_notified = 1
