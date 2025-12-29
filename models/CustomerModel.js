@@ -26,7 +26,11 @@ const CustomerModel = {
     state,
     area,
     is_server_required,
-    is_customer_updated
+    is_customer_updated,
+    place_of_supply,
+    address,
+    state_code,
+    gst_number
   ) => {
     try {
       let affectedRows = 0;
@@ -61,7 +65,11 @@ const CustomerModel = {
                                 country = ?,
                                 state = ?,
                                 current_location = ?,
-                                is_server_required = ?`;
+                                is_server_required = ?,
+                                place_of_supply = ?,
+                                address = ?,
+                                state_code = ?,
+                                gst_number = ?`;
       queryParams.push(
         name,
         email,
@@ -84,7 +92,11 @@ const CustomerModel = {
         country,
         state,
         area,
-        is_server_required
+        is_server_required,
+        place_of_supply,
+        address,
+        state_code,
+        gst_number
       );
 
       if (is_customer_updated) {
@@ -208,6 +220,10 @@ const CustomerModel = {
                             c.course_duration,
                             c.course_completion_date,
                             c.review_updated_date,
+                            c.place_of_supply,
+                            c.address,
+                            c.state_code,
+                            c.gst_number,
                             r.name AS region_name,
                             r.id AS region_id,
                             cer.customer_name AS cer_customer_name,
@@ -621,6 +637,10 @@ const CustomerModel = {
                             c.course_duration,
                             c.course_completion_date,
                             c.review_updated_date,
+                            c.place_of_supply,
+                            c.address,
+                            c.state_code,
+                            c.gst_number,
                             r.name AS region_name,
                             r.id AS region_id,
                             cer.customer_name AS cer_customer_name,
