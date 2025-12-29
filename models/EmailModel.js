@@ -679,7 +679,12 @@ const sendInvoicePdf = async (
   payment_mode,
   total_amount,
   course_name,
-  sub_total
+  sub_total,
+  place_of_supply,
+  address,
+  state_code,
+  gst_number,
+  invoice_type
 ) => {
   const pdfPath = path.join(process.cwd(), "invoice.pdf");
 
@@ -962,7 +967,12 @@ const viewInvoicePdf = async (
   payment_mode,
   total_amount,
   course_name,
-  sub_total
+  sub_total,
+  place_of_supply,
+  address,
+  state_code,
+  gst_number,
+  invoice_type
 ) => {
   const getBase64Image = (filePath) => {
     if (!fs.existsSync(filePath)) return "";
@@ -1126,8 +1136,8 @@ const viewInvoicePdf = async (
     <div style="line-height:24px;font-size:13px;">
     Invoice Number: ${invoice_number}<br />
     Invoice Date: ${invoice_date}<br />
-    Invoice Type: Online<br />
-    Place of Supply: Tamil Nadu
+    Invoice Type: ${invoice_type}<br />
+    Place of Supply: ${place_of_supply}
     </div>
   </div>
 
@@ -1141,8 +1151,8 @@ const viewInvoicePdf = async (
     Address: <span style="display:inline-block; max-width: 300px; vertical-align: top;">
       ${address}
     </span><br/>
-    State Code: 33<br/>
-    GST No: -
+    State Code: ${state_code}<br/>
+    GST No: ${gst_number}
     </div>
   </div>
 

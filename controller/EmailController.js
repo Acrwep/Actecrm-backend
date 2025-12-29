@@ -100,6 +100,11 @@ const sendInvoicePdf = async (req, res) => {
     total_amount,
     course_name,
     sub_total,
+    place_of_supply,
+    address,
+    state_code,
+    gst_number,
+    invoice_type,
   } = req.body;
 
   try {
@@ -117,7 +122,12 @@ const sendInvoicePdf = async (req, res) => {
       payment_mode,
       total_amount,
       course_name,
-      sub_total
+      sub_total,
+      place_of_supply,
+      address,
+      state_code,
+      gst_number,
+      invoice_type
     );
 
     res.status(201).send({
@@ -148,6 +158,11 @@ const viewInvoicePdf = async (req, res) => {
     total_amount,
     course_name,
     sub_total,
+    place_of_supply,
+    address,
+    state_code,
+    gst_number,
+    invoice_type,
   } = req.body;
 
   try {
@@ -165,7 +180,12 @@ const viewInvoicePdf = async (req, res) => {
       payment_mode,
       total_amount,
       course_name,
-      sub_total
+      sub_total,
+      place_of_supply,
+      address,
+      state_code,
+      gst_number,
+      invoice_type
     );
 
     res.status(200).send({
