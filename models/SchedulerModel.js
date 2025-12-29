@@ -346,8 +346,6 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
       },
     };
 
-    console.log("ppp", payload);
-
     await admin.messaging().send(payload);
 
     // 4️⃣ Update processed leads

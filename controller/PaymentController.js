@@ -39,6 +39,10 @@ const createPayment = async (request, response) => {
     enrolled_course,
     is_server_required,
     place_of_payment,
+    place_of_supply,
+    address,
+    state_code,
+    gst_number,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -62,7 +66,11 @@ const createPayment = async (request, response) => {
       batch_track_id,
       enrolled_course,
       is_server_required,
-      place_of_payment
+      place_of_payment,
+      place_of_supply,
+      address,
+      state_code,
+      gst_number
     );
     return response.status(201).send({
       messages: "Payment successfull",
