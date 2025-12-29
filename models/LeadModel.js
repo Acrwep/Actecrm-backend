@@ -1835,11 +1835,11 @@ const LeadModel = {
         countParams.push(start_date, end_date);
       }
 
-      let prefix;
-      if (region_type) {
-        const match = region_type.match(/^[A-Za-z]+/);
-        prefix = match ? match[0] : "";
-      }
+      // let prefix;
+      // if (region_type) {
+      //   const match = region_type.match(/^[A-Za-z]+/);
+      //   prefix = match ? match[0] : "";
+      // }
 
       // const courseFilter = `
       //                     (
@@ -1866,15 +1866,15 @@ const LeadModel = {
       //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
       // }
 
-      if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-        countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-      }
+      // if (prefix !== "" && prefix === "HUB") {
+      //   getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+      //   countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+      // }
 
-      if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND training LIKE '%Class%'`;
-        countQuery += ` AND training LIKE '%Class%'`;
-      }
+      // if (prefix === "BNG" || prefix === "CHN") {
+      //   getQuery += ` AND training LIKE '%Class%'`;
+      //   countQuery += ` AND training LIKE '%Class%'`;
+      // }
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
