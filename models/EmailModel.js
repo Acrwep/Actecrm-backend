@@ -716,6 +716,20 @@ const sendInvoicePdf = async (
           background-color: #fff;
           color: #000;
         }
+        .logo_text{
+         color: #1b538c !important;
+         margin-top: 6px;
+         font-size: 14px;
+         font-weight: bold;
+         letter-spacing: 2.3px;
+        }
+        
+        .privatelimited_text{
+        color: #1b538c;
+        font-weight:bold;
+        margin-top:1px;
+        letter-spacing:1px;
+        }
 
         .invoice-box .invoice-header {
           display: flex;
@@ -724,7 +738,7 @@ const sendInvoicePdf = async (
         }
 
         .invoice-box .invoice-header img {
-          width: 140px;
+          width: 124px;
           height: auto;
         }
 
@@ -734,15 +748,15 @@ const sendInvoicePdf = async (
         }
 
         .invoice-box .invoice-title {
-          font-size: 24px;
-          font-weight: bold;
-          margin: 10px 0;
+          font-size: 16px;
+          font-weight: 600;
+          margin: 4px 0;
         }
 
         .invoice-box .invoice-info,
         .invoice-box .bill-to {
           margin-bottom: 20px;
-          line-height: 22px;
+          line-height: 26px;
         }
 
         .invoice-box .invoice-table {
@@ -810,51 +824,72 @@ const sendInvoicePdf = async (
         <div class="invoice-header">
             <div>
               <img src="${acteLogoBase64}" alt="Acte Logo" />
+              <p class="logo_text">Technologies</p>
+              <p class="privatelimited_text">Private Limited</p>
             </div>
             <div class="company">
               <strong>Acte Technologies Private Limited</strong><br />
               No 1A Sai Adhithya Building, Taramani Link Rd,<br />
               Velachery, Chennai, Tamil Nadu 600042<br />
+              State: Tamil Nadu | State Code: 33<br/>
               Phone: +91 89259 09207<br />
               GST No: 33AAQCA7617L1Z9
             </div>
         </div>
 
-        <div class="invoice-title">Invoice</div>
 
-        <!-- INVOICE INFO -->
-        <div class="invoice-info">
-            <strong>Invoice Number:</strong> ${invoice_number}<br />
-            <strong>Invoice Date:</strong> ${invoice_date}
-        </div>
+     <!-- INVOICE INFO & BILL TO IN SAME ROW -->
+<div style="display: flex; justify-content: space-between;margin-top:16px; margin-bottom: 20px;">
 
-        <!-- BILL TO -->
-        <div class="bill-to">
-            <strong>Bill To:</strong><br />
-            Name: ${name}<br />
-            Email: ${email}<br />
-            Mobile: ${mobile}
-        </div>
+  <!-- INVOICE INFO -->
+  <div style="flex: 1; padding-right: 10px;">
+    <div class="invoice-title">Tax Invoice Details</div>
+    <div style="line-height:24px;font-size:13px;">
+    Invoice Number: ${invoice_number}<br />
+    Invoice Date: ${invoice_date}<br />
+    Invoice Type: ${invoice_type}<br />
+    Place of Supply: ${place_of_supply ? place_of_supply : "-"}
+    </div>
+  </div>
+
+  <!-- BILL TO -->
+  <div style="flex: 1; padding-left: 10px;">
+    <div class="invoice-title">Bill To:</div>
+        <div style="line-height:24px;font-size:13px;">
+    Name: ${name}<br />
+   <!--  Email: ${email}<br /> -->
+    Mobile: ${mobile}<br/>
+    Address: <span style="display:inline-block; max-width: 300px; vertical-align: top;">
+      ${address ? address : "-"}
+    </span><br/>
+    GST No: ${gst_number ? gst_number : "-"}
+    </div>
+  </div>
+
+</div>
+
 
      <!-- PRODUCT TABLE -->
 <table class="invoice-table">
     <thead>
       <tr>
           <th>Product</th>
+          <th>SAC Code</th>
           <th>Base Price</th>
           <th>GST</th>
           <th>GST Amount</th>
           <th>Conv. Fees</th>
-          <th>Total</th>
+          <th>Total Paid</th>
       </tr>
     </thead>
     <tbody>
       <tr>
           <td>${course_name}</td>
-          <td>₹${parseFloat(base_amount).toFixed(2)}</td>
+          <td>999293</td>
+          <td>₹${parseFloat(base_amount).toFixed(2)}
           <td>${gst_percentage}%</td>
-          <td>${gstForPaid}</td>
-          <td>${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
+          <td>₹${gstForPaid}</td>
+          <td>₹${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
             2
           )}</td>
           <td>₹${
@@ -986,8 +1021,6 @@ const viewInvoicePdf = async (
   const gstForPaid = getGST.gst_amount;
   const base_amount = getGST.base_amount;
 
-  // const address =
-  //   "No 1A, Sai Adhithya Building, Taramani Link Road, Velachery Chennai, TN, 600042";
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -1151,7 +1184,6 @@ const viewInvoicePdf = async (
     Address: <span style="display:inline-block; max-width: 300px; vertical-align: top;">
       ${address ? address : "-"}
     </span><br/>
-    State Code: ${state_code ? state_code : "-"}<br/>
     GST No: ${gst_number ? gst_number : "-"}
     </div>
   </div>
