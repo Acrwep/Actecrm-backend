@@ -986,8 +986,8 @@ const viewInvoicePdf = async (
   const gstForPaid = getGST.gst_amount;
   const base_amount = getGST.base_amount;
 
-  const address =
-    "No 1A, Sai Adhithya Building, Taramani Link Road, Velachery Chennai, TN, 600042";
+  // const address =
+  //   "No 1A, Sai Adhithya Building, Taramani Link Road, Velachery Chennai, TN, 600042";
   // 1. HTML Template
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -1132,12 +1132,12 @@ const viewInvoicePdf = async (
 
   <!-- INVOICE INFO -->
   <div style="flex: 1; padding-right: 10px;">
-    <div class="invoice-title">Invoice Details</div>
+    <div class="invoice-title">Tax Invoice Details</div>
     <div style="line-height:24px;font-size:13px;">
     Invoice Number: ${invoice_number}<br />
     Invoice Date: ${invoice_date}<br />
     Invoice Type: ${invoice_type}<br />
-    Place of Supply: ${place_of_supply}
+    Place of Supply: ${place_of_supply ? place_of_supply : "-"}
     </div>
   </div>
 
@@ -1149,10 +1149,10 @@ const viewInvoicePdf = async (
    <!--  Email: ${email}<br /> -->
     Mobile: ${mobile}<br/>
     Address: <span style="display:inline-block; max-width: 300px; vertical-align: top;">
-      ${address}
+      ${address ? address : "-"}
     </span><br/>
-    State Code: ${state_code}<br/>
-    GST No: ${gst_number}
+    State Code: ${state_code ? state_code : "-"}<br/>
+    GST No: ${gst_number ? gst_number : "-"}
     </div>
   </div>
 
