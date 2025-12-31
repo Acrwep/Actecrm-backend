@@ -119,6 +119,7 @@ const insertLead = async (request, response) => {
     created_date,
     region_id,
     is_manager,
+    is_reentry,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -146,7 +147,8 @@ const insertLead = async (request, response) => {
       comments,
       created_date,
       region_id,
-      is_manager
+      is_manager,
+      is_reentry
     );
     return response.status(201).send({
       message: "Lead added successfully",

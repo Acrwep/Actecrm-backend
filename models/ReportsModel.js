@@ -3655,9 +3655,11 @@ const ReportModel = {
           ? user_ids.join(",")
           : null;
 
+      const queryParams = [start_date, end_date, userIdsParam];
+
       const [result] = await pool.query(
         `CALL sp_date_wise_collection (?, ?, ?)`,
-        [start_date, end_date, userIdsParam]
+        queryParams
       );
 
       return result[0];

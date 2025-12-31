@@ -101,25 +101,28 @@ const LeadModel = {
     comments,
     created_date,
     region_id,
-    is_manager
+    is_manager,
+    is_reentry
   ) => {
     try {
-      if (is_manager === true) {
-        const [isLeadExists] = await pool.query(
-          `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
-          [phone, primary_course_id, email, primary_course_id]
-        );
-        if (isLeadExists.length > 0)
-          throw new Error(
-            "The customer has already been registered with this email and mobile number."
+      if (is_reentry === false) {
+        if (is_manager === true) {
+          const [isLeadExists] = await pool.query(
+            `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
+            [phone, primary_course_id, email, primary_course_id]
           );
-      } else {
-        const [isLeadExists] = await pool.query(
-          `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
-          [phone, email]
-        );
-        if (isLeadExists.length > 0)
-          throw new Error("The phone or email is already exists");
+          if (isLeadExists.length > 0)
+            throw new Error(
+              "The customer has already been registered with this email and mobile number."
+            );
+        } else {
+          const [isLeadExists] = await pool.query(
+            `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
+            [phone, email]
+          );
+          if (isLeadExists.length > 0)
+            throw new Error("The phone or email is already exists");
+        }
       }
 
       let affectedRows = 0;
@@ -227,7 +230,7 @@ const LeadModel = {
 
         affectedRows += next_follow_up.affectedRows;
       }
-      return affectedRows;
+      return result.insertId;
     } catch (error) {
       throw new Error(error.message);
     }
