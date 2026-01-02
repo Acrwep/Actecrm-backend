@@ -326,27 +326,23 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
       WHERE u.is_active = 1
         AND u.roles LIKE '%Sale%'
         AND ut.token IS NOT NULL
-      LIMIT 1
     `);
 
     if (tokens.length === 0) return;
 
-    const token = tokens[0].token;
+    const title = "New Lead Available";
+    const body = `You have ${leadIds.length} new lead(s)`;
 
-    // 3️⃣ Correct payload
-    const payload = {
-      token: token, // ✅ REQUIRED
-      notification: {
-        // ✅ Use notification (visible)
-        title: "New Lead Available",
-        body: `You have ${leadIds.length} new lead(s)`,
-      },
+    const message = tokens.map((t) => ({
+      token: t.token, // ✅ REQUIRED
+      notification: {},
       data: {
-        type: "NEW_LEAD",
+        title: title,
+        body: body,
       },
-    };
+    }));
 
-    await admin.messaging().send(payload);
+    await admin.messaging().sendEach(message);
 
     // 4️⃣ Update processed leads
     await conn.query(
@@ -369,7 +365,7 @@ console.log("✅ Scheduler initialized");
 
 module.exports = {
   job,
-  nextFollowupNotify,
-  nextDueDateNotify,
+  // nextFollowupNotify,
+  // nextDueDateNotify,
   liveLeadNotify,
 };

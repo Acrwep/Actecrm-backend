@@ -1039,18 +1039,23 @@ const LeadModel = {
   ) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT COUNT(*) AS lead_count FROM website_leads WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+        `SELECT EXISTS(SELECT 1 FROM website_leads WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
         [email, phone]
       );
 
-      let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
+      const webLead = isExists[0].lead_exists > 0 ? "Existing" : "New";
 
       const [isLeadExists] = await pool.query(
-        `SELECT COUNT(*) AS lead_count FROM lead_master WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+        `SELECT EXISTS(SELECT 1 FROM lead_master WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
         [email, phone]
       );
 
-      leadType = isLeadExists[0].lead_count > 0 ? "Existing" : "New";
+      const leadMaster = isLeadExists[0].lead_exists > 0 ? "Existing" : "New";
+
+      const leadType =
+        webLead === "Existing" || leadMaster === "Existing"
+          ? "Existing"
+          : "New";
 
       let trainingMode;
 
