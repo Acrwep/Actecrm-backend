@@ -1045,6 +1045,13 @@ const LeadModel = {
 
       let leadType = isExists[0].lead_count > 0 ? "Existing" : "New";
 
+      const [isLeadExists] = await pool.query(
+        `SELECT COUNT(*) AS lead_count FROM lead_master WHERE (email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%') OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))`,
+        [email, phone]
+      );
+
+      leadType = isLeadExists[0].lead_count > 0 ? "Existing" : "New";
+
       let trainingMode;
 
       if (training.includes("Online")) {

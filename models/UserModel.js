@@ -93,6 +93,42 @@ const UserModel = {
         }
       }
 
+      const [getDefaultUsers] = await pool.query(
+        `SELECT u.id, du.user_id, u.child_users FROM default_users AS du INNER JOIN users AS u ON du.user_id = u.user_id WHERE du.is_active = 1`
+      );
+
+      if (getDefaultUsers.length > 0) {
+        for (const user of getDefaultUsers) {
+          let childUsers = [];
+          if (user.child_users) {
+            childUsers = JSON.parse(user.child_users);
+          }
+
+          // New child user to add
+          const newChildUser = {
+            user_id: user_id,
+            user_name: user_name,
+          };
+
+          // Avoid duplicate entry (optional but recommended)
+          const exists = childUsers.some(
+            (cu) => cu.user_id === newChildUser.user_id
+          );
+
+          if (!exists) {
+            childUsers.push(newChildUser);
+          }
+
+          // Convert back to JSON if you want to store in DB
+          const updatedChildUsers = JSON.stringify(childUsers);
+
+          await pool.query(`UPDATE users SET child_users = ? WHERE id = ?`, [
+            updatedChildUsers,
+            user.id,
+          ]);
+        }
+      }
+
       return affectedRows;
     } catch (error) {
       throw new Error(error.message);
