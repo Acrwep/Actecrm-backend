@@ -16,6 +16,7 @@ const NotificationController = require("../controller/NotificationController");
 const ReportController = require("../controller/ReportsController");
 const TemplateController = require("../controller/EmailTemplateController");
 const WhatsAppController = require("../controller/WhatsAppController");
+const trainerPaymentController = require("../controller/TrainerPaymentController");
 
 router.post("/login", LoginController.login);
 
@@ -408,5 +409,21 @@ router.post(
   "/getUserwiseTransaction",
   verifyToken,
   ReportController.getUserwiseTransaction
+);
+//trainer payment
+router.post(
+  "/insertTrainerPaymentRequest",
+  verifyToken,
+  trainerPaymentController.insertTrainerPaymentRequest
+);
+router.get(
+  "/getTrainerPayments",
+  verifyToken,
+  trainerPaymentController.getTrainerPayments
+);
+router.put(
+  "/updateTrainerPaymentRequest",
+  verifyToken,
+  trainerPaymentController.updateTrainerPaymentRequest
 );
 module.exports = router;
