@@ -410,20 +410,47 @@ router.post(
   verifyToken,
   ReportController.getUserwiseTransaction
 );
-//trainer payment
+
+//-------------trainer payment-------------------------
 router.post(
   "/insertTrainerPaymentRequest",
   verifyToken,
   trainerPaymentController.insertTrainerPaymentRequest
 );
-router.get(
-  "/getTrainerPayments",
-  verifyToken,
-  trainerPaymentController.getTrainerPayments
-);
+
 router.put(
   "/updateTrainerPaymentRequest",
   verifyToken,
   trainerPaymentController.updateTrainerPaymentRequest
+);
+
+router.post(
+  "/createTrainerPaymentTransaction",
+  verifyToken,
+  trainerPaymentController.createTrainerPaymentTransaction
+);
+
+router.post(
+  "/resendRejectedRequest",
+  verifyToken,
+  trainerPaymentController.resendRejectedRequest
+);
+
+router.post(
+  "/approveTrainerPaymentTransaction",
+  verifyToken,
+  trainerPaymentController.approveTrainerPaymentTransaction
+);
+
+router.post(
+  "/rejectTrainerPayment",
+  verifyToken,
+  trainerPaymentController.rejectTrainerPayment
+);
+
+router.get(
+  "/getTrainerPayments",
+  verifyToken,
+  trainerPaymentController.getTrainerPayments
 );
 module.exports = router;

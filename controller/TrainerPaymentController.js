@@ -1,23 +1,24 @@
 const trainerPaymentModal = require("../models/TrainerPaymentModal");
 
-const insertTrainerPaymentRequest = async (request, response) => {
-  const {
-    bill_raisedate,
-    streams,
-    attendance_status,
-    attendance_sheetlink = "",
-    attendance_screenshot = "",
-    customer_id,
-    trainer_id,
-    request_amount,
-    commercial_percentage,
-    days_taken_topay,
-    deadline_date,
-    status,
-    created_date,
-  } = request.body;
-
+// Finance Junior - Create Payment Request
+const insertTrainerPaymentRequest = async (req, res) => {
   try {
+    const {
+      bill_raisedate,
+      streams,
+      attendance_status,
+      attendance_sheetlink = "",
+      attendance_screenshot = "",
+      customer_id,
+      trainer_id,
+      request_amount,
+      commercial_percentage,
+      days_taken_topay,
+      deadline_date,
+    } = req.body;
+    if (!bill_raisedate || !customer_id || !trainer_id || !request_amount)
+      return res.status(400).json({ message: "Missing required fields" });
+
     const result = await trainerPaymentModal.insertTrainerPaymentRequest(
       bill_raisedate,
       streams,
@@ -30,113 +31,156 @@ const insertTrainerPaymentRequest = async (request, response) => {
       commercial_percentage,
       days_taken_topay,
       deadline_date,
-      status,
-      created_date
-    );
-    response.status(201).json({
-      message: "Trainer Payment Request addedd successfully",
-      data: result,
-    });
-  } catch (error) {
-    response.status(500).json({
-      message: "Error while insert trainer payment request",
-      details: error.message,
-    });
-  }
-};
-
-const updateTrainerPaymentRequest = async (request, response) => {
-  const {
-    id,
-    bill_raisedate,
-    streams,
-    attendance_status,
-    attendance_sheetlink = "",
-    attendance_screenshot = "",
-    customer_id,
-    trainer_id,
-    request_amount,
-    commercial_percentage,
-    days_taken_topay,
-    deadline_date,
-    status,
-  } = request.body;
-
-  try {
-    const result = await trainerPaymentModal.updateTrainerPaymentRequest(
-      id,
-      bill_raisedate,
-      streams,
-      attendance_status,
-      attendance_sheetlink,
-      attendance_screenshot,
-      customer_id,
-      trainer_id,
-      request_amount,
-      commercial_percentage,
-      days_taken_topay,
-      deadline_date,
-      status
+      req.user.id
     );
 
-    if (result.status) {
-      response.status(200).json({
-        message: result.message,
-      });
-    } else {
-      response.status(404).json({
-        message: result.message,
+    if (!result.status) {
+      return res.status(409).json({
+        status: false,
+        message:
+          result.message || "Payment request already exists for this customer",
       });
     }
-  } catch (error) {
-    response.status(500).json({
-      message: "Error while updating trainer payment request",
-      details: error.message,
-    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };
 
-const getTrainerPayments = async (request, response) => {
+// Finance Junior - Update Payment Request
+const updateTrainerPaymentRequest = async (req, res) => {
+  try {
+    const result = await trainerPaymentModal.updateTrainerPaymentRequest(
+      req.body.id,
+      req.body.bill_raisedate,
+      req.body.streams,
+      req.body.attendance_status,
+      req.body.attendance_sheetlink || "",
+      req.body.attendance_screenshot || "",
+      req.body.customer_id,
+      req.body.trainer_id,
+      req.body.request_amount,
+      req.body.commercial_percentage,
+      req.body.days_taken_topay,
+      req.body.deadline_date
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// List Payments
+const getTrainerPayments = async (req, res) => {
   const {
     start_date,
     end_date,
     status = "all",
     page = 1,
     limit = 10,
-  } = request.query;
+  } = req.query;
+  const result = await trainerPaymentModal.getTrainerPayments(
+    start_date,
+    end_date,
+    status,
+    parseInt(page),
+    parseInt(limit)
+  );
+  res.json(result);
+};
 
+// Finance Junior - Create Transaction
+const createTrainerPaymentTransaction = async (req, res) => {
   try {
-    const result = await trainerPaymentModal.getTrainerPayments(
-      start_date,
-      end_date,
-      status,
-      parseInt(page),
-      parseInt(limit)
+    const {
+      trainer_payment_id,
+      paid_amount,
+      payment_type,
+      remarks = "",
+    } = req.body;
+    if (!trainer_payment_id || !paid_amount || !payment_type)
+      return res.status(400).json({ message: "Missing required fields" });
+    const result = await trainerPaymentModal.financeJuniorCreateTransaction(
+      trainer_payment_id,
+      paid_amount,
+      payment_type,
+      remarks
+    );
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Finance Head - Approve Transaction
+const approveTrainerPaymentTransaction = async (req, res) => {
+  try {
+    const { transaction_id, payment_screenshot } = req.body;
+    if (!transaction_id || !payment_screenshot)
+      return res
+        .status(400)
+        .json({ message: "Transaction ID & screenshot required" });
+    const finance_head_id = req.user.id;
+    const result = await trainerPaymentModal.financeHeadApproveAndPay(
+      transaction_id,
+      payment_screenshot,
+      finance_head_id
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Finance Head - Reject Payment
+const rejectTrainerPayment = async (req, res) => {
+  try {
+    const { trainer_payment_id, reject_reason } = req.body;
+    const result = await trainerPaymentModal.rejectTrainerPayment(
+      trainer_payment_id,
+      reject_reason,
+      req.user.id
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Finance Junior - Resend Rejected Request
+const resendRejectedRequest = async (req, res) => {
+  try {
+    const {
+      transaction_id,
+      paid_amount,
+      payment_type,
+      remarks = "",
+    } = req.body;
+
+    if (!transaction_id || !paid_amount || !payment_type) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const result = await trainerPaymentModal.resendRejectedRequest(
+      transaction_id,
+      paid_amount,
+      payment_type,
+      remarks
     );
 
-    if (result.status) {
-      response.status(200).json({
-        message: "Trainer payments fetched successfully",
-        data: result.data,
-        pagination: result.pagination,
-        statusCounts: result.statusCounts,
-      });
-    } else {
-      response.status(500).json({
-        message: result.message,
-        details: result.error,
-      });
-    }
-  } catch (error) {
-    response.status(500).json({
-      message: "Error while fetching trainer payments",
-      details: error.message,
-    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 };
 
 module.exports = {
   insertTrainerPaymentRequest,
-  getTrainerPayments,
   updateTrainerPaymentRequest,
+  getTrainerPayments,
+  createTrainerPaymentTransaction,
+  approveTrainerPaymentTransaction,
+  rejectTrainerPayment,
+  resendRejectedRequest,
 };
