@@ -86,7 +86,7 @@ const ReportModel = {
     `;
 
       const collectionQuery = `
-      SELECT IFNULL(SUM(pt.amount), 0) AS collection,
+      SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection,
         DATE_FORMAT(
           CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
             THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
@@ -108,7 +108,7 @@ const ReportModel = {
     `;
 
       const totalCollectionQuery = `
-      SELECT IFNULL(SUM(pt.amount), 0) AS total_collection,
+      SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection,
         DATE_FORMAT(
           CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
             THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
@@ -906,7 +906,7 @@ const ReportModel = {
             ELSE c.created_date END,
           '%M %Y'
         ) AS sale_month,
-        IFNULL(SUM(pt.amount), 0) AS collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM users u
       JOIN lead_master l ON l.assigned_to = u.user_id
       JOIN customers c ON c.lead_id = l.id
@@ -931,7 +931,7 @@ const ReportModel = {
             ELSE pt.invoice_date END,
           '%M %Y'
         ) AS sale_month,
-        IFNULL(SUM(pt.amount), 0) AS total_collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM users u
       JOIN lead_master l ON l.assigned_to = u.user_id
       JOIN customers c ON c.lead_id = l.id
@@ -1568,7 +1568,7 @@ const ReportModel = {
             THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
             ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
         ) AS ym,
-        IFNULL(SUM(pt.amount), 0) AS collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
         ${
@@ -1599,7 +1599,7 @@ const ReportModel = {
             THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
             ELSE CAST(pt.invoice_date AS DATE) END, '%Y-%m'
         ) AS ym,
-        IFNULL(SUM(pt.amount), 0) AS total_collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
       LEFT JOIN lead_master l ON c.lead_id = l.id
@@ -2544,7 +2544,7 @@ const ReportModel = {
   monthWiseCollection: async (user_ids, start_date, end_date, branch_id) => {
     try {
       const queryParams = [];
-      let getQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection, DATE_FORMAT(c.created_date, '%M %Y') month_name, DATE_FORMAT(c.created_date, '%m-%Y') ym FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE pt.payment_status <> 'Rejected'`;
+      let getQuery = `SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection, DATE_FORMAT(c.created_date, '%M %Y') month_name, DATE_FORMAT(c.created_date, '%m-%Y') ym FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE pt.payment_status <> 'Rejected'`;
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
@@ -3116,7 +3116,7 @@ const ReportModel = {
       payment_trans_agg AS (
         SELECT
           pm.lead_id,
-          SUM(pt.amount) AS total_collection
+          (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
         FROM payment_master pm
         INNER JOIN payment_trans pt
           ON pm.id = pt.payment_master_id
@@ -3127,7 +3127,7 @@ const ReportModel = {
         SELECT
           lt.id AS lead_type_id,
           CAST(pt.invoice_date AS DATE) AS invoice_date,
-          SUM(pt.amount) AS collection
+          (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
         FROM lead_type lt
         LEFT JOIN lead_master lm ON lt.id = lm.lead_type_id
         LEFT JOIN payment_master pm ON lm.id = pm.lead_id
@@ -3293,7 +3293,7 @@ const ReportModel = {
                           SELECT
                               r.name AS region_name,
                               DATE(pt.invoice_date) AS invoice_date,
-                              SUM(pt.amount) AS collection
+                              (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
                           FROM region r
                           LEFT JOIN customers c ON c.region_id = r.id
                           LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
@@ -3323,7 +3323,7 @@ const ReportModel = {
                                 SELECT
                                     b.name AS branch_name,
                                     DATE(pt.invoice_date) AS invoice_date,
-                                    IFNULL(SUM(pt.amount), 0) AS collection
+                                    (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
                                 FROM branches b
                                 LEFT JOIN customers c ON c.branch_id = b.id
                                 LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
@@ -3359,7 +3359,7 @@ const ReportModel = {
                                 SELECT
                                     p.name AS paymode_name,
                                     DATE(pt.invoice_date) AS invoice_date,
-                                    IFNULL(SUM(pt.amount), 0) AS collection
+                                    (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
                                 FROM payment_mode p
                                 LEFT JOIN payment_trans pt
                                     ON pt.paymode_id = p.id

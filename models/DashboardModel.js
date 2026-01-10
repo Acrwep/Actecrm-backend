@@ -8,10 +8,10 @@ const DashboardModel = {
       let followupQuery = `SELECT COUNT(lf.id) AS total_followups, SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled, SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled, ROUND(((SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100), 2) AS percentage FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE c.id IS NULL`;
 
       let saleVolumeQuery = `SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE 1 = 1`;
-      let collectionQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS collection FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.payment_status <> 'Rejected'`;
+      let collectionQuery = `SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.payment_status <> 'Rejected'`;
       let pendingCollectionQuery = `WITH CTE AS (SELECT pm.id FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN lead_master AS l ON l.id = c.lead_id WHERE 1 = 1`;
 
-      let totalCollectionQuery = `SELECT IFNULL(SUM(pt.amount), 0) AS total_collection FROM lead_master AS l INNER JOIN customers AS c ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
+      let totalCollectionQuery = `SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM lead_master AS l INNER JOIN customers AS c ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
       const leadParams = [];
       const joinParams = [];
       const followupParams = [];
@@ -259,7 +259,7 @@ const DashboardModel = {
       SELECT 
         u.user_id, 
         u.user_name, 
-        IFNULL(SUM(pt.amount), 0) AS collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM users AS u
       LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
       LEFT JOIN customers AS c ON c.lead_id = l.id`;
@@ -268,7 +268,7 @@ const DashboardModel = {
       SELECT 
         u.user_id, 
         u.user_name, 
-        IFNULL(SUM(pt.amount), 0) AS total_collection
+        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM users AS u
       LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
       LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -510,9 +510,9 @@ const DashboardModel = {
     try {
       let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
 
-      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
+      let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
 
-      let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pt.amount), 0) AS total_collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+      let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
 
       const params = {
         sale: [],
@@ -910,7 +910,7 @@ const DashboardModel = {
 
       // collection (sum of payment_trans.amount with invoice_date filter)
       let collectionQuery = `
-      SELECT u.user_id, IFNULL(SUM(pt.amount),0) AS collection
+      SELECT u.user_id, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM users u
       LEFT JOIN lead_master l ON l.assigned_to = u.user_id
       LEFT JOIN customers c ON c.lead_id = l.id
@@ -927,7 +927,7 @@ const DashboardModel = {
 
       // total collection (same as collection in your earlier code; kept separately for clarity)
       let totalCollectionQuery = `
-      SELECT u.user_id, IFNULL(SUM(pt.amount),0) AS total_collection
+      SELECT u.user_id, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM users u
       LEFT JOIN lead_master l ON l.assigned_to = u.user_id
       LEFT JOIN customers c ON c.lead_id = l.id
@@ -1245,9 +1245,9 @@ const DashboardModel = {
     try {
       let saleVolumeQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
 
-      let collectionQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(SUM(pt.amount), 0) AS collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
+      let collectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
 
-      let totalCollectionQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(SUM(pt.amount), 0) AS total_collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+      let totalCollectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
 
       const params = {
         sale: [],
