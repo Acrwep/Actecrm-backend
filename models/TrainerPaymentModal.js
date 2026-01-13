@@ -10,10 +10,13 @@ const trainerPaymentModal = {
             c.id,
             c.name,
             c.email AS customer_email,
-            tm.commercial
+            tm.commercial,
+            ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage
         FROM trainer_mapping AS tm
         INNER JOIN customers AS c 
             ON tm.customer_id = c.id
+        INNER JOIN lead_master AS l ON
+        	l.id = c.lead_id
         WHERE
             tm.is_verified = 1
             AND tm.trainer_id = ?
