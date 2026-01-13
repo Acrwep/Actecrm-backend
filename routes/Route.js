@@ -412,6 +412,12 @@ router.post(
 );
 
 //-------------trainer payment-------------------------
+router.get("/getStudents", verifyToken, trainerPaymentController.getStudents);
+router.post(
+  "/requestPayment",
+  verifyToken,
+  trainerPaymentController.requestPayment
+);
 router.post(
   "/insertTrainerPaymentRequest",
   verifyToken,

@@ -1,6 +1,39 @@
 const pool = require("../config/dbconfig");
 
 const trainerPaymentModal = {
+  getStudents: async (trainer_id) => {
+    try {
+      const [result] = await pool.query(
+        `SELECT
+            tm.id AS trainer_mapping_id,
+            tm.trainer_id,
+            c.id AS customer_id,
+            c.name AS customer_name,
+            c.email AS customer_email,
+            tm.commercial
+        FROM trainer_mapping AS tm
+        INNER JOIN customers AS c 
+            ON tm.customer_id = c.id
+        WHERE
+            tm.is_verified = 1
+            AND tm.trainer_id = ?
+            AND c.class_percentage >= 100
+            AND c.google_review IS NOT NULL
+            AND c.linkedin_review IS NOT NULL
+            AND NOT EXISTS (
+                SELECT 1
+                FROM trainer_payment_trans tpt
+                WHERE tpt.trainer_mapping_id = tm.id
+            );`,
+        [trainer_id]
+      );
+
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   checkActiveTrainerPaymentRequest: async (customer_id) => {
     const [rows] = await pool.execute(
       `SELECT id FROM trainer_payment
@@ -9,6 +42,83 @@ const trainerPaymentModal = {
       [customer_id]
     );
     return rows.length > 0;
+  },
+
+  requestPayment: async (
+    bill_raisedate,
+    trainer_id,
+    request_amount,
+    days_taken_topay,
+    deadline_date,
+    created_by,
+    created_date,
+    students
+  ) => {
+    try {
+      let affectedRows = 0;
+
+      if (!students && students.length <= 0)
+        throw new Error("Students cannot be empty");
+
+      const masterQuery = `INSERT INTO trainer_payment_master(
+          bill_raisedate,
+          trainer_id,
+          request_amount,
+          days_taken_topay,
+          deadline_date,
+          status,
+          created_by,
+          created_date
+      )
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+      const masterValues = [
+        bill_raisedate,
+        trainer_id,
+        request_amount,
+        days_taken_topay,
+        deadline_date,
+        "Pending",
+        created_by,
+        created_date,
+      ];
+
+      const [insertMaster] = await pool.query(masterQuery, masterValues);
+
+      affectedRows += insertMaster.affectedRows;
+
+      const transQuery = `INSERT INTO trainer_payment_trans(
+          payment_master_id,
+          trainer_mapping_id,
+          streams,
+          commercial,
+          commercial_percentage,
+          attendance_status,
+          attendance_sheetlink,
+          attendance_screenshot
+      )
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      for (const student of students) {
+        const transValues = [
+          insertMaster.insertId,
+          student.trainer_mapping_id,
+          student.streams,
+          student.commercial,
+          student.commercial_percentage,
+          student.attendance_status,
+          student.attendance_sheetlink,
+          student.attendance_screenshot,
+        ];
+
+        const [insertTrans] = await pool.query(transQuery, transValues);
+
+        affectedRows += insertTrans.affectedRows;
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
   },
 
   insertTrainerPaymentRequest: async (

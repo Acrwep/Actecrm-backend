@@ -1,5 +1,56 @@
 const trainerPaymentModal = require("../models/TrainerPaymentModal");
 
+const getStudents = async (req, res) => {
+  const { trainer_id } = req.query;
+  try {
+    const result = await trainerPaymentModal.getStudents(trainer_id);
+    return res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const requestPayment = async (req, res) => {
+  const {
+    bill_raisedate,
+    trainer_id,
+    request_amount,
+    days_taken_topay,
+    deadline_date,
+    created_by,
+    created_date,
+    students,
+  } = req.body;
+  try {
+    const result = await trainerPaymentModal.requestPayment(
+      bill_raisedate,
+      trainer_id,
+      request_amount,
+      days_taken_topay,
+      deadline_date,
+      created_by,
+      created_date,
+      students
+    );
+
+    return res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while inserting",
+      details: error.message,
+    });
+  }
+};
+
 // Finance Junior - Create Payment Request
 const insertTrainerPaymentRequest = async (req, res) => {
   try {
@@ -176,6 +227,8 @@ const resendRejectedRequest = async (req, res) => {
 };
 
 module.exports = {
+  getStudents,
+  requestPayment,
   insertTrainerPaymentRequest,
   updateTrainerPaymentRequest,
   getTrainerPayments,
