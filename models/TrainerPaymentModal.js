@@ -7,7 +7,7 @@ const trainerPaymentModal = {
         `SELECT
             tm.id AS trainer_mapping_id,
             tm.trainer_id,
-            c.id AS customer_id,
+            c.id,
             c.name,
             c.email AS customer_email,
             tm.commercial
