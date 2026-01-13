@@ -51,54 +51,6 @@ const requestPayment = async (req, res) => {
   }
 };
 
-// Finance Junior - Create Payment Request
-const insertTrainerPaymentRequest = async (req, res) => {
-  try {
-    const {
-      bill_raisedate,
-      streams,
-      attendance_status,
-      attendance_sheetlink = "",
-      attendance_screenshot = "",
-      customer_id,
-      trainer_id,
-      request_amount,
-      commercial_percentage,
-      days_taken_topay,
-      deadline_date,
-    } = req.body;
-    if (!bill_raisedate || !customer_id || !trainer_id || !request_amount)
-      return res.status(400).json({ message: "Missing required fields" });
-
-    const result = await trainerPaymentModal.insertTrainerPaymentRequest(
-      bill_raisedate,
-      streams,
-      attendance_status,
-      attendance_sheetlink,
-      attendance_screenshot,
-      customer_id,
-      trainer_id,
-      request_amount,
-      commercial_percentage,
-      days_taken_topay,
-      deadline_date,
-      req.user.id
-    );
-
-    if (!result.status) {
-      return res.status(409).json({
-        status: false,
-        message:
-          result.message || "Payment request already exists for this customer",
-      });
-    }
-
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
 // Finance Junior - Update Payment Request
 const updateTrainerPaymentRequest = async (req, res) => {
   try {
@@ -142,60 +94,74 @@ const getTrainerPayments = async (req, res) => {
 };
 
 // Finance Junior - Create Transaction
-const createTrainerPaymentTransaction = async (req, res) => {
+const financeJuniorApprove = async (req, res) => {
   try {
-    const {
-      trainer_payment_id,
-      paid_amount,
-      payment_type,
-      remarks = "",
-    } = req.body;
-    if (!trainer_payment_id || !paid_amount || !payment_type)
-      return res.status(400).json({ message: "Missing required fields" });
-    const result = await trainerPaymentModal.financeJuniorCreateTransaction(
-      trainer_payment_id,
-      paid_amount,
-      payment_type,
-      remarks
+    const { trainer_payment_id } = req.body;
+    const result = await trainerPaymentModal.financeJuniorApprove(
+      trainer_payment_id
     );
-    res.status(201).json(result);
+    return res.status(200).send({
+      message: "Payment moved to Awaiting Finance successfully",
+      data: result,
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).send({
+      message: "Error while moving to Awaiting Finance",
+      details: err.message,
+    });
   }
 };
 
 // Finance Head - Approve Transaction
 const approveTrainerPaymentTransaction = async (req, res) => {
   try {
-    const { transaction_id, payment_screenshot } = req.body;
-    if (!transaction_id || !payment_screenshot)
-      return res
-        .status(400)
-        .json({ message: "Transaction ID & screenshot required" });
-    const finance_head_id = req.user.id;
-    const result = await trainerPaymentModal.financeHeadApproveAndPay(
-      transaction_id,
+    const {
+      trainer_payment_id,
+      paid_amount,
       payment_screenshot,
-      finance_head_id
+      paid_date,
+      paid_by,
+    } = req.body;
+
+    const result = await trainerPaymentModal.financeHeadApproveAndPay(
+      trainer_payment_id,
+      paid_amount,
+      payment_screenshot,
+      paid_date,
+      paid_by
     );
-    res.json(result);
+    return res.status(200).send({
+      message: "Payment successfull",
+      data: result,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).send({
+      message: "Error while approve payment",
+      details: err.message,
+    });
   }
 };
 
 // Finance Head - Reject Payment
 const rejectTrainerPayment = async (req, res) => {
   try {
-    const { trainer_payment_id, reject_reason } = req.body;
+    const { trainer_payment_id, rejected_reason, rejected_date, rejected_by } =
+      req.body;
     const result = await trainerPaymentModal.rejectTrainerPayment(
       trainer_payment_id,
-      reject_reason,
-      req.user.id
+      rejected_reason,
+      rejected_date,
+      rejected_by
     );
-    res.json(result);
+    return res.status(200).send({
+      message: "Payment has been rejected",
+      data: result,
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).send({
+      message: "Error while rejecting payment",
+      details: err.message,
+    });
   }
 };
 
@@ -229,10 +195,9 @@ const resendRejectedRequest = async (req, res) => {
 module.exports = {
   getStudents,
   requestPayment,
-  insertTrainerPaymentRequest,
   updateTrainerPaymentRequest,
   getTrainerPayments,
-  createTrainerPaymentTransaction,
+  financeJuniorApprove,
   approveTrainerPaymentTransaction,
   rejectTrainerPayment,
   resendRejectedRequest,

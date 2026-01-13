@@ -418,10 +418,10 @@ router.post(
   verifyToken,
   trainerPaymentController.requestPayment
 );
-router.post(
-  "/insertTrainerPaymentRequest",
+router.put(
+  "/rejectTrainerPayment",
   verifyToken,
-  trainerPaymentController.insertTrainerPaymentRequest
+  trainerPaymentController.rejectTrainerPayment
 );
 
 router.put(
@@ -430,10 +430,10 @@ router.put(
   trainerPaymentController.updateTrainerPaymentRequest
 );
 
-router.post(
-  "/createTrainerPaymentTransaction",
+router.put(
+  "/financeJuniorApprove",
   verifyToken,
-  trainerPaymentController.createTrainerPaymentTransaction
+  trainerPaymentController.financeJuniorApprove
 );
 
 router.post(
@@ -443,15 +443,9 @@ router.post(
 );
 
 router.post(
-  "/approveTrainerPaymentTransaction",
+  "/approveTrainerPayment",
   verifyToken,
   trainerPaymentController.approveTrainerPaymentTransaction
-);
-
-router.post(
-  "/rejectTrainerPayment",
-  verifyToken,
-  trainerPaymentController.rejectTrainerPayment
 );
 
 router.get(

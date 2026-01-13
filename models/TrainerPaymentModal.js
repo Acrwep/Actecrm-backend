@@ -8,7 +8,7 @@ const trainerPaymentModal = {
             tm.id AS trainer_mapping_id,
             tm.trainer_id,
             c.id AS customer_id,
-            c.name AS customer_name,
+            c.name,
             c.email AS customer_email,
             tm.commercial
         FROM trainer_mapping AS tm
@@ -32,16 +32,6 @@ const trainerPaymentModal = {
     } catch (error) {
       throw new Error(error.message);
     }
-  },
-
-  checkActiveTrainerPaymentRequest: async (customer_id) => {
-    const [rows] = await pool.execute(
-      `SELECT id FROM trainer_payment
-     WHERE customer_id = ? 
-     LIMIT 1`,
-      [customer_id]
-    );
-    return rows.length > 0;
   },
 
   requestPayment: async (
@@ -77,7 +67,7 @@ const trainerPaymentModal = {
         request_amount,
         days_taken_topay,
         deadline_date,
-        "Pending",
+        "Requested",
         created_by,
         created_date,
       ];
@@ -118,68 +108,6 @@ const trainerPaymentModal = {
       return affectedRows;
     } catch (error) {
       throw new Error(error.message);
-    }
-  },
-
-  insertTrainerPaymentRequest: async (
-    bill_raisedate,
-    streams,
-    attendance_status,
-    attendance_sheetlink,
-    attendance_screenshot,
-    customer_id,
-    trainer_id,
-    request_amount,
-    commercial_percentage,
-    days_taken_topay,
-    deadline_date,
-    created_by
-  ) => {
-    try {
-      const isExists =
-        await trainerPaymentModal.checkActiveTrainerPaymentRequest(customer_id);
-
-      if (isExists) {
-        return {
-          status: false,
-          message: "Payment request already exists for this customer",
-        };
-      }
-
-      const [result] = await pool.execute(
-        `INSERT INTO trainer_payment 
-        (bill_raisedate, streams, attendance_status, attendance_sheetlink, attendance_screenshot,
-         customer_id, trainer_id, request_amount, paid_amount, balance_amount, commercial_percentage,
-         days_taken_topay, deadline_date, status, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'Requested', ?)`,
-        [
-          bill_raisedate,
-          streams,
-          attendance_status,
-          attendance_sheetlink,
-          attendance_screenshot,
-          customer_id,
-          trainer_id,
-          request_amount,
-          request_amount, // balance_amount
-          commercial_percentage,
-          days_taken_topay,
-          deadline_date,
-          created_by,
-        ]
-      );
-      return {
-        status: true,
-        message: "Trainer payment request created",
-        insertId: result.insertId,
-      };
-    } catch (err) {
-      console.error(err);
-      return {
-        status: false,
-        message: "Failed to insert trainer payment",
-        error: err.message,
-      };
     }
   },
 
@@ -358,32 +286,20 @@ const trainerPaymentModal = {
   },
 
   // Finance Junior - Send Pending Transaction to Head
-  financeJuniorCreateTransaction: async (
-    trainer_payment_id,
-    paid_amount,
-    payment_type,
-    remarks
-  ) => {
+  financeJuniorApprove: async (trainer_payment_id) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [[master]] = await conn.execute(
-        `SELECT balance_amount,status FROM trainer_payment WHERE id=? FOR UPDATE`,
+      const [master] = await conn.query(
+        `SELECT status FROM trainer_payment_master WHERE id = ?`,
         [trainer_payment_id]
       );
-      if (!master || master.status !== "Requested")
+
+      if (master[0].status !== "Requested")
         throw new Error("Only Requested payments can be processed");
-      if (Number(paid_amount) > Number(master.balance_amount))
-        throw new Error("Paid amount exceeds balance");
 
-      await conn.execute(
-        `INSERT INTO trainer_payment_transactions (trainer_payment_id, paid_amount, payment_type, remarks, finance_status)
-         VALUES (?, ?, ?, ?, 'Pending')`,
-        [trainer_payment_id, paid_amount, payment_type, remarks]
-      );
-
-      await conn.execute(
-        `UPDATE trainer_payment SET status='Awaiting Finance' WHERE id=?`,
+      await conn.query(
+        `UPDATE trainer_payment_master SET status = 'Awaiting Finance' WHERE id = ?`,
         [trainer_payment_id]
       );
       await conn.commit();
@@ -398,40 +314,51 @@ const trainerPaymentModal = {
 
   // Finance Head - Approve & Pay Transaction
   financeHeadApproveAndPay: async (
-    transaction_id,
+    trainer_payment_id,
+    paid_amount,
     payment_screenshot,
-    finance_head_id
+    paid_date,
+    paid_by
   ) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [[txn]] = await conn.execute(
-        `SELECT * FROM trainer_payment_transactions WHERE id=? AND finance_status='Pending' FOR UPDATE`,
-        [transaction_id]
-      );
-      if (!txn) throw new Error("Invalid or already processed transaction");
 
-      const [[master]] = await conn.execute(
-        `SELECT request_amount, paid_amount FROM trainer_payment WHERE id=? FOR UPDATE`,
-        [txn.trainer_payment_id]
+      await conn.query(
+        `INSERT INTO trainer_payment(
+          payment_master_id,
+          paid_amount,
+          payment_screenshot,
+          paid_date,
+          paid_by
+        )
+        VALUES(?, ?, ?, ?, ?)`,
+        [
+          trainer_payment_id,
+          paid_amount,
+          payment_screenshot,
+          paid_date,
+          paid_by,
+        ]
       );
 
-      const totalPaid = Number(master.paid_amount) + Number(txn.paid_amount);
-      const balance = Number(master.request_amount) - totalPaid;
+      const [master] = await conn.execute(
+        `SELECT request_amount, paid_amount FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id]
+      );
+
+      const totalPaid = Number(master[0].paid_amount) + Number(paid_amount);
+      const balance = Number(master[0].request_amount) - totalPaid;
 
       await conn.execute(
-        `UPDATE trainer_payment_transactions SET finance_status='Approved', payment_screenshot=?, verified_by=?, verified_date=NOW() WHERE id=?`,
-        [payment_screenshot, finance_head_id, transaction_id]
-      );
-
-      await conn.execute(
-        `UPDATE trainer_payment SET paid_amount=?, balance_amount=?, status=?, verified_by=? WHERE id=?`,
+        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ?, is_verified = 1, verified_by = ?, verified_date = ? WHERE id = ?`,
         [
           totalPaid,
           balance,
           balance === 0 ? "Completed" : "Requested",
-          finance_head_id,
-          txn.trainer_payment_id,
+          paid_by,
+          paid_date,
+          trainer_payment_id,
         ]
       );
 
@@ -448,45 +375,46 @@ const trainerPaymentModal = {
   // Finance Head - Reject Request
   rejectTrainerPayment: async (
     trainer_payment_id,
-    reject_reason,
-    finance_head_id
+    rejected_reason,
+    rejected_date
   ) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
 
-      const [[master]] = await conn.execute(
-        `SELECT status FROM trainer_payment WHERE id=? FOR UPDATE`,
+      const [balance] = await pool.query(
+        `SELECT paid_amount FROM trainer_payment_master WHERE id = ?`,
         [trainer_payment_id]
       );
 
-      if (!master || master.status !== "Awaiting Finance")
+      if (balance[0].paid_amount > 0)
+        throw new Error(
+          "The payment request cannot be denied because the payment has already been initiated."
+        );
+
+      const [master] = await conn.query(
+        `SELECT status FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id]
+      );
+
+      if (!master || master[0].status !== "Awaiting Finance")
         throw new Error("Only Awaiting Finance requests can be rejected");
 
       // 🔹 Reject only the latest Pending transaction
-      await conn.execute(
+      await conn.query(
         `
-      UPDATE trainer_payment_transactions
-      SET finance_status='Rejected',
-          reject_reason=?,
-          verified_by=?,
-          verified_date=NOW()
-      WHERE trainer_payment_id=?
-        AND finance_status='Pending'
-      ORDER BY id DESC
-      LIMIT 1
+      UPDATE trainer_payment_master
+      SET status = 'Rejected',
+          rejected_reason = ?,
+          rejected_date = ?,
+          is_rejected = 1
+      WHERE id = ?
       `,
-        [reject_reason, finance_head_id, trainer_payment_id]
-      );
-
-      // 🔹 Update only master status
-      await conn.execute(
-        `UPDATE trainer_payment SET status='Rejected' WHERE id=?`,
-        [trainer_payment_id]
+        [rejected_reason, rejected_date, trainer_payment_id]
       );
 
       await conn.commit();
-      return { status: true, message: "Payment rejected successfully" };
+      return { status: true };
     } catch (err) {
       await conn.rollback();
       throw err;
