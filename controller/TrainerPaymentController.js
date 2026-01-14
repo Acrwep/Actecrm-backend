@@ -51,29 +51,6 @@ const requestPayment = async (req, res) => {
   }
 };
 
-// Finance Junior - Update Payment Request
-const updateTrainerPaymentRequest = async (req, res) => {
-  try {
-    const result = await trainerPaymentModal.updateTrainerPaymentRequest(
-      req.body.id,
-      req.body.bill_raisedate,
-      req.body.streams,
-      req.body.attendance_status,
-      req.body.attendance_sheetlink || "",
-      req.body.attendance_screenshot || "",
-      req.body.customer_id,
-      req.body.trainer_id,
-      req.body.request_amount,
-      req.body.commercial_percentage,
-      req.body.days_taken_topay,
-      req.body.deadline_date
-    );
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-};
-
 const getPayments = async (req, res) => {
   const { start_date, end_date, status, page, limit } = req.body;
   try {
@@ -94,25 +71,6 @@ const getPayments = async (req, res) => {
       details: error.message,
     });
   }
-};
-
-// List Payments
-const getTrainerPayments = async (req, res) => {
-  const {
-    start_date,
-    end_date,
-    status = "all",
-    page = 1,
-    limit = 10,
-  } = req.query;
-  const result = await trainerPaymentModal.getTrainerPayments(
-    start_date,
-    end_date,
-    status,
-    parseInt(page),
-    parseInt(limit)
-  );
-  res.json(result);
 };
 
 // Finance Junior - Create Transaction
@@ -187,41 +145,28 @@ const rejectTrainerPayment = async (req, res) => {
   }
 };
 
-// Finance Junior - Resend Rejected Request
-const resendRejectedRequest = async (req, res) => {
+const deleteRequest = async (req, res) => {
+  const { trainer_payment_id } = req.query;
   try {
-    const {
-      transaction_id,
-      paid_amount,
-      payment_type,
-      remarks = "",
-    } = req.body;
-
-    if (!transaction_id || !paid_amount || !payment_type) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    const result = await trainerPaymentModal.resendRejectedRequest(
-      transaction_id,
-      paid_amount,
-      payment_type,
-      remarks
-    );
-
-    res.json(result);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+    const result = await trainerPaymentModal.deleteRequest(trainer_payment_id);
+    res.status(200).send({
+      message: "Request has been deleted",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while deleting request",
+      details: error.message,
+    });
   }
 };
 
 module.exports = {
   getStudents,
   requestPayment,
-  updateTrainerPaymentRequest,
   getPayments,
-  getTrainerPayments,
   financeJuniorApprove,
   approveTrainerPaymentTransaction,
   rejectTrainerPayment,
-  resendRejectedRequest,
+  deleteRequest,
 };

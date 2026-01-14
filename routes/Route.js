@@ -427,21 +427,9 @@ router.put(
 router.post("/getPayments", verifyToken, trainerPaymentController.getPayments);
 
 router.put(
-  "/updateTrainerPaymentRequest",
-  verifyToken,
-  trainerPaymentController.updateTrainerPaymentRequest
-);
-
-router.put(
   "/financeJuniorApprove",
   verifyToken,
   trainerPaymentController.financeJuniorApprove
-);
-
-router.post(
-  "/resendRejectedRequest",
-  verifyToken,
-  trainerPaymentController.resendRejectedRequest
 );
 
 router.post(
@@ -450,9 +438,9 @@ router.post(
   trainerPaymentController.approveTrainerPaymentTransaction
 );
 
-router.get(
-  "/getTrainerPayments",
+router.delete(
+  "/deleteRequest",
   verifyToken,
-  trainerPaymentController.getTrainerPayments
+  trainerPaymentController.deleteRequest
 );
 module.exports = router;
