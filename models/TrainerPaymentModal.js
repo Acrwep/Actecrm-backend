@@ -182,6 +182,8 @@ const trainerPaymentModal = {
           tm.bill_raisedate,
           tm.trainer_id,
           t.name AS trainer_name,
+          t.mobile AS trainer_mobile,
+          t.email AS trainer_email,
           tm.request_amount,
           tm.paid_amount,
           tm.balance_amount,
