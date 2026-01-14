@@ -126,13 +126,17 @@ const approveTrainerPaymentTransaction = async (req, res) => {
 // Finance Head - Reject Payment
 const rejectTrainerPayment = async (req, res) => {
   try {
-    const { trainer_payment_id, rejected_reason, rejected_date, rejected_by } =
-      req.body;
-    const result = await trainerPaymentModal.rejectTrainerPayment(
+    const {
       trainer_payment_id,
+      payment_trans_id,
       rejected_reason,
       rejected_date,
-      rejected_by
+    } = req.body;
+    const result = await trainerPaymentModal.rejectTrainerPayment(
+      trainer_payment_id,
+      payment_trans_id,
+      rejected_reason,
+      rejected_date
     );
     return res.status(200).send({
       message: "Payment has been rejected",
@@ -162,6 +166,26 @@ const deleteRequest = async (req, res) => {
   }
 };
 
+const updateTrainerPayment = async (req, res) => {
+  const { trainer_payment_id, payment_trans_id, paid_amount } = req.body;
+  try {
+    const result = await trainerPaymentModal.updateTrainerPayment(
+      trainer_payment_id,
+      payment_trans_id,
+      paid_amount
+    );
+    res.status(200).send({
+      message: "Payment updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while updating payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -170,4 +194,5 @@ module.exports = {
   approveTrainerPaymentTransaction,
   rejectTrainerPayment,
   deleteRequest,
+  updateTrainerPayment,
 };

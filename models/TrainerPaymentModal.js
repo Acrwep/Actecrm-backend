@@ -138,9 +138,6 @@ const trainerPaymentModal = {
           END AS days_taken_topay,
           tm.deadline_date,
           tm.status,
-          tm.is_rejected,
-          tm.rejected_reason,
-          tm.rejected_date,
           tm.is_verified,
           tm.verified_by,
           vu.user_name AS verified_user,
@@ -249,7 +246,7 @@ const trainerPaymentModal = {
               u.user_name AS paid_user
           FROM
               trainer_payment AS tp
-          INNER JOIN users AS u ON
+          LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
           WHERE tp.payment_master_id = ?
           ORDER BY tp.id ASC`,
@@ -399,13 +396,15 @@ const trainerPaymentModal = {
       await conn.query(
         `
       UPDATE trainer_payment_master
-      SET status = 'Rejected',
-          rejected_reason = ?,
-          rejected_date = ?,
-          is_rejected = 1
+      SET status = 'Payment Rejected'
       WHERE id = ?
       `,
-        [rejected_reason, rejected_date, trainer_payment_id]
+        [trainer_payment_id]
+      );
+
+      await pool.query(
+        `UPDATE trainer_payment SET status = 'Rejected', reason = ?, rejected_date = ? WHERE id = ?`,
+        [rejected_reason, rejected_date, payment_trans_id]
       );
 
       await conn.commit();
@@ -440,6 +439,45 @@ const trainerPaymentModal = {
       affectedRows += deletePayment.affectedRows;
 
       return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateTrainerPayment: async (
+    trainer_payment_id,
+    payment_trans_id,
+    paid_amount
+  ) => {
+    try {
+      const [checkStatus] = await pool.query(
+        `SELECT status, request_amount FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id]
+      );
+
+      if (checkStatus[0].status !== "Payment Rejected")
+        throw new Error("Only rejected payments can be processed");
+
+      await pool.query(
+        `UPDATE trainer_payment SET status = 'Pending', paid_amount = ?, reason = null, rejected_date = null WHERE id = ?`,
+        [paid_amount, payment_trans_id]
+      );
+
+      const [paid] = await pool.query(
+        `SELECT SUM(paid_amount) AS total_paid FROM trainer_payment WHERE payment_master_id = ? AND status IN ('Pending', 'Completed')`,
+        [trainer_payment_id]
+      );
+
+      const total_paid = Number(paid[0].total_paid);
+      const request_amount = Number(checkStatus[0].request_amount);
+      const balance_amount = request_amount - total_paid;
+
+      await pool.query(
+        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
+        [total_paid, balance_amount, "Awaiting Finance", trainer_payment_id]
+      );
+
+      return { status: true };
     } catch (error) {
       throw new Error(error.message);
     }

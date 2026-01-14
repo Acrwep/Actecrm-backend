@@ -443,4 +443,10 @@ router.delete(
   verifyToken,
   trainerPaymentController.deleteRequest
 );
+
+router.put(
+  "/updateTrainerPayment",
+  verifyToken,
+  trainerPaymentController.updateTrainerPayment
+);
 module.exports = router;
