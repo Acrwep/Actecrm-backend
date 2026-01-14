@@ -220,6 +220,7 @@ const trainerPaymentModal = {
               tp.trainer_mapping_id,
               tm.customer_id,
               c.name AS customer_name,
+              c.email AS customer_email,
               tp.streams,
               tp.commercial,
               tp.commercial_percentage,
