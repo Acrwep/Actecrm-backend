@@ -424,6 +424,8 @@ router.put(
   trainerPaymentController.rejectTrainerPayment
 );
 
+router.post("/getPayments", verifyToken, trainerPaymentController.getPayments);
+
 router.put(
   "/updateTrainerPaymentRequest",
   verifyToken,

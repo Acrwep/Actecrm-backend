@@ -74,6 +74,28 @@ const updateTrainerPaymentRequest = async (req, res) => {
   }
 };
 
+const getPayments = async (req, res) => {
+  const { start_date, end_date, status, page, limit } = req.body;
+  try {
+    const result = await trainerPaymentModal.getPayments(
+      start_date,
+      end_date,
+      status,
+      page,
+      limit
+    );
+    res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 // List Payments
 const getTrainerPayments = async (req, res) => {
   const {
@@ -196,6 +218,7 @@ module.exports = {
   getStudents,
   requestPayment,
   updateTrainerPaymentRequest,
+  getPayments,
   getTrainerPayments,
   financeJuniorApprove,
   approveTrainerPaymentTransaction,

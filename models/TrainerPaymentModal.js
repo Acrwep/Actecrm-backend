@@ -172,6 +172,161 @@ const trainerPaymentModal = {
     }
   },
 
+  getPayments: async (start_date, end_date, status, page, limit) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const statusParams = [];
+      let getQuery = `SELECT
+          tm.id,
+          tm.bill_raisedate,
+          tm.trainer_id,
+          t.name AS trainer_name,
+          tm.request_amount,
+          tm.paid_amount,
+          tm.balance_amount,
+          tm.days_taken_topay,
+          tm.deadline_date,
+          tm.status,
+          tm.is_rejected,
+          tm.rejected_reason,
+          tm.rejected_date,
+          tm.is_verified,
+          tm.verified_by,
+          vu.user_name AS verified_user,
+          tm.verified_date,
+          tm.created_by,
+          cu.user_name AS created_user,
+          tm.created_date
+      FROM
+          trainer_payment_master AS tm
+      INNER JOIN trainer AS t ON
+          t.id = tm.trainer_id
+      LEFT JOIN users AS vu ON
+          vu.user_id = tm.verified_by
+      LEFT JOIN users AS cu ON
+        cu.user_id = tm.created_by
+      WHERE 1 = 1`;
+
+      let countQuery = `SELECT
+          COUNT(tm.id) AS total
+      FROM
+          trainer_payment_master AS tm
+      INNER JOIN trainer AS t ON
+          t.id = tm.trainer_id
+      LEFT JOIN users AS vu ON
+          vu.user_id = tm.verified_by
+      LEFT JOIN users AS cu ON
+        cu.user_id = tm.created_by
+      WHERE 1 = 1`;
+
+      let statusCountQuery = `
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status IN('Requested', 'Rejected') THEN 1 ELSE 0 END) AS requested,
+        SUM(CASE WHEN status = 'Awaiting Finance' THEN 1 ELSE 0 END) AS awaiting_finance,
+        SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed
+      FROM
+          trainer_payment_master
+      WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        getQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
+        countQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
+        statusCountQuery += ` AND bill_raisedate BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
+      }
+
+      if (status && status.length > 0) {
+        const placeholders = status.map(() => "?").join(", ");
+        getQuery += ` AND tm.status IN (${placeholders})`;
+        countQuery += ` AND tm.status IN (${placeholders})`;
+        queryParams.push(...status);
+        countParams.push(...status);
+      }
+
+      const [countResult] = await pool.query(countQuery, countParams);
+
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY tm.bill_raisedate DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      const [statusResult] = await pool.query(statusCountQuery, statusParams);
+
+      let res = await Promise.all(
+        result.map(async (item) => {
+          const [students] = await pool.query(
+            `SELECT
+              tp.id AS payment_trans_id,
+              tp.trainer_mapping_id,
+              tm.customer_id,
+              c.name AS customer_name,
+              tp.streams,
+              tp.commercial,
+              tp.commercial_percentage,
+              tp.attendance_status,
+              tp.attendance_sheetlink,
+              tp.attendance_screenshot
+          FROM
+              trainer_payment_trans AS tp
+          INNER JOIN trainer_mapping AS tm ON
+              tp.trainer_mapping_id = tm.id
+          INNER JOIN customers AS c ON
+              c.id = tm.customer_id
+          WHERE tp.payment_master_id = ?`,
+            [item.id]
+          );
+
+          const [payments] = await pool.query(
+            `SELECT
+              tp.id,
+              tp.paid_amount,
+              tp.payment_screenshot,
+              tp.paid_date,
+              tp.paid_by,
+              u.user_name AS paid_user
+          FROM
+              trainer_payment AS tp
+          INNER JOIN users AS u ON
+              tp.paid_by = u.user_id
+          WHERE tp.payment_master_id = ?
+          ORDER BY tp.id ASC`,
+            [item.id]
+          );
+
+          return {
+            ...item,
+            students: students,
+            payments: payments,
+          };
+        })
+      );
+
+      return {
+        data: res,
+        statusCount: statusResult[0],
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   // Finance Junior / Head - List Payments with Transactions
   getTrainerPayments: async (start_date, end_date, status, page, limit) => {
     try {
