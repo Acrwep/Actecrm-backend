@@ -57,16 +57,18 @@ const trainerPaymentModal = {
           bill_raisedate,
           trainer_id,
           request_amount,
+          balance_amount,
           days_taken_topay,
           deadline_date,
           status,
           created_by,
           created_date
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const masterValues = [
         bill_raisedate,
         trainer_id,
+        request_amount,
         request_amount,
         days_taken_topay,
         deadline_date,
@@ -278,21 +280,39 @@ const trainerPaymentModal = {
   },
 
   // Finance Junior - Send Pending Transaction to Head
-  financeJuniorApprove: async (trainer_payment_id) => {
+  financeJuniorApprove: async (trainer_payment_id, paid_amount) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      const [master] = await conn.query(
+      const [checkStatus] = await conn.query(
         `SELECT status FROM trainer_payment_master WHERE id = ?`,
         [trainer_payment_id]
       );
 
-      if (master[0].status !== "Requested")
+      if (checkStatus[0].status !== "Requested")
         throw new Error("Only Requested payments can be processed");
 
       await conn.query(
-        `UPDATE trainer_payment_master SET status = 'Awaiting Finance' WHERE id = ?`,
+        `INSERT INTO trainer_payment(
+          payment_master_id,
+          paid_amount,
+          status
+        )
+        VALUES(?, ?, ?)`,
+        [trainer_payment_id, paid_amount, "Pending"]
+      );
+
+      const [master] = await conn.execute(
+        `SELECT request_amount, paid_amount FROM trainer_payment_master WHERE id = ?`,
         [trainer_payment_id]
+      );
+
+      const totalPaid = Number(master[0].paid_amount) + Number(paid_amount);
+      const balance = Number(master[0].request_amount) - totalPaid;
+
+      await conn.execute(
+        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
+        [totalPaid, balance, "Awaiting Finance", trainer_payment_id]
       );
       await conn.commit();
       return { status: true, message: "Transaction sent to finance head" };
@@ -307,7 +327,7 @@ const trainerPaymentModal = {
   // Finance Head - Approve & Pay Transaction
   financeHeadApproveAndPay: async (
     trainer_payment_id,
-    paid_amount,
+    payment_trans_id,
     payment_screenshot,
     paid_date,
     paid_by
@@ -317,36 +337,27 @@ const trainerPaymentModal = {
       await conn.beginTransaction();
 
       await conn.query(
-        `INSERT INTO trainer_payment(
-          payment_master_id,
-          paid_amount,
-          payment_screenshot,
-          paid_date,
-          paid_by
-        )
-        VALUES(?, ?, ?, ?, ?)`,
-        [
-          trainer_payment_id,
-          paid_amount,
-          payment_screenshot,
-          paid_date,
-          paid_by,
-        ]
+        `UPDATE
+          trainer_payment
+        SET
+            status = ?,
+            payment_screenshot = ?,
+            paid_date = ?,
+            paid_by = ?
+        WHERE id = ?`,
+        ["Completed", payment_screenshot, paid_date, paid_by, payment_trans_id]
       );
 
       const [master] = await conn.execute(
-        `SELECT request_amount, paid_amount FROM trainer_payment_master WHERE id = ?`,
+        `SELECT request_amount, paid_amount, balance_amount FROM trainer_payment_master WHERE id = ?`,
         [trainer_payment_id]
       );
 
-      const totalPaid = Number(master[0].paid_amount) + Number(paid_amount);
-      const balance = Number(master[0].request_amount) - totalPaid;
+      const balance = Number(master[0].balance_amount);
 
       await conn.execute(
-        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ?, is_verified = 1, verified_by = ?, verified_date = ?, fully_paid_date = ? WHERE id = ?`,
+        `UPDATE trainer_payment_master SET status = ?, is_verified = 1, verified_by = ?, verified_date = ?, fully_paid_date = ? WHERE id = ?`,
         [
-          totalPaid,
-          balance,
           balance === 0 ? "Completed" : "Requested",
           paid_by,
           paid_date,
@@ -368,22 +379,13 @@ const trainerPaymentModal = {
   // Finance Head - Reject Request
   rejectTrainerPayment: async (
     trainer_payment_id,
+    payment_trans_id,
     rejected_reason,
     rejected_date
   ) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-
-      const [balance] = await pool.query(
-        `SELECT paid_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
-      );
-
-      if (balance[0].paid_amount > 0)
-        throw new Error(
-          "The payment request cannot be denied because the payment has already been initiated."
-        );
 
       const [master] = await conn.query(
         `SELECT status FROM trainer_payment_master WHERE id = ?`,
