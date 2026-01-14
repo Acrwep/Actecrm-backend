@@ -173,7 +173,8 @@ const trainerPaymentModal = {
         COUNT(*) AS total,
         IFNULL(SUM(CASE WHEN status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
         IFNULL(SUM(CASE WHEN status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
-        IFNULL(SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed
+        IFNULL(SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed,
+        IFNULL(SUM(CASE WHEN status = 'Payment Rejected' THEN 1 ELSE 0 END), 0) AS payment_rejected
       FROM
           trainer_payment_master
       WHERE 1 = 1`;
@@ -240,6 +241,9 @@ const trainerPaymentModal = {
             `SELECT
               tp.id,
               tp.paid_amount,
+              tp.status,
+              tp.reason,
+              tp.rejected_date,
               tp.payment_screenshot,
               tp.paid_date,
               tp.paid_by,
