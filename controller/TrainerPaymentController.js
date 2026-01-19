@@ -52,12 +52,13 @@ const requestPayment = async (req, res) => {
 };
 
 const getPayments = async (req, res) => {
-  const { start_date, end_date, status, page, limit } = req.body;
+  const { start_date, end_date, status, trainer_id, page, limit } = req.body;
   try {
     const result = await trainerPaymentModal.getPayments(
       start_date,
       end_date,
       status,
+      trainer_id,
       page,
       limit
     );

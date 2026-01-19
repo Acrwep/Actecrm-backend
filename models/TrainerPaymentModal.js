@@ -116,7 +116,14 @@ const trainerPaymentModal = {
     }
   },
 
-  getPayments: async (start_date, end_date, status, page, limit) => {
+  getPayments: async (
+    start_date,
+    end_date,
+    status,
+    trainer_id,
+    page,
+    limit
+  ) => {
     try {
       const queryParams = [];
       const countParams = [];
@@ -193,6 +200,15 @@ const trainerPaymentModal = {
         countQuery += ` AND tm.status = ?`;
         queryParams.push(status);
         countParams.push(status);
+      }
+
+      if (trainer_id) {
+        getQuery += ` AND tm.trainer_id = ?`;
+        countQuery += ` AND tm.trainer_id = ?`;
+        statusCountQuery += ` AND trainer_id = ?`;
+        queryParams.push(trainer_id);
+        countParams.push(trainer_id);
+        statusParams.push(trainer_id);
       }
 
       const [countResult] = await pool.query(countQuery, countParams);
