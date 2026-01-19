@@ -246,6 +246,7 @@ const trainerPaymentModal = {
               tp.payment_screenshot,
               tp.paid_date,
               tp.paid_by,
+              tp.payment_type,
               u.user_name AS paid_user
           FROM
               trainer_payment AS tp
