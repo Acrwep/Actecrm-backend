@@ -459,7 +459,8 @@ const trainerPaymentModal = {
   updateTrainerPayment: async (
     trainer_payment_id,
     payment_trans_id,
-    paid_amount
+    paid_amount,
+    payment_type
   ) => {
     try {
       const [checkStatus] = await pool.query(
@@ -471,8 +472,8 @@ const trainerPaymentModal = {
         throw new Error("Only rejected payments can be processed");
 
       await pool.query(
-        `UPDATE trainer_payment SET status = 'Pending', paid_amount = ?, reason = null, rejected_date = null WHERE id = ?`,
-        [paid_amount, payment_trans_id]
+        `UPDATE trainer_payment SET status = 'Pending', payment_type = ?, paid_amount = ?, reason = null, rejected_date = null WHERE id = ?`,
+        [payment_type, paid_amount, payment_trans_id]
       );
 
       const [paid] = await pool.query(

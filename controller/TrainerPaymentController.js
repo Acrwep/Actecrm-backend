@@ -168,12 +168,14 @@ const deleteRequest = async (req, res) => {
 };
 
 const updateTrainerPayment = async (req, res) => {
-  const { trainer_payment_id, payment_trans_id, paid_amount } = req.body;
+  const { trainer_payment_id, payment_trans_id, paid_amount, payment_type } =
+    req.body;
   try {
     const result = await trainerPaymentModal.updateTrainerPayment(
       trainer_payment_id,
       payment_trans_id,
-      paid_amount
+      paid_amount,
+      payment_type
     );
     res.status(200).send({
       message: "Payment updated successfully",
