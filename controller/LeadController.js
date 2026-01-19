@@ -434,12 +434,13 @@ const checkEmailMblExists = async (request, response) => {
 };
 
 const getLeadCountByUser = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, lead_type_id } = request.body;
   try {
     const result = await LeadModel.getLeadCountByUser(
       user_ids,
       start_date,
-      end_date
+      end_date,
+      lead_type_id
     );
     return response.status(200).send({
       message: "Data fetched successfully",

@@ -964,7 +964,7 @@ const LeadModel = {
     }
   },
 
-  getLeadCountByUser: async (user_ids, start_date, end_date) => {
+  getLeadCountByUser: async (user_ids, start_date, end_date, lead_type_id) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT u.user_id, u.user_name, COUNT(lm.id) AS lead_count FROM users AS u LEFT JOIN lead_master AS lm ON lm.assigned_to = u.user_id`;
@@ -972,6 +972,11 @@ const LeadModel = {
       if (start_date && end_date) {
         getQuery += ` AND CAST(lm.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
+      }
+
+      if (lead_type_id) {
+        getQuery += ` AND lm.lead_type_id = ?`;
+        queryParams.push(lead_type_id);
       }
 
       if (user_ids) {
