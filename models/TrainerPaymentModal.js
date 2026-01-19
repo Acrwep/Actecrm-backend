@@ -253,7 +253,7 @@ const trainerPaymentModal = {
           LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
           WHERE tp.payment_master_id = ?
-          ORDER BY tp.id ASC`,
+          ORDER BY tp.id DESC`,
             [item.id]
           );
 
