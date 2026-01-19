@@ -76,10 +76,11 @@ const getPayments = async (req, res) => {
 // Finance Junior - Create Transaction
 const financeJuniorApprove = async (req, res) => {
   try {
-    const { trainer_payment_id, paid_amount } = req.body;
+    const { trainer_payment_id, paid_amount, payment_type } = req.body;
     const result = await trainerPaymentModal.financeJuniorApprove(
       trainer_payment_id,
-      paid_amount
+      paid_amount,
+      payment_type
     );
     return res.status(200).send({
       message: "Payment moved to Awaiting Finance successfully",
