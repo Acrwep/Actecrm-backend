@@ -188,12 +188,11 @@ const trainerPaymentModal = {
         statusParams.push(start_date, end_date);
       }
 
-      if (status && status.length > 0) {
-        const placeholders = status.map(() => "?").join(", ");
-        getQuery += ` AND tm.status IN (${placeholders})`;
-        countQuery += ` AND tm.status IN (${placeholders})`;
-        queryParams.push(...status);
-        countParams.push(...status);
+      if (status) {
+        getQuery += ` AND tm.status = ?`;
+        countQuery += ` AND tm.status = ?`;
+        queryParams.push(status);
+        countParams.push(status);
       }
 
       const [countResult] = await pool.query(countQuery, countParams);
