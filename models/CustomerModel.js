@@ -30,13 +30,13 @@ const CustomerModel = {
     place_of_supply,
     address,
     state_code,
-    gst_number
+    gst_number,
   ) => {
     try {
       let affectedRows = 0;
       const [isCusExists] = await pool.query(
         `SELECT id FROM customers WHERE id = ?`,
-        [id]
+        [id],
       );
       if (isCusExists.length <= 0) throw new Error("Invalid customer");
 
@@ -96,7 +96,7 @@ const CustomerModel = {
         place_of_supply,
         address,
         state_code,
-        gst_number
+        gst_number,
       );
 
       if (is_customer_updated) {
@@ -113,12 +113,12 @@ const CustomerModel = {
       if (is_server_required === true || is_server_required === 1) {
         const [isServerExists] = await pool.query(
           `SELECT id FROM server_master WHERE customer_id = ?`,
-          [id]
+          [id],
         );
         if (isServerExists.length <= 0) {
           const [insertServer] = await pool.query(
             `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, CURRENT_TIMESTAMP)`,
-            [id, "Requested"]
+            [id, "Requested"],
           );
           affectedRows += insertServer.affectedRows;
         }
@@ -140,7 +140,7 @@ const CustomerModel = {
     user_ids,
     page,
     limit,
-    region
+    region,
   ) => {
     try {
       const queryParams = [];
@@ -403,16 +403,29 @@ const CustomerModel = {
 
       // Add date range filter
       if (from_date && to_date) {
-        getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        getCountQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        paymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        rejectedPaymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(from_date, to_date);
-        countQueryParams.push(from_date, to_date);
-        countParams.push(from_date, to_date);
-        paymentParams.push(from_date, to_date);
-        rejectedPaymentParams.push(from_date, to_date);
+        if (status === "Awaiting Finance" || status === "Payment Rejected") {
+          getQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+          getCountQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+          paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+          rejectedPaymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(from_date, to_date);
+          countQueryParams.push(from_date, to_date);
+          countParams.push(from_date, to_date);
+          paymentParams.push(from_date, to_date);
+          rejectedPaymentParams.push(from_date, to_date);
+        } else {
+          getQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          getCountQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          paymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          rejectedPaymentQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(from_date, to_date);
+          countQueryParams.push(from_date, to_date);
+          countParams.push(from_date, to_date);
+          paymentParams.push(from_date, to_date);
+          rejectedPaymentParams.push(from_date, to_date);
+        }
       }
 
       // Add status filter
@@ -499,7 +512,7 @@ const CustomerModel = {
             LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
             WHERE pm.lead_id = ?
             GROUP BY pm.total_amount`,
-            [item.lead_id]
+            [item.lead_id],
           );
 
           // Now you can safely access the values
@@ -509,12 +522,12 @@ const CustomerModel = {
           // Get on-going and completed student count by trainer
           const [student_count] = await pool.query(
             `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
-            [item.trainer_id]
+            [item.trainer_id],
           );
 
           const [getIsSecond] = await pool.query(
             `SELECT pt.is_second_due, pt.is_last_pay_rejected FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? ORDER BY pt.id DESC LIMIT 1`,
-            item.lead_id
+            item.lead_id,
           );
 
           // Format customer result
@@ -524,7 +537,7 @@ const CustomerModel = {
             total_amount: totalAmount,
             paid_amount: paidAmount,
             commercial_percentage: parseFloat(
-              ((item.commercial / item.primary_fees) * 100).toFixed(2)
+              ((item.commercial / item.primary_fees) * 100).toFixed(2),
             ),
             payments: await CommonModel.getPaymentHistory(item.lead_id),
             ongoing_student_count: student_count[0]?.on_going_student ?? 0,
@@ -533,7 +546,7 @@ const CustomerModel = {
             is_second_due: getIsSecond[0].is_second_due,
             is_last_pay_rejected: getIsSecond[0].is_last_pay_rejected,
           };
-        })
+        }),
       );
 
       // Fetch customer count by status
@@ -544,7 +557,7 @@ const CustomerModel = {
 
       const [rejectedPaymentCount] = await pool.query(
         rejectedPaymentQuery,
-        rejectedPaymentParams
+        rejectedPaymentParams,
       );
 
       const cusStatusCount = {
@@ -695,7 +708,7 @@ const CustomerModel = {
             LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
             WHERE pm.lead_id = ?
             GROUP BY pm.total_amount`,
-        [result[0].lead_id]
+        [result[0].lead_id],
       );
 
       // Now you can safely access the values
@@ -715,12 +728,12 @@ const CustomerModel = {
     customer_id,
     proof_communication,
     comments,
-    is_satisfied
+    is_satisfied,
   ) => {
     try {
       const [is_verified_customer] = await pool.query(
         `SELECT id FROM customers WHERE id = ? AND is_customer_verified = 1`,
-        [customer_id]
+        [customer_id],
       );
       if (is_verified_customer.length > 0)
         throw new Error("Student has already been verified");
@@ -741,18 +754,18 @@ const CustomerModel = {
     trainer_type,
     proof_communication,
     comments,
-    created_date
+    created_date,
   ) => {
     try {
       const [isCusExists] = await pool.query(
         `SELECT id FROM customers WHERE id = ?`,
-        [customer_id]
+        [customer_id],
       );
       if (isCusExists.length <= 0) throw new Error("Invalid customer");
 
       const [isTrainerExists] = await pool.query(
         `SELECT id FROM trainer_mapping WHERE customer_id = ? AND is_rejected = 0`,
-        [customer_id]
+        [customer_id],
       );
 
       if (isTrainerExists.length > 0)
@@ -790,7 +803,7 @@ const CustomerModel = {
     try {
       const [result] = await pool.query(
         `UPDATE trainer_mapping SET is_verified = 1, verified_date = ? WHERE id = ?`,
-        [verified_date, id]
+        [verified_date, id],
       );
 
       return result.affectedRows;
@@ -803,7 +816,7 @@ const CustomerModel = {
     try {
       const [result] = await pool.query(
         `UPDATE trainer_mapping SET is_rejected = 1, comments = ?, rejected_date = ? WHERE id = ?`,
-        [comments, rejected_date, id]
+        [comments, rejected_date, id],
       );
 
       return result.affectedRows;
@@ -818,17 +831,17 @@ const CustomerModel = {
       if (status && status === "Completed") {
         const [getFeesDetails] = await pool.query(
           `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
-          [customer_id]
+          [customer_id],
         );
 
         if (getFeesDetails.length > 0 && getFeesDetails[0].pending_fees > 0)
           throw new Error(
-            "The candidate has pending due, Kindly collect the pending fees"
+            "The candidate has pending due, Kindly collect the pending fees",
           );
       }
       const [result] = await pool.query(
         `UPDATE customers SET status = ? WHERE id = ?`,
-        [status, customer_id]
+        [status, customer_id],
       );
 
       affectedRows += result.affectedRows;
@@ -842,7 +855,7 @@ const CustomerModel = {
   getClassSchedules: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM class_schedule WHERE is_deleted = 0`
+        `SELECT id, name FROM class_schedule WHERE is_deleted = 0`,
       );
       return result;
     } catch (error) {
@@ -855,12 +868,12 @@ const CustomerModel = {
     schedule_id,
     class_start_date,
     schedule_at,
-    comments
+    comments,
   ) => {
     try {
       const [result] = await pool.query(
         `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ?, class_comments = ? WHERE id = ?`,
-        [schedule_id, class_start_date, schedule_at, comments, customer_id]
+        [schedule_id, class_start_date, schedule_at, comments, customer_id],
       );
 
       return result.affectedRows;
@@ -874,7 +887,7 @@ const CustomerModel = {
     schedule_id,
     class_percentage,
     class_comments,
-    class_attachment
+    class_attachment,
   ) => {
     try {
       const [result] = await pool.query(
@@ -885,12 +898,12 @@ const CustomerModel = {
           class_comments,
           class_attachment,
           customer_id,
-        ]
+        ],
       );
 
       const [getTrainer] = await pool.query(
         `SELECT tm.trainer_id FROM trainer_mapping AS tm WHERE tm.customer_id = ? AND tm.is_rejected = 0`,
-        [customer_id]
+        [customer_id],
       );
 
       const [getStudentCount] = await pool.query(
@@ -898,7 +911,7 @@ const CustomerModel = {
           FROM trainer_mapping AS tm 
           INNER JOIN customers AS c ON tm.customer_id = c.id 
           WHERE tm.trainer_id = ?`,
-        [getTrainer[0].trainer_id]
+        [getTrainer[0].trainer_id],
       );
 
       if (getStudentCount[0].student_count === 1) {
@@ -919,7 +932,7 @@ const CustomerModel = {
     google_review,
     course_duration,
     course_completed_date,
-    review_updated_date
+    review_updated_date,
   ) => {
     try {
       const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_completion_date = ?, review_updated_date = ? WHERE id = ?`;
@@ -943,7 +956,7 @@ const CustomerModel = {
     status,
     status_date,
     updated_by,
-    details
+    details,
   ) => {
     try {
       const insertQuery = `INSERT INTO customer_track(
@@ -1006,7 +1019,7 @@ const CustomerModel = {
     try {
       const [result] = await pool.query(
         `SELECT id FROM customers WHERE email = ?`,
-        [email]
+        [email],
       );
 
       return result.length > 0 ? true : false;

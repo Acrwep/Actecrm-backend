@@ -5,7 +5,7 @@ const PaymentModel = {
   getPaymentModes: async () => {
     try {
       const [paymodes] = await pool.query(
-        `SELECT id, name FROM payment_mode WHERE is_active = 1`
+        `SELECT id, name FROM payment_mode WHERE is_active = 1`,
       );
       return paymodes;
     } catch (error) {
@@ -38,7 +38,7 @@ const PaymentModel = {
     place_of_supply,
     address,
     state_code,
-    gst_number
+    gst_number,
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -65,7 +65,7 @@ const PaymentModel = {
 
       const [getUserId] = await pool.query(
         `SELECT id, user_id FROM users WHERE user_id = ?`,
-        [updated_by]
+        [updated_by],
       );
 
       const invoiceNo = generateInvoiceNumber();
@@ -108,10 +108,10 @@ const PaymentModel = {
 
       const [getCustomer] = await pool.query(
         `SELECT id, name, phone_code, phone, whatsapp_phone_code, whatsapp, email, region_id, branch_id, country, state, district FROM lead_master WHERE id = ?`,
-        [lead_id]
+        [lead_id],
       );
 
-      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         getCustomer[0].name,
@@ -136,6 +136,7 @@ const PaymentModel = {
         address,
         state_code,
         gst_number,
+        invoice_date,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
@@ -143,12 +144,12 @@ const PaymentModel = {
       if (is_server_required === true) {
         const [insertServer] = await pool.query(
           `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
-          [insertCustomer.insertId, "Requested", created_date]
+          [insertCustomer.insertId, "Requested", created_date],
         );
 
         const [serverTrack] = await pool.query(
           `INSERT INTO server_track(server_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
-          [insertServer.insertId, "Requested", created_date, updated_by]
+          [insertServer.insertId, "Requested", created_date, updated_by],
         );
       }
 
@@ -167,17 +168,17 @@ const PaymentModel = {
             updated_by
         )
         VALUES ?`, // 👈 VALUES ? is the right syntax for bulk insert
-        [values]
+        [values],
       );
 
       const [getInvoiceDetails] = await pool.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
-        [transInsert.insertId]
+        [transInsert.insertId],
       );
 
       const [getCourse] = await pool.query(
         `SELECT lm.primary_course_id AS course_id, t.name AS course_name, lm.primary_fees FROM lead_master AS lm INNER JOIN technologies AS t ON lm.primary_course_id = t.id WHERE lm.id = ?`,
-        [lead_id]
+        [lead_id],
       );
       return {
         insertId: insertCustomer.insertId,
@@ -197,7 +198,7 @@ const PaymentModel = {
     try {
       const [result] = await pool.query(
         `UPDATE payment_trans SET payment_status = 'Verified', verified_date = ?, is_second_due = 0 WHERE id = ?`,
-        [verified_date, payment_trans_id]
+        [verified_date, payment_trans_id],
       );
       return result.affectedRows;
     } catch (error) {
@@ -215,7 +216,7 @@ const PaymentModel = {
     urgent_due,
     user_ids,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -477,7 +478,7 @@ const PaymentModel = {
             ...item,
             payment: await CommonModel.getPaymentHistory(item.lead_id),
           };
-        })
+        }),
       );
 
       return {
@@ -518,20 +519,20 @@ const PaymentModel = {
     created_date,
     paid_date,
     place_of_payment,
-    collected_by
+    collected_by,
   ) => {
     try {
       // Check whether the previous payment is still pending stage
       const [isPaymentCheck] = await pool.query(
         `SELECT COUNT(id) AS pending_count FROM payment_trans WHERE payment_status IN ('Verify Pending', 'Rejected') AND payment_master_id = ?`,
-        [payment_master_id]
+        [payment_master_id],
       );
       if (isPaymentCheck[0].pending_count > 0)
         throw new Error("Kindly verify the previous payment");
 
       const [getPendingFees] = await pool.query(
         `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS balance_amount FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_status IN ('Verified', 'Verify Pending') AND pm.id = ?`,
-        [payment_master_id]
+        [payment_master_id],
       );
 
       if (parseFloat(paid_amount) > getPendingFees[0].balance_amount)
@@ -539,7 +540,7 @@ const PaymentModel = {
 
       const [getUserId] = await pool.query(
         `SELECT id, user_id FROM users WHERE user_id = ?`,
-        [collected_by]
+        [collected_by],
       );
 
       const invoiceNo = generateInvoiceNumber();
@@ -578,6 +579,16 @@ const PaymentModel = {
 
       const [transInsert] = await pool.query(paymentTransQuery, transValues);
 
+      const [getCustomer] = await pool.query(
+        `SELECT c.id FROM payment_master AS pm INNER JOIN customers AS c ON c.lead_id = pm.lead_id WHERE pm.id = ?`,
+        [payment_master_id],
+      );
+
+      await pool.query(`UPDATE customers SET payment_date = ? WHERE id = ?`, [
+        invoice_date,
+        getCustomer[0].id,
+      ]);
+
       return transInsert.affectedRows;
     } catch (error) {
       throw new Error(error.message);
@@ -588,12 +599,12 @@ const PaymentModel = {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM payment_trans WHERE id = ?`,
-        [payment_trans_id]
+        [payment_trans_id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid payment Id");
       const [result] = await pool.query(
         `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ?, is_second_due = 0, is_last_pay_rejected = 1 WHERE id = ?`,
-        [rejected_date, reason, payment_trans_id]
+        [rejected_date, reason, payment_trans_id],
       );
       return result.affectedRows;
     } catch (error) {
@@ -610,17 +621,17 @@ const PaymentModel = {
     paid_date,
     next_due_date,
     payment_trans_id,
-    place_of_payment
+    place_of_payment,
   ) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT payment_master_id FROM payment_trans WHERE id = ?`,
-        [payment_trans_id]
+        [payment_trans_id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
       const [getCount] = await pool.query(
         `SELECT COUNT(id) AS payment_count FROM payment_trans WHERE payment_master_id = ?`,
-        [isIdExists[0].payment_master_id]
+        [isIdExists[0].payment_master_id],
       );
       let sql = `UPDATE
                       payment_trans
@@ -668,18 +679,18 @@ const PaymentModel = {
     gst_percentage,
     gst_amount,
     total_amount,
-    payment_master_id
+    payment_master_id,
   ) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM payment_master WHERE id = ?`,
-        [payment_master_id]
+        [payment_master_id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
 
       const [paidAmount] = await pool.query(
         `SELECT SUM(amount) AS paid_amount FROM payment_trans WHERE payment_master_id = ? AND payment_status NOT IN ('Rejected')`,
-        [payment_master_id]
+        [payment_master_id],
       );
 
       if (parseFloat(total_amount) < parseFloat(paidAmount[0].paid_amount))
