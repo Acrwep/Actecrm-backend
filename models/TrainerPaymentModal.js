@@ -265,6 +265,10 @@ const trainerPaymentModal = {
               tm.customer_id,
               c.name AS customer_name,
               c.email AS customer_email,
+              c.lead_id,
+              c.linkedin_review,
+              c.google_review,
+              c.class_percentage,
               tp.streams,
               tp.commercial,
               tp.commercial_percentage,
@@ -279,6 +283,34 @@ const trainerPaymentModal = {
               c.id = tm.customer_id
           WHERE tp.payment_master_id = ?`,
             [item.id],
+          );
+
+          let stds = await Promise.all(
+            students.map(async (item) => {
+              const [getPaidAmount] = await pool.query(
+                `SELECT 
+                    COALESCE(pm.total_amount, 0) AS total_amount,
+                    COALESCE(SUM(pt.amount), 0) AS paid_amount 
+                FROM payment_master AS pm 
+                LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
+                WHERE pm.lead_id = ?
+                GROUP BY pm.total_amount`,
+                [item.lead_id],
+              );
+
+              // Now you can safely access the values
+              const totalAmount = getPaidAmount[0]?.total_amount || 0;
+              const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+
+              return {
+                ...item,
+                balance_amount: parseFloat(
+                  (totalAmount - paidAmount).toFixed(2),
+                ),
+                total_amount: totalAmount,
+                paid_amount: paidAmount,
+              };
+            }),
           );
 
           const [payments] = await pool.query(
@@ -321,7 +353,7 @@ const trainerPaymentModal = {
 
           return {
             ...item,
-            students: students,
+            students: stds,
             payments: payments,
             scoreCard: scoreCard[0],
           };
@@ -555,6 +587,47 @@ const trainerPaymentModal = {
       );
 
       return { status: true };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateStudentStatus: async (trainer_payment_id, bill_raisedate, students) => {
+    try {
+      let affectedRows = 0;
+      const [isExists] = await pool.query(
+        `SELECT id FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id],
+      );
+
+      if (isExists.length <= 0) throw new Error("Invalid Id");
+
+      for (const student of students) {
+        const [updateStudent] = await pool.query(
+          `UPDATE trainer_payment_trans SET trainer_mapping_id = ?, streams = ?, commercial = ?, commercial_percentage = ?, attendance_status = ?, attendance_sheetlink = ?, attendance_screenshot = ? WHERE id = ?`,
+          [
+            student.trainer_mapping_id,
+            student.streams,
+            student.commercial,
+            student.commercial_percentage,
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.payment_trans_id,
+          ],
+        );
+
+        affectedRows += updateStudent.affectedRows;
+      }
+
+      const [updateTrainer] = await pool.query(
+        `UPDATE trainer_payment_master SET bill_raisedate = ? WHERE id = ?`,
+        [bill_raisedate, trainer_payment_id],
+      );
+
+      affectedRows += updateTrainer.affectedRows;
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -39,7 +39,7 @@ router.get("/getTrainerById", TrainerController.getTrainerById);
 router.get(
   "/getTrainerHistory",
   verifyToken,
-  TrainerController.getTrainerHistory
+  TrainerController.getTrainerHistory,
 );
 // Trainer end
 
@@ -74,7 +74,7 @@ router.put("/updatePayment", verifyToken, PaymentController.updatePayment);
 router.put(
   "/updatePaymentMaster",
   verifyToken,
-  PaymentController.updatePaymentMaster
+  PaymentController.updatePaymentMaster,
 );
 // Payment end
 
@@ -84,7 +84,7 @@ router.post("/sendCustomerMail", verifyToken, EmailController.sendCustomerMail);
 router.post(
   "/sendCustomerCertificate",
   verifyToken,
-  EmailController.sendCourseCertificate
+  EmailController.sendCourseCertificate,
 );
 router.post("/sendWelcomeMail", EmailController.sendWelcomeMail);
 router.post("/sendPaymentMail", EmailController.sendPaymentMail);
@@ -104,13 +104,13 @@ router.put("/updateCustomerStatus", CustomerController.updateCustomerStatus);
 router.get(
   "/getClassSchedules",
   verifyToken,
-  CustomerController.getClassSchedules
+  CustomerController.getClassSchedules,
 );
 router.put("/classSchedule", verifyToken, CustomerController.classSchedule);
 router.put(
   "/updateClassGiong",
   verifyToken,
-  CustomerController.updateClassGiong
+  CustomerController.updateClassGiong,
 );
 
 router.put("/updateReview", verifyToken, CustomerController.updateReview);
@@ -122,12 +122,12 @@ router.get("/getCusByTrainer", verifyToken, TrainerController.getCusByTrainer);
 router.post(
   "/getPendingFeesCount",
   verifyToken,
-  PaymentController.getPendingFeesCount
+  PaymentController.getPendingFeesCount,
 );
 router.post(
   "/generateCertificate",
   verifyToken,
-  CustomerController.generateCertificate
+  CustomerController.generateCertificate,
 );
 router.post("/partPayment", verifyToken, PaymentController.partPayment);
 router.post("/addTechnologies", verifyToken, TrainerController.addTechnologies);
@@ -137,7 +137,7 @@ router.post("/insertArea", LeadController.insertArea);
 router.get(
   "/getCustomerHistory",
   verifyToken,
-  CustomerController.getCustomerHistory
+  CustomerController.getCustomerHistory,
 );
 
 router.get("/getPermissions", PageAccessController.getPermissions);
@@ -152,16 +152,16 @@ router.delete("/deleteGroup", verifyToken, PageAccessController.deleteGroup);
 router.get(
   "/getRolePermissions",
   verifyToken,
-  PageAccessController.getRolePermissions
+  PageAccessController.getRolePermissions,
 );
 router.get(
   "/getRolePermissionsById",
-  PageAccessController.getRolePermissionsById
+  PageAccessController.getRolePermissionsById,
 );
 router.post(
   "/insertRolePermissions",
   verifyToken,
-  PageAccessController.insertRolePermissions
+  PageAccessController.insertRolePermissions,
 );
 router.post("/insertUserGroup", PageAccessController.insertUserGroup);
 router.get("/getUserGroupById", PageAccessController.getUserGroupById);
@@ -172,12 +172,12 @@ router.get("/checkEmailMblExists", LeadController.checkEmailMblExists);
 router.post(
   "/getLeadCountByUser",
   verifyToken,
-  LeadController.getLeadCountByUser
+  LeadController.getLeadCountByUser,
 );
 router.post(
   "/getFollowupCountByUser",
   verifyToken,
-  LeadController.getFollowupCountByUser
+  LeadController.getFollowupCountByUser,
 );
 router.get("/checkIsCustomerReg", CustomerController.checkIsCustomerReg);
 
@@ -188,7 +188,7 @@ router.post("/getRADashboard", verifyToken, DashboardController.getRADashboard);
 router.post(
   "/getTopPerformance",
   verifyToken,
-  DashboardController.getTopPerforming
+  DashboardController.getTopPerforming,
 );
 // Dashboard module end
 router.post("/addSkills", verifyToken, TrainerController.addSkills);
@@ -196,65 +196,65 @@ router.get("/getSkills", TrainerController.getSkills);
 router.post(
   "/updatePageColumns",
   verifyToken,
-  PageAccessController.updatePageColumns
+  PageAccessController.updatePageColumns,
 );
 router.get("/getPageColumns", verifyToken, PageAccessController.getPageColumns);
 router.post("/bulkSearch", BulkSearchController.bulkSearch);
 router.post(
   "/getUserWiseScoreBoard",
   verifyToken,
-  DashboardController.getUserWiseScoreBoard
+  DashboardController.getUserWiseScoreBoard,
 );
 router.post(
   "/getUserWiseLeadCounts",
   verifyToken,
-  DashboardController.getUserWiseLeadCounts
+  DashboardController.getUserWiseLeadCounts,
 );
 router.post("/setTarget", verifyToken, UserController.setTarget);
 router.get("/getAllDownlines", verifyToken, UserController.getAllDownlines);
 router.post(
   "/getBranchWiseScoreBoard",
   verifyToken,
-  DashboardController.getBranchWiseScoreBoard
+  DashboardController.getBranchWiseScoreBoard,
 );
 router.post(
   "/getBranchWiseLeadCounts",
   verifyToken,
-  DashboardController.getBranchWiseLeadCounts
+  DashboardController.getBranchWiseLeadCounts,
 );
 router.post(
   "/updateDashboardSettings",
   verifyToken,
-  PageAccessController.updateDashboardSettings
+  PageAccessController.updateDashboardSettings,
 );
 router.get(
   "/getDashboardCompounds",
   verifyToken,
-  PageAccessController.getDashboardCompounds
+  PageAccessController.getDashboardCompounds,
 );
 router.post(
   "/getServerRequest",
   verifyToken,
-  ServerController.getServerRequest
+  ServerController.getServerRequest,
 );
 router.post("/awatingVerify", verifyToken, ServerController.awatingVerify);
 router.put(
   "/updateServerStatus",
   verifyToken,
-  ServerController.updateServerStatus
+  ServerController.updateServerStatus,
 );
 router.put("/serverIssued", verifyToken, ServerController.serverIssued);
 router.post(
   "/insertServerTrack",
   verifyToken,
-  ServerController.insertServerTrack
+  ServerController.insertServerTrack,
 );
 router.get("/getServerHistory", verifyToken, ServerController.getServerHistory);
 //notification
 router.post("/save-token", NotificationController.registerToken);
 router.post(
   "/send-notification",
-  NotificationController.sendNotificationToUser
+  NotificationController.sendNotificationToUser,
 );
 router.get("/getNotifications", NotificationController.getNotifications);
 router.put("/readNotification", NotificationController.readNotification);
@@ -262,66 +262,66 @@ router.get("/getAllUpline", verifyToken, UserController.getAllUpline);
 router.post(
   "/downloadUserWiseLeads",
   verifyToken,
-  DashboardController.downloadUserWiseLeads
+  DashboardController.downloadUserWiseLeads,
 );
 router.post(
   "/downloadUserWiseScoreBoard",
   verifyToken,
-  DashboardController.downloadUserWiseScoreBoard
+  DashboardController.downloadUserWiseScoreBoard,
 );
 router.post("/downloadLeads", verifyToken, LeadController.downloadLeads);
 router.post(
   "/downloadLeadFollowUps",
   verifyToken,
-  LeadController.downloadLeadFollowUps
+  LeadController.downloadLeadFollowUps,
 );
 
 // Report module start
 router.post(
   "/reportScoreBoard",
   verifyToken,
-  ReportController.reportScoreBoard
+  ReportController.reportScoreBoard,
 );
 router.post(
   "/reportUserWiseScoreBoard",
   verifyToken,
-  ReportController.reportUserWiseScoreBoard
+  ReportController.reportUserWiseScoreBoard,
 );
 router.post(
   "/reportUserWiseLead",
   verifyToken,
-  ReportController.reportUserWiseLead
+  ReportController.reportUserWiseLead,
 );
 router.post(
   "/reportBranchWiseScoreBoard",
   verifyToken,
-  ReportController.reportBranchWiseScoreBoard
+  ReportController.reportBranchWiseScoreBoard,
 );
 router.post(
   "/reportBranchWiseLeads",
   verifyToken,
-  ReportController.reportBranchWiseLeads
+  ReportController.reportBranchWiseLeads,
 );
 router.post(
   "/reportHRDashBoard",
   verifyToken,
-  ReportController.reportHRDashBoard
+  ReportController.reportHRDashBoard,
 );
 router.post(
   "/reportRADashBoard",
   verifyToken,
-  ReportController.reportRADashBoard
+  ReportController.reportRADashBoard,
 );
 router.post(
   "/monthWiseCollection",
   verifyToken,
-  ReportController.monthWiseCollection
+  ReportController.monthWiseCollection,
 );
 router.get("/globalFilter", verifyToken, LeadController.globalFilter);
 router.post(
   "/reportUserWiseQuality",
   verifyToken,
-  ReportController.reportUserWiseQuality
+  ReportController.reportUserWiseQuality,
 );
 // Report module end
 
@@ -332,7 +332,7 @@ router.put("/updateTemplate", verifyToken, TemplateController.updateTemplate);
 router.delete(
   "/deleteTemplate",
   verifyToken,
-  TemplateController.deleteTemplate
+  TemplateController.deleteTemplate,
 );
 router.post("/emailSend", verifyToken, TemplateController.emailSend);
 // Email template module end
@@ -340,33 +340,33 @@ router.post("/updateQuality", verifyToken, LeadController.updateQuality);
 router.post(
   "/qualityLeadFollowUps",
   verifyToken,
-  LeadController.qualityLeadFollowUps
+  LeadController.qualityLeadFollowUps,
 );
 router.put(
   "/updateQualityFollowup",
   verifyToken,
-  LeadController.updateQualityFollowup
+  LeadController.updateQualityFollowup,
 );
 router.post(
   "/qualityProductivity",
   verifyToken,
-  DashboardController.qualityProductivity
+  DashboardController.qualityProductivity,
 );
 router.put(
   "/updateTechnologies",
   verifyToken,
-  TrainerController.updateTechnologies
+  TrainerController.updateTechnologies,
 );
 router.delete(
   "/deleteTechnologies/:id",
   verifyToken,
-  TrainerController.deleteTechnologies
+  TrainerController.deleteTechnologies,
 );
 router.post("/getJunkLeads", verifyToken, LeadController.getJunkLeads);
 router.post(
   "/postSalePerformance",
   verifyToken,
-  DashboardController.postSalePerformance
+  DashboardController.postSalePerformance,
 );
 router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 
@@ -374,33 +374,33 @@ router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 router.post(
   "/sendWhatsAppMessage",
   verifyToken,
-  WhatsAppController.sendWhatsAppMessage
+  WhatsAppController.sendWhatsAppMessage,
 );
 router.post(
   "/getRegionWiseLeadCounts",
   verifyToken,
-  DashboardController.getRegionWiseLeadCounts
+  DashboardController.getRegionWiseLeadCounts,
 );
 router.post(
   "/getRegionWiseScoreBoard",
   verifyToken,
-  DashboardController.getRegionWiseScoreBoard
+  DashboardController.getRegionWiseScoreBoard,
 );
 
 router.post(
   "/getTopPerformingReport",
   verifyToken,
-  ReportController.getTopPerformingReport
+  ReportController.getTopPerformingReport,
 );
 router.post(
   "/getRegionWiseFinance",
   verifyToken,
-  ReportController.getRegionWiseFinance
+  ReportController.getRegionWiseFinance,
 );
 router.post(
   "/getTransactionWiseReport",
   verifyToken,
-  ReportController.getTransactionWiseReport
+  ReportController.getTransactionWiseReport,
 );
 router.put("/manualAssign", verifyToken, LeadController.manualAssign);
 router.post("/getAssignedLeads", verifyToken, LeadController.getAssignedLeads);
@@ -408,7 +408,7 @@ router.put("/updateLeadStatus", verifyToken, LeadController.updateLeadStatus);
 router.post(
   "/getUserwiseTransaction",
   verifyToken,
-  ReportController.getUserwiseTransaction
+  ReportController.getUserwiseTransaction,
 );
 
 //-------------trainer payment-------------------------
@@ -416,12 +416,12 @@ router.get("/getStudents", verifyToken, trainerPaymentController.getStudents);
 router.post(
   "/requestPayment",
   verifyToken,
-  trainerPaymentController.requestPayment
+  trainerPaymentController.requestPayment,
 );
 router.put(
   "/rejectTrainerPayment",
   verifyToken,
-  trainerPaymentController.rejectTrainerPayment
+  trainerPaymentController.rejectTrainerPayment,
 );
 
 router.post("/getPayments", verifyToken, trainerPaymentController.getPayments);
@@ -429,24 +429,30 @@ router.post("/getPayments", verifyToken, trainerPaymentController.getPayments);
 router.put(
   "/financeJuniorApprove",
   verifyToken,
-  trainerPaymentController.financeJuniorApprove
+  trainerPaymentController.financeJuniorApprove,
 );
 
 router.post(
   "/approveTrainerPayment",
   verifyToken,
-  trainerPaymentController.approveTrainerPaymentTransaction
+  trainerPaymentController.approveTrainerPaymentTransaction,
 );
 
 router.delete(
   "/deleteRequest",
   verifyToken,
-  trainerPaymentController.deleteRequest
+  trainerPaymentController.deleteRequest,
 );
 
 router.put(
   "/updateTrainerPayment",
   verifyToken,
-  trainerPaymentController.updateTrainerPayment
+  trainerPaymentController.updateTrainerPayment,
+);
+
+router.put(
+  "/updateStudentStatus",
+  verifyToken,
+  trainerPaymentController.updateStudentStatus,
 );
 module.exports = router;

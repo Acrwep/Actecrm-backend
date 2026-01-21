@@ -36,7 +36,7 @@ const requestPayment = async (req, res) => {
       deadline_date,
       created_by,
       created_date,
-      students
+      students,
     );
 
     return res.status(200).send({
@@ -60,7 +60,7 @@ const getPayments = async (req, res) => {
       status,
       trainer_id,
       page,
-      limit
+      limit,
     );
     res.status(200).send({
       message: "Data fetched successfully",
@@ -81,7 +81,7 @@ const financeJuniorApprove = async (req, res) => {
     const result = await trainerPaymentModal.financeJuniorApprove(
       trainer_payment_id,
       paid_amount,
-      payment_type
+      payment_type,
     );
     return res.status(200).send({
       message: "Payment moved to Awaiting Finance successfully",
@@ -111,7 +111,7 @@ const approveTrainerPaymentTransaction = async (req, res) => {
       payment_trans_id,
       payment_screenshot,
       paid_date,
-      paid_by
+      paid_by,
     );
     return res.status(200).send({
       message: "Payment successfull",
@@ -138,7 +138,7 @@ const rejectTrainerPayment = async (req, res) => {
       trainer_payment_id,
       payment_trans_id,
       rejected_reason,
-      rejected_date
+      rejected_date,
     );
     return res.status(200).send({
       message: "Payment has been rejected",
@@ -176,8 +176,29 @@ const updateTrainerPayment = async (req, res) => {
       trainer_payment_id,
       payment_trans_id,
       paid_amount,
-      payment_type
+      payment_type,
     );
+    res.status(200).send({
+      message: "Payment updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while updating payment",
+      details: error.message,
+    });
+  }
+};
+
+const updateStudentStatus = async (req, res) => {
+  const { trainer_payment_id, bill_raisedate, students } = req.body;
+  try {
+    const result = await trainerPaymentModal.updateStudentStatus(
+      trainer_payment_id,
+      bill_raisedate,
+      students,
+    );
+
     res.status(200).send({
       message: "Payment updated successfully",
       data: result,
@@ -199,4 +220,5 @@ module.exports = {
   rejectTrainerPayment,
   deleteRequest,
   updateTrainerPayment,
+  updateStudentStatus,
 };
