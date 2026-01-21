@@ -302,10 +302,28 @@ const trainerPaymentModal = {
             [item.id],
           );
 
+          const [scoreCard] = await pool.query(
+            `SELECT
+                COUNT(tt.id) AS total_students,
+                IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
+                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google
+            FROM
+                trainer_payment_master AS tpm
+            INNER JOIN trainer_payment_trans AS tt ON
+                tpm.id = tt.payment_master_id
+            INNER JOIN trainer_mapping AS tm ON
+                tm.id = tt.trainer_mapping_id
+            INNER JOIN customers AS c ON
+                c.id = tm.customer_id
+            WHERE tpm.trainer_id = ?`,
+            [item.trainer_id],
+          );
+
           return {
             ...item,
             students: students,
             payments: payments,
+            scoreCard: scoreCard[0],
           };
         }),
       );
