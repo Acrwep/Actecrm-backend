@@ -24,9 +24,6 @@ const trainerPaymentModal = {
         WHERE
             tm.is_verified = 1
             AND tm.trainer_id = ?
-            AND c.class_percentage >= 100
-            AND c.google_review IS NOT NULL
-            AND c.linkedin_review IS NOT NULL
             AND NOT EXISTS (
                 SELECT 1
                 FROM trainer_payment_trans tpt
