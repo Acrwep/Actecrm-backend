@@ -136,7 +136,7 @@ const PaymentModel = {
         address,
         state_code,
         gst_number,
-        invoice_date,
+        created_date,
       ];
 
       const [insertCustomer] = await pool.query(customerQuery, customerValues);
@@ -299,7 +299,7 @@ const PaymentModel = {
                             IFNULL(payment_summary.is_last_pay_rejected, 0) AS is_last_pay_rejected
                         FROM
                             customers AS c
-                        INNER JOIN payment_master AS pm 
+                        LEFT JOIN payment_master AS pm 
                             ON pm.lead_id = c.lead_id
                         LEFT JOIN branches AS b 
                             ON b.id = c.branch_id
@@ -307,9 +307,9 @@ const PaymentModel = {
                             ON bt.id = c.batch_track_id
                         LEFT JOIN batches AS bs 
                             ON bs.id = c.batch_timing_id
-                        INNER JOIN lead_master AS lm 
+                        LEFT JOIN lead_master AS lm 
                             ON c.lead_id = lm.id
-                        INNER JOIN users AS u 
+                        LEFT JOIN users AS u 
                             ON lm.user_id = u.user_id
                         LEFT JOIN users AS au ON
                           au.user_id = lm.assigned_to
@@ -585,7 +585,7 @@ const PaymentModel = {
       );
 
       await pool.query(`UPDATE customers SET payment_date = ? WHERE id = ?`, [
-        invoice_date,
+        created_date,
         getCustomer[0].id,
       ]);
 

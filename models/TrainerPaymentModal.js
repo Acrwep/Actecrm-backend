@@ -11,7 +11,11 @@ const trainerPaymentModal = {
             c.name,
             c.email AS customer_email,
             tm.commercial,
-            ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage
+            ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage,
+            c.linkedin_review,
+            c.google_review,
+            c.class_percentage,
+            c.lead_id
         FROM trainer_mapping AS tm
         INNER JOIN customers AS c 
             ON tm.customer_id = c.id
@@ -28,10 +32,38 @@ const trainerPaymentModal = {
                 FROM trainer_payment_trans tpt
                 WHERE tpt.trainer_mapping_id = tm.id
             );`,
-        [trainer_id]
+        [trainer_id],
       );
 
-      return result;
+      let res = await Promise.all(
+        result.map(async (item) => {
+          // Get total paid amount for specific customer
+          const [getPaidAmount] = await pool.query(
+            `SELECT 
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(SUM(pt.amount), 0) AS paid_amount 
+            FROM payment_master AS pm 
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
+            WHERE pm.lead_id = ?
+            GROUP BY pm.total_amount`,
+            [item.lead_id],
+          );
+
+          // Now you can safely access the values
+          const totalAmount = getPaidAmount[0]?.total_amount || 0;
+          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+
+          // Format customer result
+          return {
+            ...item,
+            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+            total_amount: totalAmount,
+            paid_amount: paidAmount,
+          };
+        }),
+      );
+
+      return res;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -45,7 +77,7 @@ const trainerPaymentModal = {
     deadline_date,
     created_by,
     created_date,
-    students
+    students,
   ) => {
     try {
       let affectedRows = 0;
@@ -122,7 +154,7 @@ const trainerPaymentModal = {
     status,
     trainer_id,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -249,7 +281,7 @@ const trainerPaymentModal = {
           INNER JOIN customers AS c ON
               c.id = tm.customer_id
           WHERE tp.payment_master_id = ?`,
-            [item.id]
+            [item.id],
           );
 
           const [payments] = await pool.query(
@@ -270,7 +302,7 @@ const trainerPaymentModal = {
               tp.paid_by = u.user_id
           WHERE tp.payment_master_id = ?
           ORDER BY tp.id DESC`,
-            [item.id]
+            [item.id],
           );
 
           return {
@@ -278,7 +310,7 @@ const trainerPaymentModal = {
             students: students,
             payments: payments,
           };
-        })
+        }),
       );
 
       return {
@@ -300,14 +332,14 @@ const trainerPaymentModal = {
   financeJuniorApprove: async (
     trainer_payment_id,
     paid_amount,
-    payment_type
+    payment_type,
   ) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
       const [checkStatus] = await conn.query(
         `SELECT status FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       if (checkStatus[0].status !== "Requested")
@@ -321,12 +353,12 @@ const trainerPaymentModal = {
           payment_type
         )
         VALUES(?, ?, ?, ?)`,
-        [trainer_payment_id, paid_amount, "Pending", payment_type]
+        [trainer_payment_id, paid_amount, "Pending", payment_type],
       );
 
       const [master] = await conn.execute(
         `SELECT request_amount, paid_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       const totalPaid = Number(master[0].paid_amount) + Number(paid_amount);
@@ -334,7 +366,7 @@ const trainerPaymentModal = {
 
       await conn.execute(
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
-        [totalPaid, balance, "Awaiting Finance", trainer_payment_id]
+        [totalPaid, balance, "Awaiting Finance", trainer_payment_id],
       );
       await conn.commit();
       return { status: true, message: "Transaction sent to finance head" };
@@ -352,7 +384,7 @@ const trainerPaymentModal = {
     payment_trans_id,
     payment_screenshot,
     paid_date,
-    paid_by
+    paid_by,
   ) => {
     const conn = await pool.getConnection();
     try {
@@ -367,12 +399,12 @@ const trainerPaymentModal = {
             paid_date = ?,
             paid_by = ?
         WHERE id = ?`,
-        ["Completed", payment_screenshot, paid_date, paid_by, payment_trans_id]
+        ["Completed", payment_screenshot, paid_date, paid_by, payment_trans_id],
       );
 
       const [master] = await conn.execute(
         `SELECT request_amount, paid_amount, balance_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       const balance = Number(master[0].balance_amount);
@@ -385,7 +417,7 @@ const trainerPaymentModal = {
           paid_date,
           balance === 0 ? paid_date : null,
           trainer_payment_id,
-        ]
+        ],
       );
 
       await conn.commit();
@@ -403,7 +435,7 @@ const trainerPaymentModal = {
     trainer_payment_id,
     payment_trans_id,
     rejected_reason,
-    rejected_date
+    rejected_date,
   ) => {
     const conn = await pool.getConnection();
     try {
@@ -411,7 +443,7 @@ const trainerPaymentModal = {
 
       const [master] = await conn.query(
         `SELECT status, request_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       if (!master || master[0].status !== "Awaiting Finance")
@@ -419,12 +451,12 @@ const trainerPaymentModal = {
 
       await pool.query(
         `UPDATE trainer_payment SET status = 'Rejected', reason = ?, rejected_date = ? WHERE id = ?`,
-        [rejected_reason, rejected_date, payment_trans_id]
+        [rejected_reason, rejected_date, payment_trans_id],
       );
 
       const [paid] = await pool.query(
         `SELECT SUM(paid_amount) AS total_paid FROM trainer_payment WHERE payment_master_id = ? AND status IN ('Pending', 'Completed')`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       const total_paid = Number(paid[0].total_paid);
@@ -433,7 +465,7 @@ const trainerPaymentModal = {
 
       await pool.query(
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
-        [total_paid, balance_amount, "Payment Rejected", trainer_payment_id]
+        [total_paid, balance_amount, "Payment Rejected", trainer_payment_id],
       );
 
       await conn.commit();
@@ -451,19 +483,19 @@ const trainerPaymentModal = {
       let affectedRows = 0;
       const [deleteMaster] = await pool.query(
         `DELETE FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
       affectedRows += deleteMaster.affectedRows;
 
       const [deleteTrans] = await pool.query(
         `DELETE FROM trainer_payment_trans WHERE payment_master_id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
       affectedRows += deleteTrans.affectedRows;
 
       const [deletePayment] = await pool.query(
         `DELETE FROM trainer_payment WHERE payment_master_id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
       affectedRows += deletePayment.affectedRows;
 
@@ -477,12 +509,12 @@ const trainerPaymentModal = {
     trainer_payment_id,
     payment_trans_id,
     paid_amount,
-    payment_type
+    payment_type,
   ) => {
     try {
       const [checkStatus] = await pool.query(
         `SELECT status, request_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       if (checkStatus[0].status !== "Payment Rejected")
@@ -490,12 +522,12 @@ const trainerPaymentModal = {
 
       await pool.query(
         `UPDATE trainer_payment SET status = 'Pending', payment_type = ?, paid_amount = ?, reason = null, rejected_date = null WHERE id = ?`,
-        [payment_type, paid_amount, payment_trans_id]
+        [payment_type, paid_amount, payment_trans_id],
       );
 
       const [paid] = await pool.query(
         `SELECT SUM(paid_amount) AS total_paid FROM trainer_payment WHERE payment_master_id = ? AND status IN ('Pending', 'Completed')`,
-        [trainer_payment_id]
+        [trainer_payment_id],
       );
 
       const total_paid = Number(paid[0].total_paid);
@@ -504,7 +536,7 @@ const trainerPaymentModal = {
 
       await pool.query(
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
-        [total_paid, balance_amount, "Awaiting Finance", trainer_payment_id]
+        [total_paid, balance_amount, "Awaiting Finance", trainer_payment_id],
       );
 
       return { status: true };
