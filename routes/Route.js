@@ -17,6 +17,7 @@ const ReportController = require("../controller/ReportsController");
 const TemplateController = require("../controller/EmailTemplateController");
 const WhatsAppController = require("../controller/WhatsAppController");
 const trainerPaymentController = require("../controller/TrainerPaymentController");
+const BatchController = require("../controller/BatchController");
 
 router.post("/login", LoginController.login);
 
@@ -455,4 +456,8 @@ router.put(
   verifyToken,
   trainerPaymentController.updateStudentStatus,
 );
+
+// Batch module start
+router.post("/createBatch", verifyToken, BatchController.createBatch);
+// Batch module end
 module.exports = router;

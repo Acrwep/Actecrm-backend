@@ -10,6 +10,7 @@ const trainerPaymentModal = {
             c.id,
             c.name,
             c.email AS customer_email,
+            t.name AS course_name,
             tm.commercial,
             ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage,
             c.linkedin_review,
@@ -21,6 +22,8 @@ const trainerPaymentModal = {
             ON tm.customer_id = c.id
         INNER JOIN lead_master AS l ON
         	l.id = c.lead_id
+        INNER JOIN technologies AS t ON
+          t.id = c.enrolled_course
         WHERE
             tm.is_verified = 1
             AND tm.trainer_id = ?
@@ -272,6 +275,7 @@ const trainerPaymentModal = {
               tm.customer_id,
               c.name AS customer_name,
               c.email AS customer_email,
+              t.name AS course_name,
               c.lead_id,
               c.linkedin_review,
               c.google_review,
@@ -288,6 +292,8 @@ const trainerPaymentModal = {
               tp.trainer_mapping_id = tm.id
           INNER JOIN customers AS c ON
               c.id = tm.customer_id
+          INNER JOIN technologies AS t ON
+              t.id = c.enrolled_course
           WHERE tp.payment_master_id = ?`,
             [item.id],
           );
