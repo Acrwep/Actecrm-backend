@@ -52,7 +52,8 @@ const requestPayment = async (req, res) => {
 };
 
 const getPayments = async (req, res) => {
-  const { start_date, end_date, status, trainer_id, page, limit } = req.body;
+  const { start_date, end_date, status, trainer_id, page, limit, type } =
+    req.body;
   try {
     const result = await trainerPaymentModal.getPayments(
       start_date,
@@ -61,6 +62,7 @@ const getPayments = async (req, res) => {
       trainer_id,
       page,
       limit,
+      type,
     );
     res.status(200).send({
       message: "Data fetched successfully",

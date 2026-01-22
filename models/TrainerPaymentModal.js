@@ -152,6 +152,7 @@ const trainerPaymentModal = {
     trainer_id,
     page,
     limit,
+    type,
   ) => {
     try {
       const queryParams = [];
@@ -216,9 +217,15 @@ const trainerPaymentModal = {
       WHERE 1 = 1`;
 
       if (start_date && end_date) {
-        getQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
-        countQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
-        statusCountQuery += ` AND bill_raisedate BETWEEN ? AND ?`;
+        if (type === "Deadline") {
+          getQuery += ` AND tm.deadline_date BETWEEN ? AND ?`;
+          countQuery += ` AND tm.deadline_date BETWEEN ? AND ?`;
+          statusCountQuery += ` AND deadline_date BETWEEN ? AND ?`;
+        } else {
+          getQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
+          countQuery += ` AND tm.bill_raisedate BETWEEN ? AND ?`;
+          statusCountQuery += ` AND bill_raisedate BETWEEN ? AND ?`;
+        }
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
         statusParams.push(start_date, end_date);
