@@ -54,7 +54,32 @@ const getBatches = async (request, response) => {
   }
 };
 
+const updateBatch = async (request, response) => {
+  const { batch_id, batch_name, trainer_id, region_id, branch_id, customers } =
+    request.body;
+  try {
+    const result = await BatchModel.updateBatch(
+      batch_id,
+      batch_name,
+      trainer_id,
+      region_id,
+      branch_id,
+      customers,
+    );
+    response.status(201).send({
+      message: "Batch created successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while creating batch",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBatch,
   getBatches,
+  updateBatch,
 };

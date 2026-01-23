@@ -182,6 +182,95 @@ const BatchModel = {
       throw new Error(error.message);
     }
   },
+
+  updateBatch: async (
+    batch_id,
+    batch_name,
+    trainer_id,
+    region_id,
+    branch_id,
+    customers,
+  ) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      let affectedRows = 0;
+
+      // Check batch exists
+      const [batch] = await connection.query(
+        `SELECT id FROM batch_master WHERE id = ?`,
+        [batch_id],
+      );
+
+      if (batch.length === 0) {
+        throw new Error("Batch not found");
+      }
+
+      // Update batch_master
+      const [updateBatch] = await connection.query(
+        `UPDATE batch_master
+       SET batch_name = ?,
+           trainer_id = ?,
+           region_id = ?,
+           branch_id = ?
+       WHERE id = ?`,
+        [batch_name, trainer_id, region_id, branch_id, batch_id],
+      );
+
+      affectedRows += updateBatch.affectedRows;
+
+      // Handle customers
+      if (Array.isArray(customers)) {
+        // Existing customers in DB
+        const [existing] = await connection.query(
+          `SELECT customer_id FROM batch_trans WHERE batch_master_id = ?`,
+          [batch_id],
+        );
+
+        const existingIds = existing.map((x) => x.customer_id);
+        const newIds = customers.map((x) => x.customer_id);
+
+        // Customers to remove
+        const removedCustomers = existingIds.filter(
+          (id) => !newIds.includes(id),
+        );
+
+        // Customers to add
+        const addedCustomers = newIds.filter((id) => !existingIds.includes(id));
+
+        // Delete removed customers
+        if (removedCustomers.length > 0) {
+          const placeholders = removedCustomers.map(() => "?").join(",");
+          const [del] = await connection.query(
+            `DELETE FROM batch_trans
+           WHERE batch_master_id = ?
+           AND customer_id IN (${placeholders})`,
+            [batch_id, ...removedCustomers],
+          );
+          affectedRows += del.affectedRows;
+        }
+
+        // Insert added customers
+        for (const customer_id of addedCustomers) {
+          const [ins] = await connection.query(
+            `INSERT INTO batch_trans(batch_master_id, customer_id)
+           VALUES(?, ?)`,
+            [batch_id, customer_id],
+          );
+          affectedRows += ins.affectedRows;
+        }
+      }
+
+      await connection.commit();
+      return affectedRows;
+    } catch (error) {
+      await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
+    }
+  },
 };
 
 module.exports = BatchModel;
