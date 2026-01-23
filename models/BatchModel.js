@@ -8,6 +8,7 @@ const BatchModel = {
     branch_id,
     customers,
     created_by,
+    created_date,
   ) => {
     try {
       let affectedRows = 0;
@@ -64,10 +65,19 @@ const BatchModel = {
             trainer_id,
             region_id,
             branch_id,
-            created_by
+            created_by,
+            created_date
         )
-        VALUES(?, ?, ?, ?, ?, ?)`,
-        [batch_name, batchNumber, trainer_id, region_id, branch_id, created_by],
+        VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        [
+          batch_name,
+          batchNumber,
+          trainer_id,
+          region_id,
+          branch_id,
+          created_by,
+          created_date,
+        ],
       );
 
       affectedRows += insertBatch.affectedRows;
@@ -97,11 +107,15 @@ const BatchModel = {
     }
   },
 
-  getBatches: async (batch_id) => {
+  getBatches: async (trainer_id, batch_id, start_date, end_date) => {
     try {
-      const batchQuery = `SELECT
+      const batchParams = [];
+      let batchQuery = `SELECT
                             bm.id AS batch_id,
+                            bm.batch_number,
                             bm.batch_name,
+                            bm.trainer_id,
+                            t.name AS trainer_name,
                             r.name AS region_name,
                             b.name AS branch_name
                         FROM
@@ -110,10 +124,60 @@ const BatchModel = {
                             r.id = bm.region_id
                         INNER JOIN branches AS b ON
                             b.id = bm.branch_id
-                        WHERE bm.id = ?
-                        ORDER BY bm.id DESC`;
+                        LEFT JOIN trainer AS t ON
+                            t.id = bm.trainer_id
+                        WHERE 1 = 1`;
 
-      const [batches] = await pool.query(batchQuery, [batch_id]);
+      if (batch_id) {
+        batchQuery += ` AND bm.id = ?`;
+        batchParams.push(batch_id);
+      }
+
+      if (trainer_id) {
+        batchQuery += ` AND bm.trainer_id = ?`;
+        batchParams.push(trainer_id);
+      }
+
+      if (start_date && end_date) {
+        batchQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
+        batchParams.push(start_date, end_date);
+      }
+
+      batchQuery += ` ORDER BY bm.id DESC`;
+
+      const [batches] = await pool.query(batchQuery, batchParams);
+
+      let res = await Promise.all(
+        batches.map(async (item) => {
+          const [customers] = await pool.query(
+            `SELECT
+                bt.id AS batch_trans_id,
+                bt.customer_id,
+                c.name,
+                c.phone,
+                c.email,
+                c.status,
+                c.linkedin_review,
+                c.google_review,
+                t.name AS course_name
+            FROM
+                batch_trans AS bt
+            INNER JOIN customers AS c ON
+                c.id = bt.customer_id
+            INNER JOIN technologies AS t ON
+              t.id = c.enrolled_course
+            WHERE bt.batch_master_id = ?`,
+            [item.batch_id],
+          );
+
+          return {
+            ...item,
+            customers: customers,
+          };
+        }),
+      );
+
+      return res;
     } catch (error) {
       throw new Error(error.message);
     }

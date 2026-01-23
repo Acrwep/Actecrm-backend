@@ -459,5 +459,6 @@ router.put(
 
 // Batch module start
 router.post("/createBatch", verifyToken, BatchController.createBatch);
+router.post("/getBatches", verifyToken, BatchController.getBatches);
 // Batch module end
 module.exports = router;
