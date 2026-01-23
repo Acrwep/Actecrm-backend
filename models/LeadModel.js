@@ -5,7 +5,7 @@ const LeadModel = {
   getLeadType: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM lead_type WHERE is_active = 1`
+        `SELECT id, name FROM lead_type WHERE is_active = 1`,
       );
       return result;
     } catch (error) {
@@ -16,7 +16,7 @@ const LeadModel = {
   getStatus: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM lead_status WHERE is_active = 1`
+        `SELECT id, name FROM lead_status WHERE is_active = 1`,
       );
       return result;
     } catch (error) {
@@ -27,7 +27,7 @@ const LeadModel = {
   getLeadAction: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM lead_action WHERE is_active = 1`
+        `SELECT id, name FROM lead_action WHERE is_active = 1`,
       );
       return result;
     } catch (error) {
@@ -38,7 +38,7 @@ const LeadModel = {
   getResponseStatus: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM response_status WHERE is_active = 1`
+        `SELECT id, name FROM response_status WHERE is_active = 1`,
       );
       return result;
     } catch (error) {
@@ -51,7 +51,7 @@ const LeadModel = {
       let sql;
       const [getRegion] = await pool.query(
         `SELECT id, name FROM region WHERE id = ?`,
-        [region_id]
+        [region_id],
       );
       if (getRegion[0].name === "Hub") {
         sql = `SELECT id, name FROM branches WHERE region_id = ? AND is_active = 1`;
@@ -68,7 +68,7 @@ const LeadModel = {
   getBatchTrack: async () => {
     try {
       const [result] = await pool.query(
-        `SELECT id, name FROM batch_track WHERE is_active = 1`
+        `SELECT id, name FROM batch_track WHERE is_active = 1`,
       );
       return result;
     } catch (error) {
@@ -102,23 +102,23 @@ const LeadModel = {
     created_date,
     region_id,
     is_manager,
-    is_reentry
+    is_reentry,
   ) => {
     try {
       if (is_reentry === false) {
         if (is_manager === true) {
           const [isLeadExists] = await pool.query(
             `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
-            [phone, primary_course_id, email, primary_course_id]
+            [phone, primary_course_id, email, primary_course_id],
           );
           if (isLeadExists.length > 0)
             throw new Error(
-              "The customer has already been registered with this email and mobile number."
+              "The customer has already been registered with this email and mobile number.",
             );
         } else {
           const [isLeadExists] = await pool.query(
             `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
-            [phone, email]
+            [phone, email],
           );
           if (isLeadExists.length > 0)
             throw new Error("The phone or email is already exists");
@@ -193,7 +193,7 @@ const LeadModel = {
       if (next_follow_up_date) {
         // Get lead action list
         const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`
+          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
         );
         // Insert lead follow up history
         const [history] = await pool.query(
@@ -213,7 +213,7 @@ const LeadModel = {
             user_id,
             created_date,
             1,
-          ]
+          ],
         );
 
         affectedRows += history.affectedRows;
@@ -225,7 +225,7 @@ const LeadModel = {
             lead_action_id
         )
         VALUES(?, ?, ?)`,
-          [result.insertId, next_follow_up_date, getLeadAction[0].id]
+          [result.insertId, next_follow_up_date, getLeadAction[0].id],
         );
 
         affectedRows += next_follow_up.affectedRows;
@@ -247,7 +247,7 @@ const LeadModel = {
     page,
     limit,
     course,
-    lead_type
+    lead_type,
   ) => {
     try {
       const queryParams = [];
@@ -421,19 +421,19 @@ const LeadModel = {
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
            WHERE lh.is_updated = 1 AND lh.lead_id = ? 
            ORDER BY lh.id ASC`,
-            [item.id]
+            [item.id],
           );
 
           const [qualityHistory] = await pool.query(
             `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
-            [item.id]
+            [item.id],
           );
           return {
             ...item,
             histories: history,
             quality_history: qualityHistory,
           };
-        })
+        }),
       );
 
       return {
@@ -459,7 +459,7 @@ const LeadModel = {
     phone,
     page,
     limit,
-    course
+    course,
   ) => {
     try {
       const queryParams = [];
@@ -618,19 +618,19 @@ const LeadModel = {
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
            WHERE lh.is_updated = 1 AND lh.lead_id = ? 
            ORDER BY lh.id ASC`,
-            [item.id]
+            [item.id],
           );
 
           const [qualityHistory] = await pool.query(
             `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
-            [item.id]
+            [item.id],
           );
           return {
             ...item,
             histories: history,
             quality_history: qualityHistory,
           };
-        })
+        }),
       );
 
       return {
@@ -654,7 +654,7 @@ const LeadModel = {
     lead_action_id,
     lead_id,
     updated_by,
-    updated_date
+    updated_date,
   ) => {
     try {
       let affectedRows = 0;
@@ -676,25 +676,25 @@ const LeadModel = {
 
         const [update_lead_master] = await pool.query(
           `UPDATE lead_master SET next_follow_up_date = ?, comments = ? WHERE id = ?`,
-          [next_follow_up_date, comments, lead_id]
+          [next_follow_up_date, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
       } else {
         const [get_lead_status] = await pool.query(
-          `SELECT id, name FROM lead_status WHERE name = 'Junk'`
+          `SELECT id, name FROM lead_status WHERE name = 'Junk'`,
         );
 
         const [updateFollowUp] = await pool.query(
           `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date, is_updated) VALUES (?, ?, ?, ?, ?, ?)`,
-          [lead_id, lead_action_id, comments, updated_by, updated_date, 1]
+          [lead_id, lead_action_id, comments, updated_by, updated_date, 1],
         );
 
         affectedRows += updateFollowUp.affectedRows;
 
         const [update_lead_master] = await pool.query(
           `UPDATE lead_master SET lead_status_id = ?, comments = ? WHERE id = ?`,
-          [get_lead_status[0].id, comments, lead_id]
+          [get_lead_status[0].id, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
@@ -728,12 +728,12 @@ const LeadModel = {
     batch_track_id,
     comments,
     lead_id,
-    region_id
+    region_id,
   ) => {
     try {
       const [isLeadExists] = await pool.query(
         `SELECT id FROM lead_master WHERE id = ?`,
-        [lead_id]
+        [lead_id],
       );
       if (isLeadExists.length <= 0) throw new Error("Invalid lead Id");
       const updateQuery = `UPDATE
@@ -797,13 +797,13 @@ const LeadModel = {
       // Get first lead history Id
       const [lead_history_id] = await pool.query(
         `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
-        [lead_id]
+        [lead_id],
       );
 
       // Update lead history
       const [update_lead_history] = await pool.query(
         `UPDATE lead_follow_up_history SET comments = ? WHERE id = ?`,
-        [comments, lead_history_id[0].lead_history_id]
+        [comments, lead_history_id[0].lead_history_id],
       );
 
       return update_lead_history.affectedRows;
@@ -862,7 +862,7 @@ const LeadModel = {
 
       const [getFollowupCount] = await pool.query(
         followUpQuery,
-        followUpParams
+        followUpParams,
       );
 
       const [getLeadCount] = await pool.query(leadCountQuery, leadParams);
@@ -887,7 +887,7 @@ const LeadModel = {
   getRegion: async () => {
     try {
       const [region] = await pool.query(
-        `SELECT id, name FROM region WHERE is_active = 1`
+        `SELECT id, name FROM region WHERE is_active = 1`,
       );
       return region;
     } catch (error) {
@@ -898,7 +898,7 @@ const LeadModel = {
   getAreas: async () => {
     try {
       const [areas] = await pool.query(
-        `SELECT id, name FROM areas WHERE is_active = 1`
+        `SELECT id, name FROM areas WHERE is_active = 1`,
       );
       return areas;
     } catch (error) {
@@ -910,7 +910,7 @@ const LeadModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM areas WHERE name = ? AND is_active = 1`,
-        [area_name]
+        [area_name],
       );
 
       if (isExists.length > 0) throw new Error("Area already exists.");
@@ -930,7 +930,7 @@ const LeadModel = {
       for (const lead of leads) {
         const [result] = await pool.query(
           "UPDATE lead_master SET assigned_to = ? WHERE id = ?",
-          [lead.assigned_to, lead.id]
+          [lead.assigned_to, lead.id],
         );
 
         affectedRows += result.affectedRows;
@@ -947,7 +947,7 @@ const LeadModel = {
       if (email) {
         const [isEmailExists] = await pool.query(
           `SELECT id FROM lead_master WHERE email = ?`,
-          [email]
+          [email],
         );
         return isEmailExists.length > 0 ? true : false;
       }
@@ -955,7 +955,7 @@ const LeadModel = {
       if (mobile) {
         const [isPhoneExists] = await pool.query(
           `SELECT id FROM lead_master WHERE phone = ?`,
-          [mobile]
+          [mobile],
         );
         return isPhoneExists.length > 0 ? true : false;
       }
@@ -1040,19 +1040,19 @@ const LeadModel = {
     location,
     training,
     domain_origin,
-    corporate_training
+    corporate_training,
   ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT EXISTS(SELECT 1 FROM website_leads WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
-        [email, phone]
+        [email, phone],
       );
 
       const webLead = isExists[0].lead_exists > 0 ? "Existing" : "New";
 
       const [isLeadExists] = await pool.query(
         `SELECT EXISTS(SELECT 1 FROM lead_master WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
-        [email, phone]
+        [email, phone],
       );
 
       const leadMaster = isLeadExists[0].lead_exists > 0 ? "Existing" : "New";
@@ -1128,7 +1128,7 @@ const LeadModel = {
     end_date,
     lead_status_id,
     user_ids,
-    course
+    course,
   ) => {
     try {
       const queryParams = [];
@@ -1258,7 +1258,7 @@ const LeadModel = {
     name,
     email,
     phone,
-    course
+    course,
   ) => {
     try {
       const queryParams = [];
@@ -1382,13 +1382,13 @@ const LeadModel = {
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
            WHERE lh.is_updated = 1 AND lh.lead_id = ? 
            ORDER BY lh.id ASC`,
-            [item.id]
+            [item.id],
           );
           return {
             ...item,
             histories: history,
           };
-        })
+        }),
       );
 
       return formattedResult;
@@ -1498,14 +1498,14 @@ const LeadModel = {
     status,
     cna_date,
     updated_by,
-    updated_date
+    updated_date,
   ) => {
     try {
       let affectedRows = 0;
       if (id) {
         const [updateComment] = await pool.query(
           `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
-          [comments, status, updated_by, updated_date, id]
+          [comments, status, updated_by, updated_date, id],
         );
 
         affectedRows += updateComment.affectedRows;
@@ -1513,7 +1513,7 @@ const LeadModel = {
         if (cna_date) {
           const [insertComment] = await pool.query(
             `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
-            [lead_id, cna_date, updated_by]
+            [lead_id, cna_date, updated_by],
           );
 
           affectedRows += insertComment.affectedRows;
@@ -1521,7 +1521,7 @@ const LeadModel = {
       } else {
         const [insertComment] = await pool.query(
           `INSERT INTO quality_master(lead_id, comments, status, updated_by, updated_date, is_updated) VALUES(?, ?, ?, ?, ?, 1)`,
-          [lead_id, comments, status, updated_by]
+          [lead_id, comments, status, updated_by],
         );
 
         affectedRows += insertComment.affectedRows;
@@ -1529,7 +1529,7 @@ const LeadModel = {
         if (cna_date) {
           const [insertNextFollowup] = await pool.query(
             `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
-            [lead_id, cna_date, updated_by]
+            [lead_id, cna_date, updated_by],
           );
 
           affectedRows += insertNextFollowup.affectedRows;
@@ -1551,7 +1551,7 @@ const LeadModel = {
     phone,
     page,
     limit,
-    course
+    course,
   ) => {
     try {
       const queryParams = [];
@@ -1719,19 +1719,19 @@ const LeadModel = {
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
            WHERE lh.is_updated = 1 AND lh.lead_id = ? 
            ORDER BY lh.id ASC`,
-            [item.id]
+            [item.id],
           );
 
           const [qualityHistory] = await pool.query(
             `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
-            [item.id]
+            [item.id],
           );
           return {
             ...item,
             histories: history,
             quality_history: qualityHistory,
           };
-        })
+        }),
       );
 
       return {
@@ -1754,13 +1754,13 @@ const LeadModel = {
     status,
     cna_date,
     updated_by,
-    updated_date
+    updated_date,
   ) => {
     try {
       let affectedRows = 0;
       const [checkLead] = await pool.query(
         `SELECT COUNT(id) AS total_count FROM quality_master WHERE is_updated = 0 AND lead_id = ?`,
-        [lead_id]
+        [lead_id],
       );
 
       if (checkLead[0].total_count > 0)
@@ -1768,14 +1768,14 @@ const LeadModel = {
 
       const [getRecentID] = await pool.query(
         `SELECT id FROM quality_master WHERE lead_id = ? ORDER BY id	DESC LIMIT 1`,
-        [lead_id]
+        [lead_id],
       );
 
       if (getRecentID.length <= 0) throw new Error("Couldn't update follow-up");
 
       const [updateFollowUp] = await pool.query(
         `UPDATE quality_master SET comments = ?, status = ?, updated_by = ?, updated_date = ? WHERE id = ?`,
-        [comments, status, updated_by, updated_date, getRecentID[0].id]
+        [comments, status, updated_by, updated_date, getRecentID[0].id],
       );
 
       affectedRows += updateFollowUp.affectedRows;
@@ -1783,7 +1783,7 @@ const LeadModel = {
       if (cna_date) {
         const [insertNextFollowup] = await pool.query(
           `INSERT INTO quality_master(lead_id, cna_date, updated_by) VALUES(?, ?, ?)`,
-          [lead_id, cna_date, updated_by]
+          [lead_id, cna_date, updated_by],
         );
 
         affectedRows += insertNextFollowup.affectedRows;
@@ -1804,7 +1804,7 @@ const LeadModel = {
     end_date,
     region_type,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -1915,7 +1915,7 @@ const LeadModel = {
 
       const [getLeadCount] = await pool.query(
         `SELECT IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) BETWEEN ? AND ?`,
-        [start_date, end_date]
+        [start_date, end_date],
       );
 
       return {
@@ -1939,7 +1939,7 @@ const LeadModel = {
       const placeholders = lead_ids.map(() => "?").join(",");
       const [isExists] = await pool.query(
         `SELECT id FROM website_leads WHERE id IN (${placeholders})`,
-        [...lead_ids]
+        [...lead_ids],
       );
 
       if (isExists.length !== lead_ids.length) {
@@ -1950,7 +1950,7 @@ const LeadModel = {
 
       const [result] = await pool.query(
         `UPDATE website_leads SET is_junk = ?, junk_reason = ? WHERE id IN (${placeholders})`,
-        [is_junk, reason, ...lead_ids]
+        [is_junk, reason, ...lead_ids],
       );
 
       return result.affectedRows;
@@ -1965,7 +1965,7 @@ const LeadModel = {
       const placeholders = lead_ids.map(() => "?").join(",");
       const [isExists] = await pool.query(
         `SELECT id FROM website_leads WHERE id IN (${placeholders})`,
-        [...lead_ids]
+        [...lead_ids],
       );
 
       if (isExists.length !== lead_ids.length) {
@@ -1976,7 +1976,7 @@ const LeadModel = {
 
       const [result] = await pool.query(
         `UPDATE website_leads SET is_deleted = 1 WHERE id IN (${placeholders})`,
-        [...lead_ids]
+        [...lead_ids],
       );
 
       return result.affectedRows;
@@ -1997,7 +1997,7 @@ const LeadModel = {
        FROM website_leads 
        WHERE id = ? 
        FOR UPDATE`,
-        [lead_id]
+        [lead_id],
       );
 
       if (rows.length === 0) {
@@ -2016,7 +2016,7 @@ const LeadModel = {
           `UPDATE website_leads 
          SET assigned_to = ?
          WHERE id = ?`,
-          [user_id, lead_id]
+          [user_id, lead_id],
         );
 
         if (result.affectedRows === 0) {
@@ -2028,7 +2028,7 @@ const LeadModel = {
           `UPDATE website_leads 
          SET assigned_to = NULL 
          WHERE id = ?`,
-          [lead_id]
+          [lead_id],
         );
       }
 
@@ -2050,7 +2050,7 @@ const LeadModel = {
     start_date,
     end_date,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -2128,7 +2128,7 @@ const LeadModel = {
     assigned_by,
     lead_ids,
     is_assigned,
-    assigned_date
+    assigned_date,
   ) => {
     const conn = await pool.getConnection();
 
@@ -2145,7 +2145,7 @@ const LeadModel = {
        FROM website_leads
        WHERE id IN (?)
        FOR UPDATE`,
-        [lead_ids]
+        [lead_ids],
       );
 
       if (rows.length !== lead_ids.length) {
@@ -2160,7 +2160,7 @@ const LeadModel = {
           throw new Error(
             `Some leads are already assigned: ${alreadyAssigned
               .map((l) => l.id)
-              .join(", ")}`
+              .join(", ")}`,
           );
         }
 
@@ -2169,7 +2169,7 @@ const LeadModel = {
           `UPDATE website_leads
          SET assigned_to = ?, assigned_by = ?, assigned_date = ?
          WHERE id IN (?)`,
-          [user_id, assigned_by, assigned_date, lead_ids]
+          [user_id, assigned_by, assigned_date, lead_ids],
         );
 
         if (result.affectedRows !== lead_ids.length) {
@@ -2181,7 +2181,7 @@ const LeadModel = {
           `UPDATE website_leads
          SET assigned_to = NULL, assigned_by = NULL, assigned_date = NULL
          WHERE id IN (?)`,
-          [lead_ids]
+          [lead_ids],
         );
       }
 
@@ -2204,7 +2204,7 @@ const LeadModel = {
     end_date,
     user_id,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -2271,14 +2271,14 @@ const LeadModel = {
     try {
       const [isLeadExists] = await pool.query(
         `SELECT * FROM website_leads WHERE id = ?`,
-        [lead_id]
+        [lead_id],
       );
 
       if (isLeadExists.length <= 0) throw new Error("Invalid Id");
 
       const [result] = await pool.query(
         `UPDATE website_leads SET status = 'Converted' WHERE id = ?`,
-        [lead_id]
+        [lead_id],
       );
 
       return result.affectedRows;
@@ -2290,7 +2290,7 @@ const LeadModel = {
 
 function formatToBackendIST(date) {
   const istDate = new Date(
-    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
   );
   const pad = (n) => String(n).padStart(2, "0");
 

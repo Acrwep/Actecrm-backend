@@ -3,6 +3,7 @@ const pool = require("../config/dbconfig");
 const BatchModel = {
   createBatch: async (
     batch_name,
+    trainer_id,
     region_id,
     branch_id,
     customers,
@@ -30,8 +31,8 @@ const BatchModel = {
 
         const [isCusExists] = await pool.query(
           `SELECT customer_id 
-        FROM batch_trans 
-        WHERE customer_id IN (${placeholders})`,
+          FROM batch_trans 
+          WHERE customer_id IN (${placeholders})`,
           customerIds,
         );
 
@@ -43,15 +44,30 @@ const BatchModel = {
         }
       }
 
+      const [batchcount] = await pool.query(
+        `SELECT IFNULL(MAX(id), 0) AS id FROM batch_master`,
+      );
+
+      let batchNumber;
+
+      if (batchcount[0].id === 0) {
+        batchNumber = "B0001";
+      } else {
+        const id = batchcount[0].id;
+        batchNumber = "B" + String(id).padStart(4, "0");
+      }
+
       const [insertBatch] = await pool.query(
         `INSERT INTO batch_master(
             batch_name,
+            batch_number,
+            trainer_id,
             region_id,
             branch_id,
             created_by
         )
-        VALUES(?, ?, ?, ?)`,
-        [batch_name, region_id, branch_id, created_by],
+        VALUES(?, ?, ?, ?, ?, ?)`,
+        [batch_name, batchNumber, trainer_id, region_id, branch_id, created_by],
       );
 
       affectedRows += insertBatch.affectedRows;
