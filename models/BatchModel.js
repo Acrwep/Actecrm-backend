@@ -21,8 +21,8 @@ const BatchModel = {
         throw new Error("Batch name already exists");
 
       if (
-        customers !== undefined &&
-        !Array.isArray(customers) &&
+        customers !== undefined ||
+        !Array.isArray(customers) ||
         customers.length > 0
       ) {
         // Extract customer_id values
@@ -83,8 +83,8 @@ const BatchModel = {
       affectedRows += insertBatch.affectedRows;
 
       if (
-        customers !== undefined &&
-        !Array.isArray(customers) &&
+        customers !== undefined ||
+        !Array.isArray(customers) ||
         customers.length > 0
       ) {
         for (const customer of customers) {
