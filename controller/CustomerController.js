@@ -62,7 +62,7 @@ const updateCustomer = async (request, response) => {
       place_of_supply,
       address,
       state_code,
-      gst_number
+      gst_number,
     );
     return response.status(200).send({
       message: "Customer updated successfully",
@@ -102,7 +102,7 @@ const getCustomers = async (request, response) => {
       user_ids,
       page,
       limit,
-      region
+      region,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",
@@ -140,7 +140,7 @@ const verifyStudent = async (request, response) => {
       customer_id,
       proof_communication,
       comments,
-      is_satisfied
+      is_satisfied,
     );
     return response.status(200).send({
       message: "Verified successfully",
@@ -174,7 +174,7 @@ const trainerAssign = async (request, response) => {
       trainer_type,
       proof_communication,
       comments,
-      created_date
+      created_date,
     );
     return response.status(200).send({
       message: "Trainer assigned successfully",
@@ -210,7 +210,7 @@ const rejectTrainer = async (request, response) => {
     const result = await CustomerModel.rejectTrainer(
       id,
       rejected_date,
-      comments
+      comments,
     );
     return response.status(200).send({
       message: "Trainer has been rejected",
@@ -225,12 +225,9 @@ const rejectTrainer = async (request, response) => {
 };
 
 const updateCustomerStatus = async (request, response) => {
-  const { customer_id, status } = request.body;
+  const { customer_ids } = request.body;
   try {
-    const result = await CustomerModel.updateCustomerStatus(
-      customer_id,
-      status
-    );
+    const result = await CustomerModel.updateCustomerStatus(customer_ids);
     return response.status(200).send({
       message: "Status updated successfully",
       data: result,
@@ -259,16 +256,9 @@ const getClassSchedules = async (request, response) => {
 };
 
 const classSchedule = async (request, response) => {
-  const { customer_id, schedule_id, class_start_date, schedule_at, comments } =
-    request.body;
+  const { customers } = request.body;
   try {
-    const result = await CustomerModel.classSchedule(
-      customer_id,
-      schedule_id,
-      class_start_date,
-      schedule_at,
-      comments
-    );
+    const result = await CustomerModel.classSchedule(customers);
     return response.status(200).send({
       message: "Class scheduled successfully",
       data: result,
@@ -282,21 +272,9 @@ const classSchedule = async (request, response) => {
 };
 
 const updateClassGiong = async (request, response) => {
-  const {
-    customer_id,
-    schedule_id,
-    class_percentage,
-    class_comments,
-    class_attachment,
-  } = request.body;
+  const { customers } = request.body;
   try {
-    const result = await CustomerModel.updateClassGiong(
-      customer_id,
-      schedule_id,
-      class_percentage,
-      class_comments,
-      class_attachment
-    );
+    const result = await CustomerModel.updateClassGiong(customers);
     return response.status(200).send({
       message: "Percentage updated successfully",
       data: result,
@@ -310,23 +288,9 @@ const updateClassGiong = async (request, response) => {
 };
 
 const updateReview = async (request, response) => {
-  const {
-    customer_id,
-    linkedin_review,
-    google_review,
-    course_duration,
-    course_completed_date,
-    review_updated_date,
-  } = request.body;
+  const { customers } = request.body;
   try {
-    const result = await CustomerModel.updateReview(
-      customer_id,
-      linkedin_review,
-      google_review,
-      course_duration,
-      course_completed_date,
-      review_updated_date
-    );
+    const result = await CustomerModel.updateReview(customers);
     return response.status(200).send({
       message: "review updated successfully",
       data: result,
@@ -340,16 +304,9 @@ const updateReview = async (request, response) => {
 };
 
 const insertCusTrack = async (request, response) => {
-  const { customer_id, status, status_date, updated_by, details } =
-    request.body;
+  const { customers } = request.body;
   try {
-    const result = await CustomerModel.insertCusTrack(
-      customer_id,
-      status,
-      status_date,
-      updated_by,
-      details
-    );
+    const result = await CustomerModel.insertCusTrack(customers);
     return response.status(201).send({
       message: "Inserted successfully",
       data: result,
@@ -378,7 +335,7 @@ const generateCertificate = async (request, response) => {
       course_name,
       course_duration,
       course_completion_month,
-      current_location
+      current_location,
     );
     return response.status(201).send({
       message: "Inserted successfully",

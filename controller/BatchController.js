@@ -78,8 +78,24 @@ const updateBatch = async (request, response) => {
   }
 };
 
+const batchStudents = async (req, res) => {
+  try {
+    const result = await BatchModel.batchStudents();
+    return res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBatch,
   getBatches,
   updateBatch,
+  batchStudents,
 };

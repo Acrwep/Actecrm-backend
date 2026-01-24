@@ -461,5 +461,6 @@ router.put(
 router.post("/createBatch", verifyToken, BatchController.createBatch);
 router.post("/getCustomerBatches", verifyToken, BatchController.getBatches);
 router.put("/updateBatch", verifyToken, BatchController.updateBatch);
+router.get("/batchStudents", verifyToken, BatchController.batchStudents);
 // Batch module end
 module.exports = router;

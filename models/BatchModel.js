@@ -162,7 +162,16 @@ const BatchModel = {
                 c.status,
                 c.linkedin_review,
                 c.google_review,
-                t.name AS course_name
+                c.course_duration,
+                c.course_completion_date,
+                c.review_updated_date,
+                t.name AS course_name,
+                c.class_schedule_id,
+                c.class_start_date,
+                c.class_scheduled_at,
+                c.class_comments,
+                c.class_percentage,
+                c.class_attachment
             FROM
                 batch_trans AS bt
             INNER JOIN customers AS c ON
@@ -272,6 +281,72 @@ const BatchModel = {
       throw new Error(error.message);
     } finally {
       connection.release();
+    }
+  },
+
+  batchStudents: async () => {
+    try {
+      const [result] = await pool.query(
+        `SELECT
+            tm.id AS trainer_mapping_id,
+            tm.trainer_id,
+            c.id,
+            c.name,
+            c.email AS customer_email,
+            t.name AS course_name,
+            tm.commercial,
+            ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage,
+            c.linkedin_review,
+            c.google_review,
+            c.class_percentage,
+            c.lead_id
+        FROM trainer_mapping AS tm
+        INNER JOIN customers AS c 
+            ON tm.customer_id = c.id
+        INNER JOIN lead_master AS l ON
+        	l.id = c.lead_id
+        INNER JOIN technologies AS t ON
+          t.id = c.enrolled_course
+        WHERE
+            tm.is_verified = 1
+            AND NOT EXISTS (
+                SELECT 1
+                FROM batch_trans bt
+                WHERE bt.customer_id = tm.customer_id
+            );`,
+      );
+
+      let res = await Promise.all(
+        result.map(async (item) => {
+          // Get total paid amount for specific customer
+          const [getPaidAmount] = await pool.query(
+            `SELECT 
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(SUM(pt.amount), 0) AS paid_amount 
+            FROM payment_master AS pm 
+            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
+            WHERE pm.lead_id = ?
+            GROUP BY pm.total_amount`,
+            [item.lead_id],
+          );
+
+          // Now you can safely access the values
+          const totalAmount = getPaidAmount[0]?.total_amount || 0;
+          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+
+          // Format customer result
+          return {
+            ...item,
+            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+            total_amount: totalAmount,
+            paid_amount: paidAmount,
+          };
+        }),
+      );
+
+      return res;
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 };

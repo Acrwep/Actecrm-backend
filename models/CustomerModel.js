@@ -825,26 +825,31 @@ const CustomerModel = {
     }
   },
 
-  updateCustomerStatus: async (customer_id, status) => {
+  updateCustomerStatus: async (customer_ids) => {
     try {
       let affectedRows = 0;
-      if (status && status === "Completed") {
-        const [getFeesDetails] = await pool.query(
-          `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
-          [customer_id],
-        );
 
-        if (getFeesDetails.length > 0 && getFeesDetails[0].pending_fees > 0)
-          throw new Error(
-            "The candidate has pending due, Kindly collect the pending fees",
+      if (Array.isArray(customer_ids)) {
+        for (const customer of customer_ids) {
+          if (customer.status && customer.status === "Completed") {
+            const [getFeesDetails] = await pool.query(
+              `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
+              [customer.customer_id],
+            );
+
+            if (getFeesDetails.length > 0 && getFeesDetails[0].pending_fees > 0)
+              throw new Error(
+                "The candidate has pending due, Kindly collect the pending fees",
+              );
+          }
+          const [result] = await pool.query(
+            `UPDATE customers SET status = ? WHERE id = ?`,
+            [customer.status, customer.customer_id],
           );
-      }
-      const [result] = await pool.query(
-        `UPDATE customers SET status = ? WHERE id = ?`,
-        [status, customer_id],
-      );
 
-      affectedRows += result.affectedRows;
+          affectedRows += result.affectedRows;
+        }
+      }
 
       return affectedRows;
     } catch (error) {
@@ -863,103 +868,113 @@ const CustomerModel = {
     }
   },
 
-  classSchedule: async (
-    customer_id,
-    schedule_id,
-    class_start_date,
-    schedule_at,
-    comments,
-  ) => {
+  classSchedule: async (customers) => {
     try {
-      const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ?, class_comments = ? WHERE id = ?`,
-        [schedule_id, class_start_date, schedule_at, comments, customer_id],
-      );
+      let affectedRows = 0;
 
-      return result.affectedRows;
+      if (Array.isArray(customers)) {
+        for (const customer of customers) {
+          const [result] = await pool.query(
+            `UPDATE customers SET class_schedule_id = ?, class_start_date = ?, class_scheduled_at = ?, class_comments = ? WHERE id = ?`,
+            [
+              customer.schedule_id,
+              customer.class_start_date,
+              customer.schedule_at,
+              customer.comments,
+              customer.customer_id,
+            ],
+          );
+
+          affectedRows += result.affectedRows;
+        }
+      }
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  updateClassGiong: async (
-    customer_id,
-    schedule_id,
-    class_percentage,
-    class_comments,
-    class_attachment,
-  ) => {
+  updateClassGiong: async (customers) => {
     try {
-      const [result] = await pool.query(
-        `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ?, class_attachment = ? WHERE id = ?`,
-        [
-          schedule_id,
-          class_percentage,
-          class_comments,
-          class_attachment,
-          customer_id,
-        ],
-      );
+      let affectedRows = 0;
 
-      const [getTrainer] = await pool.query(
-        `SELECT tm.trainer_id FROM trainer_mapping AS tm WHERE tm.customer_id = ? AND tm.is_rejected = 0`,
-        [customer_id],
-      );
+      if (Array.isArray(customers)) {
+        for (const customer of customers) {
+          const [result] = await pool.query(
+            `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ?, class_attachment = ? WHERE id = ?`,
+            [
+              customer.schedule_id,
+              customer.class_percentage,
+              customer.class_comments,
+              customer.class_attachment,
+              customer.customer_id,
+            ],
+          );
 
-      const [getStudentCount] = await pool.query(
-        `SELECT SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS student_count 
+          affectedRows += result.affectedRows;
+
+          const [getTrainer] = await pool.query(
+            `SELECT tm.trainer_id FROM trainer_mapping AS tm WHERE tm.customer_id = ? AND tm.is_rejected = 0`,
+            [customer.customer_id],
+          );
+
+          const [getStudentCount] = await pool.query(
+            `SELECT SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS student_count 
           FROM trainer_mapping AS tm 
           INNER JOIN customers AS c ON tm.customer_id = c.id 
           WHERE tm.trainer_id = ?`,
-        [getTrainer[0].trainer_id],
-      );
+            [getTrainer[0].trainer_id],
+          );
 
-      if (getStudentCount[0].student_count === 1) {
-        await pool.query(`UPDATE trainer SET is_onboarding = 1 WHERE id = ?`, [
-          getTrainer[0].trainer_id,
-        ]);
+          if (getStudentCount[0].student_count === 1) {
+            await pool.query(
+              `UPDATE trainer SET is_onboarding = 1 WHERE id = ?`,
+              [getTrainer[0].trainer_id],
+            );
+          }
+        }
       }
 
-      return result.affectedRows;
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  updateReview: async (
-    customer_id,
-    linkedin_review,
-    google_review,
-    course_duration,
-    course_completed_date,
-    review_updated_date,
-  ) => {
+  updateReview: async (customers) => {
     try {
-      const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_completion_date = ?, review_updated_date = ? WHERE id = ?`;
-      const values = [
-        linkedin_review,
-        google_review,
-        course_duration,
-        course_completed_date,
-        review_updated_date,
-        customer_id,
-      ];
-      const result = await pool.query(updateQuery, values);
-      return result.affectedRows;
+      let affectedRows = 0;
+
+      if (Array.isArray(customers)) {
+        for (const customer of customers) {
+          const updateQuery = `UPDATE customers SET linkedin_review = ?, google_review = ?, course_duration = ?, course_completion_date = ?, review_updated_date = ? WHERE id = ?`;
+          const values = [
+            customer.linkedin_review,
+            customer.google_review,
+            customer.course_duration,
+            customer.course_completed_date,
+            customer.review_updated_date,
+            customer.customer_id,
+          ];
+          const result = await pool.query(updateQuery, values);
+
+          affectedRows += result.affectedRows;
+        }
+      }
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  insertCusTrack: async (
-    customer_id,
-    status,
-    status_date,
-    updated_by,
-    details,
-  ) => {
+  insertCusTrack: async (customers) => {
     try {
-      const insertQuery = `INSERT INTO customer_track(
+      let affectedRows = 0;
+
+      if (Array.isArray(customers)) {
+        for (const customer of customers) {
+          const insertQuery = `INSERT INTO customer_track(
                               customer_id,
                               status,
                               status_date,
@@ -967,15 +982,19 @@ const CustomerModel = {
                               updated_by
                           )
                           VALUES(?, ?, ?, ?, ?)`;
-      const values = [
-        customer_id,
-        status,
-        status_date,
-        JSON.stringify(details),
-        updated_by,
-      ];
-      const [res] = await pool.query(insertQuery, values);
-      return res.affectedRows;
+          const values = [
+            customer.customer_id,
+            customer.status,
+            customer.status_date,
+            JSON.stringify(customer.details),
+            customer.updated_by,
+          ];
+          const [res] = await pool.query(insertQuery, values);
+
+          affectedRows += res.affectedRows;
+        }
+      }
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
