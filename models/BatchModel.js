@@ -155,7 +155,7 @@ const BatchModel = {
           const [customers] = await pool.query(
             `SELECT
                 bt.id AS batch_trans_id,
-                bt.customer_id,
+                c.id,
                 c.name,
                 c.phone,
                 c.email,
