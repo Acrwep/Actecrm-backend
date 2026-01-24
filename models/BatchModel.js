@@ -116,8 +116,11 @@ const BatchModel = {
                             bm.batch_name,
                             bm.trainer_id,
                             t.name AS trainer_name,
+                            bm.region_id,
                             r.name AS region_name,
-                            b.name AS branch_name
+                            bm.branch_id,
+                            b.name AS branch_name,
+                            bm.created_date
                         FROM
                             batch_master AS bm
                         INNER JOIN region AS r ON
