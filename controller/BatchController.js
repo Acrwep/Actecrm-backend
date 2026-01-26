@@ -78,15 +78,16 @@ const updateBatch = async (request, response) => {
   }
 };
 
-const batchStudents = async (req, res) => {
+const batchStudents = async (request, response) => {
+  const { page, limit } = request.body;
   try {
-    const result = await BatchModel.batchStudents();
-    return res.status(200).send({
+    const result = await BatchModel.batchStudents(page, limit);
+    return response.status(200).send({
       message: "Data fetched successfully",
       data: result,
     });
   } catch (error) {
-    res.status(500).send({
+    response.status(500).send({
       message: "Error while fetching data",
       details: error.message,
     });

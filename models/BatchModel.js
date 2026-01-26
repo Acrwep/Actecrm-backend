@@ -288,10 +288,10 @@ const BatchModel = {
     }
   },
 
-  batchStudents: async () => {
+  batchStudents: async (page, limit) => {
     try {
-      const [result] = await pool.query(
-        `SELECT
+      const queryParams = [];
+      let getQuery = `SELECT
             tm.id AS trainer_mapping_id,
             tm.trainer_id,
             c.id,
@@ -317,8 +317,36 @@ const BatchModel = {
                 SELECT 1
                 FROM batch_trans bt
                 WHERE bt.customer_id = tm.customer_id
-            );`,
-      );
+            )`;
+
+      let countQuery = `SELECT
+            COUNT(tm.id) AS total
+        FROM trainer_mapping AS tm
+        INNER JOIN customers AS c 
+            ON tm.customer_id = c.id
+        INNER JOIN lead_master AS l ON
+        	l.id = c.lead_id
+        INNER JOIN technologies AS t ON
+          t.id = c.enrolled_course
+        WHERE
+            tm.is_verified = 1
+            AND NOT EXISTS (
+                SELECT 1
+                FROM batch_trans bt
+                WHERE bt.customer_id = tm.customer_id
+            )`;
+
+      const [countResult] = await pool.query(countQuery);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY c.created_date DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+      const [result] = await pool.query(getQuery, queryParams);
 
       let res = await Promise.all(
         result.map(async (item) => {
