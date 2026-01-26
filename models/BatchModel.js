@@ -171,7 +171,8 @@ const BatchModel = {
                 c.class_scheduled_at,
                 c.class_comments,
                 c.class_percentage,
-                c.class_attachment
+                c.class_attachment,
+                c.is_certificate_generated
             FROM
                 batch_trans AS bt
             INNER JOIN customers AS c ON
