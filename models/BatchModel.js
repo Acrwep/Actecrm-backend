@@ -288,7 +288,7 @@ const BatchModel = {
     }
   },
 
-  batchStudents: async (page, limit) => {
+  batchStudents: async (name, mobile, email, page, limit) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -297,6 +297,7 @@ const BatchModel = {
             c.id,
             c.name,
             c.email AS customer_email,
+            c.phone,
             t.name AS course_name,
             tm.commercial,
             ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage,
@@ -335,6 +336,24 @@ const BatchModel = {
                 FROM batch_trans bt
                 WHERE bt.customer_id = tm.customer_id
             )`;
+
+      // Add name filter
+      if (name) {
+        getQuery += ` AND c.name LIKE '%${name}%'`;
+        countQuery += ` AND c.name LIKE '%${name}%'`;
+      }
+
+      // Add email filter
+      if (email) {
+        getQuery += ` AND c.email LIKE '%${email}%'`;
+        countQuery += ` AND c.email LIKE '%${email}%'`;
+      }
+
+      // Add mobile number filter
+      if (mobile) {
+        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
+        countQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      }
 
       const [countResult] = await pool.query(countQuery);
       const total = countResult[0]?.total || 0;
@@ -376,7 +395,15 @@ const BatchModel = {
         }),
       );
 
-      return res;
+      return {
+        customers: res,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }
