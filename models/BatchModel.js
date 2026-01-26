@@ -162,8 +162,9 @@ const BatchModel = {
                 c.status,
                 c.linkedin_review,
                 c.google_review,
-                c.course_duration,
-                c.course_completion_date,
+                cer.course_duration AS cer_course_duration,
+                cer.course_completion_month AS cer_course_completion_month,
+                cer.location AS cer_location,
                 c.review_updated_date,
                 t.name AS course_name,
                 c.class_schedule_id,
@@ -179,6 +180,8 @@ const BatchModel = {
                 c.id = bt.customer_id
             INNER JOIN technologies AS t ON
               t.id = c.enrolled_course
+            LEFT JOIN certificates AS cer ON
+              cer.customer_id = c.id
             WHERE bt.batch_master_id = ?`,
             [item.batch_id],
           );
