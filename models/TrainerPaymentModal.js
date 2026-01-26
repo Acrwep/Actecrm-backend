@@ -281,6 +281,7 @@ const trainerPaymentModal = {
               c.linkedin_review,
               c.google_review,
               c.class_percentage,
+              c.is_certificate_generated,
               tp.streams,
               tp.commercial,
               tp.commercial_percentage,
