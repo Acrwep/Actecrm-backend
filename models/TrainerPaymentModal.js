@@ -16,6 +16,7 @@ const trainerPaymentModal = {
             c.linkedin_review,
             c.google_review,
             c.class_percentage,
+            c.is_certificate_generated,
             c.lead_id
         FROM trainer_mapping AS tm
         INNER JOIN customers AS c 
