@@ -5,7 +5,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- Helpers ---------------------------------------------------------
@@ -43,7 +43,7 @@ const ReportModel = {
         // returns 'YYYY-MM-DD HH:MM:SS' (local time)
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -52,7 +52,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -281,14 +281,14 @@ const ReportModel = {
       const [saleRows] = await pool.query(finalSaleQuery, saleParams);
       const [collectionRows] = await pool.query(
         finalCollectionQuery,
-        collectionParams
+        collectionParams,
       );
       const [totalRows] = await pool.query(finalTotalQuery, totalParams);
       const [leadRows] = await pool.query(finalLeadQuery, leadParams);
       const [joinRows] = await pool.query(finalJoinQuery, joinParams);
       const [followupRows] = await pool.query(
         finalFollowupQuery,
-        followupParams
+        followupParams,
       );
 
       // --- Build maps -----------------------------------------------------
@@ -424,7 +424,7 @@ const ReportModel = {
       const overall_followup_percentage =
         total_followups > 0
           ? Number(
-              ((total_followup_handled / total_followups) * 100).toFixed(2)
+              ((total_followup_handled / total_followups) * 100).toFixed(2),
             )
           : 0;
 
@@ -823,7 +823,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
@@ -855,12 +855,12 @@ const ReportModel = {
           `SELECT user_id FROM users WHERE roles LIKE '%Sale%' AND user_id IN (${ids
             .map(() => "?")
             .join(",")})`,
-          ids
+          ids,
         );
         saleUserIds = rows.map((r) => r.user_id);
       } else {
         const [rows] = await pool.query(
-          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`
+          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`,
         );
         saleUserIds = rows.map((r) => r.user_id);
       }
@@ -893,7 +893,7 @@ const ReportModel = {
         AND c.created_date < ?
       GROUP BY u.user_id, sale_month
     `,
-        [...saleUserIds, startDate, endExclusive]
+        [...saleUserIds, startDate, endExclusive],
       );
 
       const [collectionRows] = await pool.query(
@@ -918,7 +918,7 @@ const ReportModel = {
         AND c.created_date < ?
       GROUP BY u.user_id, sale_month
     `,
-        [...saleUserIds, startDate, endExclusive]
+        [...saleUserIds, startDate, endExclusive],
       );
 
       const [totalRows] = await pool.query(
@@ -943,7 +943,7 @@ const ReportModel = {
         AND pt.invoice_date < ?
       GROUP BY u.user_id, sale_month
     `,
-        [...saleUserIds, startDate, endExclusive]
+        [...saleUserIds, startDate, endExclusive],
       );
 
       /* ----------------------------------------------------
@@ -956,7 +956,7 @@ const ReportModel = {
       WHERE user_id IN (${ph})
       ORDER BY id DESC
     `,
-        saleUserIds
+        saleUserIds,
       );
 
       const targetMap = {};
@@ -987,7 +987,7 @@ const ReportModel = {
     ---------------------------------------------------- */
       const [users] = await pool.query(
         `SELECT user_id, user_name FROM users WHERE user_id IN (${ph})`,
-        saleUserIds
+        saleUserIds,
       );
       const userNameMap = {};
       users.forEach((u) => (userNameMap[u.user_id] = u.user_name));
@@ -1094,7 +1094,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- validate/normalize boundaryDay -------------------------------
@@ -1129,7 +1129,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -1138,7 +1138,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -1229,13 +1229,13 @@ const ReportModel = {
     FROM users
     WHERE roles LIKE '%Sale%'
       AND user_id IN (${placeholders})`,
-          ids
+          ids,
         );
 
         userList = urows.map((r) => r.user_id);
       } else {
         const [urows] = await pool.query(
-          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`
+          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`,
         );
         userList = urows.map((r) => r.user_id);
       }
@@ -1352,7 +1352,7 @@ const ReportModel = {
       // --- fetch user names (batch) -------------------------------------
       const [userRows] = await pool.query(
         `SELECT user_id, user_name FROM users WHERE user_id IN (${userPlaceholders})`,
-        userParams
+        userParams,
       );
       const userNameMap = (userRows || []).reduce((acc, r) => {
         acc[r.user_id] = r.user_name;
@@ -1391,7 +1391,7 @@ const ReportModel = {
           const followup_handled_percentage =
             lead_followup_count > 0
               ? Number(
-                  ((followup_handled / lead_followup_count) * 100).toFixed(2)
+                  ((followup_handled / lead_followup_count) * 100).toFixed(2),
                 )
               : 0;
 
@@ -1425,7 +1425,7 @@ const ReportModel = {
     branch_id,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- helpers & validate boundaryDay --------------------------------
@@ -1459,7 +1459,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -1468,7 +1468,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly)
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
       const endExclusive = new Date(endDateOnly.getTime());
@@ -1483,7 +1483,7 @@ const ReportModel = {
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-          [region_id]
+          [region_id],
         );
 
         if (getRegion.length) {
@@ -1635,7 +1635,7 @@ const ReportModel = {
       const [saleRows] = await pool.query(saleQueryBase, saleParams);
       const [collectionRows] = await pool.query(
         collectionQueryBase,
-        collectionParams
+        collectionParams,
       );
       const [totalRows] = await pool.query(totalQueryBase, totalParams);
 
@@ -1728,7 +1728,7 @@ const ReportModel = {
 
       const [branchRows] = await pool.query(
         branchFetchQuery,
-        branchFetchParams
+        branchFetchParams,
       );
       const branchIds = (branchRows || []).map((r) => r.branch_id);
       if (branchIds.length === 0) return []; // no branches to report
@@ -1775,7 +1775,7 @@ const ReportModel = {
     branch_id,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- helpers & validate boundaryDay --------------------------------
@@ -1809,7 +1809,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -1818,7 +1818,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly)
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
       const endExclusive = new Date(endDateOnly.getTime());
@@ -1833,7 +1833,7 @@ const ReportModel = {
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-          [region_id]
+          [region_id],
         );
 
         if (getRegion.length) {
@@ -2066,7 +2066,7 @@ const ReportModel = {
 
       const [branchRows] = await pool.query(
         branchFetchQuery,
-        branchFetchParams
+        branchFetchParams,
       );
       const branchIds = (branchRows || []).map((r) => r.branch_id);
       if (branchIds.length === 0) return [];
@@ -2140,7 +2140,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- helpers & normalize boundaryDay --------------------------------
@@ -2174,7 +2174,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -2183,7 +2183,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -2337,7 +2337,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- helpers & normalize boundaryDay --------------------------------
@@ -2371,7 +2371,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -2380,7 +2380,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -2589,7 +2589,7 @@ const ReportModel = {
     user_ids,
     start_date,
     end_date,
-    boundaryDay = 26
+    boundaryDay = 26,
   ) => {
     try {
       // --- validate/normalize boundaryDay -------------------------------
@@ -2625,7 +2625,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -2634,7 +2634,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -2728,7 +2728,7 @@ const ReportModel = {
       } else {
         // fetch all quality users
         const [urows] = await pool.query(
-          `SELECT user_id FROM users WHERE roles LIKE '%Quality%'`
+          `SELECT user_id FROM users WHERE roles LIKE '%Quality%'`,
         );
         userList = (urows || []).map((r) => r.user_id);
       }
@@ -2801,7 +2801,7 @@ const ReportModel = {
 
       const [productivityRows] = await pool.query(
         productivityAgg,
-        productivityParams
+        productivityParams,
       );
       const [followRows] = await pool.query(followupsAgg, followupParams);
 
@@ -2830,7 +2830,7 @@ const ReportModel = {
       // --- fetch user names (batch) -------------------------------------
       const [userRows] = await pool.query(
         `SELECT user_id, user_name FROM users WHERE user_id IN (${userPlaceholders})`,
-        userParams
+        userParams,
       );
       const userNameMap = (userRows || []).reduce((acc, r) => {
         acc[r.user_id] = r.user_name;
@@ -2910,7 +2910,7 @@ const ReportModel = {
       const formatDateTimeSQL = (dt) => {
         const z = (n) => n.toString().padStart(2, "0");
         return `${dt.getFullYear()}-${z(dt.getMonth() + 1)}-${z(
-          dt.getDate()
+          dt.getDate(),
         )} ${z(dt.getHours())}:${z(dt.getMinutes())}:${z(dt.getSeconds())}`;
       };
 
@@ -2919,7 +2919,7 @@ const ReportModel = {
       const endDateOnly = parseToDateOnly(end_date);
       if (!startDateOnly || !endDateOnly) {
         throw new Error(
-          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date."
+          "Invalid start_date or end_date. Expect 'YYYY-MM-DD' or Date.",
         );
       }
       const startDateTimeSQL = formatDateTimeSQL(startDateOnly);
@@ -3099,7 +3099,7 @@ const ReportModel = {
     region_id,
     branch_id,
     start_date,
-    end_date
+    end_date,
   ) => {
     try {
       const queryParams = [];
@@ -3263,7 +3263,7 @@ const ReportModel = {
       total_result.forEach((r) => {
         total_lead_count.lead_count += Number(r.lead_count);
         total_lead_count.converted_to_customer += Number(
-          r.converted_to_customer
+          r.converted_to_customer,
         );
         total_lead_count.sale_volume += Number(r.sale_volume);
         total_lead_count.collection += Number(r.collection);
@@ -3397,10 +3397,10 @@ const ReportModel = {
         let hub_total = 0;
 
         result.map((item) => {
-          (bangalore_total += Number(item.bangalore)),
+          ((bangalore_total += Number(item.bangalore)),
             (chennai_total += Number(item.chennai)),
             (hub_total += Number(item.hub)),
-            (over_all_total += Number(item.total));
+            (over_all_total += Number(item.total)));
         });
 
         finalResult = {
@@ -3432,7 +3432,7 @@ const ReportModel = {
         let bangalore_total = 0;
 
         result.map((item) => {
-          (anna_nagar_total += Number(item.anna_nagar)),
+          ((anna_nagar_total += Number(item.anna_nagar)),
             (omr_total += Number(item.omr)),
             (porur_total += Number(item.porur)),
             (velachery_total += Number(item.velachery)),
@@ -3440,7 +3440,7 @@ const ReportModel = {
             (e_city_total += Number(item.e_city)),
             (marathahalli_total += Number(item.marathahalli)),
             (rajaji_nagar += Number(item.rajaji_nagar)),
-            (over_all_total += Number(item.total));
+            (over_all_total += Number(item.total)));
         });
 
         chennai_total =
@@ -3482,7 +3482,7 @@ const ReportModel = {
         let razorpay_pos_total = 0;
         let over_all_total = 0;
         result.map((item) => {
-          (cash_total += Number(item.cash)),
+          ((cash_total += Number(item.cash)),
             (sbi_pos_total += Number(item.sbi_pos)),
             (sbi_bank_total += Number(item.sbi_bank)),
             (upi_total += Number(item.upi)),
@@ -3492,7 +3492,7 @@ const ReportModel = {
             (hdfc_bank_total += Number(item.hdfc_bank)),
             (tds_total += Number(item.tds)),
             (razorpay_pos_total += Number(item.razorpay_pos)),
-            (over_all_total += Number(item.total));
+            (over_all_total += Number(item.total)));
         });
 
         finalResult = {
@@ -3627,7 +3627,7 @@ const ReportModel = {
           let balance = 0;
           const [paidAmount] = await pool.query(
             `SELECT IFNULL(SUM(amount), 0) AS paid_amount FROM payment_trans WHERE payment_master_id = ? AND id < ? AND payment_status <> 'Rejected';`,
-            [item.master_id, item.trans_id]
+            [item.master_id, item.trans_id],
           );
 
           feesBalance =
@@ -3639,7 +3639,7 @@ const ReportModel = {
             fees_balance: feesBalance,
             balance_due: balance,
           };
-        })
+        }),
       );
 
       return formattedResult;
@@ -3659,8 +3659,63 @@ const ReportModel = {
 
       const [result] = await pool.query(
         `CALL sp_date_wise_collection (?, ?, ?)`,
-        queryParams
+        queryParams,
       );
+
+      return result[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getServerReport: async (start_date, end_date, type) => {
+    try {
+      const dateParams = [];
+      const courseParams = [];
+
+      let dateQuery = `SELECT
+                          CAST(SM.created_date AS DATE) AS server_date,
+                          COUNT(sm.id) AS total,
+                          IFNULL(SUM(st.server_cost),
+                          0) AS total_amount
+                      FROM
+                          server_master AS sm
+                      LEFT JOIN server_trans AS st ON
+                          sm.id = st.server_id
+                      WHERE
+                        sm.status = 'Approved'`;
+
+      let courseQuery = `SELECT
+                            t.name AS course_name,
+                            COUNT(sm.id) AS total,
+                            IFNULL(SUM(st.server_cost), 0) AS total_amount
+                        FROM
+                            server_master AS sm
+                        INNER JOIN customers AS c ON
+                          sm.customer_id = c.id
+                        INNER JOIN technologies AS t ON
+                          t.id = c.enrolled_course
+                        LEFT JOIN server_trans AS st ON
+                            sm.id = st.server_id
+                        WHERE
+                          sm.status = 'Approved'`;
+
+      if (start_date && end_date) {
+        dateQuery += ` AND CAST(sm.created_date AS DATE) BETWEEN ? AND ?`;
+        courseQuery += ` AND CAST(sm.created_date AS DATE) BETWEEN ? AND ?`;
+        dateParams.push(start_date, end_date);
+        courseParams.push(start_date, end_date);
+      }
+
+      dateQuery += ` GROUP BY server_date ORDER BY server_date`;
+      courseQuery += ` GROUP BY course_name ORDER BY total_amount`;
+
+      let result;
+      if (type === "Course") {
+        result = await pool.query(courseQuery, courseParams);
+      } else {
+        result = await pool.query(dateQuery, dateParams);
+      }
 
       return result[0];
     } catch (error) {

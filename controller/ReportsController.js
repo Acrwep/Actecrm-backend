@@ -7,7 +7,7 @@ const reportScoreBoard = async (request, response) => {
     const result = await ReportModel.reportScoreBoard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -27,7 +27,7 @@ const reportUserWiseScoreBoard = async (request, response) => {
     const result = await ReportModel.reportUserWiseScoreBoard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -47,7 +47,7 @@ const reportUserWiseLead = async (request, response) => {
     const result = await ReportModel.reportUserWiseLead(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -68,7 +68,7 @@ const reportBranchWiseScoreBoard = async (request, response) => {
       region_id,
       branch_id,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -89,7 +89,7 @@ const reportBranchWiseLeads = async (request, response) => {
       region_id,
       branch_id,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -109,7 +109,7 @@ const reportHRDashBoard = async (request, response) => {
     const result = await ReportModel.reportHRDashBoard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -129,7 +129,7 @@ const reportRADashBoard = async (request, response) => {
     const result = await ReportModel.reportRADashBoard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -150,7 +150,7 @@ const monthWiseCollection = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      branch_id
+      branch_id,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -170,7 +170,7 @@ const reportUserWiseQuality = async (request, response) => {
     const result = await ReportModel.reportUserWiseQuality(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -190,7 +190,7 @@ const reportPostSale = async (request, response) => {
     const result = await ReportModel.reportPostSale(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -212,7 +212,7 @@ const getTopPerformingReport = async (request, response) => {
       region_id,
       branch_id,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -232,7 +232,7 @@ const getRegionWiseFinance = async (request, response) => {
     const result = await ReportModel.getRegionWiseFinance(
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -251,7 +251,7 @@ const getTransactionWiseReport = async (request, response) => {
   try {
     const result = await ReportModel.getTransactionWiseReport(
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -271,7 +271,27 @@ const getUserwiseTransaction = async (request, response) => {
     const result = await ReportModel.getUserwiseTransaction(
       start_date,
       end_date,
-      user_ids
+      user_ids,
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getServerReport = async (request, response) => {
+  const { start_date, end_date, type } = request.body;
+  try {
+    const result = await ReportModel.getServerReport(
+      start_date,
+      end_date,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -300,4 +320,5 @@ module.exports = {
   getRegionWiseFinance,
   getTransactionWiseReport,
   getUserwiseTransaction,
+  getServerReport,
 };
