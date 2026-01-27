@@ -362,8 +362,8 @@ const trainerPaymentModal = {
                 tm.id = tt.trainer_mapping_id
             INNER JOIN customers AS c ON
                 c.id = tm.customer_id
-            WHERE tpm.trainer_id = ?`,
-            [item.trainer_id],
+            WHERE tpm.payment_master_id = ?`,
+            [item.id],
           );
 
           return {
