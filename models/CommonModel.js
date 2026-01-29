@@ -434,7 +434,6 @@ const CommonModel = {
   `;
 
       return {
-        ...result[0],
         html_template: htmlContent,
       };
     } catch (error) {
