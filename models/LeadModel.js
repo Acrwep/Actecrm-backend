@@ -295,7 +295,9 @@ const LeadModel = {
                         lh.lead_action_id,
                         lh.lead_action_name,
                         qm.cna_date AS quality_followup_date,
-                        latest1.comments AS quality_recent_comment
+                        latest1.comments AS quality_recent_comment,
+                        l.re_assigned_date,
+                        l.is_reassigned
                     FROM
                         lead_master AS l
                     LEFT JOIN users AS u ON u.user_id = l.user_id
@@ -391,10 +393,10 @@ const LeadModel = {
       }
 
       if (start_date && end_date) {
-        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
-        countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)`;
-        queryParams.push(start_date, end_date);
-        countQueryParams.push(start_date, end_date);
+        getQuery += ` AND (l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?)`;
+        countQuery += ` AND (l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?)`;
+        queryParams.push(start_date, end_date, start_date, end_date);
+        countQueryParams.push(start_date, end_date, start_date, end_date);
       }
 
       // Get total count
@@ -2282,6 +2284,63 @@ const LeadModel = {
       );
 
       return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  leadReEntry: async (
+    lead_id,
+    assign_date,
+    next_follow_up_date,
+    assigned_to,
+    updated_by,
+  ) => {
+    try {
+      let affectedRows = 0;
+      const [isExists] = await pool.query(
+        `SELECT id FROM lead_master WHERE id = ?`,
+        [lead_id],
+      );
+
+      if (isExists.length <= 0) throw new Error("Invalid Id");
+
+      const [result] = await pool.query(
+        `UPDATE lead_master SET re_assigned_date = ?, next_follow_up_date = ?, is_reassigned = 1, assigned_to = ? WHERE id = ?`,
+        [assign_date, next_follow_up_date, assigned_to, lead_id],
+      );
+
+      affectedRows += result.affectedRows;
+
+      const [getFollowup] = await pool.query(
+        `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+        [lead_id],
+      );
+
+      const [updateFollowUp] = await pool.query(
+        `UPDATE lead_follow_up_history SET updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
+        [updated_by, assign_date, getFollowup[0].id],
+      );
+
+      affectedRows += updateFollowUp.affectedRows;
+
+      const [getLeadAction] = await pool.query(
+        `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+      );
+
+      const [next_follow_up] = await pool.query(
+        `INSERT INTO lead_follow_up_history(
+            lead_id,
+            next_follow_up_date,
+            lead_action_id
+        )
+        VALUES(?, ?, ?)`,
+        [lead_id, next_follow_up_date, getLeadAction[0].id],
+      );
+
+      affectedRows += next_follow_up.affectedRows;
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

@@ -148,7 +148,7 @@ const insertLead = async (request, response) => {
       created_date,
       region_id,
       is_manager,
-      is_reentry
+      is_reentry,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -188,7 +188,7 @@ const getLeads = async (request, response) => {
       page,
       limit,
       course,
-      lead_type
+      lead_type,
     );
     return response.status(200).send({
       message: "Leads fetched successfully",
@@ -224,7 +224,7 @@ const getLeadFollowUps = async (request, response) => {
       phone,
       page,
       limit,
-      course
+      course,
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",
@@ -256,7 +256,7 @@ const updateFollowUp = async (request, response) => {
       lead_status_id,
       lead_id,
       updated_by,
-      updated_date
+      updated_date,
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -320,7 +320,7 @@ const updateLead = async (request, response) => {
       batch_track_id,
       comments,
       lead_id,
-      region_id
+      region_id,
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -341,7 +341,7 @@ const getLeadCount = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      login_by
+      login_by,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -440,7 +440,7 @@ const getLeadCountByUser = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      lead_type_id
+      lead_type_id,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -460,7 +460,7 @@ const getFollowupCountByUser = async (request, response) => {
     const result = await LeadModel.getFollowupCountByUser(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -496,7 +496,7 @@ const websiteLead = async (request, response) => {
       location,
       training,
       domain_origin,
-      corporate_training
+      corporate_training,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -545,7 +545,7 @@ const downloadLeads = async (request, response) => {
       end_date,
       lead_status_id,
       user_ids,
-      course
+      course,
     );
     return response.status(200).send({
       message: "Leads fetched successfully",
@@ -570,7 +570,7 @@ const downloadLeadFollowUps = async (request, response) => {
       name,
       email,
       phone,
-      course
+      course,
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",
@@ -611,7 +611,7 @@ const updateQuality = async (request, response) => {
       status,
       cna_date,
       updated_by,
-      updated_date
+      updated_date,
     );
 
     return response.status(200).send({
@@ -648,7 +648,7 @@ const qualityLeadFollowUps = async (request, response) => {
       phone,
       page,
       limit,
-      course
+      course,
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",
@@ -672,7 +672,7 @@ const updateQualityFollowup = async (request, response) => {
       status,
       cna_date,
       updated_by,
-      updated_date
+      updated_date,
     );
 
     return response.status(200).send({
@@ -709,7 +709,7 @@ const getWebsiteLead = async (request, response) => {
       end_date,
       region_type,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       message: "Website leads fetched successfully",
@@ -761,7 +761,7 @@ const assignLiveLead = async (request, response) => {
     const result = await LeadModel.assignLiveLead(
       user_id,
       lead_id,
-      is_assigned
+      is_assigned,
     );
     return response.status(200).send({
       message: "Lead assigned successfully",
@@ -787,7 +787,7 @@ const getJunkLeads = async (request, response) => {
       start_date,
       end_date,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       message: "Junk leads fetched successfully",
@@ -810,7 +810,7 @@ const manualAssign = async (request, response) => {
       assigned_by,
       lead_ids,
       is_assigned,
-      assigned_date
+      assigned_date,
     );
     return response.status(200).send({
       message: "Lead assigned successfully",
@@ -862,7 +862,7 @@ const getAssignedLeads = async (request, response) => {
       end_date,
       user_id,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       message: "Assigned leads fetched successfully",
@@ -871,6 +871,29 @@ const getAssignedLeads = async (request, response) => {
   } catch (error) {
     response.status(500).send({
       message: "Error while fetching assigned leads",
+      details: error.message,
+    });
+  }
+};
+
+const leadReEntry = async (request, response) => {
+  const { lead_id, assign_date, next_follow_up_date, assigned_to, updated_by } =
+    request.body;
+  try {
+    const result = await LeadModel.leadReEntry(
+      lead_id,
+      assign_date,
+      next_follow_up_date,
+      assigned_to,
+      updated_by,
+    );
+    return response.status(200).send({
+      message: "Lead updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating lead",
       details: error.message,
     });
   }
@@ -912,4 +935,5 @@ module.exports = {
   manualAssign,
   getAssignedLeads,
   updateLeadStatus,
+  leadReEntry,
 };
