@@ -273,25 +273,14 @@ const CommonModel = {
   },
 
   preCertificate: async (
-    customer_id,
+    customer_name,
+    course_name,
     course_duration,
     course_completion_month,
     certificate_number,
     location,
   ) => {
     try {
-      const sql = `SELECT
-                      c.id,
-                      c.name AS customer_name,
-                      t.name AS course_name
-                  FROM
-                      customers AS C
-                  INNER JOIN technologies AS t ON
-                      c.enrolled_course = t.id
-                  WHERE
-                      c.id = ?`;
-      const [result] = await pool.query(sql, [customer_id]);
-
       // Helper to read image and convert to Base64
       const getBase64Image = (filePath) => {
         if (!fs.existsSync(filePath)) return "";
@@ -348,7 +337,7 @@ const CommonModel = {
                    <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
                     <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
                     <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
-                      ${result[0].customer_name}
+                      ${customer_name}
                     </h3>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
                       During and After ${
@@ -359,7 +348,7 @@ const CommonModel = {
                     <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
                     <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
                     <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">
-                      ${result[0].course_name}
+                      ${course_name}
                     </h4>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
                       Given under our hand and Seal on<br />

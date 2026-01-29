@@ -367,7 +367,8 @@ const getCertificate = async (request, response) => {
 
 const preCertificate = async (request, response) => {
   const {
-    customer_id,
+    customer_name,
+    course_name,
     course_duration,
     course_completion_month,
     certificate_number,
@@ -375,7 +376,8 @@ const preCertificate = async (request, response) => {
   } = request.body;
   try {
     const result = await CommonModel.preCertificate(
-      customer_id,
+      customer_name,
+      course_name,
       course_duration,
       course_completion_month,
       certificate_number,
