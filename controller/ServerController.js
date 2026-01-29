@@ -13,6 +13,7 @@ const getServerRequest = async (request, response) => {
     page,
     limit,
     user_ids,
+    type,
   } = request.body;
   try {
     const result = await ServerModel.getServerRequest(
@@ -25,7 +26,8 @@ const getServerRequest = async (request, response) => {
       status,
       page,
       limit,
-      user_ids
+      user_ids,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -40,13 +42,15 @@ const getServerRequest = async (request, response) => {
 };
 
 const updateServerStatus = async (request, response) => {
-  const { server_id, status, comments, rejected_by } = request.body;
+  const { server_id, status, comments, rejected_by, server_raise_date } =
+    request.body;
   try {
     const result = await ServerModel.updateServerStatus(
       server_id,
       status,
       comments,
-      rejected_by
+      rejected_by,
+      server_raise_date,
     );
     return response.status(200).send({
       message: "Data updated successfully",
@@ -69,7 +73,7 @@ const awatingVerify = async (request, response) => {
       vendor_id,
       duration,
       server_cost,
-      server_trans_id
+      server_trans_id,
     );
     return response.status(200).send({
       message: "Data updated successfully",
@@ -89,7 +93,7 @@ const serverIssued = async (request, response) => {
     const result = await ServerModel.serverIssued(
       server_id,
       email_subject,
-      email_content
+      email_content,
     );
     return response.status(200).send({
       message: "Data updated successfully",
@@ -111,7 +115,7 @@ const insertServerTrack = async (request, response) => {
       status,
       status_date,
       updated_by,
-      details
+      details,
     );
     return response.status(201).send({
       message: "Inserted successfully",

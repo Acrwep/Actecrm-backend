@@ -365,6 +365,34 @@ const getCertificate = async (request, response) => {
   }
 };
 
+const preCertificate = async (request, response) => {
+  const {
+    customer_id,
+    course_duration,
+    course_completion_month,
+    certificate_number,
+    location,
+  } = request.body;
+  try {
+    const result = await CommonModel.preCertificate(
+      customer_id,
+      course_duration,
+      course_completion_month,
+      certificate_number,
+      location,
+    );
+    return response.status(200).send({
+      message: "Certificate fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching certificate",
+      details: error.message,
+    });
+  }
+};
+
 const getCustomerHistory = async (request, response) => {
   const { customer_id } = request.query;
   try {
@@ -415,4 +443,5 @@ module.exports = {
   getCertificate,
   getCustomerHistory,
   checkIsCustomerReg,
+  preCertificate,
 };

@@ -6,12 +6,12 @@ const CommonModel = {
     try {
       const [getPaymentMaster] = await pool.query(
         `SELECT id, lead_id, tax_type, gst_percentage, gst_amount, total_amount, created_date FROM payment_master WHERE lead_id = ?`,
-        [lead_id]
+        [lead_id],
       );
 
       const [getPaymentTrans] = await pool.query(
         `SELECT pt.id, pt.payment_master_id, pt.invoice_number, pt.invoice_date, pt.amount, pt.convenience_fees, (pt.amount + pt.convenience_fees) AS paid_amount, pt.paymode_id, pm.name AS payment_mode, pt.payment_screenshot, pt.payment_status, pt.paid_date, pt.verified_date, pt.next_due_date, pt.is_second_due, pt.created_date, pt.reason, pt.place_of_payment FROM payment_trans AS pt INNER JOIN payment_mode AS pm ON pt.paymode_id = pm.id WHERE pt.payment_master_id = ? ORDER BY pt.id ASC`,
-        [getPaymentMaster[0].id]
+        [getPaymentMaster[0].id],
       );
 
       // Calculate running balance
@@ -39,12 +39,12 @@ const CommonModel = {
     course_name,
     course_duration,
     course_completion_month,
-    current_location
+    current_location,
   ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM certificates WHERE customer_id = ?`,
-        [customer_id]
+        [customer_id],
       );
 
       if (isExists.length > 0)
@@ -52,7 +52,7 @@ const CommonModel = {
 
       const [getLocation] = await pool.query(
         `SELECT c.region_id, r.name AS region_name FROM customers AS c INNER JOIN region AS r ON c.region_id = r.id WHERE c.id = ?`,
-        [customer_id]
+        [customer_id],
       );
 
       const location = getLocation[0].region_name.substring(0, 3).toUpperCase();
@@ -81,7 +81,7 @@ const CommonModel = {
 
       const [updateCustomer] = await pool.query(
         `UPDATE customers SET is_certificate_generated = 1 WHERE id = ?`,
-        [customer_id]
+        [customer_id],
       );
 
       affectedRows += updateCustomer.affectedRows;
@@ -116,19 +116,19 @@ const CommonModel = {
         return `data:image/png;base64,${data}`;
       };
       const acteLogoBase64 = getBase64Image(
-        process.env.ACTE_TECHNOLOGIES_LOGO_PATH
+        process.env.ACTE_TECHNOLOGIES_LOGO_PATH,
       );
 
       const certLogoBase64 = getBase64Image(process.env.CERTIFICATE_LOGO);
 
       const chairmanSignBase64 = getBase64Image(
-        process.env.CHAIRMAN_SIGNATURE_PATH
+        process.env.CHAIRMAN_SIGNATURE_PATH,
       );
       const viceChairmanSignBase64 = getBase64Image(
-        process.env.VICE_CHAIRMAN_SIGNATURE_PATH
+        process.env.VICE_CHAIRMAN_SIGNATURE_PATH,
       );
       const memberSignBase64 = getBase64Image(
-        process.env.MEMBER_SIGNATURE_PATH
+        process.env.MEMBER_SIGNATURE_PATH,
       );
 
       // 1. HTML Template
@@ -216,7 +216,7 @@ const CommonModel = {
     <p style="margin:0; font-size:14px;">${sig.name}</p>
     <p style="margin:0; font-size:14px;">${sig.title}</p>
   </div>
-</td>`
+</td>`,
                           )
                           .join("")}
                       </tr>
@@ -230,6 +230,187 @@ const CommonModel = {
                       <strong>Certificate No.:</strong> ${
                         result[0].certificate_number
                       }
+                      </td>
+                      </tr>
+                    </table>
+
+                    <!-- Legend -->
+                    <div style="margin-top: 20px; display:inline-block; border: 1px solid #000;
+                                padding: 10px 15px; font-size: 12px; text-align: left;">
+                      <strong style="display:block; margin-bottom:5px; text-align:center;">LEGEND</strong>
+                      <table style="border-collapse: collapse; font-size: 12px;">
+                        <tr><td style="padding-right:10px;">50-59.9</td><td>: Satisfactory</td></tr>
+                        <tr><td style="padding-right:10px;">60-69.9</td><td>: Fair</td></tr>
+                        <tr><td style="padding-right:10px;">70-79.9</td><td>: Good</td></tr>
+                        <tr><td style="padding-right:10px;">80-100</td><td>: Excellent</td></tr>
+                      </table>
+                    </div>
+
+                    <!-- Watermark -->
+                    <p style="margin-top:20px; font-size:10px; color:#666;">
+                      RD5 -11117 | www.acte.in
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+      return {
+        ...result[0],
+        html_template: htmlContent,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  preCertificate: async (
+    customer_id,
+    course_duration,
+    course_completion_month,
+    certificate_number,
+    location,
+  ) => {
+    try {
+      const sql = `SELECT
+                      c.id,
+                      c.name AS customer_name,
+                      t.name AS course_name
+                  FROM
+                      customers AS C
+                  INNER JOIN technologies AS t ON
+                      c.enrolled_course = t.id
+                  WHERE
+                      c.id = ?`;
+      const [result] = await pool.query(sql, [customer_id]);
+
+      // Helper to read image and convert to Base64
+      const getBase64Image = (filePath) => {
+        if (!fs.existsSync(filePath)) return "";
+        const data = fs.readFileSync(filePath, { encoding: "base64" });
+        return `data:image/png;base64,${data}`;
+      };
+      const acteLogoBase64 = getBase64Image(
+        process.env.ACTE_TECHNOLOGIES_LOGO_PATH,
+      );
+
+      const certLogoBase64 = getBase64Image(process.env.CERTIFICATE_LOGO);
+
+      const chairmanSignBase64 = getBase64Image(
+        process.env.CHAIRMAN_SIGNATURE_PATH,
+      );
+      const viceChairmanSignBase64 = getBase64Image(
+        process.env.VICE_CHAIRMAN_SIGNATURE_PATH,
+      );
+      const memberSignBase64 = getBase64Image(
+        process.env.MEMBER_SIGNATURE_PATH,
+      );
+
+      // 1. HTML Template
+      const htmlContent = `
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ACTE Certificate</title>
+   <!-- Add Google Fonts link -->
+  <style>
+  <style>
+    @page { margin: 0; }
+    html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
+    body { display:flex; justify-content:center; align-items:center; }
+    table { border-collapse:collapse; }
+  </style>
+</head>
+<body>
+  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+         style="border:35px solid #03396c; border-radius:0; background:transparent; border-collapse:collapse;">
+    <tr>
+      <td style="padding:0; margin:0;background-color:#03396c">
+  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+       style="border:10px solid #f49f20; border-radius:60px; border-collapse: separate; overflow: hidden;background-color:white">
+          <tr>
+            <td style="padding:3; margin:0;">
+              <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
+       style="border:3px solid #03396c; border-radius:50px; border-collapse: separate; overflow: hidden;background-color:white">
+                <tr>
+                  <td style="padding:16px 40px 40px 40px; text-align:center;">
+                    <!-- Header -->
+                   <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
+                    
+                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
+                    <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
+                    <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;">
+                      ${result[0].customer_name}
+                    </h3>
+                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                      During and After ${
+                        course_duration
+                      } months of Study on the Specified Curriculum<br />
+                      And having found the Candidate's Performance to be
+                    </p>
+                    <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
+                    <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
+                    <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;">
+                      ${result[0].course_name}
+                    </h4>
+                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                      Given under our hand and Seal on<br />
+                      the month of ${course_completion_month}<br />
+                      At ${location}, India
+                    </p>
+
+                    <!-- Signatures -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                      <tr>
+                        ${[
+                          {
+                            name: "Chairman",
+                            title: "Of the Academic Council",
+                            img: chairmanSignBase64,
+                          },
+                          {
+                            name: "Vice-Chairman",
+                            title: "Of the Academic Council",
+                            img: viceChairmanSignBase64,
+                          },
+                          {
+                            name: "Member",
+                            title: "Of the Academic Council",
+                            img: memberSignBase64,
+                          },
+                        ]
+                          .map(
+                            (sig) => `
+<td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
+  <div style="display:flex; flex-direction:column; align-items:center;">
+    ${
+      sig.img
+        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
+        : ""
+    }
+    <p style="margin:0; font-size:14px;">${sig.name}</p>
+    <p style="margin:0; font-size:14px;">${sig.title}</p>
+  </div>
+</td>`,
+                          )
+                          .join("")}
+                      </tr>
+                    </table>
+
+                    <!-- Footer -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" 
+                           style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+                      <tr>
+                       <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
+                      <strong>Certificate No.:</strong> ${certificate_number}
                       </td>
                       </tr>
                     </table>

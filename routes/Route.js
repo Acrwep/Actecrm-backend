@@ -465,4 +465,5 @@ router.post("/batchStudents", verifyToken, BatchController.batchStudents);
 // Batch module end
 
 router.post("/getServerReport", verifyToken, ReportController.getServerReport);
+router.post("/preCertificate", verifyToken, CustomerController.preCertificate);
 module.exports = router;

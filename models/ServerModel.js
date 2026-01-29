@@ -21,7 +21,8 @@ const ServerModel = {
     status,
     page,
     limit,
-    user_ids
+    user_ids,
+    type,
   ) => {
     try {
       const queryParams = [];
@@ -53,12 +54,21 @@ const ServerModel = {
       }
 
       if (start_date && end_date) {
-        getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
-        paginationParams.push(start_date, end_date);
-        statusParams.push(start_date, end_date);
+        if (type === "Raise Date") {
+          getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          paginationParams.push(start_date, end_date);
+          statusParams.push(start_date, end_date);
+        } else {
+          getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          paginationParams.push(start_date, end_date);
+          statusParams.push(start_date, end_date);
+        }
       }
 
       if (name) {
@@ -122,7 +132,7 @@ const ServerModel = {
         FROM server_rejected_history AS srh 
         INNER JOIN users AS u ON srh.rejected_by = u.user_id 
         WHERE srh.server_id IN (?)`,
-          [serverIds]
+          [serverIds],
         );
 
         // Create lookup map for better performance
@@ -179,12 +189,18 @@ const ServerModel = {
     }
   },
 
-  updateServerStatus: async (server_id, status, comments, rejected_by) => {
+  updateServerStatus: async (
+    server_id,
+    status,
+    comments,
+    rejected_by,
+    server_raise_date,
+  ) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
         `SELECT id, customer_id FROM server_master WHERE id = ?`,
-        server_id
+        server_id,
       );
 
       if (isServerExists.length <= 0) {
@@ -194,7 +210,7 @@ const ServerModel = {
       if (status === "Server Raised") {
         const [getLeadID] = await pool.query(
           `SELECT lead_id FROM customers WHERE id = ?`,
-          [isServerExists[0].customer_id]
+          [isServerExists[0].customer_id],
         );
         const [getPaidAmount] = await pool.query(
           `SELECT 
@@ -204,25 +220,29 @@ const ServerModel = {
             LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
             WHERE pm.lead_id = ?
             GROUP BY pm.total_amount`,
-          [getLeadID[0].lead_id]
+          [getLeadID[0].lead_id],
         );
 
         // Now you can safely access the values
         const totalAmount = getPaidAmount[0]?.total_amount || 0;
         const paidAmount = getPaidAmount[0]?.paid_amount || 0;
         const balance_amount = parseFloat(
-          (totalAmount - paidAmount).toFixed(2)
+          (totalAmount - paidAmount).toFixed(2),
         );
 
         if (balance_amount > 0)
           throw new Error(
-            "Server cannot be raised as the customer has outstanding fees."
+            "Server cannot be raised as the customer has outstanding fees.",
           );
       }
 
-      const updateQuery = `UPDATE server_master SET status = ? WHERE id = ?`;
+      const updateQuery = `UPDATE server_master SET status = ?, server_raise_date = ? WHERE id = ?`;
 
-      const [result] = await pool.query(updateQuery, [status, server_id]);
+      const [result] = await pool.query(updateQuery, [
+        status,
+        server_raise_date,
+        server_id,
+      ]);
 
       affectedRows += result.affectedRows;
 
@@ -232,7 +252,7 @@ const ServerModel = {
       ) {
         const [history] = await pool.query(
           `INSERT INTO server_rejected_history(server_id, status, comments, rejected_by, rejected_date) VALUES (?, ?, ?, ?, CURRENT_DATE)`,
-          [server_id, status, comments, rejected_by]
+          [server_id, status, comments, rejected_by],
         );
 
         affectedRows += history.affectedRows;
@@ -249,13 +269,13 @@ const ServerModel = {
     vendor_id,
     duration,
     server_cost,
-    server_trans_id
+    server_trans_id,
   ) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
         `SELECT id FROM server_master WHERE id = ?`,
-        server_id
+        server_id,
       );
 
       if (isServerExists.length <= 0) {
@@ -265,7 +285,7 @@ const ServerModel = {
       if (server_trans_id) {
         const [updateTrans] = await pool.query(
           `UPDATE server_trans SET vendor_id = ?, server_cost = ?, duration = ? WHERE id = ?`,
-          [vendor_id, server_cost, duration, server_trans_id]
+          [vendor_id, server_cost, duration, server_trans_id],
         );
 
         if (updateTrans.affectedRows <= 0)
@@ -275,7 +295,7 @@ const ServerModel = {
       } else {
         const [insertTrans] = await pool.query(
           `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status) VALUES(?, ?, ?, ?, ?)`,
-          [server_id, vendor_id, server_cost, duration, "Pending"]
+          [server_id, vendor_id, server_cost, duration, "Pending"],
         );
 
         if (insertTrans.affectedRows <= 0)
@@ -286,7 +306,7 @@ const ServerModel = {
 
       const [updateMaster] = await pool.query(
         `UPDATE server_master SET status = 'Awaiting Verify' WHERE id = ?`,
-        [server_id]
+        [server_id],
       );
 
       affectedRows += updateMaster.affectedRows;
@@ -301,7 +321,7 @@ const ServerModel = {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
         `SELECT id FROM server_master WHERE id = ?`,
-        [server_id]
+        [server_id],
       );
 
       if (isServerExists.length <= 0) {
@@ -310,7 +330,7 @@ const ServerModel = {
 
       const [getEmail] = await pool.query(
         `SELECT c.email FROM server_master AS s INNER JOIN customers AS c ON s.customer_id = c.id WHERE s.id = ?`,
-        [server_id]
+        [server_id],
       );
 
       if (getEmail.length <= 0)
@@ -332,18 +352,18 @@ const ServerModel = {
 
       const [getDuration] = await pool.query(
         `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Pending' ORDER BY id DESC LIMIT 1`,
-        [server_id]
+        [server_id],
       );
 
       if (getDuration.length <= 0) throw new Error("Invalid data");
 
       const [getDate] = await pool.query(
-        `SELECT CONCAT(CURRENT_DATE(), ' 00:00:00') AS start_date, DATE_SUB(CONCAT(DATE_ADD(CURDATE(), INTERVAL ${getDuration[0].duration} DAY), ' 00:00:00'), INTERVAL 1 SECOND) AS end_date`
+        `SELECT CONCAT(CURRENT_DATE(), ' 00:00:00') AS start_date, DATE_SUB(CONCAT(DATE_ADD(CURDATE(), INTERVAL ${getDuration[0].duration} DAY), ' 00:00:00'), INTERVAL 1 SECOND) AS end_date`,
       );
 
       const [result] = await pool.query(
         `UPDATE server_trans SET start_date = ?, end_date = ?, status = 'Active' WHERE id = ?`,
-        [getDate[0].start_date, getDate[0].end_date, getDuration[0].id]
+        [getDate[0].start_date, getDate[0].end_date, getDuration[0].id],
       );
 
       affectedRows += result.affectedRows;
@@ -351,7 +371,7 @@ const ServerModel = {
       if (affectedRows > 0) {
         const [updateMaster] = await pool.query(
           `UPDATE server_master SET status = 'Issued' WHERE id = ?`,
-          [server_id]
+          [server_id],
         );
 
         affectedRows += updateMaster.affectedRows;
@@ -370,7 +390,7 @@ const ServerModel = {
     status,
     status_date,
     updated_by,
-    details
+    details,
   ) => {
     try {
       const insertQuery = `INSERT INTO server_track(
