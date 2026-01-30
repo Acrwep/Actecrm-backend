@@ -393,8 +393,8 @@ const LeadModel = {
       }
 
       if (start_date && end_date) {
-        getQuery += ` AND (l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.created_date AS DATE) BETWEEN ? AND ?)`;
-        countQuery += ` AND (l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.created_date AS DATE) BETWEEN ? AND ?)`;
+        getQuery += ` AND ((l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.created_date AS DATE) BETWEEN ? AND ?))`;
+        countQuery += ` AND ((l.is_reassigned = 1 AND CAST(l.re_assigned_date AS DATE) BETWEEN ? AND ?) OR (l.is_reassigned <> 1 AND CAST(l.created_date AS DATE) BETWEEN ? AND ?))`;
         queryParams.push(start_date, end_date, start_date, end_date);
         countQueryParams.push(start_date, end_date, start_date, end_date);
       }
