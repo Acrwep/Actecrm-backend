@@ -467,4 +467,9 @@ router.post("/batchStudents", verifyToken, BatchController.batchStudents);
 router.post("/getServerReport", verifyToken, ReportController.getServerReport);
 router.post("/preCertificate", verifyToken, CustomerController.preCertificate);
 router.post("/leadReEntry", verifyToken, LeadController.leadReEntry);
+router.put(
+  "/completeRequest",
+  verifyToken,
+  trainerPaymentController.completeRequest,
+);
 module.exports = router;

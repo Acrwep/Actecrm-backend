@@ -100,20 +100,11 @@ const financeJuniorApprove = async (req, res) => {
 // Finance Head - Approve Transaction
 const approveTrainerPaymentTransaction = async (req, res) => {
   try {
-    const {
-      trainer_payment_id,
-      payment_trans_id,
-      payment_screenshot,
-      paid_date,
-      paid_by,
-    } = req.body;
+    const { trainers, screenshot } = req.body;
 
     const result = await trainerPaymentModal.financeHeadApproveAndPay(
-      trainer_payment_id,
-      payment_trans_id,
-      payment_screenshot,
-      paid_date,
-      paid_by,
+      trainers,
+      screenshot,
     );
     return res.status(200).send({
       message: "Payment successfull",
@@ -213,6 +204,22 @@ const updateStudentStatus = async (req, res) => {
   }
 };
 
+const completeRequest = async (req, res) => {
+  const { trainers } = req.body;
+  try {
+    const result = await trainerPaymentModal.completeRequest(trainers);
+    res.status(200).send({
+      message: "Payment updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while updating payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -223,4 +230,5 @@ module.exports = {
   deleteRequest,
   updateTrainerPayment,
   updateStudentStatus,
+  completeRequest,
 };

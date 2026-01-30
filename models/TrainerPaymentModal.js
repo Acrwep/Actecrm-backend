@@ -117,20 +117,22 @@ const trainerPaymentModal = {
       const transQuery = `INSERT INTO trainer_payment_trans(
           payment_master_id,
           trainer_mapping_id,
-          streams,
+          place_of_sale,
+          place_of_supply,
           commercial,
           commercial_percentage,
           attendance_status,
           attendance_sheetlink,
           attendance_screenshot
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       for (const student of students) {
         const transValues = [
           insertMaster.insertId,
           student.trainer_mapping_id,
-          student.streams,
+          student.place_of_sale,
+          student.place_of_supply,
           student.commercial,
           student.commercial_percentage,
           student.attendance_status,
@@ -282,7 +284,9 @@ const trainerPaymentModal = {
               c.google_review,
               c.class_percentage,
               c.is_certificate_generated,
-              tp.streams,
+              tp.place_of_supply,
+              tp.place_of_sale,
+              tp.screenshot,
               tp.commercial,
               tp.commercial_percentage,
               tp.attendance_status,
@@ -441,46 +445,48 @@ const trainerPaymentModal = {
   },
 
   // Finance Head - Approve & Pay Transaction
-  financeHeadApproveAndPay: async (
-    trainer_payment_id,
-    payment_trans_id,
-    payment_screenshot,
-    paid_date,
-    paid_by,
-  ) => {
+  financeHeadApproveAndPay: async (trainers, screenshot) => {
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
 
-      await conn.query(
-        `UPDATE
-          trainer_payment
-        SET
-            status = ?,
-            payment_screenshot = ?,
-            paid_date = ?,
-            paid_by = ?
-        WHERE id = ?`,
-        ["Completed", payment_screenshot, paid_date, paid_by, payment_trans_id],
-      );
+      for (const trainer of trainers) {
+        await conn.query(
+          `UPDATE
+            trainer_payment
+          SET
+              status = ?,
+              payment_screenshot = ?,
+              paid_date = ?,
+              paid_by = ?
+          WHERE id = ?`,
+          [
+            "Paid",
+            screenshot,
+            trainer.paid_date,
+            trainer.paid_by,
+            trainer.payment_trans_id,
+          ],
+        );
 
-      const [master] = await conn.execute(
-        `SELECT request_amount, paid_amount, balance_amount FROM trainer_payment_master WHERE id = ?`,
-        [trainer_payment_id],
-      );
+        const [master] = await conn.execute(
+          `SELECT request_amount, paid_amount, balance_amount FROM trainer_payment_master WHERE id = ?`,
+          [trainer.trainer_payment_id],
+        );
 
-      const balance = Number(master[0].balance_amount);
+        const balance = Number(master[0].balance_amount);
 
-      await conn.execute(
-        `UPDATE trainer_payment_master SET status = ?, is_verified = 1, verified_by = ?, verified_date = ?, fully_paid_date = ? WHERE id = ?`,
-        [
-          balance === 0 ? "Completed" : "Requested",
-          paid_by,
-          paid_date,
-          balance === 0 ? paid_date : null,
-          trainer_payment_id,
-        ],
-      );
+        await conn.execute(
+          `UPDATE trainer_payment_master SET status = ?, is_verified = 1, verified_by = ?, verified_date = ?, fully_paid_date = ? WHERE id = ?`,
+          [
+            "Paid",
+            trainer.paid_by,
+            trainer.paid_date,
+            balance === 0 ? paid_date : null,
+            trainer.trainer_payment_id,
+          ],
+        );
+      }
 
       await conn.commit();
       return { status: true, message: "Payment approved successfully" };
@@ -489,6 +495,36 @@ const trainerPaymentModal = {
       throw err;
     } finally {
       conn.release();
+    }
+  },
+
+  completeRequest: async (trainers) => {
+    try {
+      for (const trainer of trainers) {
+        await pool.query(
+          `UPDATE trainer_payment SET status = 'Completed', approved_screenshot = ? WHERE id = ?`,
+          [trainer.screenshot, trainer.payment_trans_id],
+        );
+
+        const [master] = await pool.query(
+          `SELECT request_amount, paid_amount, balance_amount FROM trainer_payment_master WHERE id = ?`,
+          [trainer.trainer_payment_id],
+        );
+
+        const balance = Number(master[0].balance_amount);
+
+        await pool.query(
+          `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
+          [
+            balance === 0 ? "Completed" : "Requested",
+            trainer.trainer_payment_id,
+          ],
+        );
+      }
+
+      return { status: true, message: "Payment approved successfully" };
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 
