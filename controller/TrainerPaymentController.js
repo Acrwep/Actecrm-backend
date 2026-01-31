@@ -121,18 +121,8 @@ const approveTrainerPaymentTransaction = async (req, res) => {
 // Finance Head - Reject Payment
 const rejectTrainerPayment = async (req, res) => {
   try {
-    const {
-      trainer_payment_id,
-      payment_trans_id,
-      rejected_reason,
-      rejected_date,
-    } = req.body;
-    const result = await trainerPaymentModal.rejectTrainerPayment(
-      trainer_payment_id,
-      payment_trans_id,
-      rejected_reason,
-      rejected_date,
-    );
+    const { trainers } = req.body;
+    const result = await trainerPaymentModal.rejectTrainerPayment(trainers);
     return res.status(200).send({
       message: "Payment has been rejected",
       data: result,
