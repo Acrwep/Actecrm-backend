@@ -483,7 +483,7 @@ const trainerPaymentModal = {
             "Paid",
             trainer.paid_by,
             trainer.paid_date,
-            balance === 0 ? paid_date : null,
+            balance === 0 ? trainer.paid_date : null,
             trainer.trainer_payment_id,
           ],
         );
