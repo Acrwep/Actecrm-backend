@@ -662,10 +662,11 @@ const trainerPaymentModal = {
 
       for (const student of students) {
         const [updateStudent] = await pool.query(
-          `UPDATE trainer_payment_trans SET trainer_mapping_id = ?, streams = ?, commercial = ?, commercial_percentage = ?, attendance_status = ?, attendance_sheetlink = ?, attendance_screenshot = ? WHERE id = ?`,
+          `UPDATE trainer_payment_trans SET trainer_mapping_id = ?, place_of_sale = ?, place_of_supply = ?, commercial = ?, commercial_percentage = ?, attendance_status = ?, attendance_sheetlink = ?, attendance_screenshot = ? WHERE id = ?`,
           [
             student.trainer_mapping_id,
-            student.streams,
+            student.place_of_sale,
+            student.place_of_supply,
             student.commercial,
             student.commercial_percentage,
             student.attendance_status,
