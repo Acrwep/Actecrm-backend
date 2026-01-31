@@ -42,8 +42,15 @@ const getServerRequest = async (request, response) => {
 };
 
 const updateServerStatus = async (request, response) => {
-  const { server_id, status, comments, rejected_by, server_raise_date } =
-    request.body;
+  const {
+    server_id,
+    status,
+    comments,
+    rejected_by,
+    server_raise_date,
+    server_trans_id,
+    screenshot,
+  } = request.body;
   try {
     const result = await ServerModel.updateServerStatus(
       server_id,
@@ -51,6 +58,8 @@ const updateServerStatus = async (request, response) => {
       comments,
       rejected_by,
       server_raise_date,
+      server_trans_id,
+      screenshot,
     );
     return response.status(200).send({
       message: "Data updated successfully",

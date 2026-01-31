@@ -18,6 +18,7 @@ const TemplateController = require("../controller/EmailTemplateController");
 const WhatsAppController = require("../controller/WhatsAppController");
 const trainerPaymentController = require("../controller/TrainerPaymentController");
 const BatchController = require("../controller/BatchController");
+const TicketController = require("../controller/TicketController");
 
 router.post("/login", LoginController.login);
 
@@ -472,4 +473,8 @@ router.put(
   verifyToken,
   trainerPaymentController.completeRequest,
 );
+
+router.post("validateEmail", TicketController.validateEmail);
+router.post("/createTicket", TicketController.createTicket);
+router.get("/getTickets", TicketController.getTickets);
 module.exports = router;

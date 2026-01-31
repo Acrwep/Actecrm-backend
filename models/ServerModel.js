@@ -195,6 +195,8 @@ const ServerModel = {
     comments,
     rejected_by,
     server_raise_date,
+    server_trans_id,
+    screenshot,
   ) => {
     try {
       let affectedRows = 0;
@@ -234,6 +236,13 @@ const ServerModel = {
           throw new Error(
             "Server cannot be raised as the customer has outstanding fees.",
           );
+      }
+
+      if (server_trans_id && screenshot) {
+        await pool.query(
+          `UPDATE server_trans SET screenshot = ? WHERE id = ?`,
+          [screenshot, server_trans_id],
+        );
       }
 
       const updateQuery = `UPDATE server_master SET status = ?, server_raise_date = ? WHERE id = ?`;
