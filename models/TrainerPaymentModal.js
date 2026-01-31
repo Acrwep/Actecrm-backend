@@ -217,7 +217,8 @@ const trainerPaymentModal = {
         IFNULL(SUM(CASE WHEN status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
         IFNULL(SUM(CASE WHEN status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
         IFNULL(SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed,
-        IFNULL(SUM(CASE WHEN status = 'Payment Rejected' THEN 1 ELSE 0 END), 0) AS payment_rejected
+        IFNULL(SUM(CASE WHEN status = 'Payment Rejected' THEN 1 ELSE 0 END), 0) AS payment_rejected,
+        IFNULL(SUM(CASE WHEN status = 'Paid' THEN 1 ELSE 0 END), 0) AS paid
       FROM
           trainer_payment_master
       WHERE 1 = 1`;
