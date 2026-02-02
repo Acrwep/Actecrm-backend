@@ -42,7 +42,7 @@ const updateTemplate = async (request, response) => {
       template_id,
       name,
       content,
-      user_id
+      user_id,
     );
 
     return response.status(200).send({
@@ -75,9 +75,14 @@ const deleteTemplate = async (request, response) => {
 };
 
 const emailSend = async (request, response) => {
-  const { email, subject, content } = request.body;
+  const { email, subject, content, base64Image } = request.body;
   try {
-    const result = await TemplateModel.emailSend(email, subject, content);
+    const result = await TemplateModel.emailSend(
+      email,
+      subject,
+      content,
+      base64Image,
+    );
 
     return response.status(200).send({
       message: "Email sent successfully",

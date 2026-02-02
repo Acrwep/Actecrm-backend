@@ -14,14 +14,14 @@ const EmailTemplateModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM email_templates WHERE user_id = ? AND name = ?`,
-        [user_id, name]
+        [user_id, name],
       );
 
       if (isExists.length > 0) throw new Error("Name already exists");
 
       const [result] = await pool.query(
         `INSERT INTO email_templates(name, content, user_id) VALUES(?, ?, ?)`,
-        [name, content, user_id]
+        [name, content, user_id],
       );
 
       return result.affectedRows;
@@ -34,7 +34,7 @@ const EmailTemplateModel = {
     try {
       const [result] = await pool.query(
         `SELECT id, name, content, created_date, user_id FROM email_templates WHERE user_id = ? ORDER BY name ASC`,
-        [user_id]
+        [user_id],
       );
 
       return result;
@@ -47,20 +47,20 @@ const EmailTemplateModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT * FROM email_templates WHERE id = ?`,
-        [template_id]
+        [template_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid Id");
 
       const [nameExists] = await pool.query(
         `SELECT * FROM email_templates WHERE id <> ? AND name = ? AND user_id = ?`,
-        [template_id, name, user_id]
+        [template_id, name, user_id],
       );
 
       if (nameExists.length > 0) throw new Error("Name already exists");
 
       const [result] = await pool.query(
         `UPDATE email_templates SET name = ?, content = ? WHERE id = ?`,
-        [name, content, template_id]
+        [name, content, template_id],
       );
 
       return result.affectedRows;
@@ -73,13 +73,13 @@ const EmailTemplateModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT * FROM email_templates WHERE id = ?`,
-        [template_id]
+        [template_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid Id");
 
       const [result] = await pool.query(
         `DELETE FROM email_templates WHERE id = ?`,
-        [template_id]
+        [template_id],
       );
 
       return result.affectedRows;
@@ -88,7 +88,7 @@ const EmailTemplateModel = {
     }
   },
 
-  emailSend: async (email, subject, content) => {
+  emailSend: async (email, subject, content, base64Image) => {
     try {
       const mailOptions = {
         from: process.env.SMTP_FROM,
@@ -96,6 +96,18 @@ const EmailTemplateModel = {
         subject: subject,
         html: content,
       };
+
+      if (base64Image) {
+        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+
+        mailOptions.attachments = [
+          {
+            filename: "image.png",
+            content: base64Data,
+            encoding: "base64",
+          },
+        ];
+      }
 
       await transporter.sendMail(mailOptions);
       return { success: true, message: "Mail sent successfully" };

@@ -130,7 +130,7 @@ const CommonModel = {
       const memberSignBase64 = getBase64Image(
         process.env.MEMBER_SIGNATURE_PATH,
       );
-
+      const barCodeBase64 = getBase64Image(process.env.BAR_CODE_PATH);
       // 1. HTML Template
       const htmlContent = `
 <html>
@@ -223,6 +223,7 @@ const CommonModel = {
                     </table>
 
                     <!-- Footer -->
+                     <!--
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" 
                            style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
                       <tr>
@@ -233,7 +234,29 @@ const CommonModel = {
                       </td>
                       </tr>
                     </table>
+                    -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+  <tr>
+    <!-- IMPORTANT: position: relative -->
+    <td align="right"
+        style="font-size:13px; padding-top:8px; font-weight:500; position:relative;">
 
+      <strong>Certificate No.:</strong> ${result[0].certificate_number}
+
+      <!-- BARCODE -->
+      <img src="${barCodeBase64}"
+           style="
+             position:absolute;
+             top:30px;           /* distance below text */
+             right:0;
+             width:150px;
+             height:auto;
+           " />
+
+    </td>
+  </tr>
+</table>
                     <!-- Legend -->
                     <div style="margin-top: 20px; display:inline-block; border: 1px solid #000;
                                 padding: 10px 15px; font-size: 12px; text-align: left;">
@@ -302,7 +325,7 @@ const CommonModel = {
       const memberSignBase64 = getBase64Image(
         process.env.MEMBER_SIGNATURE_PATH,
       );
-
+      const barCodeBase64 = getBase64Image(process.env.BAR_CODE_PATH);
       // 1. HTML Template
       const htmlContent = `
 <html>
@@ -316,11 +339,32 @@ const CommonModel = {
     html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
     body { display:flex; justify-content:center; align-items:center; }
     table { border-collapse:collapse; }
+
+     /* ===== WATERMARK ===== */
+    .watermark {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 80px;
+      font-weight: 800;
+      color: rgba(3, 57, 108, 0.08);
+      letter-spacing: 10px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .certificate-content {
+      position: relative;
+      z-index: 2;
+    }
   </style>
 </head>
 <body>
   <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
-         style="border:35px solid #03396c; border-radius:0; background:transparent; border-collapse:collapse;">
+         style="border:35px solid #03396c; border-radius:0; background:transparent; border-collapse:collapse;position:relative">
     <tr>
       <td style="padding:0; margin:0;background-color:#03396c">
   <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
@@ -329,10 +373,14 @@ const CommonModel = {
             <td style="padding:3; margin:0;">
               <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
        style="border:3px solid #03396c; border-radius:50px; border-collapse: separate; overflow: hidden;background-color:white">
+        <div class="watermark">PROVISIONAL</div>
                 <tr>
+                  <!-- IMPORTANT: position:relative -->
                   <td style="padding:16px 40px 40px 40px; text-align:center;">
-                    <!-- Header -->
-                   <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
+                    <!-- WATERMARK -->
+
+                   <!-- Header -->
+                   <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:-12px; left:50%; transform:translateX(-50%);" />
                     
                    <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
                     <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
@@ -395,14 +443,28 @@ const CommonModel = {
                     </table>
 
                     <!-- Footer -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" 
-                           style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
-                      <tr>
-                       <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
-                      <strong>Certificate No.:</strong> ${certificate_number}
-                      </td>
-                      </tr>
-                    </table>
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
+  <tr>
+    <!-- IMPORTANT: position: relative -->
+    <td align="right"
+        style="font-size:13px; padding-top:8px; font-weight:500; position:relative;">
+
+      <strong>Certificate No.:</strong> ${certificate_number}
+
+      <!-- BARCODE -->
+      <img src="${barCodeBase64}"
+           style="
+             position:absolute;
+             top:30px;           /* distance below text */
+             right:0;
+             width:150px;
+             height:auto;
+           " />
+
+    </td>
+  </tr>
+</table>
 
                     <!-- Legend -->
                     <div style="margin-top: 20px; display:inline-block; border: 1px solid #000;
