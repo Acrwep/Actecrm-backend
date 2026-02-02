@@ -6,34 +6,29 @@ const TicketModel = {
       throw new Error("Please enter Email ID.");
     }
 
-    let user_id;
-    let role;
-
-    const [cusQuery] = await pool.query(
-      `SELECT id, 'Customer' AS role FROM customers WHERE email = ?`,
-      [email],
+    const [result] = await pool.query(
+      `
+    SELECT id, 'Customer' AS role FROM customers WHERE email = ?
+    UNION ALL
+    SELECT id, 'Trainer'  AS role FROM trainer  WHERE email = ?
+    LIMIT 1
+    `,
+      [email, email],
     );
 
-    if (cusQuery.length > 1) {
-      user_id = cusQuery[0].id;
-      role = cusQuery[0].role;
-    }
-
-    const [trainerQuery] = await pool.query(
-      `SELECT id, 'Trainer' AS role FROM trainer WHERE email = ?`,
-      [email],
-    );
-
-    if (trainerQuery.length > 1) {
-      user_id = trainerQuery[0].id;
-      role = trainerQuery[0].role;
+    if (result.length === 0) {
+      return {
+        status: false,
+        user_id: null,
+        role: null,
+      };
     }
 
     return {
       status: true,
-      user_id: user_id,
-      role: role,
-    }; // ✅ email is valid
+      user_id: result[0].id,
+      role: result[0].role,
+    };
   },
 
   createTicket: async (
