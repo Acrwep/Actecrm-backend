@@ -57,7 +57,7 @@ const createTicket = async (request, response) => {
 const getTickets = async (request, response) => {
   try {
     const result = await TicketModel.getTickets();
-    response.status(201).send({
+    response.status(200).send({
       message: "Data fetched successfully.",
       data: result,
     });
@@ -69,8 +69,25 @@ const getTickets = async (request, response) => {
   }
 };
 
+const updateTicketStatus = async (request, response) => {
+  const { ticked_id, status } = request.body;
+  try {
+    const result = await TicketModel.updateTicketStatus(ticked_id, status);
+    response.status(200).send({
+      message: "Data updated successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   validateEmail,
   createTicket,
   getTickets,
+  updateTicketStatus,
 };

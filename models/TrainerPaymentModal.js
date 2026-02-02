@@ -293,7 +293,7 @@ const trainerPaymentModal = {
                 tp.commercial_percentage,
                 tp.attendance_status,
                 tp.attendance_sheetlink,
-                tp.attendance_screenshot
+                tp.attendance_screenshot,
                 tp.screenshot
             FROM
                 trainer_payment_trans AS tp
