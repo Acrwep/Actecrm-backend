@@ -2,9 +2,9 @@ const { request, response } = require("express");
 const TicketModel = require("../models/TicketModel");
 
 const validateEmail = async (request, response) => {
-  const { raised_by_role, email } = request.body;
+  const { email } = request.body;
   try {
-    const result = await TicketModel.validateEmail(email, raised_by_role);
+    const result = await TicketModel.validateEmail(email);
     response.status(200).send({
       message: "Email validation successfull.",
       data: result,

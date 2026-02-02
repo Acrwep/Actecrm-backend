@@ -1,34 +1,38 @@
 const pool = require("../config/dbconfig");
 
 const TicketModel = {
-  validateEmail: async (email, raised_by_role) => {
+  validateEmail: async (email) => {
     if (!email) {
       throw new Error("Please enter Email ID.");
     }
 
-    let query = "";
-    let tableName = "";
+    let user_id;
+    let role;
 
-    if (raised_by_role === "Trainer") {
-      tableName = "trainer";
-    } else if (raised_by_role === "Customer") {
-      tableName = "customers";
-    } else {
-      throw new Error("Invalid raised by role.");
+    const [cusQuery] = await pool.query(
+      `SELECT id, 'Customer' AS role FROM customers WHERE email = ?`,
+      [email],
+    );
+
+    if (cusQuery.length > 1) {
+      user_id = cusQuery[0].id;
+      role = cusQuery[0].role;
     }
 
-    query = `SELECT id FROM ${tableName} WHERE email = ? LIMIT 1`;
+    const [trainerQuery] = await pool.query(
+      `SELECT id, 'Trainer' AS role FROM trainer WHERE email = ?`,
+      [email],
+    );
 
-    const [rows] = await pool.query(query, [email]);
-
-    if (rows.length === 0) {
-      throw new Error("Invalid Email ID.");
+    if (trainerQuery.length > 1) {
+      user_id = trainerQuery[0].id;
+      role = trainerQuery[0].role;
     }
 
     return {
       status: true,
-      user_id: rows[0].id,
-      role: raised_by_role,
+      user_id: user_id,
+      role: role,
     }; // ✅ email is valid
   },
 
@@ -182,7 +186,7 @@ const TicketModel = {
   getCategories: async () => {
     try {
       const [categories] = await pool.query(
-        `SELECT category_id, category_name FROM ticket_categories WHERE is_active = 1 ORDER BY category_name`,
+        `SELECT category_id, category_name AS name FROM ticket_categories WHERE is_active = 1 ORDER BY category_name`,
       );
 
       return categories;
@@ -198,7 +202,7 @@ const TicketModel = {
             ts.sub_category_id,
             ts.category_id,
             tc.category_name,
-            ts.sub_category_name
+            ts.sub_category_name AS name
         FROM
             ticket_sub_categories AS ts
         INNER JOIN ticket_categories AS tc ON
