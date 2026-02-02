@@ -181,7 +181,7 @@ const TicketModel = {
   getCategories: async () => {
     try {
       const [categories] = await pool.query(
-        `SELECT category_id, category_name AS name FROM ticket_categories WHERE is_active = 1 ORDER BY category_name`,
+        `SELECT category_id AS id, category_name AS name FROM ticket_categories WHERE is_active = 1 ORDER BY category_name`,
       );
 
       return categories;
@@ -194,7 +194,7 @@ const TicketModel = {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-            ts.sub_category_id,
+            ts.sub_category_id AS id,
             ts.category_id,
             tc.category_name,
             ts.sub_category_name AS name
