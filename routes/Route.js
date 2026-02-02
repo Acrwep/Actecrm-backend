@@ -477,4 +477,6 @@ router.put(
 router.post("/validateEmail", TicketController.validateEmail);
 router.post("/createTicket", TicketController.createTicket);
 router.get("/getTickets", TicketController.getTickets);
+router.get("/getCategories", TicketController.getCategories);
+router.get("/getSubCategories", TicketController.getSubCategories);
 module.exports = router;

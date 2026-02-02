@@ -55,8 +55,9 @@ const createTicket = async (request, response) => {
 };
 
 const getTickets = async (request, response) => {
+  const { start_date, end_date } = request.body;
   try {
-    const result = await TicketModel.getTickets();
+    const result = await TicketModel.getTickets(start_date, end_date);
     response.status(200).send({
       message: "Data fetched successfully.",
       data: result,
@@ -85,9 +86,42 @@ const updateTicketStatus = async (request, response) => {
   }
 };
 
+const getCategories = async (request, response) => {
+  try {
+    const result = await TicketModel.getCategories();
+    response.status(200).send({
+      message: "Data fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getSubCategories = async (request, response) => {
+  const { category_id } = request.query;
+  try {
+    const result = await TicketModel.getSubCategories(category_id);
+    response.status(200).send({
+      message: "Data fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   validateEmail,
   createTicket,
   getTickets,
   updateTicketStatus,
+  getCategories,
+  getSubCategories,
 };
