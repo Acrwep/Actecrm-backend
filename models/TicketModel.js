@@ -162,7 +162,7 @@ const TicketModel = {
     }
   },
 
-  updateTicketStatus: async (ticket_id, status) => {
+  updateTicketStatus: async (ticket_id, status, updated_at) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id FROM tickets WHERE ticket_id = ?`,
@@ -172,8 +172,8 @@ const TicketModel = {
       if (isExists.length <= 0) throw new Error("Invalid ticket Id");
 
       const [updateResult] = await pool.query(
-        `UPDATE tickets SET status = ? WHERE ticket_id = ?`,
-        [status, ticket_id],
+        `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
+        [status, updated_at, ticket_id],
       );
 
       return updateResult.affectedRows;
