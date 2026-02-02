@@ -80,6 +80,10 @@ const TicketModel = {
           [result.insertId, attachment.base64string],
         );
       }
+
+      return {
+        status: true,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

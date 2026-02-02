@@ -474,7 +474,7 @@ router.put(
   trainerPaymentController.completeRequest,
 );
 
-router.post("validateEmail", TicketController.validateEmail);
+router.post("/validateEmail", TicketController.validateEmail);
 router.post("/createTicket", TicketController.createTicket);
 router.get("/getTickets", TicketController.getTickets);
 module.exports = router;

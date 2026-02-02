@@ -123,9 +123,10 @@ const trainerPaymentModal = {
           commercial_percentage,
           attendance_status,
           attendance_sheetlink,
-          attendance_screenshot
+          attendance_screenshot,
+          screenshot
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       for (const student of students) {
         const transValues = [
@@ -138,6 +139,7 @@ const trainerPaymentModal = {
           student.attendance_status,
           student.attendance_sheetlink,
           student.attendance_screenshot,
+          student.screenshot,
         ];
 
         const [insertTrans] = await pool.query(transQuery, transValues);
@@ -274,33 +276,34 @@ const trainerPaymentModal = {
         result.map(async (item) => {
           const [students] = await pool.query(
             `SELECT
-              tp.id AS payment_trans_id,
-              tp.trainer_mapping_id,
-              tm.customer_id,
-              c.name AS customer_name,
-              c.email AS customer_email,
-              t.name AS course_name,
-              c.lead_id,
-              c.linkedin_review,
-              c.google_review,
-              c.class_percentage,
-              c.is_certificate_generated,
-              tp.place_of_supply,
-              tp.place_of_sale,
-              tp.commercial,
-              tp.commercial_percentage,
-              tp.attendance_status,
-              tp.attendance_sheetlink,
-              tp.attendance_screenshot
-          FROM
-              trainer_payment_trans AS tp
-          INNER JOIN trainer_mapping AS tm ON
-              tp.trainer_mapping_id = tm.id
-          INNER JOIN customers AS c ON
-              c.id = tm.customer_id
-          INNER JOIN technologies AS t ON
-              t.id = c.enrolled_course
-          WHERE tp.payment_master_id = ?`,
+                tp.id AS payment_trans_id,
+                tp.trainer_mapping_id,
+                tm.customer_id,
+                c.name AS customer_name,
+                c.email AS customer_email,
+                t.name AS course_name,
+                c.lead_id,
+                c.linkedin_review,
+                c.google_review,
+                c.class_percentage,
+                c.is_certificate_generated,
+                tp.place_of_supply,
+                tp.place_of_sale,
+                tp.commercial,
+                tp.commercial_percentage,
+                tp.attendance_status,
+                tp.attendance_sheetlink,
+                tp.attendance_screenshot
+                tp.screenshot
+            FROM
+                trainer_payment_trans AS tp
+            INNER JOIN trainer_mapping AS tm ON
+                tp.trainer_mapping_id = tm.id
+            INNER JOIN customers AS c ON
+                c.id = tm.customer_id
+            INNER JOIN technologies AS t ON
+                t.id = c.enrolled_course
+            WHERE tp.payment_master_id = ?`,
             [item.id],
           );
 
@@ -662,7 +665,7 @@ const trainerPaymentModal = {
 
       for (const student of students) {
         const [updateStudent] = await pool.query(
-          `UPDATE trainer_payment_trans SET trainer_mapping_id = ?, place_of_sale = ?, place_of_supply = ?, commercial = ?, commercial_percentage = ?, attendance_status = ?, attendance_sheetlink = ?, attendance_screenshot = ? WHERE id = ?`,
+          `UPDATE trainer_payment_trans SET trainer_mapping_id = ?, place_of_sale = ?, place_of_supply = ?, commercial = ?, commercial_percentage = ?, attendance_status = ?, attendance_sheetlink = ?, attendance_screenshot = ?, screenshot = ? WHERE id = ?`,
           [
             student.trainer_mapping_id,
             student.place_of_sale,
@@ -672,6 +675,7 @@ const trainerPaymentModal = {
             student.attendance_status,
             student.attendance_sheetlink,
             student.attendance_screenshot,
+            student.screenshot,
             student.payment_trans_id,
           ],
         );
