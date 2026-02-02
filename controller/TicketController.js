@@ -28,6 +28,7 @@ const createTicket = async (request, response) => {
     attachments,
     raised_by_id,
     raised_by_role,
+    created_at,
   } = request.body;
   try {
     const result = await TicketModel.createTicket(
@@ -40,6 +41,7 @@ const createTicket = async (request, response) => {
       attachments,
       raised_by_id,
       raised_by_role,
+      created_at,
     );
 
     response.status(201).send({

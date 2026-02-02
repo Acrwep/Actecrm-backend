@@ -41,6 +41,7 @@ const TicketModel = {
     attachments,
     raised_by_id,
     raised_by_role,
+    created_at,
   ) => {
     try {
       const insertQuery = `INSERT INTO tickets(
@@ -52,9 +53,10 @@ const TicketModel = {
                                 type,
                                 status,
                                 raised_by_id,
-                                raised_by_role
+                                raised_by_role,
+                                created_at
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         title,
         description,
@@ -62,9 +64,10 @@ const TicketModel = {
         sub_category_id,
         priority,
         type,
-        "Raised",
+        "Open",
         raised_by_id,
         raised_by_role,
+        created_at,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -73,10 +76,11 @@ const TicketModel = {
         await pool.query(
           `INSERT INTO ticket_attachments(
                 ticket_id,
-                base64string
+                base64string,
+                uploaded_at
             )
-            VALUES(?, ?)`,
-          [result.insertId, attachment.base64string],
+            VALUES(?, ?, ?)`,
+          [result.insertId, attachment.base64string, created_at],
         );
       }
 
