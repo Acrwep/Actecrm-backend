@@ -92,9 +92,11 @@ const TicketModel = {
     }
   },
 
-  getTickets: async (start_date, end_date) => {
+  getTickets: async (start_date, end_date, status, page, limit) => {
     try {
       const queryParams = [];
+      const countParams = [];
+      const statusParams = [];
       let getQuery = `SELECT
                         t.ticket_id,
                         t.title,
@@ -133,14 +135,55 @@ const TicketModel = {
                         AND t.raised_by_role = 'Trainer'
                     WHERE 1 = 1`;
 
+      let countQuery = `SELECT
+                        COUNT(*) AS total
+                    FROM
+                        tickets AS t
+                    WHERE 1 = 1`;
+
+      let statusQuery = `SELECT
+                            COUNT(*) AS total,
+                            IFNULL(SUM(CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END), 0) AS open,
+                            IFNULL(SUM(CASE WHEN t.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold,
+                            IFNULL(SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END), 0) AS closed,
+                            IFNULL(SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END), 0) AS overdue
+                        FROM
+                            tickets AS t
+                        WHERE
+                            1 = 1`;
+
       if (start_date && end_date) {
         getQuery += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
+        statusQuery += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
       }
 
-      getQuery += ` ORDER BY t.ticket_id ASC`;
+      if (status) {
+        getQuery += ` AND t.status = ?`;
+        countQuery += ` AND t.status = ?`;
+        statusQuery += ` AND t.status = ?`;
+        queryParams.push(status);
+        countParams.push(status);
+        statusParams.push(status);
+      }
+
+      const [countResult] = await pool.query(countQuery, countParams);
+      const total = countResult[0]?.total || 0;
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY t.ticket_id ASC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
 
       const [result] = await pool.query(getQuery, queryParams);
+
+      const [statusResult] = await pool.query(statusQuery, statusParams);
 
       let res = await Promise.all(
         result.map(async (item) => {
@@ -156,7 +199,16 @@ const TicketModel = {
         }),
       );
 
-      return res;
+      return {
+        tickets: res,
+        statusCount: statusResult[0],
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }
