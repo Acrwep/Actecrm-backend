@@ -129,6 +129,46 @@ const getSubCategories = async (request, response) => {
   }
 };
 
+const ticketTrack = async (request, response) => {
+  const { ticket_id, assigned_to, status, details, created_date, updated_by } =
+    request.body;
+  try {
+    const result = await TicketModel.ticketTrack(
+      ticket_id,
+      assigned_to,
+      status,
+      details,
+      created_date,
+      updated_by,
+    );
+    response.status(200).send({
+      message: "Track inserted successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while inserting track",
+      details: error.message,
+    });
+  }
+};
+
+const getTicketTracks = async (request, response) => {
+  const { ticket_id } = request.query;
+  try {
+    const result = await TicketModel.getTicketTracks(ticket_id);
+    response.status(200).send({
+      message: "Data fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   validateEmail,
   createTicket,
@@ -136,4 +176,6 @@ module.exports = {
   updateTicketStatus,
   getCategories,
   getSubCategories,
+  ticketTrack,
+  getTicketTracks,
 };

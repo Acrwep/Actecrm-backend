@@ -84,6 +84,18 @@ const TicketModel = {
         );
       }
 
+      const [insertTrack] = await pool.query(
+        `INSERT INTO ticket_track(
+                              ticket_id,
+                              assigned_to,
+                              status,
+                              created_date,
+                              update_by
+                          )
+                          VALUES(?, ?, ?, ?, ?)`,
+        [result.insertId, raised_by_id, "Assigned", created_at, raised_by_id],
+      );
+
       return {
         status: true,
       };
@@ -270,6 +282,72 @@ const TicketModel = {
       const [subCategories] = await pool.query(getQuery, queryParams);
 
       return subCategories;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  ticketTrack: async (
+    ticket_id,
+    assigned_to,
+    status,
+    details,
+    created_date,
+    updated_by,
+  ) => {
+    try {
+      const insertQuery = `INSERT INTO ticket_track(
+                              ticket_id,
+                              assigned_to,
+                              status,
+                              details,
+                              created_date,
+                              update_by
+                          )
+                          VALUES(?, ?, ?, ?, ?, ?)`;
+
+      const values = [
+        ticket_id,
+        assigned_to,
+        status,
+        details,
+        created_date,
+        updated_by,
+      ];
+
+      const [result] = await pool.query(insertQuery, values);
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getTicketTracks: async (ticket_id) => {
+    try {
+      const [getTracks] = await pool.query(
+        `SELECT
+            tt.track_id,
+            tt.ticket_id,
+            tt.assigned_to,
+            au.user_name AS assigned_to_name,
+            tt.status,
+            tt.details,
+            tt.created_date,
+            tt.update_by,
+            u.user_name AS update_by_name
+        FROM
+            ticket_track AS tt
+        LEFT JOIN users AS u ON
+            tt.update_by = u.user_id
+        LEFT JOIN users AS au ON
+          au.user_id = tt.assigned_to
+        WHERE tt.ticket_id = ?
+        ORDER BY tt.track_id DESC`,
+        [ticket_id],
+      );
+
+      return getTracks;
     } catch (error) {
       throw new Error(error.message);
     }

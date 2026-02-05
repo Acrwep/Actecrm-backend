@@ -479,4 +479,6 @@ router.post("/createTicket", TicketController.createTicket);
 router.post("/getTickets", TicketController.getTickets);
 router.get("/getCategories", TicketController.getCategories);
 router.get("/getSubCategories", TicketController.getSubCategories);
+router.post("/ticketTrack", TicketController.ticketTrack);
+router.get("/getTicketTracks", TicketController.getTicketTracks);
 module.exports = router;
