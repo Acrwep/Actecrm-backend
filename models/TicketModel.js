@@ -158,7 +158,9 @@ const TicketModel = {
                             IFNULL(SUM(CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END), 0) AS open,
                             IFNULL(SUM(CASE WHEN t.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold,
                             IFNULL(SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END), 0) AS closed,
-                            IFNULL(SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END), 0) AS overdue
+                            IFNULL(SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END), 0) AS overdue,
+                            IFNULL(SUM(CASE WHEN t.status = 'Assigned' THEN 1 ELSE 0 END), 0) AS assigned,
+                            IFNULL(SUM(CASE WHEN t.status = 'Close Request' THEN 1 ELSE 0 END), 0) AS close_request
                         FROM
                             tickets AS t
                         WHERE
