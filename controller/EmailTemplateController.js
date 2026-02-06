@@ -75,9 +75,16 @@ const deleteTemplate = async (request, response) => {
 };
 
 const emailSend = async (request, response) => {
-  const { email, subject, content, base64Image } = request.body;
+  const {
+    from_email = "",
+    email,
+    subject,
+    content,
+    base64Image,
+  } = request.body;
   try {
     const result = await TemplateModel.emailSend(
+      from_email,
       email,
       subject,
       content,

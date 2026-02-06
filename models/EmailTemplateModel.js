@@ -9,6 +9,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const trainerPaymentTransporter = nodemailer.createTransport({
+  service: process.env.SMTP_HOST,
+  auth: {
+    user: "billing@acte.in", // Replace with your email
+    pass: "wzks dkjy lqgg iryv", // Replace with your email password or app password for Gmail
+  },
+});
+
 const EmailTemplateModel = {
   addTemplate: async (name, content, user_id) => {
     try {
@@ -88,10 +96,10 @@ const EmailTemplateModel = {
     }
   },
 
-  emailSend: async (email, subject, content, base64Image) => {
+  emailSend: async (from_email, email, subject, content, base64Image) => {
     try {
       const mailOptions = {
-        from: process.env.SMTP_FROM,
+        from: from_email ? from_email : process.env.SMTP_FROM,
         to: email,
         subject: subject,
         html: content,
@@ -109,7 +117,11 @@ const EmailTemplateModel = {
         ];
       }
 
-      await transporter.sendMail(mailOptions);
+      if (from_email) {
+        await trainerPaymentTransporter.sendMail(mailOptions);
+      } else {
+        await transporter.sendMail(mailOptions);
+      }
       return { success: true, message: "Mail sent successfully" };
     } catch (error) {
       throw new Error(error.message);
