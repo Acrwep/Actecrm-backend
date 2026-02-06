@@ -178,10 +178,10 @@ const TicketModel = {
       if (status) {
         getQuery += ` AND t.status = ?`;
         countQuery += ` AND t.status = ?`;
-        statusQuery += ` AND t.status = ?`;
+        // statusQuery += ` AND t.status = ?`;
         queryParams.push(status);
         countParams.push(status);
-        statusParams.push(status);
+        // statusParams.push(status);
       }
 
       const [countResult] = await pool.query(countQuery, countParams);
