@@ -42,6 +42,7 @@ const TicketModel = {
     raised_by_id,
     raised_by_role,
     created_at,
+    assigned_to,
   ) => {
     try {
       const insertQuery = `INSERT INTO tickets(
@@ -84,7 +85,7 @@ const TicketModel = {
         );
       }
 
-      const [insertTrack] = await pool.query(
+      await pool.query(
         `INSERT INTO ticket_track(
                               ticket_id,
                               assigned_to,
@@ -93,7 +94,7 @@ const TicketModel = {
                               update_by
                           )
                           VALUES(?, ?, ?, ?, ?)`,
-        [result.insertId, raised_by_id, "Assigned", created_at, raised_by_id],
+        [result.insertId, assigned_to, "Created", created_at, raised_by_id],
       );
 
       return {
@@ -128,7 +129,16 @@ const TicketModel = {
                           t.status,
                           t.raised_by_id,
                           t.raised_by_role,
-                          ru.user_name AS raised_by_name,
+                          CASE 
+                        	WHEN t.raised_by_role = 'Customer' THEN cu.name
+                            WHEN t.raised_by_role = 'Trainer' THEN tr.name
+                            ELSE ''
+                          END AS raised_by_name,
+                          CASE 
+                        	WHEN t.raised_by_role = 'Customer' THEN cu.email
+                            WHEN t.raised_by_role = 'Trainer' THEN tr.email
+                            ELSE ''
+                          END AS raised_by_email,
                           t.created_at,
                           t.updated_at,
                           assigned.assigned_to,
@@ -141,8 +151,12 @@ const TicketModel = {
                       INNER JOIN ticket_track AS tt 
                           ON tt.ticket_id = t.ticket_id
                           AND tt.assigned_to IN (${placeholders})
-                      LEFT JOIN users AS ru 
-                          ON ru.user_id = t.raised_by_id
+                      LEFT JOIN customers AS cu ON
+                    	    t.raised_by_id = cu.id
+                          AND t.raised_by_role = 'Customer'
+                      LEFT JOIN trainer AS tr ON
+                    	    t.raised_by_id = tr.id
+                          AND t.raised_by_role = 'Trainer'
                       LEFT JOIN (
                           SELECT 
                               tt1.ticket_id, 
