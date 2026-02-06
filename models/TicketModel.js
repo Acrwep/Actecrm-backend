@@ -104,67 +104,122 @@ const TicketModel = {
     }
   },
 
-  getTickets: async (start_date, end_date, status, page, limit) => {
+  getTickets: async (start_date, end_date, status, page, limit, user_ids) => {
     try {
       const queryParams = [];
       const countParams = [];
       const statusParams = [];
+
+      let placeholders;
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        placeholders = user_ids.map(() => "?").join(", ");
+      }
       let getQuery = `SELECT
-                        t.ticket_id,
-                        t.title,
-                        t.description,
-                        t.category_id,
-                        c.category_name,
-                        t.sub_category_id,
-                        sc.sub_category_name,
-                        t.priority,
-                        t.type,
-                        t.status,
-                        t.raised_by_id,
-                        t.raised_by_role,
-                        CASE 
-                        	WHEN t.raised_by_role = 'Customer' THEN cu.name
-                            WHEN t.raised_by_role = 'Trainer' THEN tr.name
-                            ELSE ''
-                        END AS raised_by_name,
-                        t.assigned_to,
-                        au.user_name AS assigned_name,
-                        t.created_at,
-                        t.updated_at
-                    FROM
-                        tickets AS t
-                    INNER JOIN ticket_categories AS c ON
-                        c.category_id = t.category_id
-                    INNER JOIN ticket_sub_categories AS sc ON
-                        t.sub_category_id = sc.sub_category_id
-                    LEFT JOIN users AS au ON
-                    	t.assigned_to = au.user_id
-                    LEFT JOIN customers AS cu ON
-                    	t.raised_by_id = cu.id
-                        AND t.raised_by_role = 'Customer'
-                    LEFT JOIN trainer AS tr ON
-                    	t.raised_by_id = tr.id
-                        AND t.raised_by_role = 'Trainer'
-                    WHERE 1 = 1`;
+                        DISTINCT
+                          t.ticket_id,
+                          t.title,
+                          t.description,
+                          t.category_id,
+                          c.category_name,
+                          t.sub_category_id,
+                          sc.sub_category_name,
+                          t.priority,
+                          t.type,
+                          t.status,
+                          t.raised_by_id,
+                          t.raised_by_role,
+                          ru.user_name AS raised_by_name,
+                          t.created_at,
+                          t.updated_at,
+                          assigned.assigned_to,
+                          au.user_name AS assigned_to_name
+                      FROM tickets AS t
+                      INNER JOIN ticket_categories AS c 
+                          ON c.category_id = t.category_id
+                      INNER JOIN ticket_sub_categories AS sc 
+                          ON sc.sub_category_id = t.sub_category_id
+                      INNER JOIN ticket_track AS tt 
+                          ON tt.ticket_id = t.ticket_id
+                          AND tt.assigned_to IN (${placeholders})
+                      LEFT JOIN users AS ru 
+                          ON ru.user_id = t.raised_by_id
+                      LEFT JOIN (
+                          SELECT 
+                              tt1.ticket_id, 
+                              tt1.assigned_to
+                          FROM ticket_track tt1
+                          WHERE tt1.assigned_to IS NOT NULL
+                          ORDER BY tt1.track_id DESC
+                          LIMIT 1
+                      ) AS assigned 
+                          ON assigned.ticket_id = t.ticket_id
+                      LEFT JOIN users AS au 
+                          ON au.user_id = assigned.assigned_to
+                      WHERE 1 = 1`;
 
       let countQuery = `SELECT
-                        COUNT(*) AS total
-                    FROM
-                        tickets AS t
-                    WHERE 1 = 1`;
+                            COUNT(DISTINCT t.ticket_id) AS total
+                        FROM tickets AS t
+                        INNER JOIN ticket_categories AS c 
+                            ON c.category_id = t.category_id
+                        INNER JOIN ticket_sub_categories AS sc 
+                            ON sc.sub_category_id = t.sub_category_id
+                        INNER JOIN ticket_track AS tt 
+                            ON tt.ticket_id = t.ticket_id
+                            AND tt.assigned_to IN (${placeholders})
+                        LEFT JOIN users AS ru 
+                            ON ru.user_id = t.raised_by_id
+                        LEFT JOIN (
+                            SELECT 
+                                tt1.ticket_id, 
+                                tt1.assigned_to
+                            FROM ticket_track tt1
+                            WHERE tt1.assigned_to IS NOT NULL
+                            ORDER BY tt1.track_id DESC
+                            LIMIT 1
+                        ) AS assigned 
+                            ON assigned.ticket_id = t.ticket_id
+                        LEFT JOIN users AS au 
+                            ON au.user_id = assigned.assigned_to
+                        WHERE 1 = 1
+                        `;
 
       let statusQuery = `SELECT
-                            COUNT(*) AS total,
-                            IFNULL(SUM(CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END), 0) AS open,
-                            IFNULL(SUM(CASE WHEN t.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold,
-                            IFNULL(SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END), 0) AS closed,
-                            IFNULL(SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END), 0) AS overdue,
-                            IFNULL(SUM(CASE WHEN t.status = 'Assigned' THEN 1 ELSE 0 END), 0) AS assigned,
-                            IFNULL(SUM(CASE WHEN t.status = 'Close Request' THEN 1 ELSE 0 END), 0) AS close_request
-                        FROM
-                            tickets AS t
-                        WHERE
-                            1 = 1`;
+                          COUNT(DISTINCT t.ticket_id) AS total,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END), 0) AS open,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END), 0) AS closed,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END), 0) AS overdue,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Assigned' THEN 1 ELSE 0 END), 0) AS assigned,
+                          IFNULL(SUM(DISTINCT CASE WHEN t.status = 'Close Request' THEN 1 ELSE 0 END), 0) AS close_request
+                        FROM tickets AS t
+                        INNER JOIN ticket_categories AS c 
+                            ON c.category_id = t.category_id
+                        INNER JOIN ticket_sub_categories AS sc 
+                            ON sc.sub_category_id = t.sub_category_id
+                        INNER JOIN ticket_track AS tt 
+                            ON tt.ticket_id = t.ticket_id
+                            AND tt.assigned_to IN (${placeholders})
+                        LEFT JOIN users AS ru 
+                            ON ru.user_id = t.raised_by_id
+                        LEFT JOIN (
+                            SELECT 
+                                tt1.ticket_id, 
+                                tt1.assigned_to
+                            FROM ticket_track tt1
+                            WHERE tt1.assigned_to IS NOT NULL
+                            ORDER BY tt1.track_id DESC
+                            LIMIT 1
+                        ) AS assigned 
+                            ON assigned.ticket_id = t.ticket_id
+                        LEFT JOIN users AS au 
+                            ON au.user_id = assigned.assigned_to
+                        WHERE 1 = 1
+                        `;
+
+      queryParams.push(...user_ids);
+      countParams.push(...user_ids);
+      statusParams.push(...user_ids);
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;

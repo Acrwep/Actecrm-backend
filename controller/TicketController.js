@@ -57,7 +57,7 @@ const createTicket = async (request, response) => {
 };
 
 const getTickets = async (request, response) => {
-  const { start_date, end_date, status, page, limit } = request.body;
+  const { start_date, end_date, status, page, limit, user_ids } = request.body;
   try {
     const result = await TicketModel.getTickets(
       start_date,
@@ -65,6 +65,7 @@ const getTickets = async (request, response) => {
       status,
       page,
       limit,
+      user_ids,
     );
     response.status(200).send({
       message: "Data fetched successfully.",
