@@ -94,7 +94,7 @@ const TicketModel = {
                               update_by
                           )
                           VALUES(?, ?, ?, ?, ?)`,
-        [result.insertId, assigned_to, "Created", created_at, raised_by_id],
+        [result.insertId, assigned_to, "Created", created_at, assigned_to],
       );
 
       return {
