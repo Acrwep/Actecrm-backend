@@ -79,10 +79,10 @@ const getTickets = async (request, response) => {
 };
 
 const updateTicketStatus = async (request, response) => {
-  const { ticked_id, status, updated_at } = request.body;
+  const { ticket_id, status, updated_at } = request.body;
   try {
     const result = await TicketModel.updateTicketStatus(
-      ticked_id,
+      ticket_id,
       status,
       updated_at,
     );

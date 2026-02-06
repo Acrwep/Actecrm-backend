@@ -231,9 +231,10 @@ const TicketModel = {
   updateTicketStatus: async (ticket_id, status, updated_at) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT id FROM tickets WHERE ticket_id = ?`,
+        `SELECT ticket_id FROM tickets WHERE ticket_id = ?`,
         [ticket_id],
       );
+      console.log(isExists, "isExists");
 
       if (isExists.length <= 0) throw new Error("Invalid ticket Id");
 
