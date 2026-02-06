@@ -1443,7 +1443,9 @@ const LeadModel = {
                         r.id AS region_id,
                         lh.lead_history_id,
                         lh.lead_action_id,
-                        lh.lead_action_name
+                        lh.lead_action_name,
+                        l.is_reassigned,
+                        l.re_assigned_date
                     FROM
                         lead_master AS l
                     LEFT JOIN users AS u ON u.user_id = l.user_id
