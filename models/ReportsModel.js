@@ -2975,35 +2975,29 @@ const ReportModel = {
         CROSS JOIN lead_type lt
         LEFT JOIN lead_master l
           ON CAST(l.created_date AS DATE) = dr.dt
-         AND l.lead_type_id = lt.id`;
+         AND l.lead_type_id = lt.id
+    `;
 
-      // date params
       queryParams.push(start_date, end_date);
-      totalParams.push(start_date, end_date);
 
-      // filters
       if (region_id) {
         getQuery += ` AND l.region_id = ? `;
         queryParams.push(region_id);
-        totalParams.push(region_id);
       }
 
       if (branch_id) {
         getQuery += ` AND l.branch_id = ? `;
         queryParams.push(branch_id);
-        totalParams.push(branch_id);
       }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const placeholders = user_ids.map(() => "?").join(", ");
+          const placeholders = user_ids.map(() => "?").join(",");
           getQuery += ` AND l.assigned_to IN (${placeholders}) `;
           queryParams.push(...user_ids);
-          totalParams.push(...user_ids);
         } else {
           getQuery += ` AND l.assigned_to = ? `;
           queryParams.push(user_ids);
-          totalParams.push(user_ids);
         }
       }
 
@@ -3033,7 +3027,7 @@ const ReportModel = {
       WITH payment_trans_agg AS (
         SELECT
           pm.lead_id,
-          SUM(pt.amount) AS total_collection
+          (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
         FROM payment_master pm
         INNER JOIN payment_trans pt
           ON pm.id = pt.payment_master_id
@@ -3043,7 +3037,7 @@ const ReportModel = {
       total_collection AS (
         SELECT
           lt.id AS lead_type_id,
-          SUM(pt.amount) AS collection
+          (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
         FROM lead_type lt
         LEFT JOIN lead_master lm ON lt.id = lm.lead_type_id
         LEFT JOIN payment_master pm ON lm.id = pm.lead_id
@@ -3064,15 +3058,39 @@ const ReportModel = {
       LEFT JOIN lead_master l
         ON l.lead_type_id = lt.id
        AND CAST(l.created_date AS DATE) BETWEEN ? AND ?
+    `;
+
+      totalParams.push(start_date, end_date, start_date, end_date);
+
+      if (region_id) {
+        totalQuery += ` AND l.region_id = ? `;
+        totalParams.push(region_id);
+      }
+
+      if (branch_id) {
+        totalQuery += ` AND l.branch_id = ? `;
+        totalParams.push(branch_id);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(",");
+          totalQuery += ` AND l.assigned_to IN (${placeholders}) `;
+          totalParams.push(...user_ids);
+        } else {
+          totalQuery += ` AND l.assigned_to = ? `;
+          totalParams.push(user_ids);
+        }
+      }
+
+      totalQuery += `
       LEFT JOIN customers c ON c.lead_id = l.id
       LEFT JOIN payment_master pm ON pm.lead_id = l.id
       LEFT JOIN payment_trans_agg pta ON pta.lead_id = l.id
       LEFT JOIN total_collection tc ON tc.lead_type_id = lt.id
       GROUP BY lt.id, lt.name
-      ORDER BY lt.name`;
-
-      totalParams.unshift(start_date, end_date);
-      totalParams.push(start_date, end_date);
+      ORDER BY lt.name
+    `;
 
       const [data] = await pool.query(getQuery, queryParams);
       const [total_result] = await pool.query(totalQuery, totalParams);

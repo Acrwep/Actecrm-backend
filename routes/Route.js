@@ -482,4 +482,5 @@ router.get("/getSubCategories", TicketController.getSubCategories);
 router.post("/ticketTrack", TicketController.ticketTrack);
 router.get("/getTicketTracks", TicketController.getTicketTracks);
 router.put("/updateTicketStatus", TicketController.updateTicketStatus);
+router.post("/bulkInsert", verifyToken, BulkSearchController.bulkInsert);
 module.exports = router;

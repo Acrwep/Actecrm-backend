@@ -13,7 +13,7 @@ const BulkSearchModel = {
          LEFT JOIN users AS u ON u.user_id = l.assigned_to 
          LEFT JOIN lead_type AS lt ON l.lead_type_id = lt.id 
          WHERE l.phone = ? OR c.phone = ? OR l.email = ? OR c.email = ?`,
-          [item.mobile, item.mobile, item.email, item.email]
+          [item.mobile, item.mobile, item.email, item.email],
         );
 
         let status = "Not found";
@@ -47,6 +47,76 @@ const BulkSearchModel = {
       return data;
     } catch (error) {
       throw new Error(error.message);
+    }
+  },
+
+  bulkInsert: async (courses) => {
+    const conn = await pool.getConnection();
+
+    try {
+      if (!courses || !Array.isArray(courses) || courses.length === 0) {
+        throw new Error("Course array required");
+      }
+
+      await conn.beginTransaction();
+
+      const ids = courses.map((c) => c.course_id);
+
+      // Build CASE statements
+      const nameCase = courses
+        .map((c) => `WHEN ${c.course_id} THEN ${conn.escape(c.course_name)}`)
+        .join(" ");
+
+      const priceCase = courses
+        .map((c) => `WHEN ${c.course_id} THEN ${c.price}`)
+        .join(" ");
+
+      const offerPriceCase = courses
+        .map((c) => `WHEN ${c.course_id} THEN ${c.offer_price}`)
+        .join(" ");
+
+      const brouchuresCase = courses
+        .map((c) => `WHEN ${c.course_id} THEN ${conn.escape(c.brouchures)}`)
+        .join(" ");
+
+      const syllabusCase = courses
+        .map((c) => `WHEN ${c.course_id} THEN ${conn.escape(c.syllabus)}`)
+        .join(" ");
+
+      const sql = `
+      UPDATE technologies
+      SET
+        name = CASE id
+          ${nameCase}
+        END,
+        price = CASE id
+          ${priceCase}
+        END,
+        offer_price = CASE id
+          ${offerPriceCase}
+        END,
+        brouchures = CASE id
+          ${brouchuresCase}
+        END,
+        syllabus = CASE id
+          ${syllabusCase}
+        END
+      WHERE id IN (${ids.join(",")})
+    `;
+
+      await conn.query(sql);
+
+      await conn.commit();
+
+      return {
+        success: true,
+        message: `${courses.length} records updated successfully`,
+      };
+    } catch (error) {
+      await conn.rollback();
+      throw new Error(error.message);
+    } finally {
+      conn.release();
     }
   },
 };

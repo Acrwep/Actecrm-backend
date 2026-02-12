@@ -3,7 +3,7 @@ const pool = require("../config/dbconfig");
 const TrainerModel = {
   getTechnologies: async (name) => {
     try {
-      let getQuery = `SELECT id, name, price, offer_price FROM technologies WHERE is_active = 1`;
+      let getQuery = `SELECT id, name, price, offer_price, brouchures, syllabus FROM technologies WHERE is_active = 1`;
 
       if (name) {
         getQuery += ` AND name LIKE '%${name}%'`;
@@ -18,7 +18,7 @@ const TrainerModel = {
   getBatches: async () => {
     try {
       const [batches] = await pool.query(
-        `SELECT id, name FROM batches WHERE is_active = 1`
+        `SELECT id, name FROM batches WHERE is_active = 1`,
       );
       return batches;
     } catch (error) {
@@ -58,13 +58,13 @@ const TrainerModel = {
     ifsc_code,
     signature_image,
     created_by,
-    created_date
+    created_date,
   ) => {
     try {
       // ✅ Check if email or mobile already exists
       const [isEmailOrMobileExists] = await pool.query(
         `SELECT id FROM trainer WHERE email = ? OR mobile = ?`,
-        [email, mobile]
+        [email, mobile],
       );
       if (isEmailOrMobileExists.length > 0) {
         throw new Error("Email or mobile number already exists");
@@ -73,7 +73,7 @@ const TrainerModel = {
       // ✅ Generate next trainer ID with leading zeros (e.g., TR000001)
       const [trainer_code] = await pool.query(
         `SELECT CONCAT('TR', LPAD(IFNULL(MAX(CAST(SUBSTRING(trainer_id, 3) AS UNSIGNED)), 0) + 1, 4, '0')) AS next_trainer_id 
-       FROM trainer`
+       FROM trainer`,
       );
 
       let newId;
@@ -148,7 +148,7 @@ const TrainerModel = {
           ifsc_code,
           signature_image,
           created_date,
-        ]
+        ],
       );
 
       return {
@@ -186,12 +186,12 @@ const TrainerModel = {
     branch_name,
     ifsc_code,
     signature_image,
-    is_bank_updated
+    is_bank_updated,
   ) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM trainer WHERE id = ?`,
-        [id]
+        [id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
       const queryParams = [];
@@ -230,7 +230,7 @@ const TrainerModel = {
         JSON.stringify(skills),
         location,
         profile_image,
-        status
+        status,
       );
       if (is_bank_updated) {
         updateQuery += `, is_bank_updated = ?`;
@@ -263,7 +263,7 @@ const TrainerModel = {
           ifsc_code,
           signature_image,
           trainer_bank_id,
-        ]
+        ],
       );
       return updateBank.affectedRows;
     } catch (error) {
@@ -282,7 +282,7 @@ const TrainerModel = {
     ongoing,
     created_by,
     page,
-    limit
+    limit,
   ) => {
     try {
       const queryParams = [];
@@ -443,11 +443,11 @@ const TrainerModel = {
 
       const [getOnBoarding] = await pool.query(
         onBoardingQuery,
-        onBoardingParams
+        onBoardingParams,
       );
 
       const [getSkills] = await pool.query(
-        `SELECT id, name FROM skills WHERE is_active = 1`
+        `SELECT id, name FROM skills WHERE is_active = 1`,
       );
 
       const formattedResult = await Promise.all(
@@ -460,7 +460,7 @@ const TrainerModel = {
             FROM trainer_mapping AS tm
             LEFT JOIN customers AS c ON tm.customer_id = c.id
             WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
-            [item.id]
+            [item.id],
           );
 
           const not_started =
@@ -490,7 +490,7 @@ const TrainerModel = {
             on_going_count: on_going,
             on_boarding_count: completed,
           };
-        })
+        }),
       );
 
       return {
@@ -514,13 +514,13 @@ const TrainerModel = {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM trainer WHERE id = ?`,
-        [trainer_id]
+        [trainer_id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid trainer Id");
 
       const [result] = await pool.query(
         `UPDATE trainer SET status = ? WHERE id = ?`,
-        [status, trainer_id]
+        [status, trainer_id],
       );
       return result.affectedRows;
     } catch (error) {
@@ -599,26 +599,26 @@ const TrainerModel = {
 
       const [primary_fees] = await pool.query(
         `SELECT lm.primary_fees FROM customers AS c INNER JOIN lead_master AS lm ON c.lead_id = lm.id WHERE c.id = ?`,
-        [customer_id]
+        [customer_id],
       );
 
       const result = await Promise.all(
         history.map(async (item) => {
           const [student_count] = await pool.query(
             `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
-            [item.trainer_id]
+            [item.trainer_id],
           );
           return {
             ...item,
             commercial_percentage: parseFloat(
               ((item.commercial / primary_fees[0].primary_fees) * 100).toFixed(
-                2
-              )
+                2,
+              ),
             ),
             ongoing_student_count: student_count[0].on_going_student,
             completed_student_count: student_count[0].completed_student_count,
           };
-        })
+        }),
       );
       return result;
     } catch (error) {
@@ -672,7 +672,7 @@ const TrainerModel = {
       // Get on-going and on-boarding students count by trainer
       const [student_count] = await pool.query(
         `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.trainer_id = ?`,
-        [trainer_id]
+        [trainer_id],
       );
       return {
         students: result,
@@ -683,18 +683,24 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
-  addTechnologies: async (course_name, price, offer_price) => {
+  addTechnologies: async (
+    course_name,
+    price,
+    offer_price,
+    brouchures,
+    syllabus,
+  ) => {
     try {
       const [isNameExists] = await pool.query(
         `SELECT id FROM technologies WHERE name = ? AND is_active = 1`,
-        [course_name]
+        [course_name],
       );
       if (isNameExists.length > 0)
         throw new Error("The course name already exists.");
 
       const [result] = await pool.query(
-        `INSERT INTO technologies(name, price, offer_price) VALUES(?, ?, ?)`,
-        [course_name, price, offer_price]
+        `INSERT INTO technologies(name, price, offer_price, brouchures, syllabus) VALUES(?, ?, ?, ?, ?)`,
+        [course_name, price, offer_price, brouchures, syllabus],
       );
       return result.affectedRows;
     } catch (error) {
@@ -702,26 +708,33 @@ const TrainerModel = {
     }
   },
 
-  updateTechnologies: async (id, course_name, price, offer_price) => {
+  updateTechnologies: async (
+    id,
+    course_name,
+    price,
+    offer_price,
+    brouchures,
+    syllabus,
+  ) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM technologies WHERE id = ?`,
-        [id]
+        [id],
       );
 
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
 
       const [isNameExists] = await pool.query(
         `SELECT id FROM technologies WHERE name = ? AND is_active = 1 AND id != ?`,
-        [course_name, id]
+        [course_name, id],
       );
 
       if (isNameExists.length > 0)
         throw new Error("The course name already exists");
 
       const [result] = await pool.query(
-        `UPDATE technologies SET name = ?, price = ?, offer_price = ? WHERE id = ?`,
-        [course_name, price, offer_price, id]
+        `UPDATE technologies SET name = ?, price = ?, offer_price = ?, brouchures = ?, syllabus = ? WHERE id = ?`,
+        [course_name, price, offer_price, brouchures, syllabus, id],
       );
 
       return result.affectedRows;
@@ -734,17 +747,17 @@ const TrainerModel = {
     try {
       const [isMapped] = await pool.query(
         `SELECT COUNT(*) AS total FROM lead_master WHERE primary_course_id = ?`,
-        [id]
+        [id],
       );
 
       if (isMapped[0].total > 0)
         throw new Error(
-          "Unable to delete because the course is mapped to lead"
+          "Unable to delete because the course is mapped to lead",
         );
 
       const [result] = await pool.query(
         `DELETE FROM technologies WHERE id = ?`,
-        [id]
+        [id],
       );
       return result.affectedRows;
     } catch (error) {
@@ -756,7 +769,7 @@ const TrainerModel = {
     try {
       const [isNameExists] = await pool.query(
         `SELECT id FROM skills WHERE name = ? AND is_active = 1`,
-        [skill_name]
+        [skill_name],
       );
       if (isNameExists.length > 0)
         throw new Error("The skill name already exists");
@@ -773,7 +786,7 @@ const TrainerModel = {
   getSkills: async () => {
     try {
       const [getSkills] = await pool.query(
-        `SELECT id, name FROM skills WHERE is_active = 1 ORDER BY name`
+        `SELECT id, name FROM skills WHERE is_active = 1 ORDER BY name`,
       );
       return getSkills;
     } catch (error) {
@@ -795,7 +808,7 @@ const getSkillsWithDetails = async (skillIds) => {
 
     const [skills] = await pool.query(
       `SELECT id, name FROM skills WHERE id IN (${placeholders}) AND is_active = 1`,
-      skillsArray
+      skillsArray,
     );
 
     return skills; // This returns [{id: 1, name: "HTML"}, {id: 2, name: "CSS"}]

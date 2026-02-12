@@ -98,7 +98,7 @@ const addTrainer = async (request, response) => {
       ifsc_code,
       signature_image,
       created_by,
-      created_date
+      created_date,
     );
     return response.status(200).send({
       message: "Trainer addedd successfully",
@@ -167,7 +167,7 @@ const updateTrainer = async (request, response) => {
       branch_name,
       ifsc_code,
       signature_image,
-      is_bank_updated
+      is_bank_updated,
     );
     return response.status(200).send({
       message: "Trainer updated successfully",
@@ -207,7 +207,7 @@ const getTrainers = async (request, response) => {
       ongoing,
       created_by,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       message: "Trainer fetched successfully",
@@ -274,7 +274,7 @@ const getCusByTrainer = async (request, response) => {
   try {
     const result = await TrainerModel.getCusByTrainer(
       trainer_id,
-      is_class_taken
+      is_class_taken,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -289,12 +289,15 @@ const getCusByTrainer = async (request, response) => {
 };
 
 const addTechnologies = async (request, response) => {
-  const { course_name, price, offer_price } = request.body;
+  const { course_name, price, offer_price, brouchures, syllabus } =
+    request.body;
   try {
     const result = await TrainerModel.addTechnologies(
       course_name,
       price,
-      offer_price
+      offer_price,
+      brouchures,
+      syllabus,
     );
     return response.status(201).send({
       message: "Course added successfully",
@@ -309,13 +312,16 @@ const addTechnologies = async (request, response) => {
 };
 
 const updateTechnologies = async (request, response) => {
-  const { id, course_name, price, offer_price } = request.body;
+  const { id, course_name, price, offer_price, brouchures, syllabus } =
+    request.body;
   try {
     const result = await TrainerModel.updateTechnologies(
       id,
       course_name,
       price,
-      offer_price
+      offer_price,
+      brouchures,
+      syllabus,
     );
     return response.status(200).send({
       message: "Course updated successfully",

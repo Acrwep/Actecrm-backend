@@ -17,6 +17,23 @@ const bulkSearch = async (request, response) => {
   }
 };
 
+const bulkInsert = async (request, response) => {
+  const { courses } = request.body;
+  try {
+    const data = await BulkSearchModel.bulkInsert(courses);
+    return response.status(200).send({
+      message: "Courses updated successfully",
+      data: data,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error in bulk updation",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   bulkSearch,
+  bulkInsert,
 };
