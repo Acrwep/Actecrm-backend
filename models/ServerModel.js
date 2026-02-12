@@ -114,8 +114,13 @@ const ServerModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
+      if (type === "Raise Date") {
+        getQuery += ` ORDER BY s.server_raise_date DESC LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      } else {
+        getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       const [result] = await pool.query(getQuery, queryParams);
 
