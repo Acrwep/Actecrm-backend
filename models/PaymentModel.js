@@ -471,15 +471,114 @@ const PaymentModel = {
       // Run main query
       const [result] = await pool.query(getQuery, queryParams);
 
+      const leadIds = [...new Set(result.map((x) => x.lead_id))];
+
+      let paymentHistoryMap = new Map();
+
+      if (leadIds.length > 0) {
+        const [paymentData] = await pool.query(
+          `SELECT 
+              pm.id AS master_id,
+              pm.lead_id,
+              pm.tax_type,
+              pm.gst_percentage,
+              pm.gst_amount,
+              pm.total_amount,
+              pm.created_date AS master_created_date,
+
+              pt.id,
+              pt.payment_master_id,
+              pt.invoice_number,
+              pt.invoice_date,
+              pt.amount,
+              pt.convenience_fees,
+              (pt.amount + pt.convenience_fees) AS paid_amount,
+              pt.paymode_id,
+              pmod.name AS payment_mode,
+              pt.payment_screenshot,
+              pt.payment_status,
+              pt.paid_date,
+              pt.verified_date,
+              pt.next_due_date,
+              pt.is_second_due,
+              pt.created_date,
+              pt.reason,
+              pt.place_of_payment
+
+          FROM payment_master pm
+          LEFT JOIN payment_trans pt 
+              ON pm.id = pt.payment_master_id
+          LEFT JOIN payment_mode pmod
+              ON pt.paymode_id = pmod.id
+          WHERE pm.lead_id IN (?)
+          ORDER BY pm.lead_id, pt.id ASC`,
+          [leadIds],
+        );
+
+        // Group by lead_id
+        const grouped = {};
+
+        paymentData.forEach((row) => {
+          if (!grouped[row.lead_id]) {
+            grouped[row.lead_id] = {
+              id: row.master_id,
+              lead_id: row.lead_id,
+              tax_type: row.tax_type,
+              gst_percentage: row.gst_percentage,
+              gst_amount: row.gst_amount,
+              total_amount: row.total_amount,
+              created_date: row.master_created_date,
+              payment_trans: [],
+            };
+          }
+
+          if (row.id) {
+            grouped[row.lead_id].payment_trans.push({
+              id: row.id,
+              payment_master_id: row.payment_master_id,
+              invoice_number: row.invoice_number,
+              invoice_date: row.invoice_date,
+              amount: row.amount,
+              convenience_fees: row.convenience_fees,
+              paid_amount: row.paid_amount,
+              paymode_id: row.paymode_id,
+              payment_mode: row.payment_mode,
+              payment_screenshot: row.payment_screenshot,
+              payment_status: row.payment_status,
+              paid_date: row.paid_date,
+              verified_date: row.verified_date,
+              next_due_date: row.next_due_date,
+              is_second_due: row.is_second_due,
+              created_date: row.created_date,
+              reason: row.reason,
+              place_of_payment: row.place_of_payment,
+            });
+          }
+        });
+
+        // Calculate running balance per lead
+        Object.values(grouped).forEach((master) => {
+          let runningBalance = master.total_amount;
+
+          master.payment_trans.forEach((item) => {
+            runningBalance -= item.amount;
+            item.balance_amount = parseFloat(runningBalance).toFixed(2);
+          });
+
+          master.payment_trans.reverse(); // Latest first
+        });
+
+        paymentHistoryMap = new Map(Object.entries(grouped));
+      }
+
       // Add payment history (original functionality preserved)
-      const formattedResult = await Promise.all(
-        result.map(async (item) => {
-          return {
-            ...item,
-            payment: await CommonModel.getPaymentHistory(item.lead_id),
-          };
-        }),
-      );
+      const formattedResult = result.map((item) => {
+        return {
+          ...item,
+          // payment: await CommonModel.getPaymentHistory(item.lead_id),
+          payment: paymentHistoryMap.get(String(item.lead_id)) || null,
+        };
+      });
 
       return {
         data: formattedResult,

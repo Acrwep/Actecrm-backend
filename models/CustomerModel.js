@@ -364,35 +364,20 @@ const CustomerModel = {
       let rejectedPaymentQuery = `SELECT SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` AND l.assigned_to IN (${placeholders})`;
-          countQuery += ` AND l.assigned_to IN (${placeholders})`;
-          getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
-          paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
-          rejectedPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
-          financeQuery += ` AND l.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids);
-          countQueryParams.push(...user_ids);
-          countParams.push(...user_ids);
-          paymentParams.push(...user_ids);
-          rejectedPaymentParams.push(...user_ids);
-          financeParams.push(...user_ids);
-        } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND l.assigned_to = ?`;
-          countQuery += ` AND l.assigned_to = ?`;
-          getCountQuery += ` AND l.assigned_to = ?`;
-          paymentQuery += ` AND l.assigned_to = ?`;
-          rejectedPaymentQuery += ` AND l.assigned_to = ?`;
-          financeQuery += ` AND l.assigned_to = ?`;
-          queryParams.push(user_ids);
-          countQueryParams.push(user_ids);
-          countParams.push(user_ids);
-          paymentParams.push(user_ids);
-          rejectedPaymentParams.push(user_ids);
-          financeParams.push(user_ids);
-        }
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        getQuery += ` AND l.assigned_to IN (${placeholders})`;
+        countQuery += ` AND l.assigned_to IN (${placeholders})`;
+        getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
+        paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+        rejectedPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+        financeQuery += ` AND l.assigned_to IN (${placeholders})`;
+        queryParams.push(...user_ids);
+        countQueryParams.push(...user_ids);
+        countParams.push(...user_ids);
+        paymentParams.push(...user_ids);
+        rejectedPaymentParams.push(...user_ids);
+        financeParams.push(...user_ids);
       }
 
       // Add region filter
@@ -499,54 +484,192 @@ const CustomerModel = {
       // Fetch customers
       const [result] = await pool.query(getQuery, queryParams);
 
-      let res = await Promise.all(
-        result.map(async (item) => {
-          // Get total paid amount for specific customer
-          const [getPaidAmount] = await pool.query(
-            `SELECT 
-                COALESCE(pm.total_amount, 0) AS total_amount,
-                COALESCE(SUM(pt.amount), 0) AS paid_amount 
-            FROM payment_master AS pm 
-            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
-            WHERE pm.lead_id = ?
-            GROUP BY pm.total_amount`,
-            [item.lead_id],
-          );
+      const leadIds = [...new Set(result.map((x) => x.lead_id))];
+      const trainerIds = [
+        ...new Set(result.map((x) => x.trainer_id).filter(Boolean)),
+      ];
 
-          // Now you can safely access the values
-          const totalAmount = getPaidAmount[0]?.total_amount || 0;
-          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+      let paidMap = new Map();
+      if (leadIds.length > 0) {
+        const [paidResult] = await pool.query(
+          `SELECT 
+          pm.lead_id,
+          COALESCE(pm.total_amount,0) total_amount,
+          COALESCE(SUM(pt.amount),0) paid_amount
+       FROM payment_master pm
+       LEFT JOIN payment_trans pt
+         ON pm.id = pt.payment_master_id
+         AND pt.payment_status IN ('Verified','Verify Pending')
+       WHERE pm.lead_id IN (?)
+       GROUP BY pm.lead_id, pm.total_amount`,
+          [leadIds],
+        );
 
-          // Get on-going and completed student count by trainer
-          const [student_count] = await pool.query(
-            `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
-            [item.trainer_id],
-          );
+        paidResult.forEach((r) => paidMap.set(r.lead_id, r));
+      }
 
-          const [getIsSecond] = await pool.query(
-            `SELECT pt.is_second_due, pt.is_last_pay_rejected FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pm.lead_id = ? ORDER BY pt.id DESC LIMIT 1`,
-            item.lead_id,
-          );
+      let studentMap = new Map();
+      if (trainerIds.length > 0) {
+        const [studentResult] = await pool.query(
+          `SELECT 
+            tm.trainer_id,
+            SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
+            SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count
+         FROM trainer_mapping tm
+         INNER JOIN customers c ON tm.customer_id = c.id
+         WHERE tm.trainer_id IN (?)
+         AND tm.is_rejected = 0
+         GROUP BY tm.trainer_id`,
+          [trainerIds],
+        );
 
-          // Format customer result
-          return {
-            ...item,
-            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
-            total_amount: totalAmount,
-            paid_amount: paidAmount,
-            commercial_percentage: parseFloat(
-              ((item.commercial / item.primary_fees) * 100).toFixed(2),
-            ),
-            payments: await CommonModel.getPaymentHistory(item.lead_id),
-            ongoing_student_count: student_count[0]?.on_going_student ?? 0,
-            completed_student_count:
-              student_count[0]?.completed_student_count ?? 0,
-            is_second_due: getIsSecond[0].is_second_due,
-            is_last_pay_rejected: getIsSecond[0].is_last_pay_rejected,
-          };
-        }),
-      );
+        studentResult.forEach((r) => studentMap.set(r.trainer_id, r));
+      }
 
+      let paymentMap = new Map();
+      if (leadIds.length > 0) {
+        const [paymentStatusResult] = await pool.query(
+          `SELECT 
+              pm.lead_id,
+              pt.is_second_due,
+              pt.is_last_pay_rejected
+          FROM payment_master pm
+          JOIN payment_trans pt ON pm.id = pt.payment_master_id
+          WHERE pm.lead_id IN (?)
+          AND pt.id IN (
+              SELECT MAX(id)
+              FROM payment_trans
+              GROUP BY payment_master_id
+          )`,
+          [leadIds],
+        );
+        paymentStatusResult.forEach((r) => paymentMap.set(r.lead_id, r));
+      }
+
+      let paymentHistoryMap = new Map();
+
+      if (leadIds.length > 0) {
+        const [paymentData] = await pool.query(
+          `SELECT 
+              pm.id AS master_id,
+              pm.lead_id,
+              pm.tax_type,
+              pm.gst_percentage,
+              pm.gst_amount,
+              pm.total_amount,
+              pm.created_date AS master_created_date,
+
+              pt.id,
+              pt.payment_master_id,
+              pt.invoice_number,
+              pt.invoice_date,
+              pt.amount,
+              pt.convenience_fees,
+              (pt.amount + pt.convenience_fees) AS paid_amount,
+              pt.paymode_id,
+              pmod.name AS payment_mode,
+              pt.payment_screenshot,
+              pt.payment_status,
+              pt.paid_date,
+              pt.verified_date,
+              pt.next_due_date,
+              pt.is_second_due,
+              pt.created_date,
+              pt.reason,
+              pt.place_of_payment
+
+          FROM payment_master pm
+          LEFT JOIN payment_trans pt 
+              ON pm.id = pt.payment_master_id
+          LEFT JOIN payment_mode pmod
+              ON pt.paymode_id = pmod.id
+          WHERE pm.lead_id IN (?)
+          ORDER BY pm.lead_id, pt.id ASC`,
+          [leadIds],
+        );
+
+        // Group by lead_id
+        const grouped = {};
+
+        paymentData.forEach((row) => {
+          if (!grouped[row.lead_id]) {
+            grouped[row.lead_id] = {
+              id: row.master_id,
+              lead_id: row.lead_id,
+              tax_type: row.tax_type,
+              gst_percentage: row.gst_percentage,
+              gst_amount: row.gst_amount,
+              total_amount: row.total_amount,
+              created_date: row.master_created_date,
+              payment_trans: [],
+            };
+          }
+
+          if (row.id) {
+            grouped[row.lead_id].payment_trans.push({
+              id: row.id,
+              payment_master_id: row.payment_master_id,
+              invoice_number: row.invoice_number,
+              invoice_date: row.invoice_date,
+              amount: row.amount,
+              convenience_fees: row.convenience_fees,
+              paid_amount: row.paid_amount,
+              paymode_id: row.paymode_id,
+              payment_mode: row.payment_mode,
+              payment_screenshot: row.payment_screenshot,
+              payment_status: row.payment_status,
+              paid_date: row.paid_date,
+              verified_date: row.verified_date,
+              next_due_date: row.next_due_date,
+              is_second_due: row.is_second_due,
+              created_date: row.created_date,
+              reason: row.reason,
+              place_of_payment: row.place_of_payment,
+            });
+          }
+        });
+
+        // Calculate running balance per lead
+        Object.values(grouped).forEach((master) => {
+          let runningBalance = master.total_amount;
+
+          master.payment_trans.forEach((item) => {
+            runningBalance -= item.amount;
+            item.balance_amount = parseFloat(runningBalance).toFixed(2);
+          });
+
+          master.payment_trans.reverse(); // Latest first
+        });
+
+        paymentHistoryMap = new Map(Object.entries(grouped));
+      }
+
+      let res = result.map((item) => {
+        const paid = paidMap.get(item.lead_id) || {};
+        const student = studentMap.get(item.trainer_id) || {};
+        const payment = paymentMap.get(item.lead_id) || {};
+
+        const totalAmount = paid.total_amount || 0;
+        const paidAmount = paid.paid_amount || 0;
+        // Format customer result
+        return {
+          ...item,
+          balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+          total_amount: totalAmount,
+          paid_amount: paidAmount,
+          commercial_percentage: item.primary_fees
+            ? parseFloat(
+                ((item.commercial / item.primary_fees) * 100).toFixed(2),
+              )
+            : 0,
+          // payments: await CommonModel.getPaymentHistory(item.lead_id),
+          payments: paymentHistoryMap.get(String(item.lead_id)) || null,
+          ongoing_student_count: student.on_going_student ?? 0,
+          completed_student_count: student.completed_student_count ?? 0,
+          is_second_due: payment.is_second_due ?? 0,
+          is_last_pay_rejected: payment.is_last_pay_rejected ?? 0,
+        };
+      });
       // Fetch customer count by status
       const [getStatus] = await pool.query(getCountQuery, countParams);
 
