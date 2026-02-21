@@ -98,6 +98,26 @@ const financeJuniorApprove = async (req, res) => {
 };
 
 // Finance Head - Approve Transaction
+const updateTrainerPaymentStatus = async (req, res) => {
+  try {
+    const { status, trainer_payment_id } = req.body;
+
+    const result = await trainerPaymentModal.updateTrainerPaymentStatus(
+      status,
+      trainer_payment_id,
+    );
+    return res.status(200).send({
+      message: "Status Changed",
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).send({
+      message: "Error while change status",
+      details: err.message,
+    });
+  }
+};
+
 const approveTrainerPaymentTransaction = async (req, res) => {
   try {
     const { trainers, screenshot } = req.body;
@@ -119,6 +139,32 @@ const approveTrainerPaymentTransaction = async (req, res) => {
 };
 
 // Finance Head - Reject Payment
+const rejectTrainerPaymentApproval = async (req, res) => {
+  try {
+    const {
+      rejected_reason,
+      rejected_date,
+      trainer_payment_id,
+      payment_trans_id,
+    } = req.body;
+    const result = await trainerPaymentModal.rejectTrainerPaymentApproval(
+      rejected_reason,
+      rejected_date,
+      trainer_payment_id,
+      payment_trans_id,
+    );
+    return res.status(200).send({
+      message: "Payment has been rejected",
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).send({
+      message: "Error while rejecting payment",
+      details: err.message,
+    });
+  }
+};
+
 const rejectTrainerPayment = async (req, res) => {
   try {
     const { trainers } = req.body;
@@ -215,7 +261,9 @@ module.exports = {
   requestPayment,
   getPayments,
   financeJuniorApprove,
+  updateTrainerPaymentStatus,
   approveTrainerPaymentTransaction,
+  rejectTrainerPaymentApproval,
   rejectTrainerPayment,
   deleteRequest,
   updateTrainerPayment,

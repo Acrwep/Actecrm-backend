@@ -421,6 +421,11 @@ router.post(
   trainerPaymentController.requestPayment,
 );
 router.put(
+  "/rejectTrainerPaymentApproval",
+  verifyToken,
+  trainerPaymentController.rejectTrainerPaymentApproval,
+);
+router.put(
   "/rejectTrainerPayment",
   verifyToken,
   trainerPaymentController.rejectTrainerPayment,
@@ -432,6 +437,12 @@ router.put(
   "/financeJuniorApprove",
   verifyToken,
   trainerPaymentController.financeJuniorApprove,
+);
+
+router.post(
+  "/updateTrainerPaymentStatus",
+  verifyToken,
+  trainerPaymentController.updateTrainerPaymentStatus,
 );
 
 router.post(

@@ -217,9 +217,10 @@ const trainerPaymentModal = {
       SELECT
         COUNT(*) AS total,
         IFNULL(SUM(CASE WHEN status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
+        IFNULL(SUM(CASE WHEN status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval,
         IFNULL(SUM(CASE WHEN status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
         IFNULL(SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed,
-        IFNULL(SUM(CASE WHEN status = 'Payment Rejected' THEN 1 ELSE 0 END), 0) AS payment_rejected,
+        IFNULL(SUM(CASE WHEN status IN ('Payment Rejected', 'Approval Rejected') THEN 1 ELSE 0 END), 0) AS payment_rejected,
         IFNULL(SUM(CASE WHEN status = 'Paid' THEN 1 ELSE 0 END), 0) AS paid
       FROM
           trainer_payment_master
@@ -240,11 +241,23 @@ const trainerPaymentModal = {
         statusParams.push(start_date, end_date);
       }
 
+      // if (status) {
+      //   getQuery += ` AND tm.status = ?`;
+      //   countQuery += ` AND tm.status = ?`;
+      //   queryParams.push(status);
+      //   countParams.push(status);
+      // }
+
       if (status) {
-        getQuery += ` AND tm.status = ?`;
-        countQuery += ` AND tm.status = ?`;
-        queryParams.push(status);
-        countParams.push(status);
+        if (status === "Payment Rejected") {
+          getQuery += ` AND tm.status IN ('Payment Rejected', 'Approval Rejected')`;
+          countQuery += ` AND tm.status IN ('Payment Rejected', 'Approval Rejected')`;
+        } else {
+          getQuery += ` AND tm.status = ?`;
+          countQuery += ` AND tm.status = ?`;
+          queryParams.push(status);
+          countParams.push(status);
+        }
       }
 
       if (trainer_id) {
@@ -436,7 +449,7 @@ const trainerPaymentModal = {
 
       await conn.execute(
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
-        [totalPaid, balance, "Awaiting Finance", trainer_payment_id],
+        [totalPaid, balance, "Awaiting Approval", trainer_payment_id],
       );
       await conn.commit();
       return { status: true, message: "Transaction sent to finance head" };
@@ -449,6 +462,24 @@ const trainerPaymentModal = {
   },
 
   // Finance Head - Approve & Pay Transaction
+  updateTrainerPaymentStatus: async (status, trainer_payment_id) => {
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.execute(
+        `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
+        [status, trainer_payment_id],
+      );
+      await conn.commit();
+      return { status: true, message: "Payment approved successfully" };
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
+  },
+
   financeHeadApproveAndPay: async (trainers, screenshot) => {
     const conn = await pool.getConnection();
     try {
@@ -533,6 +564,45 @@ const trainerPaymentModal = {
   },
 
   // Finance Head - Reject Request
+  rejectTrainerPaymentApproval: async (
+    rejected_reason,
+    rejected_date,
+    trainer_payment_id,
+    payment_trans_id,
+  ) => {
+    const conn = await pool.getConnection();
+
+    try {
+      await pool.query(
+        `UPDATE trainer_payment SET status = 'Rejected', reason = ?, rejected_date = ? WHERE id = ?`,
+        [rejected_reason, rejected_date, payment_trans_id],
+      );
+
+      const [master] = await conn.query(
+        `SELECT status, request_amount FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id],
+      );
+
+      const [paid] = await pool.query(
+        `SELECT SUM(paid_amount) AS total_paid FROM trainer_payment WHERE payment_master_id = ? AND status IN ('Pending', 'Completed')`,
+        [trainer_payment_id],
+      );
+      const total_paid = Number(paid[0].total_paid);
+      const request_amount = Number(master[0].request_amount);
+      const balance_amount = request_amount - total_paid;
+
+      await pool.query(
+        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
+        [total_paid, balance_amount, "Approval Rejected", trainer_payment_id],
+      );
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+
   rejectTrainerPayment: async (trainers) => {
     const conn = await pool.getConnection();
     try {
@@ -625,7 +695,9 @@ const trainerPaymentModal = {
         [trainer_payment_id],
       );
 
-      if (checkStatus[0].status !== "Payment Rejected")
+      const allowedStatuses = ["Payment Rejected", "Approval Rejected"];
+
+      if (!allowedStatuses.includes(checkStatus[0].status))
         throw new Error("Only rejected payments can be processed");
 
       await pool.query(
@@ -644,7 +716,7 @@ const trainerPaymentModal = {
 
       await pool.query(
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
-        [total_paid, balance_amount, "Awaiting Finance", trainer_payment_id],
+        [total_paid, balance_amount, "Awaiting Approval", trainer_payment_id],
       );
 
       return { status: true };
