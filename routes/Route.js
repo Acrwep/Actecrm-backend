@@ -19,6 +19,8 @@ const WhatsAppController = require("../controller/WhatsAppController");
 const trainerPaymentController = require("../controller/TrainerPaymentController");
 const BatchController = require("../controller/BatchController");
 const TicketController = require("../controller/TicketController");
+const upload = require("../validation/UploadMiddleware");
+const UploadController = require("../controller/UploadController");
 
 router.post("/login", LoginController.login);
 
@@ -494,4 +496,10 @@ router.post("/ticketTrack", TicketController.ticketTrack);
 router.get("/getTicketTracks", TicketController.getTicketTracks);
 router.put("/updateTicketStatus", TicketController.updateTicketStatus);
 router.post("/bulkInsert", verifyToken, BulkSearchController.bulkInsert);
+
+router.post(
+  "/upload-pdf",
+  upload.upload.single("pdf"),
+  UploadController.uplaodPDF,
+);
 module.exports = router;

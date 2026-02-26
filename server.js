@@ -1,8 +1,9 @@
 const express = require("express");
 const Route = require("./routes/Route");
 const cors = require("cors");
-require("./models/SchedulerModel");
-require("./models/GoogleSheetModel");
+// require("./models/SchedulerModel");
+// require("./models/GoogleSheetModel");
+const path = require("path");
 
 const app = express();
 
@@ -16,8 +17,10 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-  })
+  }),
 );
+
+app.use("/uploads", express.static("uploads"));
 app.use("/api", Route);
 
 // Catch all undefined routes
