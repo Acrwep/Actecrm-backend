@@ -510,7 +510,7 @@ router.put(
     { name: "brouchures", maxCount: 1 },
     { name: "syllabus", maxCount: 1 },
   ]),
-  UploadController.insertCourse,
+  UploadController.updateCourse,
 );
 router.delete("/delete-pdf/:course_id", UploadController.deletePDF);
 module.exports = router;
