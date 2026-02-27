@@ -495,11 +495,22 @@ router.get("/getSubCategories", TicketController.getSubCategories);
 router.post("/ticketTrack", TicketController.ticketTrack);
 router.get("/getTicketTracks", TicketController.getTicketTracks);
 router.put("/updateTicketStatus", TicketController.updateTicketStatus);
-router.post("/bulkInsert", verifyToken, BulkSearchController.bulkInsert);
 
 router.post(
-  "/upload-pdf",
-  upload.upload.single("pdf"),
-  UploadController.uplaodPDF,
+  "/insertCourse",
+  upload.upload.fields([
+    { name: "brouchures", maxCount: 1 },
+    { name: "syllabus", maxCount: 1 },
+  ]),
+  UploadController.insertCourse,
 );
+router.put(
+  "/updateCourse",
+  upload.upload.fields([
+    { name: "brouchures", maxCount: 1 },
+    { name: "syllabus", maxCount: 1 },
+  ]),
+  UploadController.insertCourse,
+);
+router.delete("/delete-pdf/:course_id", UploadController.deletePDF);
 module.exports = router;
