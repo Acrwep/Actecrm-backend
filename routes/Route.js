@@ -513,4 +513,5 @@ router.put(
   UploadController.updateCourse,
 );
 router.delete("/delete-pdf/:course_id", UploadController.deletePDF);
+router.post("/getCustomersV1", verifyToken, CustomerController.getCustomersV1);
 module.exports = router;

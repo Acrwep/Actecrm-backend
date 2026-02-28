@@ -116,6 +116,46 @@ const getCustomers = async (request, response) => {
   }
 };
 
+const getCustomersV1 = async (request, response) => {
+  const {
+    name,
+    email,
+    mobile,
+    status,
+    course,
+    from_date,
+    to_date,
+    user_ids,
+    page,
+    limit,
+    region,
+  } = request.body;
+  try {
+    const result = await CustomerModel.getCustomersV1(
+      name,
+      email,
+      mobile,
+      status,
+      course,
+      from_date,
+      to_date,
+      user_ids,
+      page,
+      limit,
+      region,
+    );
+    return response.status(200).send({
+      message: "Customers fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching customers",
+      details: error.message,
+    });
+  }
+};
+
 const getCustomerById = async (request, response) => {
   const { customer_id } = request.query;
   try {
@@ -446,4 +486,5 @@ module.exports = {
   getCustomerHistory,
   checkIsCustomerReg,
   preCertificate,
+  getCustomersV1
 };
