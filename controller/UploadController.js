@@ -94,7 +94,7 @@ const updateCourse = async (request, response) => {
   try {
     const [isNameExists] = await pool.query(
       `SELECT id FROM technologies WHERE name = ? AND is_active = 1 AND id != ?`,
-      [course_name, id],
+      [course_name, course_id],
     );
 
     if (isNameExists.length > 0)
