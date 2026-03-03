@@ -706,7 +706,7 @@ const PaymentModel = {
           tr.name AS trainer_name, tr.mobile AS trainer_mobile, tr.email AS trainer_email,
           c.class_percentage,
           pm.id AS payment_master_id, pm.total_amount,
-          ps.total_paid AS paid_amount,
+          ps.total_paid AS course_fees,
           (pm.total_amount - ps.total_paid) AS balance_amount,
           IFNULL(pt_latest.next_due_date, '') AS next_due_date,
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
