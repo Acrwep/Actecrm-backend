@@ -594,12 +594,156 @@ const PaymentModel = {
     }
   },
 
+  pendingFeesListV1: async (
+    from_date,
+    to_date,
+    name,
+    mobile,
+    email,
+    course,
+    urgent_due,
+    user_ids,
+    page,
+    limit,
+  ) => {
+    try {
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      const baseConditions = [];
+      const queryParams = [];
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          baseConditions.push(`lm.assigned_to IN (${placeholders})`);
+          queryParams.push(...user_ids);
+        } else if (typeof user_ids === "string" || typeof user_ids === "number") {
+          baseConditions.push(`lm.assigned_to = ?`);
+          queryParams.push(user_ids);
+        }
+      }
+
+      if (urgent_due === "Urgent Due") {
+        baseConditions.push(`c.class_percentage >= 30`);
+      }
+
+      const searchConditions = [];
+      if (name) {
+        searchConditions.push(`c.name LIKE ?`);
+        queryParams.push(`%${name}%`);
+      }
+      if (email) {
+        searchConditions.push(`c.email LIKE ?`);
+        queryParams.push(`%${email}%`);
+      }
+      if (mobile) {
+        searchConditions.push(`c.phone LIKE ?`);
+        queryParams.push(`%${mobile}%`);
+      }
+      if (course) {
+        searchConditions.push(`t.name LIKE ?`);
+        queryParams.push(`%${course}%`);
+      }
+
+      const allConditions = [...baseConditions, ...searchConditions, "c.status <> 'Demo Completed'"];
+
+      const summarySubquery = `
+        SELECT 
+          pt.payment_master_id,
+          SUM(pt.amount) AS total_paid,
+          MAX(pt.id) as latest_trans_id
+        FROM payment_trans pt
+        WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+        GROUP BY pt.payment_master_id
+      `;
+
+      const nextDueSubquery = `
+        SELECT 
+          pt2.id,
+          pt2.next_due_date,
+          pt2.is_second_due,
+          pt2.is_last_pay_rejected
+        FROM payment_trans pt2
+      `;
+
+      // Mandatory Filter for Pending Fees
+      allConditions.push("(pm.total_amount - ps.total_paid) > 0");
+
+      if (from_date && to_date) {
+        allConditions.push(`pt_latest.next_due_date BETWEEN ? AND ?`);
+        queryParams.push(`${from_date} 00:00:00`, `${to_date} 23:59:59`);
+      }
+
+      const whereClause = allConditions.length > 0 ? `WHERE ${allConditions.join(" AND ")}` : "";
+
+      const baseFromSql = `
+        FROM customers AS c
+        INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+        INNER JOIN lead_master AS lm ON c.lead_id = lm.id
+        LEFT JOIN technologies AS t ON c.enrolled_course = t.id
+        INNER JOIN (${summarySubquery}) AS ps ON ps.payment_master_id = pm.id
+        INNER JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = ps.latest_trans_id
+      `;
+
+      // Count Query
+      const countQuery = `SELECT COUNT(DISTINCT c.id) as total ${baseFromSql} ${whereClause}`;
+      const [countResult] = await pool.query(countQuery, queryParams);
+      const total = countResult[0]?.total || 0;
+
+      // Data Query
+      const getQuery = `
+        SELECT
+          c.id, c.lead_id, c.name, c.email, c.phonecode, c.phone, c.date_of_joining,
+          c.enrolled_course, t.name AS course_name, c.status, c.created_date,
+          lm.assigned_to AS lead_assigned_to_id, 
+          au.user_name AS lead_assigned_to_name,
+          tr.name AS trainer_name, tr.mobile AS trainer_mobile, tr.email AS trainer_email,
+          c.class_percentage,
+          pm.id AS payment_master_id, pm.total_amount,
+          ps.total_paid AS paid_amount,
+          (pm.total_amount - ps.total_paid) AS balance_amount,
+          IFNULL(pt_latest.next_due_date, '') AS next_due_date,
+          IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
+          IFNULL(pt_latest.is_last_pay_rejected, 0) AS is_last_pay_rejected
+        ${baseFromSql}
+        LEFT JOIN users AS au ON au.user_id = lm.assigned_to
+        LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
+        LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
+        ${whereClause}
+        ORDER BY pt_latest.next_due_date ASC
+        LIMIT ? OFFSET ?
+      `;
+
+      const dataParams = [...queryParams, limitNumber, offset];
+      const [result] = await pool.query(getQuery, dataParams);
+
+      return {
+        data: result,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPendingFeesCount: async (from_date, to_date, user_ids) => {
     try {
+      const [today_count, overall_count, urgent_due_count] = await Promise.all([
+        getTodayCount(user_ids),
+        getOverallCount(from_date, to_date, user_ids),
+        getUrgentDueCount(from_date, to_date, user_ids),
+      ]);
       return {
-        today_count: await getTodayCount(user_ids),
-        overall_count: await getOverallCount(from_date, to_date, user_ids),
-        urgent_due_count: await getUrgentDueCount(from_date, to_date, user_ids),
+        today_count,
+        overall_count,
+        urgent_due_count,
       };
     } catch (error) {
       throw new Error(error.message);

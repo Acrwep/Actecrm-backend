@@ -1,5 +1,6 @@
 const { request, response } = require("express");
 const PaymentModel = require("../models/PaymentModel");
+const CommonModel = require("../models/CommonModel");
 
 const getPaymentModes = async (request, response) => {
   try {
@@ -288,6 +289,60 @@ const updatePaymentMaster = async (request, response) => {
   }
 };
 
+const getPaymentHistory = async (request, response) => {
+  const { lead_id } = request.params;
+  try {
+    const result = await CommonModel.getPaymentHistory(lead_id);
+    return response.status(200).send({
+      messages: "Payment history fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching payment history",
+      details: error.message,
+    });
+  }
+};
+
+const pendingFeesListV1 = async (request, response) => {
+  const {
+    from_date,
+    to_date,
+    name,
+    mobile,
+    email,
+    course,
+    urgent_due,
+    user_ids,
+    page,
+    limit,
+  } = request.body;
+  try {
+    const result = await PaymentModel.pendingFeesListV1(
+      from_date,
+      to_date,
+      name,
+      mobile,
+      email,
+      course,
+      urgent_due,
+      user_ids,
+      page,
+      limit
+    );
+    return response.status(200).send({
+      messages: "Fees pending data successfull",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching fees pending data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -298,4 +353,6 @@ module.exports = {
   paymentReject,
   updatePayment,
   updatePaymentMaster,
+  getPaymentHistory,
+  pendingFeesListV1
 };

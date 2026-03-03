@@ -168,9 +168,8 @@ const CommonModel = {
                       ${result[0].customer_name}
                     </h3>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
-                      During and After ${
-                        result[0].course_duration
-                      } months of Study on the Specified Curriculum<br />
+                      During and After ${result[0].course_duration
+        } months of Study on the Specified Curriculum<br />
                       And having found the Candidate's Performance to be
                     </p>
                     <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
@@ -188,37 +187,36 @@ const CommonModel = {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
                       <tr>
                         ${[
-                          {
-                            name: "Chairman",
-                            title: "Of the Academic Council",
-                            img: chairmanSignBase64,
-                          },
-                          {
-                            name: "Vice-Chairman",
-                            title: "Of the Academic Council",
-                            img: viceChairmanSignBase64,
-                          },
-                          {
-                            name: "Member",
-                            title: "Of the Academic Council",
-                            img: memberSignBase64,
-                          },
-                        ]
-                          .map(
-                            (sig) => `
+          {
+            name: "Chairman",
+            title: "Of the Academic Council",
+            img: chairmanSignBase64,
+          },
+          {
+            name: "Vice-Chairman",
+            title: "Of the Academic Council",
+            img: viceChairmanSignBase64,
+          },
+          {
+            name: "Member",
+            title: "Of the Academic Council",
+            img: memberSignBase64,
+          },
+        ]
+          .map(
+            (sig) => `
 <td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
   <div style="display:flex; flex-direction:column; align-items:center;">
-    ${
-      sig.img
-        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
-        : ""
-    }
+    ${sig.img
+                ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
+                : ""
+              }
     <p style="margin:0; font-size:14px;">${sig.name}</p>
     <p style="margin:0; font-size:14px;">${sig.title}</p>
   </div>
 </td>`,
-                          )
-                          .join("")}
+          )
+          .join("")}
                       </tr>
                     </table>
 
@@ -228,9 +226,8 @@ const CommonModel = {
                            style="margin-top:30px; border-top:1px solid #000; padding-top:10px;">
                       <tr>
                        <td align="right" style="font-size:13px;padding-top:8px;font-weight:500;">
-                      <strong>Certificate No.:</strong> ${
-                        result[0].certificate_number
-                      }
+                      <strong>Certificate No.:</strong> ${result[0].certificate_number
+        }
                       </td>
                       </tr>
                     </table>
@@ -388,9 +385,8 @@ const CommonModel = {
                       ${customer_name}
                     </h3>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
-                      During and After ${
-                        course_duration
-                      } months of Study on the Specified Curriculum<br />
+                      During and After ${course_duration
+        } months of Study on the Specified Curriculum<br />
                       And having found the Candidate's Performance to be
                     </p>
                     <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
@@ -408,37 +404,36 @@ const CommonModel = {
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
                       <tr>
                         ${[
-                          {
-                            name: "Chairman",
-                            title: "Of the Academic Council",
-                            img: chairmanSignBase64,
-                          },
-                          {
-                            name: "Vice-Chairman",
-                            title: "Of the Academic Council",
-                            img: viceChairmanSignBase64,
-                          },
-                          {
-                            name: "Member",
-                            title: "Of the Academic Council",
-                            img: memberSignBase64,
-                          },
-                        ]
-                          .map(
-                            (sig) => `
+          {
+            name: "Chairman",
+            title: "Of the Academic Council",
+            img: chairmanSignBase64,
+          },
+          {
+            name: "Vice-Chairman",
+            title: "Of the Academic Council",
+            img: viceChairmanSignBase64,
+          },
+          {
+            name: "Member",
+            title: "Of the Academic Council",
+            img: memberSignBase64,
+          },
+        ]
+          .map(
+            (sig) => `
 <td align="center" style="width:33%; padding:0 10px; vertical-align:bottom;">
   <div style="display:flex; flex-direction:column; align-items:center;">
-    ${
-      sig.img
-        ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
-        : ""
-    }
+    ${sig.img
+                ? `<img src="${sig.img}" style="width:160px; height:auto; display:block;" />`
+                : ""
+              }
     <p style="margin:0; font-size:14px;">${sig.name}</p>
     <p style="margin:0; font-size:14px;">${sig.title}</p>
   </div>
 </td>`,
-                          )
-                          .join("")}
+          )
+          .join("")}
                       </tr>
                     </table>
 
