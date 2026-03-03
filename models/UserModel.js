@@ -4,9 +4,11 @@ const UserModel = {
   addUser: async (
     user_id,
     user_name,
+    phone,
     password,
     users,
     roles,
+    profile_image,
     target_value,
     target_start,
     target_end
@@ -24,17 +26,21 @@ const UserModel = {
       const insertQuery = `INSERT INTO users(
                             user_id,
                             user_name,
+                            phone,
                             password,
                             child_users,
-                            roles
+                            roles,
+                            profile_image
                         )
-                        VALUES(?, ?, ?, ?, ?)`;
+                        VALUES(?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         user_id,
         user_name,
+        phone,
         password,
         JSON.stringify(users),
         JSON.stringify(roles),
+        profile_image,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -70,8 +76,8 @@ const UserModel = {
           if (childExists.length === 0) {
             // Create child user if doesn't exist
             await pool.query(
-              `INSERT INTO users(user_id, user_name, password, roles) VALUES(?, ?, ?, ?)`,
-              [child.user_id, child.user_name, "", "[]"]
+              `INSERT INTO users(user_id, user_name, phone, password, roles, profile_image) VALUES(?, ?, ?, ?, ?, ?)`,
+              [child.user_id, child.user_name, "", "", "[]", ""]
             );
             affectedRows += 1;
           }
@@ -138,7 +144,7 @@ const UserModel = {
   getUsers: async (user_id, user_name, page, limit) => {
     try {
       const params = [];
-      let getQuery = `SELECT id, user_id, user_name, password, child_users, roles, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
+      let getQuery = `SELECT id, user_id, user_name, phone, profile_image, password, child_users, roles, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
 
       let countQuery = `SELECT COUNT(id) AS total FROM users WHERE is_active = 1`;
       if (user_id) {
@@ -167,7 +173,7 @@ const UserModel = {
 
       // Get all users
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`
+        `SELECT id, user_id, user_name, phone, profile_image FROM users WHERE is_active = 1`
       );
 
       const formattedResult = await Promise.all(
@@ -212,6 +218,8 @@ const UserModel = {
     id,
     user_id,
     user_name,
+    phone,
+    profile_image,
     password,
     users,
     roles,
@@ -229,10 +237,12 @@ const UserModel = {
         throw new Error("Invalid Id");
       }
 
-      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
+      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
       const values = [
         user_id,
         user_name,
+        phone,
+        profile_image,
         password,
         JSON.stringify(users),
         JSON.stringify(roles),
@@ -277,8 +287,8 @@ const UserModel = {
           if (childExists.length === 0) {
             // Create child user if doesn't exist
             await pool.query(
-              `INSERT INTO users(user_id, user_name, password, roles) VALUES(?, ?, ?, ?)`,
-              [child.user_id, child.user_name, "", "[]"]
+              `INSERT INTO users(user_id, user_name, phone, profile_image, password, roles) VALUES(?, ?, ?, ?, ?, ?)`,
+              [child.user_id, child.user_name, "", "", "", "[]"]
             );
             affectedRows += 1;
           }

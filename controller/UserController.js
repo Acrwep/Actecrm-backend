@@ -5,6 +5,8 @@ const addUser = async (request, response) => {
   const {
     user_id,
     user_name,
+    phone,
+    profile_image,
     password,
     users,
     roles,
@@ -24,9 +26,11 @@ const addUser = async (request, response) => {
     const result = await userModel.addUser(
       user_id,
       user_name,
+      phone,
       password,
       formattedUsers,
       formattedRoles,
+      profile_image,
       target_value,
       target_start,
       target_end
@@ -64,6 +68,8 @@ const updateUser = async (request, response) => {
     id,
     user_id,
     user_name,
+    phone,
+    profile_image,
     password,
     users,
     roles,
@@ -78,6 +84,8 @@ const updateUser = async (request, response) => {
       id,
       user_id,
       user_name,
+      phone,
+      profile_image,
       password,
       formattedUsers,
       formattedRoles,
