@@ -684,7 +684,11 @@ const PaymentModel = {
         INNER JOIN lead_master AS lm ON c.lead_id = lm.id
         LEFT JOIN technologies AS t ON c.enrolled_course = t.id
         INNER JOIN (${summarySubquery}) AS ps ON ps.payment_master_id = pm.id
-        INNER JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = ps.latest_trans_id
+        INNER JOIN(
+          SELECT MAX(id) AS latest_trans_id, payment_master_id FROM payment_trans
+          GROUP BY payment_master_id
+        ) AS latest ON latest.payment_master_id = pm.id
+        INNER JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
       `;
 
       // Count Query
