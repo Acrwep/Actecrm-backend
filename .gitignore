@@ -34,3 +34,5 @@ models/cron_job_logs.txt
 models/checkpoint.json
 models/serviceaccount.json
 node_modules/.package-lock.json
+serviceaccount.json
+models/acte-480005-9b15a4920cca.json

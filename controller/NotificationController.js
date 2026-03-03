@@ -5,7 +5,7 @@ const { formatMessageBody } = require("../validation/Validation");
 
 // Initialize Firebase Admin
 const serviceKey = JSON.parse(
-  fs.readFileSync("serviceAccountKey.json", "utf8")
+  fs.readFileSync("serviceAccountKey.json", "utf8"),
 );
 
 if (!admin.apps.length) {
@@ -22,7 +22,7 @@ const registerToken = async (req, res) => {
     if (!user_id || !token) {
       return res.status(400).json({ message: "Missing user_id or token" });
     }
-
+    // 625.806
     await notificationModel.saveToken(user_id, token);
 
     return res.status(200).json({ message: "Token saved successfully" });
@@ -59,7 +59,7 @@ const sendNotificationToUser = async (req, res) => {
           title,
           JSON.stringify(message),
           token,
-          created_at
+          created_at,
         );
 
         affectedRows += affectedRows;
@@ -99,7 +99,7 @@ const getNotifications = async (req, res) => {
       await notificationModel.getUserNotifications(
         user_id,
         limitNumber,
-        offset
+        offset,
       );
 
     // range calculation
