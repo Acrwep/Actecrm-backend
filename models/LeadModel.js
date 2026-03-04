@@ -399,10 +399,6 @@ const LeadModel = {
         countQueryParams.push(start_date, end_date, start_date, end_date);
       }
 
-      // Get total count
-      const [countResult] = await pool.query(countQuery, countQueryParams);
-      const total = countResult[0]?.total || 0;
-
       // Apply pagination to main query
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -411,32 +407,48 @@ const LeadModel = {
       getQuery += ` ORDER BY l.created_date DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [result] = await pool.query(getQuery, queryParams);
+      const [[countResult], [result]] = await Promise.all([
+        pool.query(countQuery, countQueryParams),
+        pool.query(getQuery, queryParams),
+      ]);
 
-      // Use Promise.all to wait for all async operations in the map
-      const formattedResult = await Promise.all(
-        result.map(async (item) => {
-          const [history] = await pool.query(
-            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+      const total = countResult[0]?.total || 0;
+
+      const leadIds = [...new Set(result.map((item) => item.id))];
+
+      let history = new Map();
+      if (leadIds.length > 0) {
+        const [historyResult] = await pool.query(
+          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
            FROM lead_follow_up_history AS lh 
            LEFT JOIN users AS u ON lh.updated_by = u.user_id 
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
-           WHERE lh.is_updated = 1 AND lh.lead_id = ? 
+           WHERE lh.is_updated = 1 AND lh.lead_id IN (?) 
            ORDER BY lh.id ASC`,
-            [item.id],
-          );
+          [leadIds],
+        );
 
-          const [qualityHistory] = await pool.query(
-            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
-            [item.id],
-          );
-          return {
-            ...item,
-            histories: history,
-            quality_history: qualityHistory,
-          };
-        }),
-      );
+        historyResult.forEach((h) => history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]));
+      }
+
+      let qualityHistory = new Map();
+      if (leadIds.length > 0) {
+        const [qualityHistoryResult] = await pool.query(
+          `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id IN (?) ORDER BY q.id ASC`,
+          [leadIds],
+        );
+
+        qualityHistoryResult.forEach((qh) => qualityHistory.set(qh.lead_id, [...(qualityHistory.get(qh.lead_id) || []), qh]));
+      }
+
+      // Use Promise.all to wait for all async operations in the map
+      const formattedResult = result.map((item) => {
+        return {
+          ...item,
+          histories: history.get(item.id) || [],
+          quality_history: qualityHistory.get(item.id) || [],
+        };
+      });
 
       return {
         data: formattedResult,
@@ -594,11 +606,6 @@ const LeadModel = {
         }
       }
 
-      // Get total count
-      const [countResult] = await pool.query(countQuery, countQueryParams);
-      const total = countResult[0]?.total || 0;
-
-      // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
@@ -608,32 +615,47 @@ const LeadModel = {
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [follow_ups] = await pool.query(getQuery, queryParams);
+      const [[countResult], [follow_ups]] = await Promise.all([
+        pool.query(countQuery, countQueryParams),
+        pool.query(getQuery, queryParams),
+      ]);
 
-      // Use Promise.all to wait for all async operations in the map
-      const formattedResult = await Promise.all(
-        follow_ups.map(async (item) => {
-          const [history] = await pool.query(
-            `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+      const total = countResult[0]?.total || 0;
+
+      const leadIds = [...new Set(follow_ups.map((item) => item.id))];
+
+      let history = new Map();
+
+      if (leadIds.length > 0) {
+        const [historyResult] = await pool.query(
+          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
            FROM lead_follow_up_history AS lh 
            LEFT JOIN users AS u ON lh.updated_by = u.user_id 
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
-           WHERE lh.is_updated = 1 AND lh.lead_id = ? 
+           WHERE lh.is_updated = 1 AND lh.lead_id IN (?) 
            ORDER BY lh.id ASC`,
-            [item.id],
-          );
+          [leadIds],
+        );
+        historyResult.forEach((h) => history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]));
+      }
 
-          const [qualityHistory] = await pool.query(
-            `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id = ? ORDER BY q.id ASC`,
-            [item.id],
-          );
-          return {
-            ...item,
-            histories: history,
-            quality_history: qualityHistory,
-          };
-        }),
-      );
+      let qualityHistory = new Map();
+
+      if (leadIds.length > 0) {
+        const [qualityHistoryResult] = await pool.query(
+          `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id IN (?) ORDER BY q.id ASC`,
+          [leadIds],
+        );
+        qualityHistoryResult.forEach((q) => qualityHistory.set(q.lead_id, [...(qualityHistory.get(q.lead_id) || []), q]));
+      }
+
+      const formattedResult = follow_ups.map((item) => {
+        return {
+          ...item,
+          histories: history.get(item.id) || [],
+          quality_history: qualityHistory.get(item.id) || [],
+        };
+      });
 
       return {
         data: formattedResult,

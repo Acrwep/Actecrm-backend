@@ -2,7 +2,6 @@ const express = require("express");
 const Route = require("./routes/Route");
 const cors = require("cors");
 require("./models/SchedulerModel");
-// require("./models/GoogleSheetModel");
 const path = require("path");
 
 const http = require("http");
