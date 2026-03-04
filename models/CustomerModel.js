@@ -785,6 +785,7 @@ const CustomerModel = {
                           IFNULL(c.gst_number, '') AS gst_number,
                           r.name AS region_name,
                           r.id AS region_id,
+                          cer.id AS certificate_id,
                           cer.customer_name AS cer_customer_name,
                           cer.course_name AS cer_course_name,
                           cer.course_duration AS cer_course_duration,
