@@ -896,8 +896,8 @@ const CustomerModel = {
         paid_amount: paidAmount,
         balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
         commercial_percentage: commercial_percentage,
-        ongoing_student_count: studentResult[0].on_going_student ?? 0,
-        completed_student_count: studentResult[0].completed_student_count ?? 0,
+        ongoing_student_count: studentResult[0]?.on_going_student ?? 0,
+        completed_student_count: studentResult[0]?.completed_student_count ?? 0,
       };
     } catch (error) {
       throw new Error(error.message);
