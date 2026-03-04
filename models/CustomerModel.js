@@ -660,8 +660,8 @@ const CustomerModel = {
           paid_amount: paidAmount,
           commercial_percentage: item.primary_fees
             ? parseFloat(
-              ((item.commercial / item.primary_fees) * 100).toFixed(2),
-            )
+                ((item.commercial / item.primary_fees) * 100).toFixed(2),
+              )
             : 0,
           // payments: await CommonModel.getPaymentHistory(item.lead_id),
           payments: paymentHistoryMap.get(String(item.lead_id)) || null,
@@ -872,9 +872,7 @@ const CustomerModel = {
       const paidAmount = parseFloat(row.paid_amount || 0);
 
       const commercial_percentage = row.primary_fees
-        ? parseFloat(
-          ((row.commercial / row.primary_fees) * 100).toFixed(2),
-        )
+        ? parseFloat(((row.commercial / row.primary_fees) * 100).toFixed(2))
         : 0;
 
       const [studentResult] = await pool.query(
@@ -1523,8 +1521,8 @@ const CustomerModel = {
           paid_amount: paidAmount,
           commercial_percentage: item.primary_fees
             ? parseFloat(
-              ((item.commercial / item.primary_fees) * 100).toFixed(2),
-            )
+                ((item.commercial / item.primary_fees) * 100).toFixed(2),
+              )
             : 0,
         };
       });
@@ -1552,7 +1550,17 @@ const CustomerModel = {
     }
   },
 
-  updateCertificate: async (id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date) => {
+  updateCertificate: async (
+    id,
+    customer_id,
+    customer_name,
+    course_name,
+    course_duration,
+    course_completion_month,
+    certificate_number,
+    current_location,
+    updated_date,
+  ) => {
     try {
       const query = `UPDATE certificates SET customer_name = ?, course_name = ?, course_duration = ?, course_completion_month = ?, certificate_number = ?, location = ?, updated_at = ? WHERE id = ? AND customer_id = ?`;
       const [result] = await pool.query(query, [
@@ -1561,7 +1569,7 @@ const CustomerModel = {
         course_duration,
         course_completion_month,
         certificate_number,
-        location,
+        current_location,
         updated_date,
         id,
         customer_id,
@@ -1570,7 +1578,7 @@ const CustomerModel = {
     } catch (error) {
       throw new Error(error.message);
     }
-  }
+  },
 };
 
 module.exports = CustomerModel;
