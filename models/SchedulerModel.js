@@ -7,7 +7,7 @@ const path = require("path");
 
 // Initialize Firebase Admin
 const serviceKey = JSON.parse(
-  fs.readFileSync("serviceAccountKey.json", "utf8")
+  fs.readFileSync("serviceAccountKey.json", "utf8"),
 );
 
 if (!admin.apps.length) {
@@ -19,7 +19,7 @@ if (!admin.apps.length) {
 let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
 let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
-let liveLeadTime = "* * * * * *"; // Schedule: Runs every seconds
+let liveLeadTime = "*/30 * * * * *"; // Schedule: Runs every 30 seconds
 
 // Configure log file path
 const logFilePath = path.join(__dirname, "cron_job_logs.txt");
@@ -51,10 +51,10 @@ const job = cron.schedule(scheduleTime, async () => {
         `UPDATE server_trans
          SET status = 'Expired'
          WHERE end_date < NOW()
-           AND status = 'Active'`
+           AND status = 'Active'`,
       );
       await logToFile(
-        `Expired server_trans rows: ${updateTransResult.affectedRows}`
+        `Expired server_trans rows: ${updateTransResult.affectedRows}`,
       );
 
       // 2) update server_master only when ALL its server_trans rows are now 'Expired'
@@ -68,11 +68,11 @@ const job = cron.schedule(scheduleTime, async () => {
             AND SUM(st.status <> 'Expired') = 0
         ) AS t ON sm.id = t.server_id
         SET sm.status = 'Expired'
-        WHERE sm.status = 'Issued'`
+        WHERE sm.status = 'Issued'`,
       );
 
       await logToFile(
-        `Updated server_master rows (all trans expired): ${updateMasterResult.affectedRows}`
+        `Updated server_master rows (all trans expired): ${updateMasterResult.affectedRows}`,
       );
 
       await conn.commit();
@@ -102,10 +102,12 @@ const job = cron.schedule(scheduleTime, async () => {
   }
 });
 
+const socketService = require("../services/SocketService");
+
 const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
   try {
     await logToFile(
-      "Cron job started execution for followup notification send"
+      "Cron job started execution for followup notification send",
     );
     const conn = await pool.getConnection();
 
@@ -121,18 +123,18 @@ const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
            AND lf.is_updated = 0
            AND c.id IS NULL
          GROUP BY l.assigned_to
-         ORDER BY follow_up_count DESC`
+         ORDER BY follow_up_count DESC`,
       );
 
       const [getUsersToken] = await conn.query(
-        `SELECT user_id, token FROM user_tokens`
+        `SELECT user_id, token FROM user_tokens`,
       );
 
       if (getFollowupCount.length > 0) {
         // Use sequential loop while inside a DB transaction (safer than Promise.all)
         for (const item of getFollowupCount) {
           const tokenRow = getUsersToken.find(
-            (r) => r.user_id === item.assigned_to
+            (r) => r.user_id === item.assigned_to,
           );
           if (tokenRow != undefined) {
             const fcmToken = tokenRow.token; // <-- actual string token
@@ -143,8 +145,16 @@ const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
             // Insert notification into DB (4 columns -> 4 values)
             await conn.query(
               `INSERT INTO notifications (user_id, title, message, token) VALUES (?, ?, ?, ?)`,
-              [item.assigned_to, title, body, fcmToken]
+              [item.assigned_to, title, body, fcmToken],
             );
+
+            // Send REAL-TIME WebSocket Notification
+            socketService.emitNotification(item.assigned_to, {
+              title,
+              message: body,
+              body,
+              created_at: new Date(),
+            });
 
             // Send DATA-only payload to FCM
             const payload = {
@@ -160,7 +170,7 @@ const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
               await admin.messaging().send(payload);
             } catch (sendErr) {
               await logToFile(
-                `FCM send error for user ${item.assigned_to}: ${sendErr.message}`
+                `FCM send error for user ${item.assigned_to}: ${sendErr.message}`,
               );
               // optionally continue; we already saved the notification in DB
             }
@@ -198,7 +208,7 @@ const nextFollowupNotify = cron.schedule(nextFollowupTime, async () => {
 const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
   try {
     await logToFile(
-      "Cron job started execution for due date notification send"
+      "Cron job started execution for due date notification send",
     );
     const conn = await pool.getConnection();
 
@@ -226,18 +236,18 @@ const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
                                     AND p2.payment_status IN ('Verified', 'Verify Pending')
                               )
                               AND CAST(pt_date.next_due_date AS DATE) = CURRENT_DATE
-                          ) GROUP BY l.assigned_to ORDER BY todays_pending_count DESC;`
+                          ) GROUP BY l.assigned_to ORDER BY todays_pending_count DESC;`,
       );
 
       const [getUsersToken] = await conn.query(
-        `SELECT user_id, token FROM user_tokens`
+        `SELECT user_id, token FROM user_tokens`,
       );
 
       if (getNextDueCount.length > 0) {
         // Use sequential loop while inside a DB transaction (safer than Promise.all)
         for (const item of getNextDueCount) {
           const tokenRow = getUsersToken.find(
-            (r) => r.user_id === item.assigned_to
+            (r) => r.user_id === item.assigned_to,
           );
 
           if (tokenRow != undefined) {
@@ -249,8 +259,16 @@ const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
             // Insert notification into DB (4 columns -> 4 values)
             await conn.query(
               `INSERT INTO notifications (user_id, title, message, token) VALUES (?, ?, ?, ?)`,
-              [item.assigned_to, title, body, fcmToken]
+              [item.assigned_to, title, body, fcmToken],
             );
+
+            // Send REAL-TIME WebSocket Notification
+            socketService.emitNotification(item.assigned_to, {
+              title,
+              message: body,
+              body,
+              created_at: new Date(),
+            });
 
             // Send DATA-only payload to FCM
             const payload = {
@@ -266,7 +284,7 @@ const nextDueDateNotify = cron.schedule(nextDueDateTime, async () => {
               await admin.messaging().send(payload);
             } catch (sendErr) {
               await logToFile(
-                `FCM send error for user ${item.assigned_to}: ${sendErr.message}`
+                `FCM send error for user ${item.assigned_to}: ${sendErr.message}`,
               );
               // optionally continue; we already saved the notification in DB
             }
@@ -320,7 +338,7 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
 
     // 2️⃣ Get ONE Sale user token
     const [tokens] = await conn.query(`
-      SELECT ut.token
+      SELECT ut.token, ut.user_id
       FROM user_tokens ut
       JOIN users u ON u.user_id = ut.user_id
       WHERE u.is_active = 1
@@ -329,6 +347,15 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
     `);
 
     if (tokens.length === 0) return;
+
+    // 3️⃣ Get total lead count for WebSocket update
+    const [countResult] = await conn.query(
+      `SELECT COUNT(*) AS total_leads FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`,
+    );
+    const totalLeads = countResult[0].total_leads;
+
+    // Notify via WebSockets to all Sales users (or everyone interested in lead counts)
+    socketService.emitLeadUpdate({ lead_count: totalLeads });
 
     const title = "New Lead Available";
     const body = `You have ${leadIds.length} new lead(s)`;
@@ -344,12 +371,22 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
 
     await admin.messaging().sendEach(message);
 
+    // Also send individual socket notifications
+    for (const token of tokens) {
+      socketService.emitNotification(token.user_id, {
+        title,
+        message: body,
+        body,
+        created_at: new Date(),
+      });
+    }
+
     // 4️⃣ Update processed leads
     await conn.query(
       `UPDATE website_leads
        SET is_notified = 1
        WHERE id IN (?)`,
-      [leadIds]
+      [leadIds],
     );
   } catch (err) {
     console.error("Lead notify error:", err);

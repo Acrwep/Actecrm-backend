@@ -1,11 +1,18 @@
 const express = require("express");
 const Route = require("./routes/Route");
 const cors = require("cors");
-// require("./models/SchedulerModel");
+require("./models/SchedulerModel");
 // require("./models/GoogleSheetModel");
 const path = require("path");
 
+const http = require("http");
+const socketService = require("./services/SocketService");
+
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.io
+socketService.init(server);
 
 // Middleware (MUST come first)
 app.use(express.json({ limit: "200mb" }));
@@ -31,6 +38,6 @@ app.use((req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on ${port}`);
 });

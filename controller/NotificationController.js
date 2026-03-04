@@ -74,6 +74,15 @@ const sendNotificationToUser = async (req, res) => {
         };
 
         await admin.messaging().send(payload);
+
+        // 🚀 Send REAL-TIME WebSocket Notification
+        const socketService = require("../services/SocketService");
+        socketService.emitNotification(user_id, {
+          title,
+          message,
+          body,
+          created_at: created_at || new Date(),
+        });
       }
     }
 

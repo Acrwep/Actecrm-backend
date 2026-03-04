@@ -7,6 +7,10 @@ const login = async (request, response) => {
     const validateUser = await loginModel.login(user_id, password);
 
     if (validateUser) {
+      const socketService = require("../services/SocketService");
+      // 🚀 Force logout other sessions
+      socketService.emitForceLogout(user_id);
+
       const token = generateToken(validateUser);
       return response.status(200).send({
         message: "Login successful",
@@ -30,7 +34,7 @@ const changePassword = async (request, response) => {
     const result = await loginModel.changePassword(
       user_id,
       currentPassword,
-      newPassword
+      newPassword,
     );
     return response.status(200).json({
       message: "Password changed successfully",
@@ -56,7 +60,7 @@ const generateToken = (user) => {
       position: user.position_id,
     },
     process.env.JWT_SECRET, // From .env file
-    { expiresIn: "3d" }
+    { expiresIn: "3d" },
   );
 };
 
