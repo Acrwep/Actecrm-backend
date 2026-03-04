@@ -713,7 +713,6 @@ const CustomerModel = {
                             c.id,
                             c.lead_id,
                             c.name,
-                            c.student_id,
                             c.email,
                             c.phonecode,
                             c.phone,
@@ -725,75 +724,79 @@ const CustomerModel = {
                             c.is_certificate_generated,
                             c.is_server_required,
                             CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
-                            CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
-                            l.primary_fees,
-                            c.branch_id,
-                            b.name AS branch_name,
-                            c.batch_track_id,
-                            bt.name AS batch_tracking,
-                            c.batch_timing_id,
-                            bs.name AS batch_timing,
-                            CASE WHEN c.country IS NOT NULL THEN c.country ELSE l.country END AS country,
-                            CASE WHEN c.state IS NOT NULL THEN c.state ELSE l.state END AS state,
-                            CASE WHEN c.current_location IS NOT NULL THEN c.current_location ELSE l.district END AS current_location,
-                            c.signature_image,
-                            c.profile_image,
-                            c.placement_support,
-                            c.status,
-                            c.is_form_sent,
-                            c.is_customer_updated,
-                            c.created_date,
-                            c.class_start_date,
-                            l.user_id AS lead_by_id,
-                            u.user_name AS lead_by,
-                            l.assigned_to AS lead_assigned_to_id,
-                            au.user_name AS lead_assigned_to_name,
-                            tr.name AS trainer_name,
-                            tr.trainer_id AS trainer_code,
-                            tr.mobile_phone_code AS trainer_mobile_code,
-                            tr.mobile AS trainer_mobile,
-                            tr.email AS trainer_email,
-                            map.id AS training_map_id,
-                            map.trainer_id,
-                            map.commercial,
-                            map.mode_of_class,
-                            map.trainer_type,
-                            map.proof_communication,
-                            map.comments,
-                            map.is_verified AS is_trainer_verified,
-                            map.verified_date AS trainer_verified_date,
-                            map.is_rejected AS is_trainer_rejected,
-                            map.rejected_date AS trainer_rejected_date,
-                            c.class_schedule_id,
-                            cs.name AS class_schedule_name,
-                            c.class_scheduled_at,
-                            c.class_percentage,
-                            c.class_comments,
-                            c.class_attachment,
-                            c.linkedin_review,
-                            c.google_review,
-                            c.course_duration,
-                            c.course_completion_date,
-                            c.review_updated_date,
-                            CASE WHEN r.name = 'Hub' THEN 'Online' ELSE 'Offline' END AS invoice_type,
-                            c.place_of_supply,
-                            c.address,
-                            c.state_code,
-                            c.gst_number,
-                            c.payment_date AS last_payment_date,
-                            r.name AS region_name,
-                            r.id AS region_id,
-                            cer.customer_name AS cer_customer_name,
-                            cer.course_name AS cer_course_name,
-                            cer.course_duration AS cer_course_duration,
-                            cer.course_completion_month AS cer_course_completion_month,
-                            cer.certificate_number,
-                            cer.location AS cer_location,
+                          CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
+                          l.primary_fees,
+                          c.branch_id,
+                          b.name AS branch_name,
+                          c.batch_track_id,
+                          bt.name AS batch_tracking,
+                          c.batch_timing_id,
+                          bs.name AS batch_timing,
+                          CASE WHEN c.country IS NOT NULL THEN c.country ELSE l.country END AS country,
+                          CASE WHEN c.state IS NOT NULL THEN c.state ELSE l.state END AS state,
+                          CASE WHEN c.current_location IS NOT NULL THEN c.current_location ELSE l.district END AS current_location,
+                          c.signature_image,
+                          c.profile_image,
+                          c.placement_support,
+                          c.status,
+                          c.is_form_sent,
+                          c.is_customer_updated,
+                          c.class_start_date,
+                          c.created_date,
+                          l.user_id AS lead_by_id,
+                          u.user_name AS lead_by,
+                          l.assigned_to AS lead_assigned_to_id,
+                          au.user_name AS lead_assigned_to_name,
+                          tr.name AS trainer_name,
+                          tr.trainer_id AS trainer_code,
+                          tr.mobile_phone_code AS trainer_mobile_code,
+                          tr.mobile AS trainer_mobile,
+                          tr.email AS trainer_email,
+                          tr.overall_exp_year,
+                          tus.user_id AS trainer_hr_id,
+                          tus.user_name AS trainer_hr_name,
+                          map.id AS training_map_id,
+                          map.trainer_id,
+                          map.commercial,
+                          map.mode_of_class,
+                          map.trainer_type,
+                          map.proof_communication,
+                          map.comments,
+                          map.is_verified AS is_trainer_verified,
+                          map.verified_date AS trainer_verified_date,
+                          map.is_rejected AS is_trainer_rejected,
+                          map.rejected_date AS trainer_rejected_date,
+                          c.class_schedule_id,
+                          cs.name AS class_schedule_name,
+                          c.class_scheduled_at,
+                          c.class_percentage,
+                          c.class_comments,
+                          c.class_attachment,
+                          c.linkedin_review,
+                          c.google_review,
+                          c.course_duration,
+                          c.course_completion_date,
+                          c.review_updated_date,
+                          c.payment_date AS last_payment_date,
+                          CASE WHEN r.name = 'Hub' THEN 'Online' ELSE 'Offline' END AS invoice_type,
+                          IFNULL(c.place_of_supply, '') AS place_of_supply,
+                          IFNULL(c.address, '') AS address,
+                          IFNULL(c.state_code, '') AS state_code,
+                          IFNULL(c.gst_number, '') AS gst_number,
+                          r.name AS region_name,
+                          r.id AS region_id,
+                          cer.customer_name AS cer_customer_name,
+                          cer.course_name AS cer_course_name,
+                          cer.course_duration AS cer_course_duration,
+                          cer.course_completion_month AS cer_course_completion_month,
+                          cer.certificate_number,
+                          cer.location AS cer_location,
+                          pt.next_due_date,
+                          pt1.is_second_due AS has_second_due,
+                          pt1.is_last_pay_rejected,
                             pm.total_amount AS total_course_amount,
-                            COALESCE(ps.total_paid, 0) AS paid_amount,
-                            pt_latest.next_due_date
-                        FROM
-                            customers AS c
+                          COALESCE(ps.total_paid, 0) AS paid_amount
+                        FROM customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
                         LEFT JOIN region AS r ON
@@ -804,35 +807,57 @@ const CustomerModel = {
                             bt.id = c.batch_track_id
                         LEFT JOIN batches AS bs ON
                             bs.id = c.batch_timing_id
-                        LEFT JOIN lead_master AS l ON
-                        	l.id = c.lead_id
-                        LEFT JOIN payment_master AS pm ON
-                          pm.lead_id = l.id
-                        LEFT JOIN technologies AS tg ON
-                        	l.primary_course_id = tg.id
-                        LEFT JOIN users AS u ON
-                        	u.user_id = l.user_id
-                        LEFT JOIN users AS au ON
-                          au.user_id = l.assigned_to
-                        LEFT JOIN trainer_mapping AS map ON
-                        	map.customer_id = c.id
-                          AND map.is_rejected = 0
-                       	LEFT JOIN trainer AS tr ON
-                        	tr.id = map.trainer_id
                         LEFT JOIN class_schedule AS cs ON
                           c.class_schedule_id = cs.id
                         LEFT JOIN certificates AS cer ON
                           cer.customer_id = c.id
-                        LEFT JOIN (
-                          SELECT 
-                            payment_master_id,
-                            SUM(amount) AS total_paid,
-                            MAX(id) AS latest_trans_id
-                          FROM payment_trans
-                          WHERE payment_status IN ('Verified', 'Verify Pending')
-                          GROUP BY payment_master_id
-                        ) AS ps ON ps.payment_master_id = pm.id
-                        LEFT JOIN payment_trans AS pt_latest ON pt_latest.id = ps.latest_trans_id
+                        LEFT JOIN lead_master AS l ON
+                            l.id = c.lead_id
+                        LEFT JOIN payment_master AS pm ON
+                          pm.lead_id = c.lead_id
+                        LEFT JOIN technologies AS tg ON
+                            l.primary_course_id = tg.id
+                        LEFT JOIN users AS u ON
+                            u.user_id = l.user_id
+                        LEFT JOIN users AS au ON
+                            au.user_id = l.assigned_to
+                        LEFT JOIN(
+                            SELECT
+                                MAX(id) AS trainer_map_id,
+                                customer_id
+                            FROM trainer_mapping
+                            GROUP BY customer_id
+                        ) AS latest_map ON
+                            latest_map.customer_id = c.id
+                        LEFT JOIN trainer_mapping map ON
+                            map.id = latest_map.trainer_map_id
+                        LEFT JOIN trainer AS tr ON
+                            tr.id = map.trainer_id
+                        LEFT JOIN users AS tus ON
+                            tr.created_by = tus.user_id
+                        LEFT JOIN(
+                            SELECT
+                                payment_master_id,
+                                MAX(id) AS latest_trans_id,
+                                SUM(amount) AS total_paid
+                            FROM payment_trans
+                            WHERE
+                                payment_status IN('Verified', 'Verify Pending')
+                            GROUP BY payment_master_id
+                        ) AS ps ON
+                            ps.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt ON
+                            pt.id = ps.latest_trans_id
+                        LEFT JOIN(
+                            SELECT
+                                payment_master_id,
+                                MAX(id) AS latest_trans_id
+                            FROM payment_trans
+                            GROUP BY payment_master_id
+                        ) AS ps1 ON
+                            ps1.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt1 ON
+                            pt1.id = ps1.latest_trans_id
                         WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);
@@ -1234,7 +1259,7 @@ const CustomerModel = {
                       c.google_review,
                       c.payment_date AS last_payment_date,
                       pt.next_due_date,
-                      pt1.is_second_due AS has_second_due,
+                      pt1.is_second_due AS is_second_due,
                       pt1.is_last_pay_rejected,
                       COALESCE(ps.total_paid, 0) AS paid_amount,
                       pm.total_amount AS total_course_amount
@@ -1434,10 +1459,6 @@ const CustomerModel = {
         countQuery += ` AND tg.name LIKE '%${course}%'`;
       }
 
-      // Get total count
-      const [countResult] = await pool.query(countQuery, countQueryParams);
-      const total = countResult[0]?.total || 0;
-
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -1447,8 +1468,25 @@ const CustomerModel = {
       getQuery += ` ORDER BY c.created_date DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      // Fetch customers
-      const [result] = await pool.query(getQuery, queryParams);
+      // Fetch all required data concurrently
+      const [
+        [countResult],
+        [result],
+        [getStatus],
+        [financeResult],
+        [paymentStatus],
+        [rejectedPaymentCount],
+      ] = await Promise.all([
+        pool.query(countQuery, countQueryParams),
+        pool.query(getQuery, queryParams),
+        pool.query(getCountQuery, countParams),
+        pool.query(financeQuery, financeParams),
+        pool.query(paymentQuery, paymentParams),
+        pool.query(rejectedPaymentQuery, rejectedPaymentParams),
+      ]);
+
+      // Get total count
+      const total = countResult[0]?.total || 0;
 
       let res = result.map((item) => {
         const totalAmount = parseFloat(item.total_course_amount || 0);
@@ -1467,18 +1505,6 @@ const CustomerModel = {
         };
       });
       // Fetch customer count by status
-      const [getStatus] = await pool.query(getCountQuery, countParams);
-
-      const [financeResult] = await pool.query(financeQuery, financeParams);
-
-      // Fetch customer payment status count
-      const [paymentStatus] = await pool.query(paymentQuery, paymentParams);
-
-      const [rejectedPaymentCount] = await pool.query(
-        rejectedPaymentQuery,
-        rejectedPaymentParams,
-      );
-
       const cusStatusCount = {
         ...getStatus[0],
         awaiting_finance:
