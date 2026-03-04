@@ -236,7 +236,7 @@ const CustomerModel = {
                             cer.certificate_number,
                             cer.location AS cer_location,
                             payment_next.next_due_date,
-							              payment_info.is_second_due AS has_second_due,
+							              payment_info.is_second_due AS is_second_due,
                             payment_rejected.is_last_pay_rejected
                         FROM
                             customers AS c
@@ -792,9 +792,9 @@ const CustomerModel = {
                           cer.certificate_number,
                           cer.location AS cer_location,
                           pt.next_due_date,
-                          pt1.is_second_due AS has_second_due,
+                          pt1.is_second_due AS is_second_due,
                           pt1.is_last_pay_rejected,
-                            pm.total_amount AS total_course_amount,
+                          pm.total_amount AS total_course_amount,
                           COALESCE(ps.total_paid, 0) AS paid_amount
                         FROM customers AS c
                         LEFT JOIN technologies AS t ON
