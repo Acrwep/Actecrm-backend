@@ -468,9 +468,29 @@ const getCustomersV1 = async (request, response) => {
 };
 
 const updateCertificate = async (request, response) => {
-  const { id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date } = request.body;
+  const {
+    id,
+    customer_id,
+    customer_name,
+    course_name,
+    course_duration,
+    course_completion_month,
+    certificate_number,
+    current_location,
+    updated_date,
+  } = request.body;
   try {
-    const result = await CustomerModel.updateCertificate(id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date);
+    const result = await CustomerModel.updateCertificate(
+      id,
+      customer_id,
+      customer_name,
+      course_name,
+      course_duration,
+      course_completion_month,
+      certificate_number,
+      current_location,
+      updated_date,
+    );
     return response.status(200).send({
       message: "Certificate updated successfully",
       data: result,
@@ -481,7 +501,7 @@ const updateCertificate = async (request, response) => {
       details: error.message,
     });
   }
-}
+};
 
 module.exports = {
   updateCustomer,
