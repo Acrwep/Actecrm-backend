@@ -1280,6 +1280,7 @@ const CustomerModel = {
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,
+                      c.class_percentage,
                       pt.next_due_date,
                       pt1.is_second_due AS is_second_due,
                       pt1.is_last_pay_rejected,
