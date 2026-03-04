@@ -870,11 +870,33 @@ const CustomerModel = {
       const totalAmount = parseFloat(row.total_course_amount || 0);
       const paidAmount = parseFloat(row.paid_amount || 0);
 
+      const commercial_percentage = row.primary_fees
+        ? parseFloat(
+          ((row.commercial / row.primary_fees) * 100).toFixed(2),
+        )
+        : 0;
+
+      const [studentResult] = await pool.query(
+        `SELECT 
+            tm.trainer_id,
+            SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
+            SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count
+         FROM trainer_mapping tm
+         INNER JOIN customers c ON tm.customer_id = c.id
+         WHERE tm.trainer_id IN (?)
+         AND tm.is_rejected = 0
+         GROUP BY tm.trainer_id`,
+        [row.trainer_id],
+      );
+
       return {
         ...row,
         total_amount: totalAmount,
         paid_amount: paidAmount,
         balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+        commercial_percentage: commercial_percentage,
+        ongoing_student_count: studentResult[0].on_going_student ?? 0,
+        completed_student_count: studentResult[0].completed_student_count ?? 0,
       };
     } catch (error) {
       throw new Error(error.message);
