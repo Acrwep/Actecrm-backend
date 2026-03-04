@@ -1554,7 +1554,7 @@ const CustomerModel = {
 
   updateCertificate: async (id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date) => {
     try {
-      const query = `UPDATE certificates SET customer_name = ?, course_name = ?, course_duration = ?, course_completion_month = ?, certificate_number = ?, location = ?, updated_date = ? WHERE id = ? AND customer_id = ?`;
+      const query = `UPDATE certificates SET customer_name = ?, course_name = ?, course_duration = ?, course_completion_month = ?, certificate_number = ?, location = ?, updated_at = ? WHERE id = ? AND customer_id = ?`;
       const [result] = await pool.query(query, [
         customer_name,
         course_name,
