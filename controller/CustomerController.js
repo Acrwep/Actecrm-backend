@@ -444,16 +444,16 @@ const getCustomersV1 = async (request, response) => {
   try {
     const result = await CustomerModel.getCustomersV1(
       from_date,
-    to_date,
-    status,
-    name,
-    email,
-    mobile,
-    course,
-    user_ids,
-    page,
-    limit,
-    region,
+      to_date,
+      status,
+      name,
+      email,
+      mobile,
+      course,
+      user_ids,
+      page,
+      limit,
+      region,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",
@@ -466,6 +466,22 @@ const getCustomersV1 = async (request, response) => {
     });
   }
 };
+
+const updateCertificate = async (request, response) => {
+  const { id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date } = request.body;
+  try {
+    const result = await CustomerModel.updateCertificate(id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date);
+    return response.status(200).send({
+      message: "Certificate updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating certificate",
+      details: error.message,
+    });
+  }
+}
 
 module.exports = {
   updateCustomer,
@@ -487,4 +503,5 @@ module.exports = {
   checkIsCustomerReg,
   preCertificate,
   getCustomersV1,
+  updateCertificate,
 };

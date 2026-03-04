@@ -1550,6 +1550,26 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  updateCertificate: async (id, customer_id, customer_name, course_name, course_duration, course_completion_month, certificate_number, location, updated_date) => {
+    try {
+      const query = `UPDATE certificates SET customer_name = ?, course_name = ?, course_duration = ?, course_completion_month = ?, certificate_number = ?, location = ?, updated_date = ? WHERE id = ? AND customer_id = ?`;
+      const [result] = await pool.query(query, [
+        customer_name,
+        course_name,
+        course_duration,
+        course_completion_month,
+        certificate_number,
+        location,
+        updated_date,
+        id,
+        customer_id,
+      ]);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
 };
 
 module.exports = CustomerModel;

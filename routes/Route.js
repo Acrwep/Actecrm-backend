@@ -516,4 +516,5 @@ router.delete("/delete-pdf/:course_id", UploadController.deletePDF);
 router.post("/pendingFeesListV1", verifyToken, PaymentController.pendingFeesListV1);
 router.get("/getPaymentHistory/:lead_id", verifyToken, PaymentController.getPaymentHistory);
 router.post("/getCustomersV1", verifyToken, CustomerController.getCustomersV1);
+router.put("/updateCertificate", verifyToken, CustomerController.updateCertificate);
 module.exports = router;
