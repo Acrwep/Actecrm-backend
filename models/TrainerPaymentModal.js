@@ -241,6 +241,13 @@ const trainerPaymentModal = {
         statusParams.push(start_date, end_date);
       }
 
+      // if (status) {
+      //   getQuery += ` AND tm.status = ?`;
+      //   countQuery += ` AND tm.status = ?`;
+      //   queryParams.push(status);
+      //   countParams.push(status);
+      // }
+
       if (status) {
         if (status === "Payment Rejected") {
           getQuery += ` AND tm.status IN ('Payment Rejected', 'Approval Rejected')`;
@@ -262,6 +269,10 @@ const trainerPaymentModal = {
         statusParams.push(trainer_id);
       }
 
+      const [countResult] = await pool.query(countQuery, countParams);
+
+      const total = countResult[0]?.total || 0;
+
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -270,24 +281,13 @@ const trainerPaymentModal = {
       getQuery += ` ORDER BY tm.bill_raisedate DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [
-        [countResult],
-        [statusResult],
-        [result]
-      ] = await Promise.all([
-        pool.query(countQuery, countParams),
-        pool.query(statusCountQuery, statusParams),
-        pool.query(getQuery, queryParams),
-      ]);
+      const [result] = await pool.query(getQuery, queryParams);
 
-      const total = countResult[0]?.total || 0;
+      const [statusResult] = await pool.query(statusCountQuery, statusParams);
 
-      const ids = [...new Set(result.map((item) => item.id))];
-
-      let students = new Map();
-
-      if (ids.length > 0) {
-        const [studentsData] = await pool.query(
+      let res = await Promise.all(
+        result.map(async (item) => {
+          const [students] = await pool.query(
             `SELECT
                 tp.id AS payment_trans_id,
                 tp.trainer_mapping_id,
@@ -307,10 +307,7 @@ const trainerPaymentModal = {
                 tp.attendance_status,
                 tp.attendance_sheetlink,
                 tp.attendance_screenshot,
-                tp.screenshot,
-                pm.total_amount,
-                ps.paid_amount,
-                (pm.total_amount - ps.paid_amount) AS balance_amount
+                tp.screenshot
             FROM
                 trainer_payment_trans AS tp
             INNER JOIN trainer_mapping AS tm ON
@@ -319,29 +316,39 @@ const trainerPaymentModal = {
                 c.id = tm.customer_id
             INNER JOIN technologies AS t ON
                 t.id = c.enrolled_course
-            INNER JOIN payment_master AS pm ON
-            	pm.lead_id = c.lead_id
-            INNER JOIN(
-            	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
-                WHERE pt.payment_status IN ('Verified', 'Verify Pending')
-                GROUP BY pt.payment_master_id
-            ) AS ps ON ps.payment_master_id = pm.id
-            WHERE tp.payment_master_id IN (?)`,
-            [ids],
+            WHERE tp.payment_master_id = ?`,
+            [item.id],
           );
 
-        studentsData.forEach((item) => {
-          if (!students.has(item.payment_master_id)) {
-            students.set(item.payment_master_id, []);
-          }
-          students.get(item.payment_master_id).push(item);
-        });
-      }
+          let stds = await Promise.all(
+            students.map(async (item) => {
+              const [getPaidAmount] = await pool.query(
+                `SELECT 
+                    COALESCE(pm.total_amount, 0) AS total_amount,
+                    COALESCE(SUM(pt.amount), 0) AS paid_amount 
+                FROM payment_master AS pm 
+                LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
+                WHERE pm.lead_id = ?
+                GROUP BY pm.total_amount`,
+                [item.lead_id],
+              );
 
-      let payments = new Map();
+              // Now you can safely access the values
+              const totalAmount = getPaidAmount[0]?.total_amount || 0;
+              const paidAmount = getPaidAmount[0]?.paid_amount || 0;
 
-      if (ids.length > 0) {
-        const [paymentsData] = await pool.query(
+              return {
+                ...item,
+                balance_amount: parseFloat(
+                  (totalAmount - paidAmount).toFixed(2),
+                ),
+                total_amount: totalAmount,
+                paid_amount: paidAmount,
+              };
+            }),
+          );
+
+          const [payments] = await pool.query(
             `SELECT
               tp.id,
               tp.paid_amount,
@@ -358,22 +365,12 @@ const trainerPaymentModal = {
               trainer_payment AS tp
           LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
-          WHERE tp.payment_master_id = ?`,
-            [ids],
+          WHERE tp.payment_master_id = ?
+          ORDER BY tp.id DESC`,
+            [item.id],
           );
 
-        paymentsData.forEach((item) => {
-          if (!payments.has(item.payment_master_id)) {
-            payments.set(item.payment_master_id, []);
-          }
-          payments.get(item.payment_master_id).push(item);
-        });
-      }
-
-      let scoreCard = new Map();
-
-      if (ids.length > 0) {
-        const [scoreCardData] = await pool.query(
+          const [scoreCard] = await pool.query(
             `SELECT
                 COUNT(tt.id) AS total_students,
                 IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
@@ -386,26 +383,18 @@ const trainerPaymentModal = {
                 tm.id = tt.trainer_mapping_id
             INNER JOIN customers AS c ON
                 c.id = tm.customer_id
-            WHERE tpm.id IN (?)`,
-            [ids],
+            WHERE tpm.id = ?`,
+            [item.id],
           );
 
-        scoreCardData.forEach((item) => {
-          if (!scoreCard.has(item.payment_master_id)) {
-            scoreCard.set(item.payment_master_id, []);
-          }
-          scoreCard.get(item.payment_master_id).push(item);
-        });
-      }
-
-      let res = result.map((item) => {
           return {
             ...item,
-            students: students.get(item.id) || [],
-            payments: payments.get(item.id) || [],
-            scoreCard: scoreCard.get(item.id) || [],
+            students: stds,
+            payments: payments,
+            scoreCard: scoreCard[0],
           };
-        });
+        }),
+      );
 
       return {
         data: res,
