@@ -176,10 +176,10 @@ const trainerPaymentModal = {
           tm.request_amount,
           tm.paid_amount,
           tm.balance_amount,
-          CASE
-              WHEN tm.fully_paid_date IS NULL
-                  THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
-              ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
+          CASE 
+            WHEN tm.fully_paid_date IS NULL
+              THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
+            ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
           END AS days_taken_topay,
           tm.deadline_date,
           tm.status,
@@ -288,8 +288,9 @@ const trainerPaymentModal = {
 
       if (ids.length > 0) {
         const [studentsData] = await pool.query(
-            `SELECT
+          `SELECT
                 tp.id AS payment_trans_id,
+                tp.payment_master_id,
                 tp.trainer_mapping_id,
                 tm.customer_id,
                 c.name AS customer_name,
@@ -308,9 +309,9 @@ const trainerPaymentModal = {
                 tp.attendance_sheetlink,
                 tp.attendance_screenshot,
                 tp.screenshot,
-                pm.total_amount,
-                ps.paid_amount,
-                (pm.total_amount - ps.paid_amount) AS balance_amount
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(ps.paid_amount, 0) AS paid_amount,
+                (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount
             FROM
                 trainer_payment_trans AS tp
             INNER JOIN trainer_mapping AS tm ON
@@ -319,22 +320,23 @@ const trainerPaymentModal = {
                 c.id = tm.customer_id
             INNER JOIN technologies AS t ON
                 t.id = c.enrolled_course
-            INNER JOIN payment_master AS pm ON
+            LEFT JOIN payment_master AS pm ON
             	pm.lead_id = c.lead_id
-            INNER JOIN(
+            LEFT JOIN(
             	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                 GROUP BY pt.payment_master_id
             ) AS ps ON ps.payment_master_id = pm.id
             WHERE tp.payment_master_id IN (?)`,
-            [ids],
-          );
+          [ids],
+        );
 
-        studentsData.forEach((item) => {
-          if (!students.has(item.payment_master_id)) {
-            students.set(item.payment_master_id, []);
+        studentsData.forEach((s) => {
+          const { payment_master_id, ...rest } = s;
+          if (!students.has(payment_master_id)) {
+            students.set(payment_master_id, []);
           }
-          students.get(item.payment_master_id).push(item);
+          students.get(payment_master_id).push(rest);
         });
       }
 
@@ -342,8 +344,9 @@ const trainerPaymentModal = {
 
       if (ids.length > 0) {
         const [paymentsData] = await pool.query(
-            `SELECT
+          `SELECT
               tp.id,
+              tp.payment_master_id,
               tp.paid_amount,
               tp.status,
               tp.reason,
@@ -358,15 +361,16 @@ const trainerPaymentModal = {
               trainer_payment AS tp
           LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
-          WHERE tp.payment_master_id = ?`,
-            [ids],
-          );
+          WHERE tp.payment_master_id IN (?)`,
+          [ids],
+        );
 
-        paymentsData.forEach((item) => {
-          if (!payments.has(item.payment_master_id)) {
-            payments.set(item.payment_master_id, []);
+        paymentsData.forEach((p) => {
+          const { payment_master_id, ...rest } = p;
+          if (!payments.has(payment_master_id)) {
+            payments.set(payment_master_id, []);
           }
-          payments.get(item.payment_master_id).push(item);
+          payments.get(payment_master_id).push(rest);
         });
       }
 
@@ -374,10 +378,11 @@ const trainerPaymentModal = {
 
       if (ids.length > 0) {
         const [scoreCardData] = await pool.query(
-            `SELECT
+          `SELECT
                 COUNT(tt.id) AS total_students,
                 IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
-                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google
+                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google,
+                tpm.id AS payment_master_id
             FROM
                 trainer_payment_master AS tpm
             INNER JOIN trainer_payment_trans AS tt ON
@@ -386,26 +391,24 @@ const trainerPaymentModal = {
                 tm.id = tt.trainer_mapping_id
             INNER JOIN customers AS c ON
                 c.id = tm.customer_id
-            WHERE tpm.id IN (?)`,
-            [ids],
-          );
+            WHERE tpm.id IN (?) GROUP BY tpm.id`,
+          [ids],
+        );
 
-        scoreCardData.forEach((item) => {
-          if (!scoreCard.has(item.payment_master_id)) {
-            scoreCard.set(item.payment_master_id, []);
-          }
-          scoreCard.get(item.payment_master_id).push(item);
+        scoreCardData.forEach((s) => {
+          const { payment_master_id, ...rest } = s;
+          scoreCard.set(payment_master_id, rest);
         });
       }
 
       let res = result.map((item) => {
-          return {
-            ...item,
-            students: students.get(item.id) || [],
-            payments: payments.get(item.id) || [],
-            scoreCard: scoreCard.get(item.id) || [],
-          };
-        });
+        return {
+          ...item,
+          students: students.get(item.id) || [],
+          payments: payments.get(item.id) || [],
+          scoreCard: scoreCard.get(item.id) || null,
+        };
+      });
 
       return {
         data: res,
@@ -421,6 +424,8 @@ const trainerPaymentModal = {
       throw new Error(error.message);
     }
   },
+
+  
 
   // Finance Junior - Send Pending Transaction to Head
   financeJuniorApprove: async (
