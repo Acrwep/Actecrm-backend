@@ -1,5 +1,6 @@
 const { request, response } = require("express");
 const LeadModel = require("../models/LeadModel");
+const SocketService = require("../services/SocketService");
 
 const getLeadType = async (request, response) => {
   try {
@@ -498,6 +499,11 @@ const websiteLead = async (request, response) => {
       domain_origin,
       corporate_training,
     );
+
+    // Fetch updated lead count and emit to sockets
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
     return response.status(201).send({
       message: "Lead added successfully",
       data: result,
@@ -727,6 +733,10 @@ const updateJunkValue = async (request, response) => {
   const { lead_ids, is_junk, reason } = request.body;
   try {
     const result = await LeadModel.updateJunkValue(lead_ids, is_junk, reason);
+    // Emit real-time update
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
     return response.status(200).send({
       message: "Junk status updated successfully",
       data: result,
@@ -743,6 +753,10 @@ const moveToTrash = async (request, response) => {
   const { lead_ids } = request.body;
   try {
     const result = await LeadModel.moveToTrash(lead_ids);
+    // Emit real-time update
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
     return response.status(200).send({
       message: "Lead has been deleted",
       data: result,
@@ -763,6 +777,10 @@ const assignLiveLead = async (request, response) => {
       lead_id,
       is_assigned,
     );
+    // Emit real-time update
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
     return response.status(200).send({
       message: "Lead assigned successfully",
       data: result,
@@ -812,6 +830,10 @@ const manualAssign = async (request, response) => {
       is_assigned,
       assigned_date,
     );
+    // Emit real-time update
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
     return response.status(200).send({
       message: "Lead assigned successfully",
       data: result,

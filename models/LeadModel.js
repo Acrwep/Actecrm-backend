@@ -428,7 +428,9 @@ const LeadModel = {
           [leadIds],
         );
 
-        historyResult.forEach((h) => history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]));
+        historyResult.forEach((h) =>
+          history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]),
+        );
       }
 
       let qualityHistory = new Map();
@@ -438,7 +440,12 @@ const LeadModel = {
           [leadIds],
         );
 
-        qualityHistoryResult.forEach((qh) => qualityHistory.set(qh.lead_id, [...(qualityHistory.get(qh.lead_id) || []), qh]));
+        qualityHistoryResult.forEach((qh) =>
+          qualityHistory.set(qh.lead_id, [
+            ...(qualityHistory.get(qh.lead_id) || []),
+            qh,
+          ]),
+        );
       }
 
       // Use Promise.all to wait for all async operations in the map
@@ -636,7 +643,9 @@ const LeadModel = {
            ORDER BY lh.id ASC`,
           [leadIds],
         );
-        historyResult.forEach((h) => history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]));
+        historyResult.forEach((h) =>
+          history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]),
+        );
       }
 
       let qualityHistory = new Map();
@@ -646,7 +655,12 @@ const LeadModel = {
           `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id IN (?) ORDER BY q.id ASC`,
           [leadIds],
         );
-        qualityHistoryResult.forEach((q) => qualityHistory.set(q.lead_id, [...(qualityHistory.get(q.lead_id) || []), q]));
+        qualityHistoryResult.forEach((q) =>
+          qualityHistory.set(q.lead_id, [
+            ...(qualityHistory.get(q.lead_id) || []),
+            q,
+          ]),
+        );
       }
 
       const formattedResult = follow_ups.map((item) => {
@@ -2365,6 +2379,17 @@ const LeadModel = {
       affectedRows += next_follow_up.affectedRows;
 
       return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getWebsiteLeadCount: async () => {
+    try {
+      const [result] = await pool.query(
+        `SELECT COUNT(*) AS total_leads FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`,
+      );
+      return result[0].total_leads;
     } catch (error) {
       throw new Error(error.message);
     }

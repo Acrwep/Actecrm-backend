@@ -360,18 +360,18 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
     const title = "New Lead Available";
     const body = `You have ${leadIds.length} new lead(s)`;
 
-    const message = tokens.map((t) => ({
-      token: t.token, // ✅ REQUIRED
-      notification: {},
-      data: {
-        title: title,
-        body: body,
-      },
-    }));
+    // const message = tokens.map((t) => ({
+    //   token: t.token, // ✅ REQUIRED
+    //   notification: {},
+    //   data: {
+    //     title: title,
+    //     body: body,
+    //   },
+    // }));
 
-    await admin.messaging().sendEach(message);
+    // await admin.messaging().sendEach(message);
 
-    // Also send individual socket notifications
+    // Also send individual socket notifications (this shows in our custom notification list)
     for (const token of tokens) {
       socketService.emitNotification(token.user_id, {
         title,
