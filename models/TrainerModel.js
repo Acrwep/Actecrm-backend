@@ -291,7 +291,6 @@ const TrainerModel = {
       const onBoardingParams = [];
       let getQuery = `SELECT
                           t.id,
-                          ROW_NUMBER() OVER (ORDER BY t.id DESC) AS row_num,
                           t.name,
                           t.trainer_id AS trainer_code,
                           t.mobile_phone_code,
@@ -314,8 +313,7 @@ const TrainerModel = {
                           t.is_bank_updated,
                           t.is_form_sent,
                           t.is_onboarding,
-                          CASE WHEN t.is_active = 1 THEN 1 ELSE 0
-                      END AS is_active,
+                          CASE WHEN t.is_active = 1 THEN 1 ELSE 0 END AS is_active,
                           tb.id AS trainer_bank_id,
                           tb.account_holder_name,
                           tb.account_number,
@@ -422,46 +420,62 @@ const TrainerModel = {
                   `;
       }
 
-      // Get total count before applying pagination and ongoing filter
-      const [countResult] = await pool.query(countQuery, countQueryParams);
-      const total = countResult[0]?.total || 0;
-
-      getQuery += ` ORDER BY t.id DESC`;
 
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY t.id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      let [trainers] = await pool.query(getQuery, queryParams);
+      const [
+        [countResult],
+        [trainers],
+        [getStatus],
+        [getOnBoarding]
+      ] = await Promise.all([
+        pool.query(countQuery, countQueryParams),
+        pool.query(getQuery, queryParams),
+        pool.query(getStatusQuery, statusParams),
+        pool.query(onBoardingQuery, onBoardingParams),
+      ]);
 
-      // Get counts of trainers based on status
-      const [getStatus] = await pool.query(getStatusQuery, statusParams);
+      const total = countResult[0]?.total || 0;
 
-      const [getOnBoarding] = await pool.query(
-        onBoardingQuery,
-        onBoardingParams,
-      );
+      const isd = [...new Set(trainers.map((item) => item.id))];
 
-      const [getSkills] = await pool.query(
-        `SELECT id, name FROM skills WHERE is_active = 1`,
-      );
+      let students = new Map();
+
+      if (isd.length > 0) {
+        const [student_count] = await pool.query(
+          `SELECT 
+            SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END) AS not_started_student,
+            SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
+            COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
+          FROM trainer_mapping AS tm
+          LEFT JOIN customers AS c ON tm.customer_id = c.id
+          WHERE tm.trainer_id IN (?) AND tm.is_rejected = 0`,
+          [isd],
+        );
+
+        student_count.forEach((item) => {
+          students.set(item.trainer_id, {
+            not_started_student: item.not_started_student,
+            on_going_student: item.on_going_student,
+            completed_student_count: item.completed_student_count,
+          });
+        });
+      }
 
       const formattedResult = await Promise.all(
         trainers.map(async (item) => {
-          const [student_count] = await pool.query(
-            `SELECT 
-              SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END) AS not_started_student,
-              SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
-              COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
-            FROM trainer_mapping AS tm
-            LEFT JOIN customers AS c ON tm.customer_id = c.id
-            WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
-            [item.id],
-          );
+
+          const student_count = students.get(item.id) || {
+            not_started_student: 0,
+            on_going_student: 0,
+            completed_student_count: 0,
+          };
 
           const not_started =
             parseInt(student_count[0]?.not_started_student) || 0;
@@ -484,7 +498,6 @@ const TrainerModel = {
 
           return {
             ...item,
-            // skills: JSON.parse(item.skills),
             skills: formattedSkills,
             trainer_type,
             on_going_count: on_going,
@@ -659,6 +672,7 @@ const TrainerModel = {
                         t.id = c.enrolled_course
                       WHERE
                           tm.is_verified = 1
+                          AND tm.is_rejected = 0
                           AND tm.trainer_id = ?`;
 
       if (is_class_taken >= 1) {
@@ -671,7 +685,7 @@ const TrainerModel = {
 
       // Get on-going and on-boarding students count by trainer
       const [student_count] = await pool.query(
-        `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.trainer_id = ?`,
+        `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.is_verified = 1 AND tm.trainer_id = ?`,
         [trainer_id],
       );
       return {
@@ -683,6 +697,7 @@ const TrainerModel = {
       throw new Error(error.message);
     }
   },
+
   addTechnologies: async (
     course_name,
     price,
