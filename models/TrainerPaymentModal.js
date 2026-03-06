@@ -17,16 +17,27 @@ const trainerPaymentModal = {
             c.google_review,
             c.class_percentage,
             c.is_certificate_generated,
-            c.lead_id
+            c.lead_id,
+            COALESCE(pm.total_amount, 0) AS total_amount,
+            COALESCE(ps.total_paid, 0) AS paid_amount,
+            (COALESCE(pm.total_amount, 0) - COALESCE(ps.total_paid, 0)) AS balance_amount
         FROM trainer_mapping AS tm
         INNER JOIN customers AS c 
             ON tm.customer_id = c.id
         INNER JOIN lead_master AS l ON
         	l.id = c.lead_id
+        INNER JOIN payment_master AS pm ON
+        	pm.lead_id = c.lead_id
         INNER JOIN technologies AS t ON
           t.id = c.enrolled_course
+        LEFT JOIN(
+        	SELECT SUM(pt.amount) AS total_paid, pt.payment_master_id FROM payment_trans AS pt
+            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+            GROUP BY pt.payment_master_id
+        ) AS ps ON ps.payment_master_id = pm.id
         WHERE
             tm.is_verified = 1
+            AND tm.is_rejected = 0
             AND tm.trainer_id = ?
             AND NOT EXISTS (
                 SELECT 1
@@ -36,35 +47,7 @@ const trainerPaymentModal = {
         [trainer_id],
       );
 
-      let res = await Promise.all(
-        result.map(async (item) => {
-          // Get total paid amount for specific customer
-          const [getPaidAmount] = await pool.query(
-            `SELECT 
-                COALESCE(pm.total_amount, 0) AS total_amount,
-                COALESCE(SUM(pt.amount), 0) AS paid_amount 
-            FROM payment_master AS pm 
-            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
-            WHERE pm.lead_id = ?
-            GROUP BY pm.total_amount`,
-            [item.lead_id],
-          );
-
-          // Now you can safely access the values
-          const totalAmount = getPaidAmount[0]?.total_amount || 0;
-          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
-
-          // Format customer result
-          return {
-            ...item,
-            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
-            total_amount: totalAmount,
-            paid_amount: paidAmount,
-          };
-        }),
-      );
-
-      return res;
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }
