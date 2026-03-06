@@ -883,7 +883,7 @@ const CustomerModel = {
          FROM trainer_mapping tm
          INNER JOIN customers c ON tm.customer_id = c.id
          WHERE tm.trainer_id IN (?)
-         AND tm.is_rejected = 0
+         AND tm.is_rejected = 0 AND tm.is_verified = 1
          GROUP BY tm.trainer_id`,
         [row.trainer_id],
       );
