@@ -17,16 +17,27 @@ const trainerPaymentModal = {
             c.google_review,
             c.class_percentage,
             c.is_certificate_generated,
-            c.lead_id
+            c.lead_id,
+            COALESCE(pm.total_amount, 0) AS total_amount,
+            COALESCE(ps.total_paid, 0) AS paid_amount,
+            (COALESCE(pm.total_amount, 0) - COALESCE(ps.total_paid, 0)) AS balance_amount
         FROM trainer_mapping AS tm
         INNER JOIN customers AS c 
             ON tm.customer_id = c.id
         INNER JOIN lead_master AS l ON
         	l.id = c.lead_id
+        INNER JOIN payment_master AS pm ON
+        	pm.lead_id = c.lead_id
         INNER JOIN technologies AS t ON
           t.id = c.enrolled_course
+        LEFT JOIN(
+        	SELECT SUM(pt.amount) AS total_paid, pt.payment_master_id FROM payment_trans AS pt
+            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+            GROUP BY pt.payment_master_id
+        ) AS ps ON ps.payment_master_id = pm.id
         WHERE
             tm.is_verified = 1
+            AND tm.is_rejected = 0
             AND tm.trainer_id = ?
             AND NOT EXISTS (
                 SELECT 1
@@ -36,35 +47,7 @@ const trainerPaymentModal = {
         [trainer_id],
       );
 
-      let res = await Promise.all(
-        result.map(async (item) => {
-          // Get total paid amount for specific customer
-          const [getPaidAmount] = await pool.query(
-            `SELECT 
-                COALESCE(pm.total_amount, 0) AS total_amount,
-                COALESCE(SUM(pt.amount), 0) AS paid_amount 
-            FROM payment_master AS pm 
-            LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
-            WHERE pm.lead_id = ?
-            GROUP BY pm.total_amount`,
-            [item.lead_id],
-          );
-
-          // Now you can safely access the values
-          const totalAmount = getPaidAmount[0]?.total_amount || 0;
-          const paidAmount = getPaidAmount[0]?.paid_amount || 0;
-
-          // Format customer result
-          return {
-            ...item,
-            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
-            total_amount: totalAmount,
-            paid_amount: paidAmount,
-          };
-        }),
-      );
-
-      return res;
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -176,10 +159,10 @@ const trainerPaymentModal = {
           tm.request_amount,
           tm.paid_amount,
           tm.balance_amount,
-          CASE
-              WHEN tm.fully_paid_date IS NULL
-                  THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
-              ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
+          CASE 
+            WHEN tm.fully_paid_date IS NULL
+              THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
+            ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
           END AS days_taken_topay,
           tm.deadline_date,
           tm.status,
@@ -241,13 +224,6 @@ const trainerPaymentModal = {
         statusParams.push(start_date, end_date);
       }
 
-      // if (status) {
-      //   getQuery += ` AND tm.status = ?`;
-      //   countQuery += ` AND tm.status = ?`;
-      //   queryParams.push(status);
-      //   countParams.push(status);
-      // }
-
       if (status) {
         if (status === "Payment Rejected") {
           getQuery += ` AND tm.status IN ('Payment Rejected', 'Approval Rejected')`;
@@ -269,10 +245,6 @@ const trainerPaymentModal = {
         statusParams.push(trainer_id);
       }
 
-      const [countResult] = await pool.query(countQuery, countParams);
-
-      const total = countResult[0]?.total || 0;
-
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -281,15 +253,27 @@ const trainerPaymentModal = {
       getQuery += ` ORDER BY tm.bill_raisedate DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [result] = await pool.query(getQuery, queryParams);
+      const [
+        [countResult],
+        [statusResult],
+        [result]
+      ] = await Promise.all([
+        pool.query(countQuery, countParams),
+        pool.query(statusCountQuery, statusParams),
+        pool.query(getQuery, queryParams),
+      ]);
 
-      const [statusResult] = await pool.query(statusCountQuery, statusParams);
+      const total = countResult[0]?.total || 0;
 
-      let res = await Promise.all(
-        result.map(async (item) => {
-          const [students] = await pool.query(
-            `SELECT
+      const ids = [...new Set(result.map((item) => item.id))];
+
+      let students = new Map();
+
+      if (ids.length > 0) {
+        const [studentsData] = await pool.query(
+          `SELECT
                 tp.id AS payment_trans_id,
+                tp.payment_master_id,
                 tp.trainer_mapping_id,
                 tm.customer_id,
                 c.name AS customer_name,
@@ -307,7 +291,10 @@ const trainerPaymentModal = {
                 tp.attendance_status,
                 tp.attendance_sheetlink,
                 tp.attendance_screenshot,
-                tp.screenshot
+                tp.screenshot,
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(ps.paid_amount, 0) AS paid_amount,
+                (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount
             FROM
                 trainer_payment_trans AS tp
             INNER JOIN trainer_mapping AS tm ON
@@ -316,41 +303,33 @@ const trainerPaymentModal = {
                 c.id = tm.customer_id
             INNER JOIN technologies AS t ON
                 t.id = c.enrolled_course
-            WHERE tp.payment_master_id = ?`,
-            [item.id],
-          );
+            LEFT JOIN payment_master AS pm ON
+            	pm.lead_id = c.lead_id
+            LEFT JOIN(
+            	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
+                WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+                GROUP BY pt.payment_master_id
+            ) AS ps ON ps.payment_master_id = pm.id
+            WHERE tp.payment_master_id IN (?)`,
+          [ids],
+        );
 
-          let stds = await Promise.all(
-            students.map(async (item) => {
-              const [getPaidAmount] = await pool.query(
-                `SELECT 
-                    COALESCE(pm.total_amount, 0) AS total_amount,
-                    COALESCE(SUM(pt.amount), 0) AS paid_amount 
-                FROM payment_master AS pm 
-                LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending')
-                WHERE pm.lead_id = ?
-                GROUP BY pm.total_amount`,
-                [item.lead_id],
-              );
+        studentsData.forEach((s) => {
+          const { payment_master_id, ...rest } = s;
+          if (!students.has(payment_master_id)) {
+            students.set(payment_master_id, []);
+          }
+          students.get(payment_master_id).push(rest);
+        });
+      }
 
-              // Now you can safely access the values
-              const totalAmount = getPaidAmount[0]?.total_amount || 0;
-              const paidAmount = getPaidAmount[0]?.paid_amount || 0;
+      let payments = new Map();
 
-              return {
-                ...item,
-                balance_amount: parseFloat(
-                  (totalAmount - paidAmount).toFixed(2),
-                ),
-                total_amount: totalAmount,
-                paid_amount: paidAmount,
-              };
-            }),
-          );
-
-          const [payments] = await pool.query(
-            `SELECT
+      if (ids.length > 0) {
+        const [paymentsData] = await pool.query(
+          `SELECT
               tp.id,
+              tp.payment_master_id,
               tp.paid_amount,
               tp.status,
               tp.reason,
@@ -365,16 +344,28 @@ const trainerPaymentModal = {
               trainer_payment AS tp
           LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
-          WHERE tp.payment_master_id = ?
-          ORDER BY tp.id DESC`,
-            [item.id],
-          );
+          WHERE tp.payment_master_id IN (?)`,
+          [ids],
+        );
 
-          const [scoreCard] = await pool.query(
-            `SELECT
+        paymentsData.forEach((p) => {
+          const { payment_master_id, ...rest } = p;
+          if (!payments.has(payment_master_id)) {
+            payments.set(payment_master_id, []);
+          }
+          payments.get(payment_master_id).push(rest);
+        });
+      }
+
+      let scoreCard = new Map();
+
+      if (ids.length > 0) {
+        const [scoreCardData] = await pool.query(
+          `SELECT
                 COUNT(tt.id) AS total_students,
                 IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
-                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google
+                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google,
+                tpm.id AS payment_master_id
             FROM
                 trainer_payment_master AS tpm
             INNER JOIN trainer_payment_trans AS tt ON
@@ -383,18 +374,24 @@ const trainerPaymentModal = {
                 tm.id = tt.trainer_mapping_id
             INNER JOIN customers AS c ON
                 c.id = tm.customer_id
-            WHERE tpm.id = ?`,
-            [item.id],
-          );
+            WHERE tpm.id IN (?) GROUP BY tpm.id`,
+          [ids],
+        );
 
-          return {
-            ...item,
-            students: stds,
-            payments: payments,
-            scoreCard: scoreCard[0],
-          };
-        }),
-      );
+        scoreCardData.forEach((s) => {
+          const { payment_master_id, ...rest } = s;
+          scoreCard.set(payment_master_id, rest);
+        });
+      }
+
+      let res = result.map((item) => {
+        return {
+          ...item,
+          students: students.get(item.id) || [],
+          payments: payments.get(item.id) || [],
+          scoreCard: scoreCard.get(item.id) || null,
+        };
+      });
 
       return {
         data: res,
