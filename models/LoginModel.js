@@ -14,7 +14,9 @@ const LoginModel = {
                             u.user_id,
                             u.user_name,
                             u.child_users,
-                            u.roles
+                            u.roles,
+                            u.phone,
+                            u.profile_image
                         FROM
                             users AS u
                         WHERE
