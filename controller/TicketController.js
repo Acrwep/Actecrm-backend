@@ -70,12 +70,12 @@ const getTickets = async (request, response) => {
       user_ids,
     );
     response.status(200).send({
-      message: "Data fetched successfully.",
+      message: "Data fetched successfully (V2).",
       data: result,
     });
   } catch (error) {
     response.status(500).send({
-      message: "Error while fetching data",
+      message: "Error while fetching data (V2)",
       details: error.message,
     });
   }
