@@ -227,6 +227,11 @@ router.post(
   DashboardController.getBranchWiseLeadCounts,
 );
 router.post(
+  "/getBranchWiseAnalysis",
+  verifyToken,
+  DashboardController.getBranchWiseAnalysis,
+);
+router.post(
   "/updateDashboardSettings",
   verifyToken,
   PageAccessController.updateDashboardSettings,
@@ -517,4 +522,5 @@ router.post("/pendingFeesListV1", verifyToken, PaymentController.pendingFeesList
 router.get("/getPaymentHistory/:lead_id", verifyToken, PaymentController.getPaymentHistory);
 router.post("/getCustomersV1", verifyToken, CustomerController.getCustomersV1);
 router.put("/updateCertificate", verifyToken, CustomerController.updateCertificate);
+router.post("/getRegionWiseAnalysis", verifyToken, DashboardController.getRegionWiseAnalysis);
 module.exports = router;

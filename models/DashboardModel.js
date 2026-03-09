@@ -718,6 +718,215 @@ const DashboardModel = {
     }
   },
 
+  getBranchWiseAnalysis: async (region_id, start_date, end_date, type) => {
+    try {
+      if (
+        type === "Leads" ||
+        type === "Follow Up" ||
+        type === "Customer Join"
+      ) {
+        const queryParams = [];
+        const followupParams = [];
+        const joiningParams = [];
+
+        let getQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(COUNT(l.id), 0) AS total_leads, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count, ROUND((SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(l.id), 0)) * 100, 2) AS percentage FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id`;
+
+        let followupQuery = `SELECT b.id AS branch_id, b.name AS branch_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id`;
+
+        let joiningQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM branches AS b LEFT JOIN lead_master AS l ON b.id = l.branch_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
+
+        // Filter by date range
+        if (start_date && end_date) {
+          getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          followupQuery += ` AND CAST(lfh.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+          joiningQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          followupParams.push(start_date, end_date);
+          joiningParams.push(start_date, end_date);
+        }
+
+        getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
+        followupQuery += ` WHERE c.id IS NULL`;
+        joiningQuery += ` WHERE 1 = 1`;
+
+        if (region_id) {
+          const [getRegion] = await pool.query(
+            `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
+            [region_id]
+          );
+          if (
+            getRegion[0].name === "Chennai" ||
+            getRegion[0].name === "Bangalore"
+          ) {
+            getQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            followupQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            joiningQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+          } else if (getRegion[0].name === "Hub") {
+            getQuery += ` AND b.region_id = ?`;
+            followupQuery += ` AND b.region_id = ?`;
+            joiningQuery += ` AND b.region_id = ?`;
+          }
+          queryParams.push(region_id);
+          followupParams.push(region_id);
+          joiningParams.push(region_id);
+        }
+
+        // ✅ Order and grouping
+        getQuery += ` GROUP BY b.id, b.name ORDER BY total_leads DESC`;
+        followupQuery += ` GROUP BY b.id, b.name ORDER BY followup_unhandled DESC`;
+        joiningQuery += ` GROUP BY b.id, b.name ORDER BY customer_count DESC`;
+
+        switch (type) {
+          case "Leads": {
+            const [result] = await pool.query(getQuery, queryParams);
+            const formattedResult = result.map((item) => ({
+              ...item,
+              percentage: item.percentage || 0.0,
+            }));
+            formattedResult.sort((a, b) => b.total_leads - a.total_leads);
+            return formattedResult;
+          }
+          case "Follow Up": {
+            const [followupResult] = await pool.query(
+              followupQuery,
+              followupParams
+            );
+            const formattedResult = followupResult.map((item) => ({
+              ...item,
+              percentage: item.percentage || 0.0,
+            }));
+            formattedResult.sort(
+              (a, b) => b.followup_unhandled - a.followup_unhandled
+            );
+            return formattedResult;
+          }
+          case "Customer Join": {
+            const [result] = await pool.query(joiningQuery, joiningParams);
+            return result;
+          }
+          default:
+            return [];
+        }
+      } else {
+        let saleVolumeQuery = `SELECT b.id AS branch_id, b.name AS branch_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
+
+        let collectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id`;
+
+        let totalCollectionQuery = `SELECT b.id AS branch_id, b.name AS branch_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM branches AS b LEFT JOIN customers AS c ON b.id = c.branch_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+
+        const params = {
+          sale: [],
+          collection: [],
+          total: [],
+        };
+
+        // Filter by date range
+        if (start_date && end_date) {
+          saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+          params.sale.push(start_date, end_date);
+          params.collection.push(start_date, end_date);
+          params.total.push(start_date, end_date);
+        }
+
+        saleVolumeQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
+        collectionQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+        LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
+        totalCollectionQuery += ` WHERE 1 = 1`;
+
+        if (region_id) {
+          const [getRegion] = await pool.query(
+            `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
+            [region_id]
+          );
+          if (
+            getRegion[0].name === "Chennai" ||
+            getRegion[0].name === "Bangalore"
+          ) {
+            saleVolumeQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            collectionQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            totalCollectionQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+          } else if (getRegion[0].name === "Hub") {
+            saleVolumeQuery += ` AND b.region_id = ?`;
+            collectionQuery += ` AND b.region_id = ?`;
+            totalCollectionQuery += ` AND b.region_id = ?`;
+          }
+          params.sale.push(region_id);
+          params.collection.push(region_id);
+          params.total.push(region_id);
+        }
+
+        saleVolumeQuery += ` GROUP BY b.id, b.name ORDER BY sale_volume DESC`;
+        collectionQuery += ` GROUP BY b.id, b.name ORDER BY collection DESC`;
+        totalCollectionQuery += ` GROUP BY b.id, b.name ORDER BY total_collection DESC`;
+
+        const [
+          [saleData],
+          [collectionData],
+          [totalCollectionData],
+        ] = await Promise.all([
+          pool.query(saleVolumeQuery, params.sale),
+          pool.query(collectionQuery, params.collection),
+          pool.query(totalCollectionQuery, params.total),
+        ]);
+
+        // Map data user-wise
+        const result = saleData.map((saleUser) => {
+          const collectionUser = collectionData.find(
+            (c) => c.branch_id === saleUser.branch_id
+          ) || { collection: 0 };
+          const totalUser = totalCollectionData.find(
+            (t) => t.branch_id === saleUser.branch_id
+          ) || { total_collection: 0 };
+
+          const pending = saleUser.sale_volume - collectionUser.collection;
+
+          return {
+            branch_id: saleUser.branch_id,
+            branch_name: saleUser.branch_name,
+            sale_volume: saleUser.sale_volume,
+            total_collection: totalUser.total_collection,
+            pending: pending < 0 ? 0 : pending,
+          };
+        });
+
+        // If specific type requested
+        if (type === "Sale") {
+          result.sort((a, b) => b.sale_volume - a.sale_volume);
+          return result.map((r) => ({
+            branch_id: r.branch_id,
+            branch_name: r.branch_name,
+            sale_volume: parseFloat(r.sale_volume).toFixed(2),
+          }));
+        }
+
+        if (type === "Collection") {
+          result.sort((a, b) => b.total_collection - a.total_collection);
+          return result.map((r) => ({
+            branch_id: r.branch_id,
+            branch_name: r.branch_name,
+            total_collection: parseFloat(r.total_collection).toFixed(2),
+          }));
+        }
+
+        if (type === "Pending") {
+          result.sort((a, b) => b.pending - a.pending);
+          return result.map((r) => ({
+            branch_id: r.branch_id,
+            branch_name: r.branch_name,
+            pending: parseFloat(r.pending).toFixed(2),
+          }));
+        }
+
+        // Default: full scoreboard
+        return result;
+      }
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   downloadUserWiseLeads: async (user_ids, start_date, end_date) => {
     try {
       const queryParams = [];
@@ -1346,6 +1555,189 @@ const DashboardModel = {
 
       // Default: full scoreboard
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getRegionWiseAnalysis: async (region_id, start_date, end_date, type) => {
+    try {
+      if (type === "Sale" || type === "Collection" || type === "Pending") {
+        let saleVolumeQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
+
+      let collectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
+
+      let totalCollectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+
+      const params = {
+        sale: [],
+        collection: [],
+        total: [],
+      };
+
+      // Filter by date range
+      if (start_date && end_date) {
+        saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        params.sale.push(start_date, end_date);
+        params.collection.push(start_date, end_date);
+        params.total.push(start_date, end_date);
+      }
+
+      saleVolumeQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
+      collectionQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
+      totalCollectionQuery += ` WHERE 1 = 1`;
+
+      if (region_id) {
+        saleVolumeQuery += ` AND r.id = ?`;
+        collectionQuery += ` AND r.id = ?`;
+        totalCollectionQuery += ` AND r.id = ?`;
+        params.sale.push(region_id);
+        params.collection.push(region_id);
+        params.total.push(region_id);
+      }
+
+      saleVolumeQuery += ` GROUP BY r.id, r.name ORDER BY sale_volume DESC`;
+      collectionQuery += ` GROUP BY r.id, r.name ORDER BY collection DESC`;
+      totalCollectionQuery += ` GROUP BY r.id, r.name ORDER BY total_collection DESC`;
+
+      // Execute queries
+      const [saleData] = await pool.query(saleVolumeQuery, params.sale);
+
+      const [collectionData] = await pool.query(
+        collectionQuery,
+        params.collection
+      );
+
+      const [totalCollectionData] = await pool.query(
+        totalCollectionQuery,
+        params.total
+      );
+
+      // Map data user-wise
+      const result = saleData.map((saleUser) => {
+        const collectionUser = collectionData.find(
+          (c) => c.region_id === saleUser.region_id
+        ) || { collection: 0 };
+        const totalUser = totalCollectionData.find(
+          (t) => t.region_id === saleUser.region_id
+        ) || { total_collection: 0 };
+
+        const pending = saleUser.sale_volume - collectionUser.collection;
+
+        return {
+          region_id: saleUser.region_id,
+          region_name: saleUser.region_name,
+          sale_volume: saleUser.sale_volume,
+          total_collection: totalUser.total_collection,
+          pending: pending < 0 ? 0 : pending,
+        };
+      });
+
+      // If specific type requested
+      if (type === "Sale") {
+        result.sort((a, b) => b.sale_volume - a.sale_volume);
+        return result.map((r) => ({
+          region_id: r.region_id,
+          region_name: r.region_name,
+          sale_volume: parseFloat(r.sale_volume).toFixed(2),
+        }));
+      }
+
+      if (type === "Collection") {
+        result.sort((a, b) => b.total_collection - a.total_collection);
+        return result.map((r) => ({
+          region_id: r.region_id,
+          region_name: r.region_name,
+          total_collection: parseFloat(r.total_collection).toFixed(2),
+        }));
+      }
+
+      if (type === "Pending") {
+        result.sort((a, b) => b.pending - a.pending);
+        return result.map((r) => ({
+          region_id: r.region_id,
+          region_name: r.region_name,
+          pending: parseFloat(r.pending).toFixed(2),
+        }));
+      }
+
+      // Default: full scoreboard
+      return result;
+      }
+      else {
+        const queryParams = [];
+        const followupParams = [];
+        const joiningParams = [];
+
+        let getQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(COUNT(l.id), 0) AS total_leads, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count, ROUND((SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) / NULLIF(COUNT(l.id), 0)) * 100, 2) AS percentage FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id`;
+
+        let followupQuery = `SELECT r.id AS region_id, r.name AS region_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id`;
+
+        let joiningQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM region AS r LEFT JOIN lead_master AS l ON r.id = l.region_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
+
+        // Filter by date range
+        if (start_date && end_date) {
+          getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          followupQuery += ` AND CAST(lfh.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+          joiningQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          followupParams.push(start_date, end_date);
+          joiningParams.push(start_date, end_date);
+        }
+
+        getQuery += ` LEFT JOIN customers AS c ON c.lead_id = l.id WHERE 1 = 1`;
+        followupQuery += ` WHERE c.id IS NULL`;
+        joiningQuery += ` WHERE 1 = 1`;
+
+        if (region_id) {
+          getQuery += ` AND r.id = ?`;
+          followupQuery += ` AND r.id = ?`;
+          joiningQuery += ` AND r.id = ?`;
+          queryParams.push(region_id);
+          followupParams.push(region_id);
+          joiningParams.push(region_id);
+        }
+
+        // ✅ Order and grouping
+        getQuery += ` GROUP BY r.id, r.name ORDER BY total_leads DESC`;
+        followupQuery += ` GROUP BY r.id, r.name ORDER BY followup_unhandled DESC`;
+        joiningQuery += ` GROUP BY r.id, r.name ORDER BY customer_count DESC`;
+
+        switch (type) {
+          case "Leads": {
+            const [result] = await pool.query(getQuery, queryParams);
+            const formattedResult = result.map((item) => ({
+              ...item,
+              percentage: item.percentage || 0.0,
+            }));
+            formattedResult.sort((a, b) => b.total_leads - a.total_leads);
+            return formattedResult;
+          }
+          case "Follow Up": {
+            const [followupResult] = await pool.query(
+              followupQuery,
+              followupParams
+            );
+            const formattedResult = followupResult.map((item) => ({
+              ...item,
+              percentage: item.percentage || 0.0,
+            }));
+            formattedResult.sort(
+              (a, b) => b.followup_unhandled - a.followup_unhandled
+            );
+            return formattedResult;
+          }
+          case "Customer Join": {
+            const [result] = await pool.query(joiningQuery, joiningParams);
+            return result;
+          }
+          default:
+            return [];
+        }
+      }
     } catch (error) {
       throw new Error(error.message);
     }

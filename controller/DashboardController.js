@@ -165,6 +165,27 @@ const getBranchWiseLeadCounts = async (request, response) => {
   }
 };
 
+const getBranchWiseAnalysis = async (request, response) => {
+  const { region_id, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.getBranchWiseAnalysis(
+      region_id,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 const downloadUserWiseLeads = async (request, response) => {
   const { user_ids, start_date, end_date } = request.body;
   try {
@@ -289,6 +310,27 @@ const getRegionWiseScoreBoard = async (request, response) => {
   }
 };
 
+const getRegionWiseAnalysis = async (request, response) => {
+  const { region_id, start_date, end_date, type } = request.body;
+  try {
+    const result = await DashboardModel.getRegionWiseAnalysis(
+      region_id,
+      start_date,
+      end_date,
+      type
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getScoreBoard,
   getHRDashboard,
@@ -298,10 +340,12 @@ module.exports = {
   getUserWiseLeadCounts,
   getBranchWiseScoreBoard,
   getBranchWiseLeadCounts,
+  getBranchWiseAnalysis,
   downloadUserWiseLeads,
   downloadUserWiseScoreBoard,
   qualityProductivity,
   postSalePerformance,
   getRegionWiseLeadCounts,
   getRegionWiseScoreBoard,
+  getRegionWiseAnalysis,
 };
