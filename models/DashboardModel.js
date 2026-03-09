@@ -1603,18 +1603,15 @@ const DashboardModel = {
       collectionQuery += ` GROUP BY r.id, r.name ORDER BY collection DESC`;
       totalCollectionQuery += ` GROUP BY r.id, r.name ORDER BY total_collection DESC`;
 
-      // Execute queries
-      const [saleData] = await pool.query(saleVolumeQuery, params.sale);
-
-      const [collectionData] = await pool.query(
-        collectionQuery,
-        params.collection
-      );
-
-      const [totalCollectionData] = await pool.query(
-        totalCollectionQuery,
-        params.total
-      );
+      const [
+        [saleData],
+        [collectionData],
+        [totalCollectionData]
+      ] = await Promise.all([
+        pool.query(saleVolumeQuery, params.sale),
+        pool.query(collectionQuery, params.collection),
+        pool.query(totalCollectionQuery, params.total)
+      ]);
 
       // Map data user-wise
       const result = saleData.map((saleUser) => {
