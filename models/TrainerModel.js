@@ -420,7 +420,6 @@ const TrainerModel = {
                   `;
       }
 
-
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -429,17 +428,13 @@ const TrainerModel = {
       getQuery += ` ORDER BY t.id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [
-        [countResult],
-        [trainers],
-        [getStatus],
-        [getOnBoarding]
-      ] = await Promise.all([
-        pool.query(countQuery, countQueryParams),
-        pool.query(getQuery, queryParams),
-        pool.query(getStatusQuery, statusParams),
-        pool.query(onBoardingQuery, onBoardingParams),
-      ]);
+      const [[countResult], [trainers], [getStatus], [getOnBoarding]] =
+        await Promise.all([
+          pool.query(countQuery, countQueryParams),
+          pool.query(getQuery, queryParams),
+          pool.query(getStatusQuery, statusParams),
+          pool.query(onBoardingQuery, onBoardingParams),
+        ]);
 
       const total = countResult[0]?.total || 0;
 
@@ -470,7 +465,6 @@ const TrainerModel = {
 
       const formattedResult = await Promise.all(
         trainers.map(async (item) => {
-
           const student_count = students.get(item.id) || {
             not_started_student: 0,
             on_going_student: 0,

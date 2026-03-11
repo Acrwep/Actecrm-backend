@@ -291,11 +291,9 @@ const LeadModel = {
                         c.id AS customer_id,
                         r.name AS region_name,
                         r.id AS region_id,
-                        lh.lead_history_id,
+                        lh.id AS lead_history_id,
                         lh.lead_action_id,
-                        lh.lead_action_name,
-                        qm.cna_date AS quality_followup_date,
-                        latest1.comments AS quality_recent_comment,
+                        la.name AS lead_action_name,
                         l.re_assigned_date,
                         l.is_reassigned
                     FROM
@@ -312,31 +310,13 @@ const LeadModel = {
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
                     LEFT JOIN (
-                        SELECT 
-                            lh1.lead_id,
-                            lh1.id AS lead_history_id, 
-                            lh1.lead_action_id, 
-                            la.name AS lead_action_name 
-                        FROM lead_follow_up_history AS lh1 
-                        INNER JOIN (
-                            SELECT lead_id, MAX(id) AS max_id
-                            FROM lead_follow_up_history
-                            GROUP BY lead_id
-                        ) AS latest ON lh1.id = latest.max_id
-                        LEFT JOIN lead_action AS la ON lh1.lead_action_id = la.id
-                    ) AS lh ON lh.lead_id = l.id
-                    LEFT JOIN (
-                        SELECT q.id, q.lead_id, q.cna_date, q.comments FROM lead_master AS lm
-                        INNER JOIN quality_master AS q ON
-                          q.lead_id = lm.id
-                        WHERE q.is_updated = 0
-                    ) AS qm ON qm.lead_id = l.id
-                    LEFT JOIN (
-                      SELECT qm1.lead_id, qm1.comments FROM quality_master AS qm1
-                      INNER JOIN (
-                        SELECT lead_id, MAX(id) AS max_id FROM quality_master WHERE is_updated = 1 GROUP BY lead_id
-                      ) AS latest ON qm1.id = latest.max_id
-                    ) AS latest1 ON latest1.lead_id = l.id
+                    	SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
+                        GROUP BY lead_id
+                    ) AS latest ON latest.lead_id = l.id
+                    LEFT JOIN lead_follow_up_history AS lh ON
+                    	latest.lead_history_id = lh.id
+                    LEFT JOIN lead_action AS la ON
+                    	la.id = lh.lead_action_id
                     WHERE 1 = 1`;
 
       const countQueryParams = [];
@@ -414,51 +394,35 @@ const LeadModel = {
 
       const total = countResult[0]?.total || 0;
 
-      const leadIds = [...new Set(result.map((item) => item.id))];
+      // const leadIds = [...new Set(result.map((item) => item.id))];
 
-      let history = new Map();
-      if (leadIds.length > 0) {
-        const [historyResult] = await pool.query(
-          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
-           FROM lead_follow_up_history AS lh 
-           LEFT JOIN users AS u ON lh.updated_by = u.user_id 
-           LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
-           WHERE lh.is_updated = 1 AND lh.lead_id IN (?) 
-           ORDER BY lh.id ASC`,
-          [leadIds],
-        );
+      // let history = new Map();
+      // if (leadIds.length > 0) {
+      //   const [historyResult] = await pool.query(
+      //     `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name
+      //      FROM lead_follow_up_history AS lh
+      //      LEFT JOIN users AS u ON lh.updated_by = u.user_id
+      //      LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id
+      //      WHERE lh.is_updated = 1 AND lh.lead_id IN (?)
+      //      ORDER BY lh.id ASC`,
+      //     [leadIds],
+      //   );
 
-        historyResult.forEach((h) =>
-          history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]),
-        );
-      }
+      //   historyResult.forEach((h) =>
+      //     history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]),
+      //   );
+      // }
 
-      let qualityHistory = new Map();
-      if (leadIds.length > 0) {
-        const [qualityHistoryResult] = await pool.query(
-          `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id IN (?) ORDER BY q.id ASC`,
-          [leadIds],
-        );
-
-        qualityHistoryResult.forEach((qh) =>
-          qualityHistory.set(qh.lead_id, [
-            ...(qualityHistory.get(qh.lead_id) || []),
-            qh,
-          ]),
-        );
-      }
-
-      // Use Promise.all to wait for all async operations in the map
-      const formattedResult = result.map((item) => {
-        return {
-          ...item,
-          histories: history.get(item.id) || [],
-          quality_history: qualityHistory.get(item.id) || [],
-        };
-      });
+      // // Use Promise.all to wait for all async operations in the map
+      // const formattedResult = result.map((item) => {
+      //   return {
+      //     ...item,
+      //     histories: history.get(item.id) || [],
+      //   };
+      // });
 
       return {
-        data: formattedResult,
+        data: result,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
@@ -680,6 +644,24 @@ const LeadModel = {
           totalPages: Math.ceil(total / limitNumber),
         },
       };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getLeadFollowUpsHistory: async (lead_id) => {
+    try {
+      const [historyResult] = await pool.query(
+        `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name 
+           FROM lead_follow_up_history AS lh 
+           LEFT JOIN users AS u ON lh.updated_by = u.user_id 
+           LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id 
+           WHERE lh.is_updated = 1 AND lh.lead_id = ?
+           ORDER BY lh.id ASC`,
+        [lead_id],
+      );
+
+      return historyResult;
     } catch (error) {
       throw new Error(error.message);
     }
@@ -1895,47 +1877,6 @@ const LeadModel = {
         countParams.push(start_date, end_date);
       }
 
-      // let prefix;
-      // if (region_type) {
-      //   const match = region_type.match(/^[A-Za-z]+/);
-      //   prefix = match ? match[0] : "";
-      // }
-
-      // const courseFilter = `
-      //                     (
-      //                       LOWER(course) LIKE '%data analytics%'
-      //                       OR LOWER(course) LIKE 'data science'
-      //                       OR LOWER(course) LIKE '%fullstack developer%'
-      //                       OR LOWER(course) LIKE '%software testing%'
-      //                       OR LOWER(course) LIKE '%cloud computing%'
-      //                       OR LOWER(course) LIKE '%digital marketing%'
-      //                       OR LOWER(course) LIKE '%machine learning%'
-      //                       OR LOWER(course) LIKE '%gen ai%'
-      //                       OR LOWER(course) LIKE '%sap fico%'
-      //                       OR LOWER(course) LIKE '%sap mm%'
-      //                     )`;
-
-      // if (prefix === "HUB") {
-      //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-
-      //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-      // }
-
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      // }
-
-      // if (prefix !== "" && prefix === "HUB") {
-      //   getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-      //   countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-      // }
-
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += ` AND training LIKE '%Class%'`;
-      //   countQuery += ` AND training LIKE '%Class%'`;
-      // }
-
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
@@ -2328,57 +2269,65 @@ const LeadModel = {
   },
 
   leadReEntry: async (
-    lead_id,
+    lead_ids,
     assign_date,
     next_follow_up_date,
     assigned_to,
     updated_by,
   ) => {
     try {
-      let affectedRows = 0;
-      const [isExists] = await pool.query(
-        `SELECT id FROM lead_master WHERE id = ?`,
-        [lead_id],
-      );
+      let totalAffectedRows = 0;
+      const ids = Array.isArray(lead_ids) ? lead_ids : [lead_ids];
 
-      if (isExists.length <= 0) throw new Error("Invalid Id");
+      for (const lead_id of ids) {
+        let affectedRows = 0;
+        const [isExists] = await pool.query(
+          `SELECT id FROM lead_master WHERE id = ?`,
+          [lead_id],
+        );
 
-      const [result] = await pool.query(
-        `UPDATE lead_master SET re_assigned_date = ?, next_follow_up_date = ?, is_reassigned = 1, assigned_to = ? WHERE id = ?`,
-        [assign_date, next_follow_up_date, assigned_to, lead_id],
-      );
+        if (isExists.length <= 0) continue;
 
-      affectedRows += result.affectedRows;
+        const [result] = await pool.query(
+          `UPDATE lead_master SET re_assigned_date = ?, next_follow_up_date = ?, is_reassigned = 1, assigned_to = ? WHERE id = ?`,
+          [assign_date, next_follow_up_date, assigned_to, lead_id],
+        );
 
-      const [getFollowup] = await pool.query(
-        `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
-        [lead_id],
-      );
+        affectedRows += result.affectedRows;
 
-      const [updateFollowUp] = await pool.query(
-        `UPDATE lead_follow_up_history SET updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
-        [updated_by, assign_date, getFollowup[0].id],
-      );
+        const [getFollowup] = await pool.query(
+          `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+          [lead_id],
+        );
 
-      affectedRows += updateFollowUp.affectedRows;
+        if (getFollowup.length > 0) {
+          const [updateFollowUp] = await pool.query(
+            `UPDATE lead_follow_up_history SET updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
+            [updated_by, assign_date, getFollowup[0].id],
+          );
 
-      const [getLeadAction] = await pool.query(
-        `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-      );
+          affectedRows += updateFollowUp.affectedRows;
+        }
 
-      const [next_follow_up] = await pool.query(
-        `INSERT INTO lead_follow_up_history(
-            lead_id,
-            next_follow_up_date,
-            lead_action_id
-        )
-        VALUES(?, ?, ?)`,
-        [lead_id, next_follow_up_date, getLeadAction[0].id],
-      );
+        const [getLeadAction] = await pool.query(
+          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+        );
 
-      affectedRows += next_follow_up.affectedRows;
+        const [next_follow_up] = await pool.query(
+          `INSERT INTO lead_follow_up_history(
+              lead_id,
+              next_follow_up_date,
+              lead_action_id
+          )
+          VALUES(?, ?, ?)`,
+          [lead_id, next_follow_up_date, getLeadAction[0].id],
+        );
 
-      return affectedRows;
+        affectedRows += next_follow_up.affectedRows;
+        totalAffectedRows += affectedRows;
+      }
+
+      return totalAffectedRows;
     } catch (error) {
       throw new Error(error.message);
     }

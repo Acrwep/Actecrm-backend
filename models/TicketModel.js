@@ -35,12 +35,13 @@ const TicketModel = {
     title,
     description,
     category_id,
-    sub_category_id,
     priority,
-    type,
     attachments,
     raised_by_id,
     raised_by_role,
+    manager_id,
+    ra_id,
+    hr_id,
     created_at,
     assigned_to,
   ) => {
@@ -49,25 +50,27 @@ const TicketModel = {
                                 title,
                                 description,
                                 category_id,
-                                sub_category_id,
                                 priority,
-                                type,
                                 status,
                                 raised_by_id,
                                 raised_by_role,
+                                manager_id,
+                                ra_id,
+                                hr_id,
                                 created_at
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         title,
         description,
         category_id,
-        sub_category_id,
         priority,
-        type,
         "Open",
         raised_by_id,
         raised_by_role,
+        manager_id,
+        ra_id,
+        hr_id,
         created_at,
       ];
 
@@ -118,8 +121,21 @@ const TicketModel = {
         // Fallback or empty result if no user_ids provided but logic requires it
         return {
           tickets: [],
-          statusCount: { total: 0, open: 0, hold: 0, closed: 0, overdue: 0, assigned: 0, close_request: 0 },
-          pagination: { total: 0, page: parseInt(page) || 1, limit: parseInt(limit) || 10, totalPages: 0 }
+          statusCount: {
+            total: 0,
+            open: 0,
+            hold: 0,
+            closed: 0,
+            overdue: 0,
+            assigned: 0,
+            close_request: 0,
+          },
+          pagination: {
+            total: 0,
+            page: parseInt(page) || 1,
+            limit: parseInt(limit) || 10,
+            totalPages: 0,
+          },
         };
       }
 
@@ -130,13 +146,16 @@ const TicketModel = {
                           t.description,
                           t.category_id,
                           c.category_name,
-                          t.sub_category_id,
-                          sc.sub_category_name,
                           t.priority,
-                          t.type,
                           t.status,
                           t.raised_by_id,
                           t.raised_by_role,
+                          t.manager_id,
+                          mu.user_name AS manager_name,
+                          t.ra_id,
+                          ru.user_name AS ra_name,
+                          t.hr_id,
+                          hu.user_name AS hr_name,
                           CASE 
                             WHEN t.raised_by_role = 'Customer' THEN cu.name
                             WHEN t.raised_by_role = 'Trainer' THEN tr.name
@@ -153,7 +172,6 @@ const TicketModel = {
                           au.user_name AS assigned_to_name
                       FROM tickets AS t
                       INNER JOIN ticket_categories AS c ON c.category_id = t.category_id
-                      INNER JOIN ticket_sub_categories AS sc ON sc.sub_category_id = t.sub_category_id
                       LEFT JOIN customers AS cu ON t.raised_by_id = cu.id AND t.raised_by_role = 'Customer'
                       LEFT JOIN trainer AS tr ON t.raised_by_id = tr.id AND t.raised_by_role = 'Trainer'
                       LEFT JOIN (
@@ -166,6 +184,9 @@ const TicketModel = {
                           )
                       ) AS latest_tt ON latest_tt.ticket_id = t.ticket_id
                       LEFT JOIN users AS au ON au.user_id = latest_tt.assigned_to
+                      LEFT JOIN users AS mu ON mu.id = t.manager_id
+                      LEFT JOIN users AS ru ON ru.id = t.manager_id
+                      LEFT JOIN users AS hu ON hu.id = t.manager_id
                       WHERE EXISTS (
                           SELECT 1 FROM ticket_track vtt 
                           WHERE vtt.ticket_id = t.ticket_id 
@@ -227,27 +248,37 @@ const TicketModel = {
       const [[result], [countResult], [statusResult]] = await Promise.all([
         pool.query(getQuery, queryParams),
         pool.query(countQuery, countParams),
-        pool.query(statusQuery, statusParams)
+        pool.query(statusQuery, statusParams),
       ]);
 
       const total = countResult[0]?.total || 0;
-      const statusCount = statusResult[0] || { total: 0, open: 0, hold: 0, closed: 0, overdue: 0, assigned: 0, close_request: 0 };
+      const statusCount = statusResult[0] || {
+        total: 0,
+        open: 0,
+        hold: 0,
+        closed: 0,
+        overdue: 0,
+        assigned: 0,
+        close_request: 0,
+      };
 
       // Optimized Attachment Fetching: Avoid N+1 queries by fetching all at once for current page results
       let tickets = result;
       if (tickets.length > 0) {
-        const ticketIds = tickets.map(t => t.ticket_id);
+        const ticketIds = tickets.map((t) => t.ticket_id);
         const [allAttachments] = await pool.query(
           `SELECT attachment_id, ticket_id, base64string, uploaded_at 
            FROM ticket_attachments 
            WHERE ticket_id IN (?)`,
-          [ticketIds]
+          [ticketIds],
         );
 
         // Map attachments back to their tickets
-        tickets = tickets.map(ticket => ({
+        tickets = tickets.map((ticket) => ({
           ...ticket,
-          attachments: allAttachments.filter(att => att.ticket_id === ticket.ticket_id)
+          attachments: allAttachments.filter(
+            (att) => att.ticket_id === ticket.ticket_id,
+          ),
         }));
       }
 

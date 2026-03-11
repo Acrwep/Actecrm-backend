@@ -28,6 +28,9 @@ const createTicket = async (request, response) => {
     attachments,
     raised_by_id,
     raised_by_role,
+    manager_id,
+    ra_id,
+    hr_id,
     created_at,
     assigned_to,
   } = request.body;
@@ -42,6 +45,9 @@ const createTicket = async (request, response) => {
       attachments,
       raised_by_id,
       raised_by_role,
+      manager_id,
+      ra_id,
+      hr_id,
       created_at,
       assigned_to,
     );

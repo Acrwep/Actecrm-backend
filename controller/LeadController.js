@@ -899,11 +899,11 @@ const getAssignedLeads = async (request, response) => {
 };
 
 const leadReEntry = async (request, response) => {
-  const { lead_id, assign_date, next_follow_up_date, assigned_to, updated_by } =
+  const { lead_ids, assign_date, next_follow_up_date, assigned_to, updated_by } =
     request.body;
   try {
     const result = await LeadModel.leadReEntry(
-      lead_id,
+      lead_ids,
       assign_date,
       next_follow_up_date,
       assigned_to,
