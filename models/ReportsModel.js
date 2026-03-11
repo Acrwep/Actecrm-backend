@@ -2780,7 +2780,8 @@ const ReportModel = {
         SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END) AS google_review_count,
         SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END) AS linkedin_review_count,
         SUM(CASE WHEN c.status = 'Completed' THEN 1 ELSE 0 END) AS class_completed,
-        SUM(CASE WHEN c.status = 'Videos Given' THEN 1 ELSE 0 END) AS videos_given
+        SUM(CASE WHEN c.status = 'Videos Given' THEN 1 ELSE 0 END) AS videos_given,
+        SUM(CASE WHEN c.is_certificate_generated = 1 THEN 1 ELSE 0 END) AS certificate_generated
       FROM customers c
       INNER JOIN lead_master l ON c.lead_id = l.id
       WHERE 1 = 1
