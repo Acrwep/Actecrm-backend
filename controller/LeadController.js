@@ -296,6 +296,7 @@ const updateLead = async (request, response) => {
     comments,
     lead_id,
     region_id,
+    is_previous_junk
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -322,6 +323,7 @@ const updateLead = async (request, response) => {
       comments,
       lead_id,
       region_id,
+      is_previous_junk
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -921,6 +923,7 @@ const leadReEntry = async (request, response) => {
   }
 };
 
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -957,5 +960,5 @@ module.exports = {
   manualAssign,
   getAssignedLeads,
   updateLeadStatus,
-  leadReEntry,
+  leadReEntry
 };

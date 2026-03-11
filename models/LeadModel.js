@@ -252,7 +252,6 @@ const LeadModel = {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-                        ROW_NUMBER() OVER (ORDER BY l.created_date DESC) AS row_num,
                         l.id,
                         l.user_id,
                         u.user_name,
@@ -394,33 +393,6 @@ const LeadModel = {
 
       const total = countResult[0]?.total || 0;
 
-      // const leadIds = [...new Set(result.map((item) => item.id))];
-
-      // let history = new Map();
-      // if (leadIds.length > 0) {
-      //   const [historyResult] = await pool.query(
-      //     `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name
-      //      FROM lead_follow_up_history AS lh
-      //      LEFT JOIN users AS u ON lh.updated_by = u.user_id
-      //      LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id
-      //      WHERE lh.is_updated = 1 AND lh.lead_id IN (?)
-      //      ORDER BY lh.id ASC`,
-      //     [leadIds],
-      //   );
-
-      //   historyResult.forEach((h) =>
-      //     history.set(h.lead_id, [...(history.get(h.lead_id) || []), h]),
-      //   );
-      // }
-
-      // // Use Promise.all to wait for all async operations in the map
-      // const formattedResult = result.map((item) => {
-      //   return {
-      //     ...item,
-      //     histories: history.get(item.id) || [],
-      //   };
-      // });
-
       return {
         data: result,
         pagination: {
@@ -449,7 +421,6 @@ const LeadModel = {
     try {
       const queryParams = [];
       let getQuery = `SELECT
-                    ROW_NUMBER() OVER (ORDER BY lf.next_follow_up_date ASC) AS row_num,
                     l.id,
                     lf.id AS lead_history_id,
                     l.user_id,
@@ -612,26 +583,10 @@ const LeadModel = {
         );
       }
 
-      let qualityHistory = new Map();
-
-      if (leadIds.length > 0) {
-        const [qualityHistoryResult] = await pool.query(
-          `SELECT q.id, q.lead_id, q.comments, q.status, q.cna_date, q.updated_by, q.updated_date, u.user_name, q.created_date FROM quality_master AS q LEFT JOIN users AS u ON q.updated_by = u.user_id WHERE q.is_updated = 1 AND q.lead_id IN (?) ORDER BY q.id ASC`,
-          [leadIds],
-        );
-        qualityHistoryResult.forEach((q) =>
-          qualityHistory.set(q.lead_id, [
-            ...(qualityHistory.get(q.lead_id) || []),
-            q,
-          ]),
-        );
-      }
-
       const formattedResult = follow_ups.map((item) => {
         return {
           ...item,
           histories: history.get(item.id) || [],
-          quality_history: qualityHistory.get(item.id) || [],
         };
       });
 
@@ -749,6 +704,7 @@ const LeadModel = {
     comments,
     lead_id,
     region_id,
+    previous_junk
   ) => {
     try {
       const [isLeadExists] = await pool.query(
@@ -825,6 +781,28 @@ const LeadModel = {
         `UPDATE lead_follow_up_history SET comments = ? WHERE id = ?`,
         [comments, lead_history_id[0].lead_history_id],
       );
+
+      if (previous_junk) {
+        await pool.query(
+          `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
+          [next_follow_up_date, lead_status_id, lead_id],
+        );
+
+
+        const [getLeadAction] = await pool.query(
+          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+        );
+
+        await pool.query(
+          `INSERT INTO lead_follow_up_history(
+              lead_id,
+              next_follow_up_date,
+              lead_action_id
+          )
+          VALUES(?, ?, ?)`,
+          [lead_id, next_follow_up_date, getLeadAction[0].id],
+        );
+      }
 
       return update_lead_history.affectedRows;
     } catch (error) {
