@@ -2884,6 +2884,7 @@ const ReportModel = {
           linkedin_review_count: toNum(r.linkedin_review_count),
           class_completed: toNum(r.class_completed),
           videos_given: toNum(r.videos_given),
+          certificate_generated: toNum(r.certificate_generated),
         };
       });
 
@@ -2912,6 +2913,7 @@ const ReportModel = {
           linkedin_review_count: data ? data.linkedin_review_count : 0,
           class_completed: data ? data.class_completed : 0,
           videos_given: data ? data.videos_given : 0,
+          certificate_generated: data ? data.certificate_generated : 0,
         };
       });
 
