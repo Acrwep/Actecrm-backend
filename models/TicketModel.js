@@ -108,7 +108,7 @@ const TicketModel = {
 
       let details = "";
 
-      const userQuery = `SELECT user_name FROM users WHERE id = ?`;
+      const userQuery = `SELECT user_name FROM users WHERE user_id = ?`;
 
       if(manager_id){
         const [user] = await pool.query(userQuery, [manager_id]);
