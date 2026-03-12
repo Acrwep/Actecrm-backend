@@ -106,45 +106,58 @@ const TicketModel = {
         [result.insertId, assigned_to, "Created", created_at, assigned_to],
       );
 
+      let details = "";
+
+      const userQuery = `SELECT user_name FROM users WHERE id = ?`;
+
       if(manager_id){
+        const [user] = await pool.query(userQuery, [manager_id]);
+        details = `Ticket assigned to Manager (${manager_id} - ${user[0].user_name})`;
         await pool.query(
           `INSERT INTO ticket_track(
                                 ticket_id,
                                 assigned_to,
                                 status,
+                                details,
                                 created_date,
                                 update_by
                             )
-                            VALUES(?, ?, ?, ?, ?)`,
-          [result.insertId, manager_id, "Assigned", created_at, assigned_to],
+                            VALUES(?, ?, ?, ?, ?, ?)`,
+          [result.insertId, manager_id, "Assigned", details, created_at, assigned_to],
         );
       }
 
       if (ra_id) {
+        const [user] = await pool.query(userQuery, [ra_id]);
+        details = `Ticket assigned to RA (${ra_id} - ${user[0].user_name})`;
         await pool.query(
           `INSERT INTO ticket_track(
                                 ticket_id,
                                 assigned_to,
                                 status,
+                                details,
                                 created_date,
                                 update_by
                             )
-                            VALUES(?, ?, ?, ?, ?)`,
-          [result.insertId, ra_id, "Assigned", created_at, assigned_to],
+                            VALUES(?, ?, ?, ?, ?, ?)`,
+          [result.insertId, ra_id, "Assigned", details, created_at, assigned_to],
         );
       }
 
       if (hr_id) {
+        const [user] = await pool.query(userQuery, [hr_id]);
+        details = `Ticket assigned to HR (${hr_id} - ${user[0].user_name})`;
         await pool.query(
           `INSERT INTO ticket_track(
                                 ticket_id,
                                 assigned_to,
                                 status,
+                                details,
                                 created_date,
                                 update_by
                             )
-                            VALUES(?, ?, ?, ?, ?)`,
-          [result.insertId, hr_id, "Assigned", created_at, assigned_to],
+                            VALUES(?, ?, ?, ?, ?, ?)`,
+          [result.insertId, hr_id, "Assigned", details, created_at, assigned_to],
         );
       }
 
