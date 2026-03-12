@@ -84,12 +84,10 @@ const getTickets = async (request, response) => {
 };
 
 const updateTicketStatus = async (request, response) => {
-  const { ticket_id, status, updated_at } = request.body;
+  const { ticket_id, status, updated_at, ra_id, hr_id } = request.body;
   try {
     const result = await TicketModel.updateTicketStatus(
-      ticket_id,
-      status,
-      updated_at,
+      ticket_id, status, updated_at, ra_id, hr_id,
     );
     response.status(200).send({
       message: "Data updated successfully.",

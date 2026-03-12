@@ -348,22 +348,35 @@ const TicketModel = {
     }
   },
 
-  updateTicketStatus: async (ticket_id, status, updated_at) => {
+  updateTicketStatus: async (ticket_id, status, updated_at, ra_id, hr_id) => {
     try {
       const [isExists] = await pool.query(
         `SELECT ticket_id FROM tickets WHERE ticket_id = ?`,
         [ticket_id],
       );
-      console.log(isExists, "isExists");
 
       if (isExists.length <= 0) throw new Error("Invalid ticket Id");
 
-      const [updateResult] = await pool.query(
-        `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
-        [status, updated_at, ticket_id],
-      );
+      let affectedRows = 0;
 
-      return updateResult.affectedRows;
+      if (ra_id || hr_id) {
+        const [updateResult] = await pool.query(
+          `UPDATE tickets SET ra_id = ?, hr_id = ?, status = ?, updated_at = ? WHERE ticket_id = ?`,
+          [ra_id, hr_id, status, updated_at, ticket_id],
+        );
+
+        affectedRows += updateResult.affectedRows;
+      }
+      else {
+        const [updateResult] = await pool.query(
+          `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
+          [status, updated_at, ticket_id],
+        );
+
+        affectedRows += updateResult.affectedRows;
+      }      
+
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
