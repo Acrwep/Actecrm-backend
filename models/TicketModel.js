@@ -156,36 +156,11 @@ const TicketModel = {
     }
   },
 
-  getTickets: async (start_date, end_date, status, page, limit, user_ids) => {
+  getTickets: async (start_date, end_date, status, page, limit, user_id, show_all) => {
     try {
       const queryParams = [];
       const countParams = [];
       const statusParams = [];
-
-      let placeholders = "";
-      if (Array.isArray(user_ids) && user_ids.length > 0) {
-        placeholders = user_ids.map(() => "?").join(", ");
-      } else {
-        // Fallback or empty result if no user_ids provided but logic requires it
-        return {
-          tickets: [],
-          statusCount: {
-            total: 0,
-            awaiting_employee: 0,
-            hold: 0,
-            closed: 0,
-            overdue: 0,
-            assigned: 0,
-            close_request: 0,
-          },
-          pagination: {
-            total: 0,
-            page: parseInt(page) || 1,
-            limit: parseInt(limit) || 10,
-            totalPages: 0,
-          },
-        };
-      }
 
       // Optimized getQuery: Use a more robust join for latest assigned_to and avoid inefficient subqueries
       let getQuery = `SELECT
@@ -238,18 +213,10 @@ const TicketModel = {
                       LEFT JOIN users AS mu ON mu.id = t.manager_id
                       LEFT JOIN users AS ru ON ru.id = t.ra_id
                       LEFT JOIN users AS hu ON hu.id = t.hr_id
-                      WHERE EXISTS (
-                          SELECT 1 FROM ticket_track vtt 
-                          WHERE vtt.ticket_id = t.ticket_id 
-                          AND vtt.assigned_to IN (${placeholders})
-                      )`;
+                      WHERE 1 = 1`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM tickets AS t
-                        WHERE EXISTS (
-                            SELECT 1 FROM ticket_track vtt 
-                            WHERE vtt.ticket_id = t.ticket_id 
-                            AND vtt.assigned_to IN (${placeholders})
-                        )`;
+                        WHERE 1 = 1`;
 
       let statusQuery = `SELECT
                           COUNT(*) AS total,
@@ -260,15 +227,28 @@ const TicketModel = {
                           SUM(CASE WHEN t.status = 'Assigned' THEN 1 ELSE 0 END) AS assigned,
                           SUM(CASE WHEN t.status = 'Close Request' THEN 1 ELSE 0 END) AS close_request
                         FROM tickets AS t
-                        WHERE EXISTS (
+                        WHERE 1 = 1`;
+
+      if (show_all == false) {
+        getQuery += ` AND EXISTS (
+                          SELECT 1 FROM ticket_track vtt 
+                          WHERE vtt.ticket_id = t.ticket_id 
+                          AND vtt.assigned_to = ?
+                      )`;
+        countQuery += ` AND EXISTS (
                             SELECT 1 FROM ticket_track vtt 
                             WHERE vtt.ticket_id = t.ticket_id 
-                            AND vtt.assigned_to IN (${placeholders})
+                            AND vtt.assigned_to = ?
                         )`;
-
-      queryParams.push(...user_ids);
-      countParams.push(...user_ids);
-      statusParams.push(...user_ids);
+        statusQuery += ` AND EXISTS (
+                            SELECT 1 FROM ticket_track vtt 
+                            WHERE vtt.ticket_id = t.ticket_id 
+                            AND vtt.assigned_to = ?
+                        )`;
+        queryParams.push(user_id);
+        countParams.push(user_id);
+        statusParams.push(user_id);
+      }
 
       if (start_date && end_date) {
         const dateFilter = ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
@@ -467,6 +447,7 @@ const TicketModel = {
             tt.ticket_id,
             tt.assigned_to,
             au.user_name AS assigned_to_name,
+            au.user_id AS assigned_user_id,
             tt.status,
             tt.details,
             tt.created_date,
