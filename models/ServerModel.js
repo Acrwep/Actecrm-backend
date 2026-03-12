@@ -1,4 +1,3 @@
-const { text } = require("pdfkit");
 const pool = require("../config/dbconfig");
 const nodemailer = require("nodemailer");
 

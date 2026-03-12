@@ -2280,8 +2280,8 @@ const LeadModel = {
 
         if (getFollowup.length > 0) {
           const [updateFollowUp] = await pool.query(
-            `UPDATE lead_follow_up_history SET updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
-            [updated_by, assign_date, getFollowup[0].id],
+            `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
+            [updated_by, "Lead re-entry", assign_date, getFollowup[0].id],
           );
 
           affectedRows += updateFollowUp.affectedRows;

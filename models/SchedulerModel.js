@@ -6,9 +6,8 @@ const fs = require("fs");
 const path = require("path");
 
 // Initialize Firebase Admin
-const serviceKey = JSON.parse(
-  fs.readFileSync("serviceAccountKey.json", "utf8"),
-);
+const serviceKeyPath = path.join(__dirname, "..", "serviceAccountKey.json");
+const serviceKey = JSON.parse(fs.readFileSync(serviceKeyPath, "utf8"));
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -31,13 +30,13 @@ const logToFile = async (message) => {
 
   try {
     fs.appendFileSync(logFilePath, logMessage);
-    // console.log(logMessage.trim()); // Also log to console for immediate feedback
+    console.log(logMessage.trim()); // Enabled console log for production monitoring
   } catch (err) {
     console.error("Failed to write to log file:", err);
   }
 };
 
-const job = cron.schedule(scheduleTime, async () => {
+const expireServerTrans = async () => {
   try {
     await logToFile("Cron job started execution");
 
@@ -97,10 +96,13 @@ const job = cron.schedule(scheduleTime, async () => {
   } catch (error) {
     await logToFile(`CRITICAL ERROR in cron job: ${error.message}`);
     await logToFile(`Stack trace: ${error.stack}`);
-    // keep same behavior as before: rethrow if you want the process to crash/alert
-    throw error;
   }
-});
+};
+
+const job = cron.schedule(scheduleTime, expireServerTrans);
+
+// Run once on startup to ensure production is working
+expireServerTrans();
 
 const socketService = require("../services/SocketService");
 
