@@ -282,15 +282,15 @@ const TicketModel = {
         pool.query(statusQuery, statusParams),
       ]);
 
-      const total = countResult[0]?.total || 0;
-      const statusCount = statusResult[0] || {
-        total: 0,
-        awaiting_employee: 0,
-        hold: 0,
-        closed: 0,
-        overdue: 0,
-        assigned: 0,
-        close_request: 0,
+      const total = parseInt(countResult[0]?.total) || 0;
+      const statusCount = {
+        total: total,
+        awaiting_employee: parseInt(statusResult[0]?.awaiting_employee) || 0,
+        hold: parseInt(statusResult[0]?.hold) || 0,
+        closed: parseInt(statusResult[0]?.closed) || 0,
+        overdue: parseInt(statusResult[0]?.overdue) || 0,
+        assigned: parseInt(statusResult[0]?.assigned) || 0,
+        close_request: parseInt(statusResult[0]?.close_request) || 0,
       };
 
       // Optimized Attachment Fetching: Avoid N+1 queries by fetching all at once for current page results
