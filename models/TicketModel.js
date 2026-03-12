@@ -46,6 +46,12 @@ const TicketModel = {
     assigned_to,
   ) => {
     try {
+      let status = "";
+      if (!ra_id && !hr_id) {
+        status = "Awaiting Employee";
+      } else {
+        status = "Assigned";
+      }
       const insertQuery = `INSERT INTO tickets(
                                 title,
                                 description,
@@ -65,7 +71,7 @@ const TicketModel = {
         description,
         category_id,
         priority,
-        "Open",
+        status,
         raised_by_id,
         raised_by_role,
         manager_id,
@@ -100,6 +106,48 @@ const TicketModel = {
         [result.insertId, assigned_to, "Created", created_at, assigned_to],
       );
 
+      if(manager_id){
+        await pool.query(
+          `INSERT INTO ticket_track(
+                                ticket_id,
+                                assigned_to,
+                                status,
+                                created_date,
+                                update_by
+                            )
+                            VALUES(?, ?, ?, ?, ?)`,
+          [result.insertId, manager_id, "Assigned", created_at, assigned_to],
+        );
+      }
+
+      if (ra_id) {
+        await pool.query(
+          `INSERT INTO ticket_track(
+                                ticket_id,
+                                assigned_to,
+                                status,
+                                created_date,
+                                update_by
+                            )
+                            VALUES(?, ?, ?, ?, ?)`,
+          [result.insertId, ra_id, "Assigned", created_at, assigned_to],
+        );
+      }
+
+      if (hr_id) {
+        await pool.query(
+          `INSERT INTO ticket_track(
+                                ticket_id,
+                                assigned_to,
+                                status,
+                                created_date,
+                                update_by
+                            )
+                            VALUES(?, ?, ?, ?, ?)`,
+          [result.insertId, hr_id, "Assigned", created_at, assigned_to],
+        );
+      }
+
       return {
         status: true,
       };
@@ -123,7 +171,7 @@ const TicketModel = {
           tickets: [],
           statusCount: {
             total: 0,
-            open: 0,
+            awaiting_employee: 0,
             hold: 0,
             closed: 0,
             overdue: 0,
@@ -202,7 +250,7 @@ const TicketModel = {
 
       let statusQuery = `SELECT
                           COUNT(*) AS total,
-                          SUM(CASE WHEN t.status = 'Open' THEN 1 ELSE 0 END) AS open,
+                          SUM(CASE WHEN t.status = 'Awaiting Employee' THEN 1 ELSE 0 END) AS awaiting_employee,
                           SUM(CASE WHEN t.status = 'Hold' THEN 1 ELSE 0 END) AS hold,
                           SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END) AS closed,
                           SUM(CASE WHEN t.status = 'Overdue' THEN 1 ELSE 0 END) AS overdue,
@@ -254,7 +302,7 @@ const TicketModel = {
       const total = countResult[0]?.total || 0;
       const statusCount = statusResult[0] || {
         total: 0,
-        open: 0,
+        awaiting_employee: 0,
         hold: 0,
         closed: 0,
         overdue: 0,
