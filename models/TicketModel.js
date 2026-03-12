@@ -173,15 +173,12 @@ const TicketModel = {
                           t.status,
                           t.raised_by_id,
                           t.raised_by_role,
-                          t.manager_id,
+                          t.manager_id AS manager_user_id,
                           mu.user_name AS manager_name,
-                          mu.user_id AS manager_user_id,
-                          t.ra_id,
+                          t.ra_id AS ra_user_id,
                           ru.user_name AS ra_name,
-                          ru.user_id AS ra_user_id,
-                          t.hr_id,
+                          t.hr_id AS hr_user_id,
                           hu.user_name AS hr_name,
-                          hu.user_id AS hr_user_id,
                           CASE 
                             WHEN t.raised_by_role = 'Customer' THEN cu.name
                             WHEN t.raised_by_role = 'Trainer' THEN tr.name
@@ -210,9 +207,9 @@ const TicketModel = {
                           )
                       ) AS latest_tt ON latest_tt.ticket_id = t.ticket_id
                       LEFT JOIN users AS au ON au.user_id = latest_tt.assigned_to
-                      LEFT JOIN users AS mu ON mu.id = t.manager_id
-                      LEFT JOIN users AS ru ON ru.id = t.ra_id
-                      LEFT JOIN users AS hu ON hu.id = t.hr_id
+                      LEFT JOIN users AS mu ON mu.user_id = t.manager_id
+                      LEFT JOIN users AS ru ON ru.user_id = t.ra_id
+                      LEFT JOIN users AS hu ON hu.user_id = t.hr_id
                       WHERE 1 = 1`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM tickets AS t
