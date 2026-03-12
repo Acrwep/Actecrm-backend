@@ -233,8 +233,8 @@ const TicketModel = {
                       ) AS latest_tt ON latest_tt.ticket_id = t.ticket_id
                       LEFT JOIN users AS au ON au.user_id = latest_tt.assigned_to
                       LEFT JOIN users AS mu ON mu.id = t.manager_id
-                      LEFT JOIN users AS ru ON ru.id = t.manager_id
-                      LEFT JOIN users AS hu ON hu.id = t.manager_id
+                      LEFT JOIN users AS ru ON ru.id = t.ra_id
+                      LEFT JOIN users AS hu ON hu.id = t.hr_id
                       WHERE EXISTS (
                           SELECT 1 FROM ticket_track vtt 
                           WHERE vtt.ticket_id = t.ticket_id 
