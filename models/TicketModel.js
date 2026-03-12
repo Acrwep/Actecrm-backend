@@ -200,10 +200,13 @@ const TicketModel = {
                           t.raised_by_role,
                           t.manager_id,
                           mu.user_name AS manager_name,
+                          mu.user_id AS manager_user_id,
                           t.ra_id,
                           ru.user_name AS ra_name,
+                          ru.user_id AS ra_user_id,
                           t.hr_id,
                           hu.user_name AS hr_name,
+                          hu.user_id AS hr_user_id,
                           CASE 
                             WHEN t.raised_by_role = 'Customer' THEN cu.name
                             WHEN t.raised_by_role = 'Trainer' THEN tr.name
