@@ -41,7 +41,6 @@ const TicketModel = {
     raised_by_role,
     manager_id,
     ra_id,
-    hr_id,
     created_at,
     assigned_to,
   ) => {
@@ -62,10 +61,9 @@ const TicketModel = {
                                 raised_by_role,
                                 manager_id,
                                 ra_id,
-                                hr_id,
                                 created_at
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         title,
         description,
@@ -76,7 +74,6 @@ const TicketModel = {
         raised_by_role,
         manager_id,
         ra_id,
-        hr_id,
         created_at,
       ];
 
@@ -144,23 +141,6 @@ const TicketModel = {
         );
       }
 
-      if (hr_id) {
-        const [user] = await pool.query(userQuery, [hr_id]);
-        details = `Ticket assigned to HR (${hr_id} - ${user[0].user_name})`;
-        await pool.query(
-          `INSERT INTO ticket_track(
-                                ticket_id,
-                                assigned_to,
-                                status,
-                                details,
-                                created_date,
-                                update_by
-                            )
-                            VALUES(?, ?, ?, ?, ?, ?)`,
-          [result.insertId, hr_id, "Assigned", details, created_at, assigned_to],
-        );
-      }
-
       return {
         status: true,
       };
@@ -190,8 +170,6 @@ const TicketModel = {
                           mu.user_name AS manager_name,
                           t.ra_id AS ra_user_id,
                           ru.user_name AS ra_name,
-                          t.hr_id AS hr_user_id,
-                          hu.user_name AS hr_name,
                           CASE 
                             WHEN t.raised_by_role = 'Customer' THEN cu.name
                             WHEN t.raised_by_role = 'Trainer' THEN tr.name
@@ -222,7 +200,6 @@ const TicketModel = {
                       LEFT JOIN users AS au ON au.user_id = latest_tt.assigned_to
                       LEFT JOIN users AS mu ON mu.user_id = t.manager_id
                       LEFT JOIN users AS ru ON ru.user_id = t.ra_id
-                      LEFT JOIN users AS hu ON hu.user_id = t.hr_id
                       WHERE 1 = 1`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM tickets AS t
