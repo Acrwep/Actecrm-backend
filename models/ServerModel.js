@@ -292,6 +292,12 @@ const ServerModel = {
           throw new Error(
             "Server cannot be raised as the customer has outstanding fees.",
           );
+
+        await pool.query(`UPDATE server_master SET requested_duration = ? WHERE id = ?`, 
+          [
+            requested_duration,
+            server_id,
+          ]);
       }
 
       if (server_trans_id && screenshot) {
@@ -301,12 +307,11 @@ const ServerModel = {
         );
       }
 
-      const updateQuery = `UPDATE server_master SET status = ?, server_raise_date = ?, requested_duration = ? WHERE id = ?`;
+      const updateQuery = `UPDATE server_master SET status = ?, server_raise_date = ? WHERE id = ?`;
 
       const [result] = await pool.query(updateQuery, [
         status,
         server_raise_date,
-        requested_duration,
         server_id,
       ]);
 
