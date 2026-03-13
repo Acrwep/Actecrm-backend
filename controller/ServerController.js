@@ -48,6 +48,7 @@ const updateServerStatus = async (request, response) => {
     comments,
     rejected_by,
     server_raise_date,
+    requested_duration,
     server_trans_id,
     screenshot,
   } = request.body;
@@ -58,6 +59,7 @@ const updateServerStatus = async (request, response) => {
       comments,
       rejected_by,
       server_raise_date,
+      requested_duration,
       server_trans_id,
       screenshot,
     );
