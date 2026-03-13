@@ -240,24 +240,13 @@ const TicketModel = {
                         WHERE 1 = 1`;
 
       if (show_all == false) {
-        getQuery += ` AND EXISTS (
-                          SELECT 1 FROM ticket_track vtt 
-                          WHERE vtt.ticket_id = t.ticket_id 
-                          AND vtt.assigned_to = ?
-                      )`;
-        countQuery += ` AND EXISTS (
-                            SELECT 1 FROM ticket_track vtt 
-                            WHERE vtt.ticket_id = t.ticket_id 
-                            AND vtt.assigned_to = ?
-                        )`;
-        statusQuery += ` AND EXISTS (
-                            SELECT 1 FROM ticket_track vtt 
-                            WHERE vtt.ticket_id = t.ticket_id 
-                            AND vtt.assigned_to = ?
-                        )`;
-        queryParams.push(user_id);
-        countParams.push(user_id);
-        statusParams.push(user_id);
+        const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ? OR t.hr_id = ?)`
+        getQuery += userFilter;
+        countQuery += userFilter;
+        statusQuery += userFilter;
+        queryParams.push(user_id, user_id, user_id);
+        countParams.push(user_id, user_id, user_id);
+        statusParams.push(user_id, user_id, user_id);
       }
 
       if (start_date && end_date) {
