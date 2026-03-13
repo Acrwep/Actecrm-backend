@@ -46,7 +46,7 @@ const TicketModel = {
   ) => {
     try {
       let status = "";
-      if (!ra_id && !hr_id) {
+      if (!ra_id) {
         status = "Awaiting Employee";
       } else {
         status = "Assigned";
@@ -217,13 +217,13 @@ const TicketModel = {
                         WHERE 1 = 1`;
 
       if (show_all == false) {
-        const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ? OR t.hr_id = ?)`
+        const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ?)`
         getQuery += userFilter;
         countQuery += userFilter;
         statusQuery += userFilter;
-        queryParams.push(user_id, user_id, user_id);
-        countParams.push(user_id, user_id, user_id);
-        statusParams.push(user_id, user_id, user_id);
+        queryParams.push(user_id, user_id);
+        countParams.push(user_id, user_id);
+        statusParams.push(user_id, user_id);
       }
 
       if (start_date && end_date) {
@@ -304,7 +304,7 @@ const TicketModel = {
     }
   },
 
-  updateTicketStatus: async (ticket_id, status, updated_at, ra_id, hr_id) => {
+  updateTicketStatus: async (ticket_id, status, updated_at, ra_id) => {
     try {
       const [isExists] = await pool.query(
         `SELECT ticket_id FROM tickets WHERE ticket_id = ?`,
@@ -315,10 +315,10 @@ const TicketModel = {
 
       let affectedRows = 0;
 
-      if (ra_id || hr_id) {
+      if (ra_id) {
         const [updateResult] = await pool.query(
-          `UPDATE tickets SET ra_id = ?, hr_id = ?, status = ?, updated_at = ? WHERE ticket_id = ?`,
-          [ra_id, hr_id, status, updated_at, ticket_id],
+          `UPDATE tickets SET ra_id = ?, status = ?, updated_at = ? WHERE ticket_id = ?`,
+          [ra_id, status, updated_at, ticket_id],
         );
 
         affectedRows += updateResult.affectedRows;

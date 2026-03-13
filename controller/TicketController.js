@@ -28,7 +28,6 @@ const createTicket = async (request, response) => {
     raised_by_role,
     manager_id,
     ra_id,
-    hr_id,
     created_at,
     assigned_to,
   } = request.body;
@@ -43,7 +42,6 @@ const createTicket = async (request, response) => {
       raised_by_role,
       manager_id,
       ra_id,
-      hr_id,
       created_at,
       assigned_to,
     );
@@ -79,10 +77,10 @@ const getTickets = async (request, response) => {
 };
 
 const updateTicketStatus = async (request, response) => {
-  const { ticket_id, status, updated_at, ra_id, hr_id } = request.body;
+  const { ticket_id, status, updated_at, ra_id } = request.body;
   try {
     const result = await TicketModel.updateTicketStatus(
-      ticket_id, status, updated_at, ra_id, hr_id,
+      ticket_id, status, updated_at, ra_id,
     );
     response.status(200).send({
       message: "Data updated successfully.",
