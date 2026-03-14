@@ -94,25 +94,25 @@ const DashboardModel = {
       const [getTotalJoins] = await pool.query(joinQuery, joinParams);
       const [getFollowupCount] = await pool.query(
         followupQuery,
-        followupParams
+        followupParams,
       );
       const [getSaleVolume] = await pool.query(
         saleVolumeQuery,
-        saleVolumeParams
+        saleVolumeParams,
       );
       const [getCollection] = await pool.query(
         collectionQuery,
-        collectionParams
+        collectionParams,
       );
 
       const [getPendingCollection] = await pool.query(
         pendingCollectionQuery,
-        pendingCollectionParams
+        pendingCollectionParams,
       );
 
       const [getTotalCollection] = await pool.query(
         totalCollectionQuery,
-        totalCollectionParams
+        totalCollectionParams,
       );
 
       return {
@@ -124,7 +124,7 @@ const DashboardModel = {
         follow_up_percentage: getFollowupCount[0].percentage || 0,
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
         total_collection: parseFloat(
-          getTotalCollection[0].total_collection
+          getTotalCollection[0].total_collection,
         ).toFixed(2),
         pending_payment: (
           parseFloat(getSaleVolume[0].sale_volume) -
@@ -230,7 +230,7 @@ const DashboardModel = {
 
       const formattedResult = result.map((item) => {
         const lead_percentage = parseFloat(
-          (item.lead_count / getTotalLead[0].total_lead_count) * 100
+          (item.lead_count / getTotalLead[0].total_lead_count) * 100,
         ).toFixed(2);
         return {
           ...item,
@@ -325,20 +325,20 @@ const DashboardModel = {
 
       const [collectionData] = await pool.query(
         collectionQuery,
-        params.collection
+        params.collection,
       );
       const [totalCollectionData] = await pool.query(
         totalCollectionQuery,
-        params.total
+        params.total,
       );
 
       // Map data user-wise
       const result = saleData.map((saleUser) => {
         const collectionUser = collectionData.find(
-          (c) => c.user_id === saleUser.user_id
+          (c) => c.user_id === saleUser.user_id,
         ) || { collection: 0 };
         const totalUser = totalCollectionData.find(
-          (t) => t.user_id === saleUser.user_id
+          (t) => t.user_id === saleUser.user_id,
         ) || { total_collection: 0 };
 
         const pending = saleUser.sale_volume - collectionUser.collection;
@@ -368,7 +368,7 @@ const DashboardModel = {
           result.map(async (r) => {
             const [getTarget] = await pool.query(
               `SELECT id AS user_target_id, target_month, target_value FROM user_target_master WHERE user_id = ? AND target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) ORDER BY id DESC LIMIT 1`,
-              [r.user_id, start_date, end_date]
+              [r.user_id, start_date, end_date],
             );
 
             const target_month = getTarget[0]?.target_month || "";
@@ -387,7 +387,7 @@ const DashboardModel = {
               target_value: target_value,
               percentage: isNaN(percentage) ? 0 : percentage,
             };
-          })
+          }),
         );
 
         return formattedResult;
@@ -483,14 +483,14 @@ const DashboardModel = {
         case "Follow Up": {
           const [followupResult] = await pool.query(
             followupQuery,
-            followupParams
+            followupParams,
           );
           const formattedResult = followupResult.map((item) => ({
             ...item,
             percentage: item.percentage || 0.0,
           }));
           formattedResult.sort(
-            (a, b) => b.followup_unhandled - a.followup_unhandled
+            (a, b) => b.followup_unhandled - a.followup_unhandled,
           );
           return formattedResult;
         }
@@ -538,7 +538,7 @@ const DashboardModel = {
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-          [region_id]
+          [region_id],
         );
         if (
           getRegion[0].name === "Chennai" ||
@@ -566,21 +566,21 @@ const DashboardModel = {
 
       const [collectionData] = await pool.query(
         collectionQuery,
-        params.collection
+        params.collection,
       );
 
       const [totalCollectionData] = await pool.query(
         totalCollectionQuery,
-        params.total
+        params.total,
       );
 
       // Map data user-wise
       const result = saleData.map((saleUser) => {
         const collectionUser = collectionData.find(
-          (c) => c.branch_id === saleUser.branch_id
+          (c) => c.branch_id === saleUser.branch_id,
         ) || { collection: 0 };
         const totalUser = totalCollectionData.find(
-          (t) => t.branch_id === saleUser.branch_id
+          (t) => t.branch_id === saleUser.branch_id,
         ) || { total_collection: 0 };
 
         const pending = saleUser.sale_volume - collectionUser.collection;
@@ -658,7 +658,7 @@ const DashboardModel = {
       if (region_id) {
         const [getRegion] = await pool.query(
           `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-          [region_id]
+          [region_id],
         );
         if (
           getRegion[0].name === "Chennai" ||
@@ -695,14 +695,14 @@ const DashboardModel = {
         case "Follow Up": {
           const [followupResult] = await pool.query(
             followupQuery,
-            followupParams
+            followupParams,
           );
           const formattedResult = followupResult.map((item) => ({
             ...item,
             percentage: item.percentage || 0.0,
           }));
           formattedResult.sort(
-            (a, b) => b.followup_unhandled - a.followup_unhandled
+            (a, b) => b.followup_unhandled - a.followup_unhandled,
           );
           return formattedResult;
         }
@@ -752,15 +752,15 @@ const DashboardModel = {
         if (region_id) {
           const [getRegion] = await pool.query(
             `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-            [region_id]
+            [region_id],
           );
           if (
             getRegion[0].name === "Chennai" ||
             getRegion[0].name === "Bangalore"
           ) {
-            getQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
-            followupQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
-            joiningQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            getQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
+            followupQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
+            joiningQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
           } else if (getRegion[0].name === "Hub") {
             getQuery += ` AND b.region_id = ?`;
             followupQuery += ` AND b.region_id = ?`;
@@ -789,14 +789,14 @@ const DashboardModel = {
           case "Follow Up": {
             const [followupResult] = await pool.query(
               followupQuery,
-              followupParams
+              followupParams,
             );
             const formattedResult = followupResult.map((item) => ({
               ...item,
               percentage: item.percentage || 0.0,
             }));
             formattedResult.sort(
-              (a, b) => b.followup_unhandled - a.followup_unhandled
+              (a, b) => b.followup_unhandled - a.followup_unhandled,
             );
             return formattedResult;
           }
@@ -838,7 +838,7 @@ const DashboardModel = {
         if (region_id) {
           const [getRegion] = await pool.query(
             `SELECT id, name FROM region WHERE is_active = 1 AND id = ?`,
-            [region_id]
+            [region_id],
           );
           if (
             getRegion[0].name === "Chennai" ||
@@ -861,23 +861,20 @@ const DashboardModel = {
         collectionQuery += ` GROUP BY b.id, b.name ORDER BY collection DESC`;
         totalCollectionQuery += ` GROUP BY b.id, b.name ORDER BY total_collection DESC`;
 
-        const [
-          [saleData],
-          [collectionData],
-          [totalCollectionData],
-        ] = await Promise.all([
-          pool.query(saleVolumeQuery, params.sale),
-          pool.query(collectionQuery, params.collection),
-          pool.query(totalCollectionQuery, params.total),
-        ]);
+        const [[saleData], [collectionData], [totalCollectionData]] =
+          await Promise.all([
+            pool.query(saleVolumeQuery, params.sale),
+            pool.query(collectionQuery, params.collection),
+            pool.query(totalCollectionQuery, params.total),
+          ]);
 
         // Map data user-wise
         const result = saleData.map((saleUser) => {
           const collectionUser = collectionData.find(
-            (c) => c.branch_id === saleUser.branch_id
+            (c) => c.branch_id === saleUser.branch_id,
           ) || { collection: 0 };
           const totalUser = totalCollectionData.find(
-            (t) => t.branch_id === saleUser.branch_id
+            (t) => t.branch_id === saleUser.branch_id,
           ) || { total_collection: 0 };
 
           const pending = saleUser.sale_volume - collectionUser.collection;
@@ -1308,7 +1305,7 @@ const DashboardModel = {
       followUpQuery += ` GROUP BY u.user_id, u.user_name ORDER BY total_followups DESC`;
 
       const [getUsers] = await pool.query(
-        `SELECT user_id, user_name FROM users WHERE roles LIKE '%Quality%'`
+        `SELECT user_id, user_name FROM users WHERE roles LIKE '%Quality%'`,
       );
 
       const [productivityResult] = await pool.query(getQuery, queryParams);
@@ -1452,14 +1449,14 @@ const DashboardModel = {
         case "Follow Up": {
           const [followupResult] = await pool.query(
             followupQuery,
-            followupParams
+            followupParams,
           );
           const formattedResult = followupResult.map((item) => ({
             ...item,
             percentage: item.percentage || 0.0,
           }));
           formattedResult.sort(
-            (a, b) => b.followup_unhandled - a.followup_unhandled
+            (a, b) => b.followup_unhandled - a.followup_unhandled,
           );
           return formattedResult;
         }
@@ -1522,21 +1519,21 @@ const DashboardModel = {
 
       const [collectionData] = await pool.query(
         collectionQuery,
-        params.collection
+        params.collection,
       );
 
       const [totalCollectionData] = await pool.query(
         totalCollectionQuery,
-        params.total
+        params.total,
       );
 
       // Map data user-wise
       const result = saleData.map((saleUser) => {
         const collectionUser = collectionData.find(
-          (c) => c.region_id === saleUser.region_id
+          (c) => c.region_id === saleUser.region_id,
         ) || { collection: 0 };
         const totalUser = totalCollectionData.find(
-          (t) => t.region_id === saleUser.region_id
+          (t) => t.region_id === saleUser.region_id,
         ) || { total_collection: 0 };
 
         const pending = saleUser.sale_volume - collectionUser.collection;
@@ -1590,106 +1587,102 @@ const DashboardModel = {
       if (type === "Sale" || type === "Collection" || type === "Pending") {
         let saleVolumeQuery = `SELECT r.id AS region_id, r.name AS region_name, IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
 
-      let collectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
+        let collectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id`;
 
-      let totalCollectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
+        let totalCollectionQuery = `SELECT r.id AS region_id, r.name AS region_name, (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection FROM region AS r LEFT JOIN customers AS c ON r.id = c.region_id LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id LEFT JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status <> 'Rejected'`;
 
-      const params = {
-        sale: [],
-        collection: [],
-        total: [],
-      };
-
-      // Filter by date range
-      if (start_date && end_date) {
-        saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
-        params.sale.push(start_date, end_date);
-        params.collection.push(start_date, end_date);
-        params.total.push(start_date, end_date);
-      }
-
-      saleVolumeQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
-      collectionQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
-      totalCollectionQuery += ` WHERE 1 = 1`;
-
-      if (region_id) {
-        saleVolumeQuery += ` AND r.id = ?`;
-        collectionQuery += ` AND r.id = ?`;
-        totalCollectionQuery += ` AND r.id = ?`;
-        params.sale.push(region_id);
-        params.collection.push(region_id);
-        params.total.push(region_id);
-      }
-
-      saleVolumeQuery += ` GROUP BY r.id, r.name ORDER BY sale_volume DESC`;
-      collectionQuery += ` GROUP BY r.id, r.name ORDER BY collection DESC`;
-      totalCollectionQuery += ` GROUP BY r.id, r.name ORDER BY total_collection DESC`;
-
-      const [
-        [saleData],
-        [collectionData],
-        [totalCollectionData]
-      ] = await Promise.all([
-        pool.query(saleVolumeQuery, params.sale),
-        pool.query(collectionQuery, params.collection),
-        pool.query(totalCollectionQuery, params.total)
-      ]);
-
-      // Map data user-wise
-      const result = saleData.map((saleUser) => {
-        const collectionUser = collectionData.find(
-          (c) => c.region_id === saleUser.region_id
-        ) || { collection: 0 };
-        const totalUser = totalCollectionData.find(
-          (t) => t.region_id === saleUser.region_id
-        ) || { total_collection: 0 };
-
-        const pending = saleUser.sale_volume - collectionUser.collection;
-
-        return {
-          region_id: saleUser.region_id,
-          region_name: saleUser.region_name,
-          sale_volume: saleUser.sale_volume,
-          total_collection: totalUser.total_collection,
-          pending: pending < 0 ? 0 : pending,
+        const params = {
+          sale: [],
+          collection: [],
+          total: [],
         };
-      });
 
-      // If specific type requested
-      if (type === "Sale") {
-        result.sort((a, b) => b.sale_volume - a.sale_volume);
-        return result.map((r) => ({
-          region_id: r.region_id,
-          region_name: r.region_name,
-          sale_volume: parseFloat(r.sale_volume).toFixed(2),
-        }));
-      }
+        // Filter by date range
+        if (start_date && end_date) {
+          saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+          totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+          params.sale.push(start_date, end_date);
+          params.collection.push(start_date, end_date);
+          params.total.push(start_date, end_date);
+        }
 
-      if (type === "Collection") {
-        result.sort((a, b) => b.total_collection - a.total_collection);
-        return result.map((r) => ({
-          region_id: r.region_id,
-          region_name: r.region_name,
-          total_collection: parseFloat(r.total_collection).toFixed(2),
-        }));
-      }
+        saleVolumeQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id WHERE 1 = 1`;
+        collectionQuery += ` LEFT JOIN lead_master AS l ON c.lead_id = l.id LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+      LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE 1 = 1`;
+        totalCollectionQuery += ` WHERE 1 = 1`;
 
-      if (type === "Pending") {
-        result.sort((a, b) => b.pending - a.pending);
-        return result.map((r) => ({
-          region_id: r.region_id,
-          region_name: r.region_name,
-          pending: parseFloat(r.pending).toFixed(2),
-        }));
-      }
+        if (region_id) {
+          saleVolumeQuery += ` AND r.id = ?`;
+          collectionQuery += ` AND r.id = ?`;
+          totalCollectionQuery += ` AND r.id = ?`;
+          params.sale.push(region_id);
+          params.collection.push(region_id);
+          params.total.push(region_id);
+        }
 
-      // Default: full scoreboard
-      return result;
-      }
-      else {
+        saleVolumeQuery += ` GROUP BY r.id, r.name ORDER BY sale_volume DESC`;
+        collectionQuery += ` GROUP BY r.id, r.name ORDER BY collection DESC`;
+        totalCollectionQuery += ` GROUP BY r.id, r.name ORDER BY total_collection DESC`;
+
+        const [[saleData], [collectionData], [totalCollectionData]] =
+          await Promise.all([
+            pool.query(saleVolumeQuery, params.sale),
+            pool.query(collectionQuery, params.collection),
+            pool.query(totalCollectionQuery, params.total),
+          ]);
+
+        // Map data user-wise
+        const result = saleData.map((saleUser) => {
+          const collectionUser = collectionData.find(
+            (c) => c.region_id === saleUser.region_id,
+          ) || { collection: 0 };
+          const totalUser = totalCollectionData.find(
+            (t) => t.region_id === saleUser.region_id,
+          ) || { total_collection: 0 };
+
+          const pending = saleUser.sale_volume - collectionUser.collection;
+
+          return {
+            region_id: saleUser.region_id,
+            region_name: saleUser.region_name,
+            sale_volume: saleUser.sale_volume,
+            total_collection: totalUser.total_collection,
+            pending: pending < 0 ? 0 : pending,
+          };
+        });
+
+        // If specific type requested
+        if (type === "Sale") {
+          result.sort((a, b) => b.sale_volume - a.sale_volume);
+          return result.map((r) => ({
+            region_id: r.region_id,
+            region_name: r.region_name,
+            sale_volume: parseFloat(r.sale_volume).toFixed(2),
+          }));
+        }
+
+        if (type === "Collection") {
+          result.sort((a, b) => b.total_collection - a.total_collection);
+          return result.map((r) => ({
+            region_id: r.region_id,
+            region_name: r.region_name,
+            total_collection: parseFloat(r.total_collection).toFixed(2),
+          }));
+        }
+
+        if (type === "Pending") {
+          result.sort((a, b) => b.pending - a.pending);
+          return result.map((r) => ({
+            region_id: r.region_id,
+            region_name: r.region_name,
+            pending: parseFloat(r.pending).toFixed(2),
+          }));
+        }
+
+        // Default: full scoreboard
+        return result;
+      } else {
         const queryParams = [];
         const followupParams = [];
         const joiningParams = [];
@@ -1741,14 +1734,14 @@ const DashboardModel = {
           case "Follow Up": {
             const [followupResult] = await pool.query(
               followupQuery,
-              followupParams
+              followupParams,
             );
             const formattedResult = followupResult.map((item) => ({
               ...item,
               percentage: item.percentage || 0.0,
             }));
             formattedResult.sort(
-              (a, b) => b.followup_unhandled - a.followup_unhandled
+              (a, b) => b.followup_unhandled - a.followup_unhandled,
             );
             return formattedResult;
           }
