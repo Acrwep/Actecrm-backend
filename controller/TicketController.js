@@ -28,6 +28,7 @@ const createTicket = async (request, response) => {
     raised_by_role,
     manager_id,
     ra_id,
+    created_by,
     created_at,
     assigned_to,
   } = request.body;
@@ -42,6 +43,7 @@ const createTicket = async (request, response) => {
       raised_by_role,
       manager_id,
       ra_id,
+      created_by,
       created_at,
       assigned_to,
     );
@@ -59,10 +61,17 @@ const createTicket = async (request, response) => {
 };
 
 const getTickets = async (request, response) => {
-  const { start_date, end_date, status, page, limit, user_id, show_all } = request.body;
+  const { start_date, end_date, status, page, limit, user_id, show_all } =
+    request.body;
   try {
     const result = await TicketModel.getTickets(
-      start_date, end_date, status, page, limit, user_id, show_all
+      start_date,
+      end_date,
+      status,
+      page,
+      limit,
+      user_id,
+      show_all,
     );
     response.status(200).send({
       message: "Data fetched successfully (V2).",
@@ -80,7 +89,10 @@ const updateTicketStatus = async (request, response) => {
   const { ticket_id, status, updated_at, ra_id } = request.body;
   try {
     const result = await TicketModel.updateTicketStatus(
-      ticket_id, status, updated_at, ra_id,
+      ticket_id,
+      status,
+      updated_at,
+      ra_id,
     );
     response.status(200).send({
       message: "Data updated successfully.",

@@ -41,6 +41,7 @@ const TicketModel = {
     raised_by_role,
     manager_id,
     ra_id,
+    created_by,
     created_at,
     assigned_to,
   ) => {
@@ -61,9 +62,10 @@ const TicketModel = {
                                 raised_by_role,
                                 manager_id,
                                 ra_id,
+                                created_by,
                                 created_at
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         title,
         description,
@@ -74,6 +76,7 @@ const TicketModel = {
         raised_by_role,
         manager_id,
         ra_id,
+        created_by,
         created_at,
       ];
 
@@ -107,7 +110,7 @@ const TicketModel = {
 
       const userQuery = `SELECT user_name FROM users WHERE user_id = ?`;
 
-      if(manager_id){
+      if (manager_id) {
         const [user] = await pool.query(userQuery, [manager_id]);
         details = `Ticket assigned to Manager (${manager_id} - ${user[0].user_name})`;
         await pool.query(
@@ -120,7 +123,14 @@ const TicketModel = {
                                 update_by
                             )
                             VALUES(?, ?, ?, ?, ?, ?)`,
-          [result.insertId, manager_id, "Assigned", details, created_at, assigned_to],
+          [
+            result.insertId,
+            manager_id,
+            "Assigned",
+            details,
+            created_at,
+            assigned_to,
+          ],
         );
       }
 
@@ -137,7 +147,14 @@ const TicketModel = {
                                 update_by
                             )
                             VALUES(?, ?, ?, ?, ?, ?)`,
-          [result.insertId, ra_id, "Assigned", details, created_at, assigned_to],
+          [
+            result.insertId,
+            ra_id,
+            "Assigned",
+            details,
+            created_at,
+            assigned_to,
+          ],
         );
       }
 
@@ -149,7 +166,15 @@ const TicketModel = {
     }
   },
 
-  getTickets: async (start_date, end_date, status, page, limit, user_id, show_all) => {
+  getTickets: async (
+    start_date,
+    end_date,
+    status,
+    page,
+    limit,
+    user_id,
+    show_all,
+  ) => {
     try {
       const queryParams = [];
       const countParams = [];
@@ -180,6 +205,7 @@ const TicketModel = {
                             WHEN t.raised_by_role = 'Trainer' THEN tr.email
                             ELSE ''
                           END AS raised_by_email,
+                          t.created_by,
                           t.created_at,
                           t.updated_at,
                           latest_tt.assigned_to,
@@ -217,7 +243,7 @@ const TicketModel = {
                         WHERE 1 = 1`;
 
       if (show_all == false) {
-        const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ?)`
+        const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ?)`;
         getQuery += userFilter;
         countQuery += userFilter;
         statusQuery += userFilter;
@@ -322,15 +348,14 @@ const TicketModel = {
         );
 
         affectedRows += updateResult.affectedRows;
-      }
-      else {
+      } else {
         const [updateResult] = await pool.query(
           `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
           [status, updated_at, ticket_id],
         );
 
         affectedRows += updateResult.affectedRows;
-      }      
+      }
 
       return affectedRows;
     } catch (error) {
