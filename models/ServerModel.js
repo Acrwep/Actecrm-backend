@@ -35,21 +35,20 @@ const ServerModel = {
                           c.phone,
                           c.email,
                           t.name AS server_name,
-                          server_info.vendor_id,
-                          server_info.server_cost,
-                          server_info.duration,
-                          server_info.start_date,
-                          server_info.end_date,
+                          st.vendor_id,
+                          st.server_cost,
+                          st.duration,
+                          st.start_date,
+                          st.end_date,
                           s.created_date,
                           l.assigned_to AS created_by_id,
                           u.user_name AS created_by,
                           s.status,
                           s.requested_duration,
-                          server_info.server_trans_id,
-                          server_info.status AS server_status,
+                          st.id AS server_trans_id,
+                          st.status AS server_status,
                           s.server_raise_date,
-                          server_info.screenshot,
-                          ROW_NUMBER() OVER(ORDER BY s.created_date DESC) AS row_num
+                          st.screenshot
                       FROM
                           server_master AS s
                       INNER JOIN customers AS c ON
@@ -60,24 +59,13 @@ const ServerModel = {
                           l.id = c.lead_id
                       INNER JOIN users AS u ON
                           u.user_id = l.assigned_to
-                      LEFT JOIN(
-                          SELECT
-                              s.id,
-                              st.id AS server_trans_id,
-                              st.vendor_id,
-                              st.server_cost,
-                              st.duration,
-                              st.start_date,
-                              st.end_date,
-                              st.status,
-                              st.screenshot
-                          FROM
-                              server_master AS s
-                          INNER JOIN server_trans AS st ON
-                              s.id = st.server_id
-                          ORDER BY st.id DESC
-                      LIMIT 1
-                      ) AS server_info ON server_info.id = s.id
+                      LEFT JOIN (
+                      	SELECT server_id, MAX(id) AS trans_id FROM server_trans
+                        GROUP BY server_id
+                      ) AS latest ON
+                      	latest.server_id = s.id
+                      LEFT JOIN server_trans AS st ON
+                      	st.id = latest.trans_id
                       WHERE 1 = 1`;
 
       let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
