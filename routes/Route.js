@@ -523,4 +523,5 @@ router.get("/getPaymentHistory/:lead_id", verifyToken, PaymentController.getPaym
 router.post("/getCustomersV1", verifyToken, CustomerController.getCustomersV1);
 router.put("/updateCertificate", verifyToken, CustomerController.updateCertificate);
 router.post("/getRegionWiseAnalysis", verifyToken, DashboardController.getRegionWiseAnalysis);
+router.post("/getTicketReport", verifyToken, ReportController.getTicketReport);
 module.exports = router;

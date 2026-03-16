@@ -3569,6 +3569,57 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  getTicketReport: async(user_id, start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let query = `SELECT 
+                        u.user_name,
+                        u.user_id,
+                        COUNT(t.ticket_id) AS total_tickets,
+                        SUM(CASE WHEN t.status = 'Awaiting Employee' THEN 1 ELSE 0 END) AS open_count,
+                        SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END) AS closed_count,
+                        SUM(CASE WHEN t.status = 'Assigned' THEN 1 ELSE 0 END) AS pending_count,
+                        CONCAT(
+                            FLOOR(AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.closed_at)) / 60),
+                            'h ',
+                            FLOOR(MOD(AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.closed_at)), 60)),
+                            'm'
+                        ) AS avg_time,
+                        SUM(
+                            CASE 
+                                WHEN t.status != 'Closed' 
+                                AND TIMESTAMPDIFF(HOUR, t.created_at, NOW()) > 24 
+                                THEN 1 
+                                ELSE 0 
+                            END
+                        ) AS overdue_count
+                    FROM ticket_track AS tt
+                    INNER JOIN tickets AS t ON
+                      t.ticket_id = tt.ticket_id
+                    INNER JOIN users u ON
+                      u.user_id = tt.assigned_to
+                    WHERE tt.details IS NOT NULL`;
+
+      if(user_id) {
+        query += ` AND u.user_id = ?`;
+        queryParams.push(user_id);
+      }
+
+      if(start_date && end_date) {
+        query += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      query += ` GROUP BY u.user_id, u.user_name`;
+
+      const [result] = await pool.query(query, queryParams);
+
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  }
 };
 
 module.exports = ReportModel;
