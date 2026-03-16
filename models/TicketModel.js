@@ -207,6 +207,7 @@ const TicketModel = {
                           END AS raised_by_email,
                           t.created_by,
                           t.created_at,
+                          t.closed_at,
                           t.updated_at,
                           latest_tt.assigned_to,
                           au.user_name AS assigned_to_name
@@ -330,7 +331,7 @@ const TicketModel = {
     }
   },
 
-  updateTicketStatus: async (ticket_id, status, updated_at, ra_id) => {
+  updateTicketStatus: async (ticket_id, status, closed_at, updated_at, ra_id) => {
     try {
       const [isExists] = await pool.query(
         `SELECT ticket_id FROM tickets WHERE ticket_id = ?`,
@@ -350,8 +351,8 @@ const TicketModel = {
         affectedRows += updateResult.affectedRows;
       } else {
         const [updateResult] = await pool.query(
-          `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
-          [status, updated_at, ticket_id],
+          `UPDATE tickets SET status = ?, updated_at = ?, closed_at = ? WHERE ticket_id = ?`,
+          [status, updated_at, closed_at, ticket_id],
         );
 
         affectedRows += updateResult.affectedRows;

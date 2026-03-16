@@ -758,13 +758,13 @@ const DashboardModel = {
             getRegion[0].name === "Chennai" ||
             getRegion[0].name === "Bangalore"
           ) {
-            getQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
-            followupQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
-            joiningQuery += ` AND b.region_id = ? AND b.name NOT IN ('Online','Thiruvanmiyur','Siruseri','T.Nagar','Jaya Nagar','Kalyan Nagar','Indira Nagar','HSR Layout')`;
+            getQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
+            followupQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
+            joiningQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
           } else if (getRegion[0].name === "Hub") {
-            getQuery += ` AND b.region_id = ?`;
-            followupQuery += ` AND b.region_id = ?`;
-            joiningQuery += ` AND b.region_id = ?`;
+            getQuery += ` AND b.region_id = ? AND b.is_active = 1`;
+            followupQuery += ` AND b.region_id = ? AND b.is_active = 1`;
+            joiningQuery += ` AND b.region_id = ? AND b.is_active = 1`;
           }
           queryParams.push(region_id);
           followupParams.push(region_id);
@@ -844,13 +844,13 @@ const DashboardModel = {
             getRegion[0].name === "Chennai" ||
             getRegion[0].name === "Bangalore"
           ) {
-            saleVolumeQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
-            collectionQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
-            totalCollectionQuery += ` AND b.region_id = ? AND b.name <> 'Online'`;
+            saleVolumeQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
+            collectionQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
+            totalCollectionQuery += ` AND b.region_id = ? AND b.name <> 'Online' AND b.is_active = 1`;
           } else if (getRegion[0].name === "Hub") {
-            saleVolumeQuery += ` AND b.region_id = ?`;
-            collectionQuery += ` AND b.region_id = ?`;
-            totalCollectionQuery += ` AND b.region_id = ?`;
+            saleVolumeQuery += ` AND b.region_id = ? AND b.is_active = 1`;
+            collectionQuery += ` AND b.region_id = ? AND b.is_active = 1`;
+            totalCollectionQuery += ` AND b.region_id = ? AND b.is_active = 1`;
           }
           params.sale.push(region_id);
           params.collection.push(region_id);
