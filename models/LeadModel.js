@@ -667,12 +667,12 @@ const LeadModel = {
 
         affectedRows += updateFollowUp.affectedRows;
 
-        // const [update_lead_master] = await pool.query(
-        //   `UPDATE lead_master SET lead_status_id = ?, comments = ? WHERE id = ?`,
-        //   [get_lead_status[0].id, comments, lead_id],
-        // );
+        const [update_lead_master] = await pool.query(
+          `UPDATE lead_master SET comments = ? WHERE id = ?`,
+          [comments, lead_id],
+        );
 
-        // affectedRows += update_lead_master.affectedRows;
+        affectedRows += update_lead_master.affectedRows;
       }
       return affectedRows;
     } catch (error) {
