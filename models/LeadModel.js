@@ -656,9 +656,9 @@ const LeadModel = {
 
         affectedRows += update_lead_master.affectedRows;
       } else {
-        // const [get_lead_status] = await pool.query(
-        //   `SELECT id, name FROM lead_status WHERE name = 'Junk'`,
-        // );
+        const [get_lead_status] = await pool.query(
+          `SELECT id, name FROM lead_status WHERE name = 'Follow-Up Stoped'`,
+        );
 
         const [updateFollowUp] = await pool.query(
           `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date, is_updated) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -668,8 +668,8 @@ const LeadModel = {
         affectedRows += updateFollowUp.affectedRows;
 
         const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET comments = ? WHERE id = ?`,
-          [comments, lead_id],
+          `UPDATE lead_master SET lead_status_id = ?, comments = ? WHERE id = ?`,
+          [get_lead_status[0].id, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
