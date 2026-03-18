@@ -94,16 +94,44 @@ const TicketModel = {
 
       const [result] = await pool.query(insertQuery, values);
 
-      for (const attachment of attachments) {
-        await pool.query(
-          `INSERT INTO ticket_attachments(
-                ticket_id,
-                base64string,
-                uploaded_at
-            )
-            VALUES(?, ?, ?)`,
-          [result.insertId, attachment.base64string, created_at],
+      console.log("cr attachments", attachments);
+
+      // for (const attachment of attachments) {
+      //   await pool.query(
+      //     `INSERT INTO ticket_attachments(
+      //           ticket_id,
+      //           base64string,
+      //           uploaded_at
+      //       )
+      //       VALUES(?, ?, ?)`,
+      //     [result.insertId, attachment.base64string, created_at],
+      //   );
+      // }
+
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        const filterAttachment = attachments.filter(
+          (f) =>
+            f.base64string &&
+            typeof f.base64string === "string" &&
+            f.base64string.trim() !== "",
         );
+
+        if (filterAttachment.length > 0) {
+          for (let i = 0; i < filterAttachment.length; i++) {
+            console.log("Valid attachment:", filterAttachment[i]);
+
+            await pool.query(
+              `INSERT INTO ticket_attachments(
+            ticket_id,
+            base64string,
+            uploaded_at
+        ) VALUES(?, ?, ?)`,
+              [result.insertId, filterAttachment[i].base64string, created_at],
+            );
+          }
+        } else {
+          console.log("No valid attachments");
+        }
       }
 
       await pool.query(
@@ -246,16 +274,29 @@ const TicketModel = {
       ];
 
       await pool.query(updateQuery, values);
+      console.log("attachments", attachments);
 
-      // ✅ Insert new attachments (if any)
-      if (attachments && attachments.length > 0) {
-        for (const attachment of attachments) {
+      // ❗ Step 1: Delete old attachments
+      await pool.query(`DELETE FROM ticket_attachments WHERE ticket_id = ?`, [
+        ticket_id,
+      ]);
+
+      // ❗ Step 2: Insert new attachments
+      if (Array.isArray(attachments) && attachments.length > 0) {
+        const validAttachments = attachments.filter(
+          (f) =>
+            f.base64string &&
+            typeof f.base64string === "string" &&
+            f.base64string.trim() !== "",
+        );
+
+        for (const attachment of validAttachments) {
           await pool.query(
             `INSERT INTO ticket_attachments(
-              ticket_id,
-              base64string,
-              uploaded_at
-          ) VALUES (?, ?, ?)`,
+        ticket_id,
+        base64string,
+        uploaded_at
+      ) VALUES (?, ?, ?)`,
             [ticket_id, attachment.base64string, updated_at],
           );
         }
