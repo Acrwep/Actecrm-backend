@@ -3528,6 +3528,7 @@ const ReportModel = {
       FROM server_master AS sm
       LEFT JOIN server_trans AS st 
         ON sm.id = st.server_id
+        AND st.status = 'Approved'
       WHERE sm.status = 'Approved'
     `;
 
@@ -3543,6 +3544,7 @@ const ReportModel = {
         ON t.id = c.enrolled_course
       LEFT JOIN server_trans AS st 
         ON sm.id = st.server_id
+        AND st.status = 'Approved'
       WHERE sm.status = 'Approved'
     `;
 

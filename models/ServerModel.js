@@ -305,6 +305,13 @@ const ServerModel = {
 
       affectedRows += result.affectedRows;
 
+      if (status === "Approved") {
+        await pool.query(
+          `UPDATE server_trans SET status = ? WHERE id = ?`,
+          ["Approved", server_trans_id],
+        );
+      }
+
       if (
         status === "Verification Rejected" ||
         status === "Approval Rejected"
