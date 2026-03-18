@@ -3547,8 +3547,8 @@ const ReportModel = {
                           sm.status = 'Approved'`;
 
       if (start_date && end_date) {
-        dateQuery += ` AND CAST(sm.created_date AS DATE) BETWEEN ? AND ?`;
-        courseQuery += ` AND CAST(sm.created_date AS DATE) BETWEEN ? AND ?`;
+        dateQuery += ` AND CAST(sm.server_raise_date AS DATE) BETWEEN ? AND ?`;
+        courseQuery += ` AND CAST(sm.server_raise_date AS DATE) BETWEEN ? AND ?`;
         dateParams.push(start_date, end_date);
         courseParams.push(start_date, end_date);
       }
