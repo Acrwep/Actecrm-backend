@@ -3516,58 +3516,70 @@ const ReportModel = {
   },
 
   getServerReport: async (start_date, end_date, type) => {
-    try {
-      const dateParams = [];
-      const courseParams = [];
+  try {
+    const dateParams = [];
+    const courseParams = [];
 
-      let dateQuery = `SELECT
-                          CAST(sm.server_raise_date AS DATE) AS server_date,
-                          COUNT(sm.id) AS total,
-                          IFNULL(SUM(st.server_cost), 0) AS total_amount
-                      FROM
-                          server_master AS sm
-                      LEFT JOIN server_trans AS st ON
-                          sm.id = st.server_id
-                      WHERE
-                        sm.status = 'Approved'`;
+    let dateQuery = `
+      SELECT
+        CAST(sm.server_raise_date AS DATE) AS server_date,
+        COUNT(DISTINCT sm.id) AS total,
+        IFNULL(SUM(st.server_cost), 0) AS total_amount
+      FROM server_master AS sm
+      LEFT JOIN server_trans AS st 
+        ON sm.id = st.server_id
+      WHERE sm.status = 'Approved'
+    `;
 
-      let courseQuery = `SELECT
-                            t.name AS course_name,
-                            COUNT(sm.id) AS total,
-                            IFNULL(SUM(st.server_cost), 0) AS total_amount
-                        FROM
-                            server_master AS sm
-                        INNER JOIN customers AS c ON
-                          sm.customer_id = c.id
-                        INNER JOIN technologies AS t ON
-                          t.id = c.enrolled_course
-                        LEFT JOIN server_trans AS st ON
-                            sm.id = st.server_id
-                        WHERE
-                          sm.status = 'Approved'`;
+    let courseQuery = `
+      SELECT
+        t.name AS course_name,
+        COUNT(DISTINCT sm.id) AS total,
+        IFNULL(SUM(st.server_cost), 0) AS total_amount
+      FROM server_master AS sm
+      INNER JOIN customers AS c 
+        ON sm.customer_id = c.id
+      INNER JOIN technologies AS t 
+        ON t.id = c.enrolled_course
+      LEFT JOIN server_trans AS st 
+        ON sm.id = st.server_id
+      WHERE sm.status = 'Approved'
+    `;
 
-      if (start_date && end_date) {
-        dateQuery += ` AND CAST(sm.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        courseQuery += ` AND CAST(sm.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        dateParams.push(start_date, end_date);
-        courseParams.push(start_date, end_date);
-      }
+    // ✅ Date filter
+    if (start_date && end_date) {
+      dateQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
+      courseQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
 
-      dateQuery += ` GROUP BY server_date ORDER BY server_date`;
-      courseQuery += ` GROUP BY course_name ORDER BY total_amount`;
-
-      let result;
-      if (type === "Course") {
-        result = await pool.query(courseQuery, courseParams);
-      } else {
-        result = await pool.query(dateQuery, dateParams);
-      }
-
-      return result[0];
-    } catch (error) {
-      throw new Error(error.message);
+      dateParams.push(start_date, end_date);
+      courseParams.push(start_date, end_date);
     }
-  },
+
+    // ✅ Fix GROUP BY
+    dateQuery += `
+      GROUP BY DATE(sm.server_raise_date)
+      ORDER BY server_date
+    `;
+
+    courseQuery += `
+      GROUP BY t.name
+      ORDER BY total_amount DESC
+    `;
+
+    let result;
+
+    if (type === "Course") {
+      result = await pool.query(courseQuery, courseParams);
+    } else {
+      result = await pool.query(dateQuery, dateParams);
+    }
+
+    return result[0];
+
+  } catch (error) {
+    throw new Error(error.message);
+  }
+},
 
   getTicketReport: async(user_id, start_date, end_date) => {
     try {
