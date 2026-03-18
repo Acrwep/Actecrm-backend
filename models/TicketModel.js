@@ -376,7 +376,7 @@ const TicketModel = {
                       LEFT JOIN users AS au ON au.user_id = latest_tt.assigned_to
                       LEFT JOIN users AS mu ON mu.user_id = t.manager_id
                       LEFT JOIN users AS ru ON ru.user_id = t.ra_id
-                      LEFT JOIN user AS u ON u.user_id = t.created_by
+                      LEFT JOIN users AS u ON u.user_id = t.created_by
                       WHERE 1 = 1`;
 
       let countQuery = `SELECT COUNT(*) AS total FROM tickets AS t
