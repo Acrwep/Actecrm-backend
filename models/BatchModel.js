@@ -150,48 +150,74 @@ const BatchModel = {
 
       const [batches] = await pool.query(batchQuery, batchParams);
 
-      let res = await Promise.all(
-        batches.map(async (item) => {
-          const [customers] = await pool.query(
-            `SELECT
-                bt.id AS batch_trans_id,
-                c.id,
-                c.name,
-                c.phone,
-                c.email,
-                c.status,
-                c.linkedin_review,
-                c.google_review,
-                cer.course_duration AS cer_course_duration,
-                cer.course_completion_month AS cer_course_completion_month,
-                cer.location AS cer_location,
-                c.review_updated_date,
-                t.name AS course_name,
-                c.class_schedule_id,
-                c.class_start_date,
-                c.class_scheduled_at,
-                c.class_comments,
-                c.class_percentage,
-                c.class_attachment,
-                c.is_certificate_generated
-            FROM
-                batch_trans AS bt
-            INNER JOIN customers AS c ON
-                c.id = bt.customer_id
-            INNER JOIN technologies AS t ON
-              t.id = c.enrolled_course
-            LEFT JOIN certificates AS cer ON
-              cer.customer_id = c.id
-            WHERE bt.batch_master_id = ?`,
-            [item.batch_id],
-          );
+      const batchIds = [...new Set(batches.map((b) => b.batch_id))];
 
-          return {
-            ...item,
-            customers: customers,
-          };
-        }),
-      );
+      let customerMap = new Map();
+
+      if(batchIds.length > 0){
+        const [customers] = await pool.query(
+          `SELECT
+              bt.id AS batch_trans_id,
+              bt.batch_master_id AS batch_id,
+              c.id,
+              c.name,
+              c.phone,
+              c.email,
+              c.status,
+              c.linkedin_review,
+              c.google_review,
+              cer.course_duration AS cer_course_duration,
+              cer.course_completion_month AS cer_course_completion_month,
+              cer.location AS cer_location,
+              c.review_updated_date,
+              t.name AS course_name,
+              c.class_schedule_id,
+              c.class_start_date,
+              c.class_scheduled_at,
+              c.class_comments,
+              c.class_percentage,
+              c.class_attachment,
+              c.is_certificate_generated
+          FROM
+              batch_trans AS bt
+          INNER JOIN customers AS c ON
+              c.id = bt.customer_id
+          INNER JOIN technologies AS t ON
+            t.id = c.enrolled_course
+          LEFT JOIN certificates AS cer ON
+            cer.customer_id = c.id
+          WHERE bt.batch_master_id IN (?)`,
+          [batchIds]
+        );
+
+        customers.forEach((r) => {
+          if (!customerMap.has(r.batch_id)) {
+            customerMap.set(r.batch_id, []);
+          }
+          customerMap.get(r.batch_id).push(r);
+        });
+      }
+
+      let res = batches.map((item) => {
+
+        const customers = customerMap.get(item.batch_id) || [];
+
+        const completed_student = customers.filter((c) => Number(c.class_percentage) === 100).length;
+        const total_students = customers.length;
+        const linkedin_review = customers.filter((c) => c.linkedin_review !== null).length;
+        const google_review = customers.filter((c) => c.google_review !== null).length;
+        const status = completed_student === total_students ? "Completed" : "In Progress";
+
+        return {
+          ...item,
+          completed_student,
+          total_students,
+          linkedin_review,
+          google_review,
+          status,
+          customers,
+        };
+      });
 
       return res;
     } catch (error) {
