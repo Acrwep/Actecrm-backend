@@ -494,6 +494,7 @@ router.put(
 
 router.post("/validateEmail", TicketController.validateEmail);
 router.post("/createTicket", TicketController.createTicket);
+router.put("/updateTicket", TicketController.updateTicket);
 router.post("/getTickets", TicketController.getTickets);
 router.get("/getCategories", TicketController.getCategories);
 router.get("/getSubCategories", TicketController.getSubCategories);
@@ -518,10 +519,26 @@ router.put(
   UploadController.updateCourse,
 );
 router.delete("/delete-pdf/:course_id", UploadController.deletePDF);
-router.post("/pendingFeesListV1", verifyToken, PaymentController.pendingFeesListV1);
-router.get("/getPaymentHistory/:lead_id", verifyToken, PaymentController.getPaymentHistory);
+router.post(
+  "/pendingFeesListV1",
+  verifyToken,
+  PaymentController.pendingFeesListV1,
+);
+router.get(
+  "/getPaymentHistory/:lead_id",
+  verifyToken,
+  PaymentController.getPaymentHistory,
+);
 router.post("/getCustomersV1", verifyToken, CustomerController.getCustomersV1);
-router.put("/updateCertificate", verifyToken, CustomerController.updateCertificate);
-router.post("/getRegionWiseAnalysis", verifyToken, DashboardController.getRegionWiseAnalysis);
+router.put(
+  "/updateCertificate",
+  verifyToken,
+  CustomerController.updateCertificate,
+);
+router.post(
+  "/getRegionWiseAnalysis",
+  verifyToken,
+  DashboardController.getRegionWiseAnalysis,
+);
 router.post("/getTicketReport", verifyToken, ReportController.getTicketReport);
 module.exports = router;

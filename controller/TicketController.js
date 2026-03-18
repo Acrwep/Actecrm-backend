@@ -26,6 +26,10 @@ const createTicket = async (request, response) => {
     attachments,
     raised_by_id,
     raised_by_role,
+    raised_by_name,
+    raised_by_email,
+    raised_by_mobile,
+    raised_by_course,
     manager_id,
     ra_id,
     created_by,
@@ -41,11 +45,70 @@ const createTicket = async (request, response) => {
       attachments,
       raised_by_id,
       raised_by_role,
+      raised_by_name,
+      raised_by_email,
+      raised_by_mobile,
+      raised_by_course,
       manager_id,
       ra_id,
       created_by,
       created_at,
       assigned_to,
+    );
+
+    response.status(201).send({
+      message: "Ticket raised successfully.",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while raising ticket",
+      details: error.message,
+    });
+  }
+};
+
+const updateTicket = async (request, response) => {
+  const {
+    ticket_id,
+    title,
+    description,
+    category_id,
+    priority,
+    attachments, // new attachments
+    assigned_to,
+    raised_by_id,
+    raised_by_role,
+    raised_by_name,
+    raised_by_email,
+    raised_by_mobile,
+    raised_by_course,
+    manager_id,
+    ra_id,
+    updated_at,
+    manager_updated,
+    ra_updated,
+  } = request.body;
+  try {
+    const result = await TicketModel.updateTicket(
+      ticket_id,
+      title,
+      description,
+      category_id,
+      priority,
+      attachments,
+      assigned_to,
+      raised_by_id,
+      raised_by_role,
+      raised_by_name,
+      raised_by_email,
+      raised_by_mobile,
+      raised_by_course,
+      manager_id,
+      ra_id,
+      updated_at,
+      manager_updated,
+      ra_updated,
     );
 
     response.status(201).send({
@@ -181,6 +244,7 @@ const getTicketTracks = async (request, response) => {
 module.exports = {
   validateEmail,
   createTicket,
+  updateTicket,
   getTickets,
   updateTicketStatus,
   getCategories,

@@ -39,6 +39,10 @@ const TicketModel = {
     attachments,
     raised_by_id,
     raised_by_role,
+    raised_by_name,
+    raised_by_email,
+    raised_by_mobile,
+    raised_by_course,
     manager_id,
     ra_id,
     created_by,
@@ -60,12 +64,16 @@ const TicketModel = {
                                 status,
                                 raised_by_id,
                                 raised_by_role,
+                                raised_by_name,
+                                raised_by_email,
+                                raised_by_mobile,
+                                raised_by_course,
                                 manager_id,
                                 ra_id,
                                 created_by,
                                 created_at
                             )
-                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         title,
         description,
@@ -74,6 +82,10 @@ const TicketModel = {
         status,
         raised_by_id,
         raised_by_role,
+        raised_by_name,
+        raised_by_email,
+        raised_by_mobile,
+        raised_by_course,
         manager_id,
         ra_id,
         created_by,
@@ -166,6 +178,138 @@ const TicketModel = {
     }
   },
 
+  updateTicket: async (
+    ticket_id,
+    title,
+    description,
+    category_id,
+    priority,
+    attachments, // new attachments
+    assigned_to,
+    raised_by_id,
+    raised_by_role,
+    raised_by_name,
+    raised_by_email,
+    raised_by_mobile,
+    raised_by_course,
+    manager_id,
+    ra_id,
+    updated_at,
+    manager_updated,
+    ra_updated,
+  ) => {
+    try {
+      let status = "";
+
+      if (!ra_id) {
+        status = "Awaiting Employee";
+      } else {
+        status = "Assigned";
+      }
+
+      // ✅ Update ticket
+      const updateQuery = `
+      UPDATE tickets SET
+        title = ?,
+        description = ?,
+        category_id = ?,
+        priority = ?,
+        status = ?,
+        raised_by_id = ?,
+        raised_by_role = ?,
+        raised_by_name = ?,
+        raised_by_email = ?,
+        raised_by_mobile = ?,
+        raised_by_course = ?,
+        manager_id = ?,
+        ra_id = ?,
+        updated_at = ?
+      WHERE ticket_id = ?
+    `;
+
+      const values = [
+        title,
+        description,
+        category_id,
+        priority,
+        status,
+        raised_by_id,
+        raised_by_role,
+        raised_by_name,
+        raised_by_email,
+        raised_by_mobile,
+        raised_by_course,
+        manager_id,
+        ra_id,
+        updated_at,
+        ticket_id,
+      ];
+
+      await pool.query(updateQuery, values);
+
+      // ✅ Insert new attachments (if any)
+      if (attachments && attachments.length > 0) {
+        for (const attachment of attachments) {
+          await pool.query(
+            `INSERT INTO ticket_attachments(
+              ticket_id,
+              base64string,
+              uploaded_at
+          ) VALUES (?, ?, ?)`,
+            [ticket_id, attachment.base64string, updated_at],
+          );
+        }
+      }
+
+      const userQuery = `SELECT user_name FROM users WHERE user_id = ?`;
+
+      // ✅ Track Manager Assignment
+      if (manager_id && manager_updated) {
+        const [user] = await pool.query(userQuery, [manager_id]);
+
+        const details = `Ticket assigned to Manager (${manager_id} - ${user[0]?.user_name})`;
+
+        await pool.query(
+          `INSERT INTO ticket_track(
+            ticket_id,
+            assigned_to,
+            status,
+            details,
+            created_date,
+            update_by
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          [ticket_id, manager_id, "Assigned", details, updated_at, assigned_to],
+        );
+      }
+
+      // ✅ Track RA Assignment
+      if (ra_id && ra_updated) {
+        const [user] = await pool.query(userQuery, [ra_id]);
+
+        const details = `Ticket assigned to RA (${ra_id} - ${user[0]?.user_name})`;
+
+        await pool.query(
+          `INSERT INTO ticket_track(
+            ticket_id,
+            assigned_to,
+            status,
+            details,
+            created_date,
+            update_by
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+          [ticket_id, ra_id, "Assigned", details, updated_at, assigned_to],
+        );
+      }
+
+      return {
+        status: true,
+        message: "Ticket updated successfully",
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getTickets: async (
     start_date,
     end_date,
@@ -191,6 +335,10 @@ const TicketModel = {
                           t.status,
                           t.raised_by_id,
                           t.raised_by_role,
+                          t.raised_by_name AS raised_name,
+                          t.raised_by_email AS raised_email,
+                          t.raised_by_mobile AS raised_mobile,
+                          t.raised_by_course AS raised_course,
                           t.manager_id AS manager_user_id,
                           mu.user_name AS manager_name,
                           t.ra_id AS ra_user_id,
@@ -265,7 +413,6 @@ const TicketModel = {
 
       if (status) {
         getQuery += ` AND t.status = ?`;
-        countQuery += ` AND t.status = ?`;
         queryParams.push(status);
         countParams.push(status);
       }
@@ -331,7 +478,13 @@ const TicketModel = {
     }
   },
 
-  updateTicketStatus: async (ticket_id, status, closed_at, updated_at, ra_id) => {
+  updateTicketStatus: async (
+    ticket_id,
+    status,
+    closed_at,
+    updated_at,
+    ra_id,
+  ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT ticket_id FROM tickets WHERE ticket_id = ?`,
