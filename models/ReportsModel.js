@@ -3521,7 +3521,7 @@ const ReportModel = {
       const courseParams = [];
 
       let dateQuery = `SELECT
-                          CAST(sm.created_date AS DATE) AS server_date,
+                          CAST(sm.server_raise_date AS DATE) AS server_date,
                           COUNT(sm.id) AS total,
                           IFNULL(SUM(st.server_cost), 0) AS total_amount
                       FROM
