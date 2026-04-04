@@ -1288,14 +1288,55 @@ function splitGSTAmount(paid_amount, gst_rate) {
   };
 }
 
-const sendLoginLink = async (email, link) => {
+const sendLoginLink = async (email, name) => {
   try {
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "LMS Login Credential",
-      text: `Click the below link to login into LMS.`,
-      html: ``,
+      subject: "LMS Account Setup - Action Required",
+      text: `Click the link below to reset your password and login into LMS.`,
+      html: ` <table align="center" width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px;">
+      <tr>
+        <td style="padding: 18px 12px 12px 12px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px;">
+          <img src="cid:companyLogo" alt="Company Logo" width="100" style="display: block; margin: 0 auto;" />
+        </td>
+
+        <tr>
+  <td style="padding: 0 10px;">
+    <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
+  </td>
+</tr>
+      </tr>
+      <tr>
+        <td style="padding: 0px 0px 20px 20px; color: #333333; font-size: 15px; line-height: 1.6;">
+          <p>Hi ${name},</p>
+          <p>
+            Your account has been successfully created. <strong>Please note that you will need to reset your password before logging in for the first time.</strong>
+          </p>
+          <p>You can access your Learning Management System (LMS) dashboard and initiate the password reset process using the button below:</p>
+          <p style="text-align: center; margin: 20px 0;">
+            <a href=${process.env.LMS_LINK} target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
+               Reset Password & Login
+            </a>
+          </p>
+          <p>
+            If the button above does not work, please copy and paste the following link into your browser:
+          </p>
+          <p style="word-break: break-all; color: #5b69ca; font-size: 14px;">
+            ${process.env.LMS_LINK}
+          </p>
+          <p>
+            For security reasons, please do not share this link with anyone.
+          </p>
+          <p style="margin-top: 30px;">Best Regards,<br/>Acte Technologies</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 15px; text-align: center; background: #f0f0f0; font-size: 12px; color: #777777; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;">
+          © ${getCurrentYear()} Acte Technologies. All rights reserved.
+        </td>
+      </tr>
+    </table>`,
       attachments: [
         {
           filename: "logo.png", // name of the file

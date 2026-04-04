@@ -201,9 +201,9 @@ const viewInvoicePdf = async (req, res) => {
 };
 
 const sendLoginLink = async (req, res) => {
-  const { email, link } = req.body;
+  const { email, name } = req.body;
   try {
-    const result = await EmailModel.sendLoginLink(email, link);
+    const result = await EmailModel.sendLoginLink(email, name);
     res.status(201).send({
       message: "Mail sent successfully",
       data: result,
