@@ -543,4 +543,5 @@ router.post(
 router.post("/getTicketReport", verifyToken, ReportController.getTicketReport);
 
 router.post("/sendLoginLink", verifyToken, EmailController.sendLoginLink);
+router.get("/checkUserExists", UserController.checkUserExists);
 module.exports = router;

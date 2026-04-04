@@ -33,7 +33,7 @@ const addUser = async (request, response) => {
       profile_image,
       target_value,
       target_start,
-      target_end
+      target_end,
     );
     response.status(201).json({
       message: "User addedd successfully",
@@ -91,7 +91,7 @@ const updateUser = async (request, response) => {
       formattedRoles,
       target_start,
       target_end,
-      target_value
+      target_value,
     );
     response.status(200).json({
       message: "User updated successfully",
@@ -112,7 +112,7 @@ const setTarget = async (request, response) => {
       user_ids,
       target_start,
       target_end,
-      target_value
+      target_value,
     );
     response.status(200).json({
       message: "Target updated successfully",
@@ -158,6 +158,22 @@ const getAllUpline = async (request, response) => {
   }
 };
 
+const checkUserExists = async (request, response) => {
+  const { email } = request.query;
+  try {
+    const result = await userModel.checkUserExists(email);
+    response.status(200).json({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
@@ -165,4 +181,5 @@ module.exports = {
   setTarget,
   getAllDownlines,
   getAllUpline,
+  checkUserExists,
 };

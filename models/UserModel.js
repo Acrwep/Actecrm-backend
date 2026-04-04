@@ -11,13 +11,13 @@ const UserModel = {
     profile_image,
     target_value,
     target_start,
-    target_end
+    target_end,
   ) => {
     try {
       let affectedRows = 0;
       const [isUserIdExists] = await pool.query(
         `SELECT id FROM users WHERE user_id = ? AND is_active = 1`,
-        [user_id]
+        [user_id],
       );
       if (isUserIdExists.length > 0) {
         throw new Error("User Id already exists");
@@ -48,19 +48,19 @@ const UserModel = {
 
       const [isTargetExists] = await pool.query(
         `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-        [target_start, target_end, user_id]
+        [target_start, target_end, user_id],
       );
 
       if (isTargetExists.length > 0) {
         const [updateTarget] = await pool.query(
           `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-          [target_value, target_start, target_end, user_id]
+          [target_value, target_start, target_end, user_id],
         );
         affectedRows += updateTarget.affectedRows;
       } else {
         const [insertTarget] = await pool.query(
           `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
-          [user_id, target_start, target_end, target_value]
+          [user_id, target_start, target_end, target_value],
         );
         affectedRows += insertTarget.affectedRows;
       }
@@ -70,14 +70,14 @@ const UserModel = {
           // Check if child user exists
           const [childExists] = await pool.query(
             `SELECT id FROM users WHERE user_id = ?`,
-            [child.user_id]
+            [child.user_id],
           );
 
           if (childExists.length === 0) {
             // Create child user if doesn't exist
             await pool.query(
               `INSERT INTO users(user_id, user_name, phone, password, roles, profile_image) VALUES(?, ?, ?, ?, ?, ?)`,
-              [child.user_id, child.user_name, "", "", "[]", ""]
+              [child.user_id, child.user_name, "", "", "[]", ""],
             );
             affectedRows += 1;
           }
@@ -85,14 +85,14 @@ const UserModel = {
           // Check if parent-child relationship already exists
           const [relationshipExists] = await pool.query(
             `SELECT id FROM users_downline WHERE user_id = ? AND parent_id = ?`,
-            [child.user_id, user_id]
+            [child.user_id, user_id],
           );
 
           if (relationshipExists.length === 0) {
             // Create parent-child relationship
             await pool.query(
               `INSERT INTO users_downline(user_id, parent_id) VALUES(?, ?)`,
-              [child.user_id, user_id]
+              [child.user_id, user_id],
             );
             affectedRows += 1;
           }
@@ -100,7 +100,7 @@ const UserModel = {
       }
 
       const [getDefaultUsers] = await pool.query(
-        `SELECT u.id, du.user_id, u.child_users FROM default_users AS du INNER JOIN users AS u ON du.user_id = u.user_id WHERE du.is_active = 1`
+        `SELECT u.id, du.user_id, u.child_users FROM default_users AS du INNER JOIN users AS u ON du.user_id = u.user_id WHERE du.is_active = 1`,
       );
 
       if (getDefaultUsers.length > 0) {
@@ -118,7 +118,7 @@ const UserModel = {
 
           // Avoid duplicate entry (optional but recommended)
           const exists = childUsers.some(
-            (cu) => cu.user_id === newChildUser.user_id
+            (cu) => cu.user_id === newChildUser.user_id,
           );
 
           if (!exists) {
@@ -173,14 +173,14 @@ const UserModel = {
 
       // Get all users
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name, phone, profile_image FROM users WHERE is_active = 1`
+        `SELECT id, user_id, user_name, phone, profile_image FROM users WHERE is_active = 1`,
       );
 
       const formattedResult = await Promise.all(
         users.map(async (item) => {
           const [getTarget] = await pool.query(
             `SELECT id AS user_target_id, target_month, target_value FROM user_target_master WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-            [item.user_id]
+            [item.user_id],
           );
 
           child_users = JSON.parse(item.child_users);
@@ -197,7 +197,7 @@ const UserModel = {
             })),
             roles: JSON.parse(item.roles),
           };
-        })
+        }),
       );
 
       return {
@@ -225,13 +225,13 @@ const UserModel = {
     roles,
     target_start,
     target_end,
-    target_value
+    target_value,
   ) => {
     try {
       let affectedRows = 0;
       const [isIdExists] = await pool.query(
         `SELECT id FROM users WHERE id = ?`,
-        [id]
+        [id],
       );
       if (isIdExists.length <= 0) {
         throw new Error("Invalid Id");
@@ -253,19 +253,19 @@ const UserModel = {
 
       const [isTargetExists] = await pool.query(
         `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-        [target_start, target_end, user_id]
+        [target_start, target_end, user_id],
       );
 
       if (isTargetExists.length > 0) {
         const [updateTarget] = await pool.query(
           `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-          [target_value, target_start, target_end, user_id]
+          [target_value, target_start, target_end, user_id],
         );
         affectedRows += updateTarget.affectedRows;
       } else {
         const [insertTarget] = await pool.query(
           `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
-          [user_id, target_start, target_end, target_value]
+          [user_id, target_start, target_end, target_value],
         );
         affectedRows += insertTarget.affectedRows;
       }
@@ -273,7 +273,7 @@ const UserModel = {
       if (users.length > 0) {
         const [deleteDownline] = await pool.query(
           `DELETE FROM users_downline WHERE parent_id = ?`,
-          [user_id]
+          [user_id],
         );
         affectedRows += deleteDownline.affectedRows;
 
@@ -281,14 +281,14 @@ const UserModel = {
           // Check if child user exists
           const [childExists] = await pool.query(
             `SELECT id FROM users WHERE user_id = ?`,
-            [child.user_id]
+            [child.user_id],
           );
 
           if (childExists.length === 0) {
             // Create child user if doesn't exist
             await pool.query(
               `INSERT INTO users(user_id, user_name, phone, profile_image, password, roles) VALUES(?, ?, ?, ?, ?, ?)`,
-              [child.user_id, child.user_name, "", "", "", "[]"]
+              [child.user_id, child.user_name, "", "", "", "[]"],
             );
             affectedRows += 1;
           }
@@ -296,14 +296,14 @@ const UserModel = {
           // Create parent-child relationship
           await pool.query(
             `INSERT INTO users_downline(user_id, parent_id) VALUES(?, ?)`,
-            [child.user_id, user_id]
+            [child.user_id, user_id],
           );
           affectedRows += 1;
         }
       } else if (users.length === 0) {
         const [deleteDownline] = await pool.query(
           `DELETE FROM users_downline WHERE parent_id = ?`,
-          [user_id]
+          [user_id],
         );
         affectedRows += deleteDownline.affectedRows;
       }
@@ -322,23 +322,23 @@ const UserModel = {
           user_ids.map(async (item) => {
             const [isTargetExists] = await pool.query(
               `SELECT * FROM user_target_master WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-              [target_start, target_end, item.user_id]
+              [target_start, target_end, item.user_id],
             );
 
             if (isTargetExists.length > 0) {
               const [updateTarget] = await pool.query(
                 `UPDATE user_target_master SET target_value = ? WHERE target_month = CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')) AND user_id = ?`,
-                [target_value, target_start, target_end, item.user_id]
+                [target_value, target_start, target_end, item.user_id],
               );
               affectedRows += updateTarget.affectedRows;
             } else {
               const [insertTarget] = await pool.query(
                 `INSERT INTO user_target_master(user_id, target_month, target_value) VALUES(?, CONCAT(DATE_FORMAT(?, '%b %Y'), ' - ', DATE_FORMAT(?, '%b %Y')), ?)`,
-                [item.user_id, target_start, target_end, target_value]
+                [item.user_id, target_start, target_end, target_value],
               );
               affectedRows += insertTarget.affectedRows;
             }
-          })
+          }),
         );
       }
 
@@ -358,7 +358,7 @@ const UserModel = {
       // If you want to include the root user in results, uncomment:
       const [getRootUser] = await pool.query(
         `SELECT user_id, user_name FROM users WHERE user_id = ?`,
-        parent_id
+        parent_id,
       );
       downline.set(parent_id, {
         user_id: parent_id,
@@ -384,7 +384,7 @@ const UserModel = {
 
         const [children] = await pool.query(
           `SELECT d.user_id, u.user_name, d.parent_id, d.created_at FROM users_downline AS d INNER JOIN users AS u ON d.user_id = u.user_id WHERE d.parent_id IN (${placeholders})`,
-          parentIds
+          parentIds,
         );
 
         for (const child of children) {
@@ -427,7 +427,7 @@ const UserModel = {
       // Add the starting user
       const [startingUser] = await pool.query(
         `SELECT user_id, user_name FROM users WHERE user_id = ?`,
-        [user_id]
+        [user_id],
       );
 
       upline.set(user_id, {
@@ -449,7 +449,7 @@ const UserModel = {
          FROM users_downline AS d 
          INNER JOIN users AS u ON d.parent_id = u.user_id 
          WHERE d.user_id = ?`,
-          [current.userId]
+          [current.userId],
         );
 
         for (const parent of parents) {
@@ -478,6 +478,50 @@ const UserModel = {
       }
 
       return Array.from(upline.values()).sort((a, b) => a.level - b.level);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  checkUserExists: async (email) => {
+    try {
+      const [isUserExists] = await pool.query(
+        `SELECT id FROM customers WHERE email = ?`,
+        [email],
+      );
+      if (isUserExists.length <= 0) {
+        return {
+          data: false,
+          message: "User does not exist",
+        };
+      }
+      const [user] = await pool.query(
+        `SELECT
+            pm.total_amount,
+            IFNULL(SUM(pt.amount),
+            0) AS paid_amount
+        FROM
+            customers AS c
+        INNER JOIN payment_master AS pm ON
+            c.lead_id = pm.lead_id
+        INNER JOIN payment_trans AS pt ON
+            pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+        WHERE c.email = ?
+        GROUP BY pm.total_amount;`,
+        [email],
+      );
+      const totalAmount = user[0].total_amount;
+      const paidAmount = user[0].paid_amount;
+      if (totalAmount === paidAmount) {
+        return {
+          data: true,
+          message: "User exists and has paid full amount",
+        };
+      }
+      return {
+        data: false,
+        message: "User exists but has not paid full amount",
+      };
     } catch (error) {
       throw new Error(error.message);
     }
