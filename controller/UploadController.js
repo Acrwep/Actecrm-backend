@@ -129,10 +129,6 @@ const updateCourse = async (request, response) => {
     let brouchures = existingCourse[0].brouchures;
     let syllabus = existingCourse[0].syllabus;
 
-    // =====================================================
-    // 🔥 HANDLE BROUCHURE DELETE
-    // =====================================================
-
     if (remove_brouchures === "true") {
       if (brouchures) {
         const oldPath = path.join(__dirname, "..", brouchures);
@@ -143,12 +139,7 @@ const updateCourse = async (request, response) => {
       brouchures = null;
     }
 
-    // =====================================================
-    // 🔥 HANDLE BROUCHURE REPLACE
-    // =====================================================
-
     if (request.files?.brouchures) {
-      // delete old file if exists
       if (brouchures) {
         const oldPath = path.join(__dirname, "..", brouchures);
         if (fs.existsSync(oldPath)) {
@@ -158,10 +149,6 @@ const updateCourse = async (request, response) => {
 
       brouchures = `/uploads/pdfs/${request.files.brouchures[0].filename}`;
     }
-
-    // =====================================================
-    // 🔥 HANDLE SYLLABUS DELETE
-    // =====================================================
 
     if (remove_syllabus === "true") {
       if (syllabus) {
@@ -173,10 +160,6 @@ const updateCourse = async (request, response) => {
       syllabus = null;
     }
 
-    // =====================================================
-    // 🔥 HANDLE SYLLABUS REPLACE
-    // =====================================================
-
     if (request.files?.syllabus) {
       if (syllabus) {
         const oldPath = path.join(__dirname, "..", syllabus);
@@ -187,10 +170,6 @@ const updateCourse = async (request, response) => {
 
       syllabus = `/uploads/pdfs/${request.files.syllabus[0].filename}`;
     }
-
-    // =====================================================
-    // 🔥 UPDATE DATABASE
-    // =====================================================
 
     await pool.query(
       `UPDATE technologies

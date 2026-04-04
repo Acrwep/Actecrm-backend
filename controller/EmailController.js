@@ -127,7 +127,7 @@ const sendInvoicePdf = async (req, res) => {
       address,
       state_code,
       gst_number,
-      invoice_type
+      invoice_type,
     );
 
     res.status(201).send({
@@ -185,7 +185,7 @@ const viewInvoicePdf = async (req, res) => {
       address,
       state_code,
       gst_number,
-      invoice_type
+      invoice_type,
     );
 
     res.status(200).send({
@@ -200,6 +200,22 @@ const viewInvoicePdf = async (req, res) => {
   }
 };
 
+const sendLoginLink = async (req, res) => {
+  const { email, link } = req.body;
+  try {
+    const result = await EmailModel.sendLoginLink(email, link);
+    res.status(201).send({
+      message: "Mail sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending email",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendCustomerMail,
@@ -208,4 +224,5 @@ module.exports = {
   sendPaymentMail,
   sendInvoicePdf,
   viewInvoicePdf,
+  sendLoginLink,
 };

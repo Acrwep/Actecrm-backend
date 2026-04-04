@@ -19,7 +19,7 @@ const sendWelcomeMail = async (email, name) => {
     // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
-      [email]
+      [email],
     );
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
@@ -154,14 +154,14 @@ const sendMail = async (email, link, trainer_id) => {
     // Check the trainer already exists
     const [isTrainerExists] = await pool.query(
       `SELECT id, name FROM trainer WHERE id = ?`,
-      [trainer_id]
+      [trainer_id],
     );
     if (isTrainerExists.length <= 0) throw new Error("Trainer not exists");
 
     // Check link already send to trainer
     const [isLinkSent] = await pool.query(
       `SELECT id FROM trainer WHERE id = ? AND is_form_sent = 1`,
-      [trainer_id]
+      [trainer_id],
     );
     if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
@@ -222,7 +222,7 @@ const sendMail = async (email, link, trainer_id) => {
     // Update trainer table
     const [updateTrainer] = await pool.query(
       `UPDATE trainer SET is_form_sent = 1 WHERE id = ?`,
-      [trainer_id]
+      [trainer_id],
     );
 
     // Send mail
@@ -238,14 +238,14 @@ const sendCustomerMail = async (email, link, customer_id) => {
     // Check the customer already exists
     const [isCusExists] = await pool.query(
       `SELECT id, name FROM customers WHERE id = ?`,
-      [customer_id]
+      [customer_id],
     );
     if (isCusExists.length <= 0) throw new Error("Trainer not exists");
 
     // Check link already send to trainer
     const [isLinkSent] = await pool.query(
       `SELECT id FROM customers WHERE id = ? AND is_form_sent = 1`,
-      [customer_id]
+      [customer_id],
     );
     if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
@@ -306,7 +306,7 @@ const sendCustomerMail = async (email, link, customer_id) => {
     // Update trainer table
     const [updateCustomer] = await pool.query(
       `UPDATE customers SET is_form_sent = 1 WHERE id = ?`,
-      [customer_id]
+      [customer_id],
     );
 
     // Send mail
@@ -342,16 +342,16 @@ const sendCourseCertificate = async (email, customer_id) => {
     return `data:image/png;base64,${data}`;
   };
   const acteLogoBase64 = getBase64Image(
-    process.env.ACTE_TECHNOLOGIES_LOGO_PATH
+    process.env.ACTE_TECHNOLOGIES_LOGO_PATH,
   );
 
   const certLogoBase64 = getBase64Image(process.env.CERTIFICATE_LOGO);
 
   const chairmanSignBase64 = getBase64Image(
-    process.env.CHAIRMAN_SIGNATURE_PATH
+    process.env.CHAIRMAN_SIGNATURE_PATH,
   );
   const viceChairmanSignBase64 = getBase64Image(
-    process.env.VICE_CHAIRMAN_SIGNATURE_PATH
+    process.env.VICE_CHAIRMAN_SIGNATURE_PATH,
   );
   const memberSignBase64 = getBase64Image(process.env.MEMBER_SIGNATURE_PATH);
 
@@ -440,7 +440,7 @@ const sendCourseCertificate = async (email, customer_id) => {
     <p style="margin:0; font-size:14px;">${sig.name}</p>
     <p style="margin:0; font-size:14px;">${sig.title}</p>
   </div>
-</td>`
+</td>`,
                           )
                           .join("")}
                       </tr>
@@ -528,7 +528,7 @@ const sendPaymentMail = async (email, name) => {
     // Check the email already exists
     const [isEmailExists] = await pool.query(
       `SELECT id, name FROM customers WHERE email = ?`,
-      [email]
+      [email],
     );
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
@@ -684,7 +684,7 @@ const sendInvoicePdf = async (
   address,
   state_code,
   gst_number,
-  invoice_type
+  invoice_type,
 ) => {
   const pdfPath = path.join(process.cwd(), "invoice.pdf");
 
@@ -890,7 +890,7 @@ const sendInvoicePdf = async (
           <td>${gst_percentage}%</td>
           <td>₹${gstForPaid}</td>
           <td>₹${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
-            2
+            2,
           )}</td>
           <td>₹${
             base_amount +
@@ -1007,7 +1007,7 @@ const viewInvoicePdf = async (
   address,
   state_code,
   gst_number,
-  invoice_type
+  invoice_type,
 ) => {
   const getBase64Image = (filePath) => {
     if (!fs.existsSync(filePath)) return "";
@@ -1212,7 +1212,7 @@ const viewInvoicePdf = async (
           <td>${gst_percentage}%</td>
           <td>₹${gstForPaid}</td>
           <td>₹${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
-            2
+            2,
           )}</td>
           <td>₹${
             base_amount +
@@ -1288,6 +1288,31 @@ function splitGSTAmount(paid_amount, gst_rate) {
   };
 }
 
+const sendLoginLink = async (email, link) => {
+  try {
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "LMS Login Credential",
+      text: `Click the below link to login into LMS.`,
+      html: ``,
+      attachments: [
+        {
+          filename: "logo.png", // name of the file
+          path: "./acte-logo.png", // local path of your logo file
+          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+        },
+      ],
+    };
+
+    // Send mail
+    await transporter.sendMail(mailOptions);
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 module.exports = {
   sendMail,
   sendCustomerMail,
@@ -1296,4 +1321,5 @@ module.exports = {
   sendPaymentMail,
   sendInvoicePdf,
   viewInvoicePdf,
+  sendLoginLink,
 };

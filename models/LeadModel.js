@@ -704,7 +704,7 @@ const LeadModel = {
     comments,
     lead_id,
     region_id,
-    previous_junk
+    previous_junk,
   ) => {
     try {
       const [isLeadExists] = await pool.query(
@@ -787,7 +787,6 @@ const LeadModel = {
           `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
           [next_follow_up_date, lead_status_id, lead_id],
         );
-
 
         const [getLeadAction] = await pool.query(
           `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,

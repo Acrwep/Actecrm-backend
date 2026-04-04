@@ -71,7 +71,7 @@ const createPayment = async (request, response) => {
       place_of_supply,
       address,
       state_code,
-      gst_number
+      gst_number,
     );
     return response.status(201).send({
       messages: "Payment successfull",
@@ -90,7 +90,7 @@ const verifyPayment = async (request, response) => {
   try {
     const result = await PaymentModel.verifyPayment(
       payment_trans_id,
-      verified_date
+      verified_date,
     );
     return response.status(200).send({
       messages: "Payment verified successfull",
@@ -128,7 +128,7 @@ const pendingFeesList = async (request, response) => {
       urgent_due,
       user_ids,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       messages: "Fees pending data successfull",
@@ -148,7 +148,7 @@ const getPendingFeesCount = async (request, response) => {
     const result = await PaymentModel.getPendingFeesCount(
       from_date,
       to_date,
-      user_ids
+      user_ids,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
@@ -190,7 +190,7 @@ const partPayment = async (request, response) => {
       created_date,
       paid_date,
       place_of_payment,
-      collected_by
+      collected_by,
     );
 
     return response.status(201).send({
@@ -211,7 +211,7 @@ const paymentReject = async (request, response) => {
     const result = await PaymentModel.paymentReject(
       payment_trans_id,
       rejected_date,
-      reason
+      reason,
     );
     return response.status(201).send({
       messages: "Payment has been rejected",
@@ -247,7 +247,7 @@ const updatePayment = async (request, response) => {
       paid_date,
       next_due_date,
       payment_trans_id,
-      place_of_payment
+      place_of_payment,
     );
     return response.status(200).send({
       messages: "Payment updated successfully",
@@ -275,7 +275,7 @@ const updatePaymentMaster = async (request, response) => {
       gst_percentage,
       gst_amount,
       total_amount,
-      payment_master_id
+      payment_master_id,
     );
     return response.status(200).send({
       messages: "Payment updated successfully",
@@ -329,7 +329,7 @@ const pendingFeesListV1 = async (request, response) => {
       urgent_due,
       user_ids,
       page,
-      limit
+      limit,
     );
     return response.status(200).send({
       messages: "Fees pending data successfull",
@@ -354,5 +354,5 @@ module.exports = {
   updatePayment,
   updatePaymentMaster,
   getPaymentHistory,
-  pendingFeesListV1
+  pendingFeesListV1,
 };

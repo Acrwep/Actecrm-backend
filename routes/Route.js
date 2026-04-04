@@ -541,4 +541,6 @@ router.post(
   DashboardController.getRegionWiseAnalysis,
 );
 router.post("/getTicketReport", verifyToken, ReportController.getTicketReport);
+
+router.post("/sendLoginLink", verifyToken, EmailController.sendLoginLink);
 module.exports = router;

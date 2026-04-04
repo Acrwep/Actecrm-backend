@@ -200,7 +200,33 @@ const PaymentModel = {
         `UPDATE payment_trans SET payment_status = 'Verified', verified_date = ?, is_second_due = 0 WHERE id = ?`,
         [verified_date, payment_trans_id],
       );
-      return result.affectedRows;
+
+      const [master_id] = await pool.query(
+        `SELECT payment_master_id FROM payment_trans WHERE id = ?`,
+        [payment_trans_id],
+      );
+
+      const [getBalance] = await pool.query(
+        `SELECT
+              pm.total_amount,
+              SUM(pt.amount) AS paid_amount
+          FROM
+              payment_master AS pm
+          INNER JOIN payment_trans AS pt ON
+              pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
+          WHERE pm.id = ?
+          GROUP BY pm.total_amount`,
+        [master_id[0].payment_master_id],
+      );
+
+      const balance_amount =
+        getBalance[0].total_amount - getBalance[0].paid_amount;
+
+      const is_fully_paid = balance_amount === 0 ? true : false;
+      return {
+        is_fully_paid,
+        balance_amount,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -619,7 +645,10 @@ const PaymentModel = {
           const placeholders = user_ids.map(() => "?").join(", ");
           baseConditions.push(`lm.assigned_to IN (${placeholders})`);
           queryParams.push(...user_ids);
-        } else if (typeof user_ids === "string" || typeof user_ids === "number") {
+        } else if (
+          typeof user_ids === "string" ||
+          typeof user_ids === "number"
+        ) {
           baseConditions.push(`lm.assigned_to = ?`);
           queryParams.push(user_ids);
         }
@@ -647,7 +676,11 @@ const PaymentModel = {
         queryParams.push(`%${course}%`);
       }
 
-      const allConditions = [...baseConditions, ...searchConditions, "c.status <> 'Demo Completed'"];
+      const allConditions = [
+        ...baseConditions,
+        ...searchConditions,
+        "c.status <> 'Demo Completed'",
+      ];
 
       const summarySubquery = `
         SELECT 
@@ -676,7 +709,8 @@ const PaymentModel = {
         queryParams.push(`${from_date} 00:00:00`, `${to_date} 23:59:59`);
       }
 
-      const whereClause = allConditions.length > 0 ? `WHERE ${allConditions.join(" AND ")}` : "";
+      const whereClause =
+        allConditions.length > 0 ? `WHERE ${allConditions.join(" AND ")}` : "";
 
       const baseFromSql = `
         FROM customers AS c
