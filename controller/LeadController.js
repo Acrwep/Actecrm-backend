@@ -214,6 +214,7 @@ const getLeadFollowUps = async (request, response) => {
     page,
     limit,
     course,
+    lead_status_id,
   } = request.body;
   try {
     const leads = await LeadModel.getLeadFollowUps(
@@ -226,6 +227,7 @@ const getLeadFollowUps = async (request, response) => {
       page,
       limit,
       course,
+      lead_status_id,
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",

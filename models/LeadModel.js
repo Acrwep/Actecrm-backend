@@ -417,6 +417,7 @@ const LeadModel = {
     page,
     limit,
     course,
+    lead_status_id,
   ) => {
     try {
       const queryParams = [];
@@ -496,40 +497,59 @@ const LeadModel = {
                       LEFT JOIN customers AS c ON c.lead_id = l.id
                       WHERE lf.is_updated = 0 AND c.id IS NULL `;
 
+      const statusCountQueryParams = [];
+      let statusCountQuery = `SELECT ls.name as status_name, COUNT(DISTINCT l.id) as count 
+                              FROM lead_master AS l
+                              INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
+                              INNER JOIN lead_follow_up_history AS lf ON l.id = lf.lead_id
+                              LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+                              LEFT JOIN customers AS c ON c.lead_id = l.id
+                              WHERE lf.is_updated = 0 AND c.id IS NULL `;
+
       if (from_date && to_date) {
         getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
         countQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
+        statusCountQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
+        statusCountQueryParams.push(from_date, to_date);
       }
 
       // FIXED: Use parameterized queries for LIKE conditions in both queries
       if (name) {
         getQuery += ` AND l.name LIKE ?`;
         countQuery += ` AND l.name LIKE ?`;
+        statusCountQuery += ` AND l.name LIKE ?`;
         queryParams.push(`%${name}%`);
         countQueryParams.push(`%${name}%`);
+        statusCountQueryParams.push(`%${name}%`);
       }
 
       if (course) {
         getQuery += ` AND pt.name LIKE ?`;
         countQuery += ` AND pt.name LIKE ?`;
+        statusCountQuery += ` AND pt.name LIKE ?`;
         queryParams.push(`%${course}%`);
         countQueryParams.push(`%${course}%`);
+        statusCountQueryParams.push(`%${course}%`);
       }
 
       if (email) {
         getQuery += ` AND l.email LIKE ?`;
         countQuery += ` AND l.email LIKE ?`;
+        statusCountQuery += ` AND l.email LIKE ?`;
         queryParams.push(`%${email}%`);
         countQueryParams.push(`%${email}%`);
+        statusCountQueryParams.push(`%${email}%`);
       }
 
       if (phone) {
         getQuery += ` AND l.phone LIKE ?`;
         countQuery += ` AND l.phone LIKE ?`;
+        statusCountQuery += ` AND l.phone LIKE ?`;
         queryParams.push(`%${phone}%`);
         countQueryParams.push(`%${phone}%`);
+        statusCountQueryParams.push(`%${phone}%`);
       }
 
       // Handle user_ids parameter for both queries
@@ -538,15 +558,28 @@ const LeadModel = {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
           countQuery += ` AND l.assigned_to IN (${placeholders})`;
+          statusCountQuery += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
+          statusCountQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND l.assigned_to = ?`;
           countQuery += ` AND l.assigned_to = ?`;
+          statusCountQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
+          statusCountQueryParams.push(user_ids);
         }
       }
+
+      if (lead_status_id) {
+        getQuery += ` AND l.lead_status_id = ?`;
+        countQuery += ` AND l.lead_status_id = ?`;
+        queryParams.push(lead_status_id);
+        countQueryParams.push(lead_status_id);
+      }
+
+      statusCountQuery += ` GROUP BY ls.name`;
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -557,12 +590,30 @@ const LeadModel = {
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [[countResult], [follow_ups]] = await Promise.all([
+      const [
+        [countResult],
+        [statusCountResult],
+        [follow_ups],
+        [allStatuses],
+      ] = await Promise.all([
         pool.query(countQuery, countQueryParams),
+        pool.query(statusCountQuery, statusCountQueryParams),
         pool.query(getQuery, queryParams),
+        pool.query(`SELECT name FROM lead_status WHERE is_active = 1`),
       ]);
 
       const total = countResult[0]?.total || 0;
+
+      const statusCounts = {};
+      allStatuses.forEach((s) => {
+        statusCounts[s.name] = 0;
+      });
+
+      statusCountResult.forEach((item) => {
+        if (item.status_name) {
+          statusCounts[item.status_name] = item.count;
+        }
+      });
 
       const leadIds = [...new Set(follow_ups.map((item) => item.id))];
 
@@ -592,6 +643,7 @@ const LeadModel = {
 
       return {
         data: formattedResult,
+        statusCounts: statusCounts,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

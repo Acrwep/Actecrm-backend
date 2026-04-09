@@ -202,14 +202,22 @@ const getSubCategories = async (request, response) => {
 };
 
 const ticketTrack = async (request, response) => {
-  const { ticket_id, assigned_to, status, details, created_date, updated_by } =
-    request.body;
+  const {
+    ticket_id,
+    assigned_to,
+    status,
+    details,
+    comments,
+    created_date,
+    updated_by,
+  } = request.body;
   try {
     const result = await TicketModel.ticketTrack(
       ticket_id,
       assigned_to,
       status,
       details,
+      comments,
       created_date,
       updated_by,
     );

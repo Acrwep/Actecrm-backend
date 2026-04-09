@@ -489,38 +489,49 @@ const UserModel = {
         `SELECT id FROM customers WHERE email = ?`,
         [email],
       );
+
       if (isUserExists.length <= 0) {
         return {
           data: false,
-          message: "User does not exist",
+          message: "User does not exist in crm",
         };
       }
+
       const [user] = await pool.query(
         `SELECT
-            pm.total_amount,
-            IFNULL(SUM(pt.amount),
-            0) AS paid_amount
-        FROM
-            customers AS c
-        INNER JOIN payment_master AS pm ON
-            c.lead_id = pm.lead_id
-        INNER JOIN payment_trans AS pt ON
-            pm.id = pt.payment_master_id AND pt.payment_status = 'Verified'
-        WHERE c.email = ?
-        GROUP BY pm.total_amount;`,
+          pm.total_amount,
+          IFNULL(SUM(pt.amount), 0) AS paid_amount
+       FROM customers AS c
+       INNER JOIN payment_master AS pm 
+          ON c.lead_id = pm.lead_id
+       LEFT JOIN payment_trans AS pt 
+          ON pm.id = pt.payment_master_id 
+          AND pt.payment_status = 'Verified'
+       WHERE c.email = ?
+       GROUP BY pm.total_amount`,
         [email],
       );
+
+      if (user.length === 0) {
+        return {
+          data: false,
+          message: "User exists in crm but no payment record found",
+        };
+      }
+
       const totalAmount = user[0].total_amount;
       const paidAmount = user[0].paid_amount;
+
       if (totalAmount === paidAmount) {
         return {
           data: true,
-          message: "User exists and has paid full amount",
+          message: "User exists in crm and has paid full amount",
         };
       }
+
       return {
         data: false,
-        message: "User exists but has not paid full amount",
+        message: "User exists in crm but has not paid full amount",
       };
     } catch (error) {
       throw new Error(error.message);

@@ -606,6 +606,7 @@ const TicketModel = {
     assigned_to,
     status,
     details,
+    comments,
     created_date,
     updated_by,
   ) => {
@@ -615,16 +616,18 @@ const TicketModel = {
                               assigned_to,
                               status,
                               details,
+                              comments,
                               created_date,
                               update_by
                           )
-                          VALUES(?, ?, ?, ?, ?, ?)`;
+                          VALUES(?, ?, ?, ?, ?, ?, ?)`;
 
       const values = [
         ticket_id,
         assigned_to,
         status,
         details,
+        comments,
         created_date,
         updated_by,
       ];
@@ -644,6 +647,7 @@ const TicketModel = {
             tt.track_id,
             tt.ticket_id,
             tt.assigned_to,
+            tt.comments,
             au.user_name AS assigned_to_name,
             au.user_id AS assigned_user_id,
             tt.status,
