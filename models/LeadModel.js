@@ -423,7 +423,7 @@ const LeadModel = {
       const queryParams = [];
       let getQuery = `SELECT
                     l.id,
-                    lf.id AS lead_history_id,
+                    MAX(lf.id) AS lead_history_id,
                     l.user_id,
                     u.user_name,
                     l.assigned_to AS lead_assigned_to_id,
@@ -585,7 +585,7 @@ const LeadModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY lf.next_follow_up_date ASC`;
+      getQuery += ` GROUP BY l.id ORDER BY l.next_follow_up_date ASC`;
 
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
