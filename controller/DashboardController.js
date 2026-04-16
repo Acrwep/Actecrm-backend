@@ -7,7 +7,7 @@ const getScoreBoard = async (request, response) => {
     const result = await DashboardModel.getScoreBoard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -27,7 +27,7 @@ const getHRDashboard = async (request, response) => {
     const result = await DashboardModel.getHRDashboard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -47,7 +47,7 @@ const getRADashboard = async (request, response) => {
     const result = await DashboardModel.getRADashboard(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -67,7 +67,7 @@ const getTopPerforming = async (request, response) => {
     const result = await DashboardModel.getTopPerforming(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -88,7 +88,7 @@ const getUserWiseScoreBoard = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -109,7 +109,7 @@ const getUserWiseLeadCounts = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -130,7 +130,7 @@ const getBranchWiseScoreBoard = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -151,7 +151,7 @@ const getBranchWiseLeadCounts = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -172,7 +172,7 @@ const getBranchWiseAnalysis = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -192,7 +192,7 @@ const downloadUserWiseLeads = async (request, response) => {
     const result = await DashboardModel.downloadUserWiseLeads(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -213,7 +213,7 @@ const downloadUserWiseScoreBoard = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -234,7 +234,7 @@ const qualityProductivity = async (request, response) => {
       user_ids,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -254,7 +254,7 @@ const postSalePerformance = async (request, response) => {
     const result = await DashboardModel.postSalePerformance(
       user_ids,
       start_date,
-      end_date
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -275,7 +275,7 @@ const getRegionWiseLeadCounts = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -296,7 +296,7 @@ const getRegionWiseScoreBoard = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -317,7 +317,27 @@ const getRegionWiseAnalysis = async (request, response) => {
       region_id,
       start_date,
       end_date,
-      type
+      type,
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getFollowUpAction = async (request, response) => {
+  const { user_ids, start_date, end_date } = request.body;
+  try {
+    const result = await DashboardModel.getFollowUpAction(
+      user_ids,
+      start_date,
+      end_date,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -348,4 +368,5 @@ module.exports = {
   getRegionWiseLeadCounts,
   getRegionWiseScoreBoard,
   getRegionWiseAnalysis,
+  getFollowUpAction,
 };
