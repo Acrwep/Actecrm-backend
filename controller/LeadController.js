@@ -214,7 +214,7 @@ const getLeadFollowUps = async (request, response) => {
     page,
     limit,
     course,
-    lead_status_id,
+    lead_action_id,
   } = request.body;
   try {
     const leads = await LeadModel.getLeadFollowUps(
@@ -227,7 +227,7 @@ const getLeadFollowUps = async (request, response) => {
       page,
       limit,
       course,
-      lead_status_id,
+      lead_action_id,
     );
     return response.status(200).send({
       message: "Follow up fetched successfully",
@@ -298,7 +298,7 @@ const updateLead = async (request, response) => {
     comments,
     lead_id,
     region_id,
-    is_previous_junk
+    is_previous_junk,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -325,7 +325,7 @@ const updateLead = async (request, response) => {
       comments,
       lead_id,
       region_id,
-      is_previous_junk
+      is_previous_junk,
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -903,8 +903,13 @@ const getAssignedLeads = async (request, response) => {
 };
 
 const leadReEntry = async (request, response) => {
-  const { lead_ids, assign_date, next_follow_up_date, assigned_to, updated_by } =
-    request.body;
+  const {
+    lead_ids,
+    assign_date,
+    next_follow_up_date,
+    assigned_to,
+    updated_by,
+  } = request.body;
   try {
     const result = await LeadModel.leadReEntry(
       lead_ids,
@@ -924,7 +929,6 @@ const leadReEntry = async (request, response) => {
     });
   }
 };
-
 
 module.exports = {
   getLeadType,
@@ -962,5 +966,5 @@ module.exports = {
   manualAssign,
   getAssignedLeads,
   updateLeadStatus,
-  leadReEntry
+  leadReEntry,
 };

@@ -417,7 +417,7 @@ const LeadModel = {
     page,
     limit,
     course,
-    lead_status_id,
+    lead_action_id,
   ) => {
     try {
       const queryParams = [];
@@ -498,11 +498,11 @@ const LeadModel = {
                       WHERE lf.is_updated = 0 AND c.id IS NULL `;
 
       const statusCountQueryParams = [];
-      let statusCountQuery = `SELECT ls.name as status_name, COUNT(DISTINCT l.id) as count 
+      let statusCountQuery = `SELECT la.name as status_name, COUNT(DISTINCT l.id) as count 
                               FROM lead_master AS l
                               INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
                               INNER JOIN lead_follow_up_history AS lf ON l.id = lf.lead_id
-                              LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+                              LEFT JOIN lead_action AS la ON la.id = lf.lead_action_id
                               LEFT JOIN customers AS c ON c.lead_id = l.id
                               WHERE lf.is_updated = 0 AND c.id IS NULL `;
 
@@ -572,14 +572,14 @@ const LeadModel = {
         }
       }
 
-      if (lead_status_id) {
-        getQuery += ` AND l.lead_status_id = ?`;
-        countQuery += ` AND l.lead_status_id = ?`;
-        queryParams.push(lead_status_id);
-        countQueryParams.push(lead_status_id);
+      if (lead_action_id) {
+        getQuery += ` AND lf.lead_action_id = ?`;
+        countQuery += ` AND lf.lead_action_id = ?`;
+        queryParams.push(lead_action_id);
+        countQueryParams.push(lead_action_id);
       }
 
-      statusCountQuery += ` GROUP BY ls.name`;
+      statusCountQuery += ` GROUP BY la.name`;
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -590,17 +590,13 @@ const LeadModel = {
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [
-        [countResult],
-        [statusCountResult],
-        [follow_ups],
-        [allStatuses],
-      ] = await Promise.all([
-        pool.query(countQuery, countQueryParams),
-        pool.query(statusCountQuery, statusCountQueryParams),
-        pool.query(getQuery, queryParams),
-        pool.query(`SELECT name FROM lead_status WHERE is_active = 1`),
-      ]);
+      const [[countResult], [statusCountResult], [follow_ups], [allStatuses]] =
+        await Promise.all([
+          pool.query(countQuery, countQueryParams),
+          pool.query(statusCountQuery, statusCountQueryParams),
+          pool.query(getQuery, queryParams),
+          pool.query(`SELECT name FROM lead_action WHERE is_active = 1`),
+        ]);
 
       const total = countResult[0]?.total || 0;
 
