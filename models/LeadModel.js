@@ -459,11 +459,15 @@ const LeadModel = {
                     l.created_date,
                     r.name AS region_name,
                     r.id AS region_id,
-                    c.id AS customer_id
+                    c.id AS customer_id,
+                    la.name AS action_name,
+                    la.id AS action_id
                 FROM
                     lead_master AS l
                 INNER JOIN lead_follow_up_history AS lf ON
                   l.id = lf.lead_id
+                INNER JOIN lead_action AS la ON
+                  la.id = lf.lead_action_id
                 LEFT JOIN users AS u ON
                     u.user_id = l.user_id
                 LEFT JOIN users AS au ON
