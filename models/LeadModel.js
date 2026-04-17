@@ -847,8 +847,12 @@ const LeadModel = {
 
       // Update lead history
       const [update_latest] = await pool.query(
-        `UPDATE lead_follow_up_history SET lead_action_id = ?, is_updated = 0 WHERE id = ?`,
-        [lead_action_id, latest_history_id[0].lead_history_id],
+        `UPDATE lead_follow_up_history SET lead_action_id = ?, next_follow_up_date = ?, is_updated = 0 WHERE id = ?`,
+        [
+          lead_action_id,
+          next_follow_up_date,
+          latest_history_id[0].lead_history_id,
+        ],
       );
       affectedRows += update_latest.affectedRows;
 
