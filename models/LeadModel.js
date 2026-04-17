@@ -425,7 +425,7 @@ const LeadModel = {
       const queryParams = [];
       let getQuery = `SELECT
                     l.id,
-                    MAX(lf.id) AS lead_history_id,
+                    lf.id AS lead_history_id,
                     l.user_id,
                     u.user_name,
                     l.assigned_to AS lead_assigned_to_id,
@@ -466,8 +466,13 @@ const LeadModel = {
                     la.id AS action_id
                 FROM
                     lead_master AS l
+                INNER JOIN (
+                    SELECT MAX(id) AS id, lead_id FROM lead_follow_up_history 
+                    WHERE is_updated = 0
+                    GROUP BY lead_id
+                ) AS lf_max ON lf_max.lead_id = l.id
                 INNER JOIN lead_follow_up_history AS lf ON
-                  l.id = lf.lead_id
+                  lf.id = lf_max.id
                 INNER JOIN lead_action AS la ON
                   la.id = lf.lead_action_id
                 LEFT JOIN users AS u ON
@@ -493,7 +498,7 @@ const LeadModel = {
                 LEFT JOIN customers AS c ON
                     c.lead_id = l.id
                 WHERE
-                    lf.is_updated = 0 AND c.id IS NULL `;
+                    c.id IS NULL `;
 
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(DISTINCT l.id) as total 
@@ -591,7 +596,7 @@ const LeadModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` GROUP BY l.id ORDER BY l.next_follow_up_date ASC`;
+      getQuery += ` ORDER BY l.next_follow_up_date ASC`;
 
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
