@@ -762,6 +762,7 @@ const LeadModel = {
     lead_action_id,
   ) => {
     try {
+      let affectedRows = 0;
       const [isLeadExists] = await pool.query(
         `SELECT id FROM lead_master WHERE id = ?`,
         [lead_id],
@@ -824,6 +825,7 @@ const LeadModel = {
       const [updateLead] = await pool.query(updateQuery, values);
       if (updateLead.affectedRows <= 0)
         throw new Error("Error while updating lead");
+      affectedRows += updateLead.affectedRows;
 
       // Get first lead history Id
       const [lead_history_id] = await pool.query(
@@ -836,12 +838,26 @@ const LeadModel = {
         `UPDATE lead_follow_up_history SET comments = ?, lead_action_id = ? WHERE id = ?`,
         [comments, lead_action_id, lead_history_id[0].lead_history_id],
       );
+      affectedRows += update_lead_history.affectedRows;
+
+      const [latest_history_id] = await pool.query(
+        `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+        [lead_id],
+      );
+
+      // Update lead history
+      const [update_latest] = await pool.query(
+        `UPDATE lead_follow_up_history SET lead_action_id = ? WHERE id = ?`,
+        [lead_action_id, latest_history_id[0].lead_history_id],
+      );
+      affectedRows += update_latest.affectedRows;
 
       if (previous_junk) {
-        await pool.query(
+        const [update_lead_master] = await pool.query(
           `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
           [next_follow_up_date, lead_status_id, lead_id],
         );
+        affectedRows += update_lead_master.affectedRows;
 
         // const [getLeadAction] = await pool.query(
         //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
@@ -858,7 +874,7 @@ const LeadModel = {
         );
       }
 
-      return update_lead_history.affectedRows;
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
