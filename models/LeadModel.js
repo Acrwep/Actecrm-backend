@@ -103,6 +103,7 @@ const LeadModel = {
     region_id,
     is_manager,
     is_reentry,
+    lead_action_id,
   ) => {
     try {
       if (is_reentry === false) {
@@ -192,9 +193,9 @@ const LeadModel = {
 
       if (next_follow_up_date) {
         // Get lead action list
-        const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-        );
+        // const [getLeadAction] = await pool.query(
+        //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+        // );
         // Insert lead follow up history
         const [history] = await pool.query(
           `INSERT INTO lead_follow_up_history(
@@ -208,7 +209,8 @@ const LeadModel = {
         VALUES(?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
-            getLeadAction[0].id,
+            // getLeadAction[0].id,
+            lead_action_id,
             comments,
             user_id,
             created_date,
@@ -225,7 +227,7 @@ const LeadModel = {
             lead_action_id
         )
         VALUES(?, ?, ?)`,
-          [result.insertId, next_follow_up_date, getLeadAction[0].id],
+          [result.insertId, next_follow_up_date, lead_action_id],
         );
 
         affectedRows += next_follow_up.affectedRows;
