@@ -833,8 +833,8 @@ const LeadModel = {
 
       // Update lead history
       const [update_lead_history] = await pool.query(
-        `UPDATE lead_follow_up_history SET comments = ? WHERE id = ?`,
-        [comments, lead_history_id[0].lead_history_id],
+        `UPDATE lead_follow_up_history SET comments = ?, lead_action_id = ? WHERE id = ?`,
+        [comments, lead_action_id, lead_history_id[0].lead_history_id],
       );
 
       if (previous_junk) {
