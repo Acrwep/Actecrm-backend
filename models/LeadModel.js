@@ -759,6 +759,7 @@ const LeadModel = {
     lead_id,
     region_id,
     previous_junk,
+    lead_action_id,
   ) => {
     try {
       const [isLeadExists] = await pool.query(
@@ -842,9 +843,9 @@ const LeadModel = {
           [next_follow_up_date, lead_status_id, lead_id],
         );
 
-        const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-        );
+        // const [getLeadAction] = await pool.query(
+        //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+        // );
 
         await pool.query(
           `INSERT INTO lead_follow_up_history(
@@ -853,7 +854,7 @@ const LeadModel = {
               lead_action_id
           )
           VALUES(?, ?, ?)`,
-          [lead_id, next_follow_up_date, getLeadAction[0].id],
+          [lead_id, next_follow_up_date, lead_action_id],
         );
       }
 

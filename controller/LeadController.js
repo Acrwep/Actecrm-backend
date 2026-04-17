@@ -301,6 +301,7 @@ const updateLead = async (request, response) => {
     lead_id,
     region_id,
     is_previous_junk,
+    lead_action_id,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -328,6 +329,7 @@ const updateLead = async (request, response) => {
       lead_id,
       region_id,
       is_previous_junk,
+      lead_action_id,
     );
     return response.status(200).send({
       message: "Updated successfully",
