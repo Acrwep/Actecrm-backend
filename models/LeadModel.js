@@ -2367,20 +2367,22 @@ const LeadModel = {
         }
 
         const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+          `SELECT id, name FROM lead_action WHERE name = 'Hot Follow Up' AND is_active = 1`,
         );
 
-        const [next_follow_up] = await pool.query(
-          `INSERT INTO lead_follow_up_history(
+        if (getLeadAction.length >= 1) {
+          const [next_follow_up] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
               lead_id,
               next_follow_up_date,
               lead_action_id
           )
           VALUES(?, ?, ?)`,
-          [lead_id, next_follow_up_date, getLeadAction[0].id],
-        );
+            [lead_id, next_follow_up_date, getLeadAction[0].id],
+          );
+          affectedRows += next_follow_up.affectedRows;
+        }
 
-        affectedRows += next_follow_up.affectedRows;
         totalAffectedRows += affectedRows;
       }
 
