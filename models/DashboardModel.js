@@ -1952,6 +1952,29 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  getWebsiteDashboard: async (start_date, end_date) => {
+    try {
+      const queryParams = [];
+      let query = `SELECT
+                        domain_origin,
+                        COUNT(*) AS lead_count
+                    FROM
+                        website_leads
+                    WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        query += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      query += ` GROUP BY domain_origin ORDER BY lead_count DESC`;
+      const [result] = await pool.query(query, queryParams);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

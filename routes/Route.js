@@ -377,6 +377,7 @@ router.post(
   verifyToken,
   DashboardController.postSalePerformance,
 );
+
 router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 
 //whatsapp
@@ -548,5 +549,11 @@ router.post(
   "/getFollowUpAction",
   verifyToken,
   DashboardController.getFollowUpAction,
+);
+
+router.post(
+  "/getWebsiteDashboard",
+  verifyToken,
+  DashboardController.getWebsiteDashboard,
 );
 module.exports = router;
