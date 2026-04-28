@@ -3225,6 +3225,7 @@ const ReportModel = {
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'HDFC BANK' THEN dwc.collection END), 0) AS hdfc_bank,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'TDS' THEN dwc.collection END), 0) AS tds,
                                 IFNULL(SUM(CASE WHEN dwc.paymode_name = 'RAZORPAY POS' THEN dwc.collection END), 0) AS razorpay_pos,
+                                IFNULL(SUM(CASE WHEN dwc.paymode_name = 'KOTAK' THEN dwc.collection END), 0) AS kotak,
                                 IFNULL(SUM(dwc.collection), 0) AS total
                             FROM date_range dr
                             LEFT JOIN date_wise_collection dwc
@@ -3327,6 +3328,7 @@ const ReportModel = {
         let hdfc_bank_total = 0;
         let tds_total = 0;
         let razorpay_pos_total = 0;
+        let kotak_total = 0;
         let over_all_total = 0;
         result.map((item) => {
           ((cash_total += Number(item.cash)),
@@ -3339,6 +3341,7 @@ const ReportModel = {
             (hdfc_bank_total += Number(item.hdfc_bank)),
             (tds_total += Number(item.tds)),
             (razorpay_pos_total += Number(item.razorpay_pos)),
+            (kotak_total += Number(item.kotak)),
             (over_all_total += Number(item.total)));
         });
 
@@ -3355,6 +3358,7 @@ const ReportModel = {
             hdfc_bank_total,
             tds_total,
             razorpay_pos_total,
+            kotak_total,
             over_all_total,
           },
         };
@@ -3516,11 +3520,11 @@ const ReportModel = {
   },
 
   getServerReport: async (start_date, end_date, type) => {
-  try {
-    const dateParams = [];
-    const courseParams = [];
+    try {
+      const dateParams = [];
+      const courseParams = [];
 
-    let dateQuery = `
+      let dateQuery = `
       SELECT
         CAST(sm.server_raise_date AS DATE) AS server_date,
         COUNT(DISTINCT sm.id) AS total,
@@ -3532,7 +3536,7 @@ const ReportModel = {
       WHERE sm.status = 'Approved'
     `;
 
-    let courseQuery = `
+      let courseQuery = `
       SELECT
         t.name AS course_name,
         COUNT(DISTINCT sm.id) AS total,
@@ -3548,42 +3552,41 @@ const ReportModel = {
       WHERE sm.status = 'Approved'
     `;
 
-    // ✅ Date filter
-    if (start_date && end_date) {
-      dateQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
-      courseQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
+      // ✅ Date filter
+      if (start_date && end_date) {
+        dateQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
+        courseQuery += ` AND DATE(sm.server_raise_date) BETWEEN ? AND ?`;
 
-      dateParams.push(start_date, end_date);
-      courseParams.push(start_date, end_date);
-    }
+        dateParams.push(start_date, end_date);
+        courseParams.push(start_date, end_date);
+      }
 
-    // ✅ Fix GROUP BY
-    dateQuery += `
+      // ✅ Fix GROUP BY
+      dateQuery += `
       GROUP BY DATE(sm.server_raise_date)
       ORDER BY server_date
     `;
 
-    courseQuery += `
+      courseQuery += `
       GROUP BY t.name
       ORDER BY total_amount DESC
     `;
 
-    let result;
+      let result;
 
-    if (type === "Course") {
-      result = await pool.query(courseQuery, courseParams);
-    } else {
-      result = await pool.query(dateQuery, dateParams);
+      if (type === "Course") {
+        result = await pool.query(courseQuery, courseParams);
+      } else {
+        result = await pool.query(dateQuery, dateParams);
+      }
+
+      return result[0];
+    } catch (error) {
+      throw new Error(error.message);
     }
+  },
 
-    return result[0];
-
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
-
-  getTicketReport: async(user_id, start_date, end_date) => {
+  getTicketReport: async (user_id, start_date, end_date) => {
     try {
       const queryParams = [];
       let query = `SELECT 
@@ -3614,12 +3617,12 @@ const ReportModel = {
                       u.user_id = tt.assigned_to
                     WHERE tt.details IS NOT NULL`;
 
-      if(user_id) {
+      if (user_id) {
         query += ` AND u.user_id = ?`;
         queryParams.push(user_id);
       }
 
-      if(start_date && end_date) {
+      if (start_date && end_date) {
         query += ` AND CAST(t.created_at AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
@@ -3632,7 +3635,7 @@ const ReportModel = {
     } catch (error) {
       throw new Error(error.message);
     }
-  }
+  },
 };
 
 module.exports = ReportModel;

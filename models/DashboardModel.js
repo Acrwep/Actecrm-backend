@@ -1,7 +1,7 @@
 const pool = require("../config/dbconfig");
 
 const DashboardModel = {
-  getScoreBoard: async (user_ids, start_date, end_date) => {
+  getScoreBoard: async (user_ids, start_date, end_date, region_id) => {
     try {
       let leadQuery = `SELECT COUNT(id) AS total_leads FROM lead_master WHERE 1 = 1`;
       let joinQuery = `SELECT COUNT(c.id) AS join_count FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id WHERE 1 = 1`;
@@ -20,6 +20,34 @@ const DashboardModel = {
       const pendingCollectionParams = [];
       const totalCollectionParams = [];
       // Handle user_ids parameter for both queries
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        leadQuery += ` AND assigned_to LIKE '%${region}%'`;
+        joinQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        followupQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        saleVolumeQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        collectionQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        pendingCollectionQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        totalCollectionQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+      }
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
@@ -37,21 +65,6 @@ const DashboardModel = {
           collectionParams.push(...user_ids);
           pendingCollectionParams.push(...user_ids);
           totalCollectionParams.push(...user_ids);
-        } else if (!Array.isArray(user_ids)) {
-          leadQuery += ` AND assigned_to = ?`;
-          joinQuery += ` AND l.assigned_to = ?`;
-          followupQuery += ` AND l.assigned_to = ?`;
-          saleVolumeQuery += ` AND l.assigned_to = ?`;
-          collectionQuery += ` AND l.assigned_to = ?`;
-          pendingCollectionQuery += ` AND l.assigned_to = ?`;
-          totalCollectionQuery += ` AND l.assigned_to = ?`;
-          leadParams.push(user_ids);
-          joinParams.push(user_ids);
-          followupParams.push(user_ids);
-          saleVolumeParams.push(user_ids);
-          collectionParams.push(user_ids);
-          pendingCollectionParams.push(user_ids);
-          totalCollectionParams.push(user_ids);
         }
       }
 
@@ -73,6 +86,28 @@ const DashboardModel = {
       }
 
       pendingCollectionQuery += `) SELECT IFNULL(SUM(pt.amount), 0) AS pending_collection FROM lead_master AS l INNER JOIN customers AS c ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id WHERE pt.payment_master_id NOT IN (SELECT id FROM CTE)`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        pendingCollectionQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+      }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -192,13 +227,36 @@ const DashboardModel = {
     }
   },
 
-  getTopPerforming: async (user_ids, start_date, end_date) => {
+  getTopPerforming: async (user_ids, start_date, end_date, region_id) => {
     try {
       const queryParams = [];
       const totalLeadParams = [];
       let getQuery = `SELECT lt.name, COUNT(l.id) AS lead_count, SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer FROM lead_type AS lt LEFT JOIN lead_master AS l ON lt.id = l.lead_type_id`;
 
       let totalLeadQuery = `SELECT COUNT(l.id) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        getQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+        totalLeadQuery += ` AND l.assigned_to LIKE '%${region}%'`;
+      }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -244,7 +302,13 @@ const DashboardModel = {
     }
   },
 
-  getUserWiseScoreBoard: async (user_ids, start_date, end_date, type) => {
+  getUserWiseScoreBoard: async (
+    user_ids,
+    start_date,
+    end_date,
+    type,
+    region_id,
+  ) => {
     try {
       let saleVolumeQuery = `
       SELECT 
@@ -295,6 +359,30 @@ const DashboardModel = {
       collectionQuery += ` LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
       LEFT JOIN payment_trans AS pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected' WHERE u.roles LIKE '%Sale%'`;
       totalCollectionQuery += ` WHERE u.roles LIKE '%Sale%'`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        saleVolumeQuery += ` AND u.user_id LIKE '%${region}%'`;
+        collectionQuery += ` AND u.user_id LIKE '%${region}%'`;
+        totalCollectionQuery += ` AND u.user_id LIKE '%${region}%'`;
+      }
 
       // Filter by user(s)
       if (user_ids) {
@@ -408,7 +496,13 @@ const DashboardModel = {
     }
   },
 
-  getUserWiseLeadCounts: async (user_ids, start_date, end_date, type) => {
+  getUserWiseLeadCounts: async (
+    user_ids,
+    start_date,
+    end_date,
+    type,
+    region_id,
+  ) => {
     try {
       const queryParams = [];
       const followupParams = [];
@@ -445,6 +539,30 @@ const DashboardModel = {
       followupQuery += ` WHERE c.id IS NULL AND u.roles LIKE '%Sale%'`;
       joiningQuery += ` WHERE u.roles LIKE '%Sale%'`;
 
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        getQuery += ` AND u.user_id LIKE '%${region}%'`;
+        followupQuery += ` AND u.user_id LIKE '%${region}%'`;
+        joiningQuery += ` AND u.user_id LIKE '%${region}%'`;
+      }
+
       // Filter by user(s)
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -455,13 +573,6 @@ const DashboardModel = {
           queryParams.push(...user_ids);
           followupParams.push(...user_ids);
           joiningParams.push(...user_ids);
-        } else {
-          getQuery += ` AND u.user_id = ?`;
-          followupQuery += ` AND u.user_id = ?`;
-          joiningQuery += ` AND u.user_id = ?`;
-          queryParams.push(user_ids);
-          followupParams.push(user_ids);
-          joiningParams.push(user_ids);
         }
       }
 
@@ -1343,7 +1454,7 @@ const DashboardModel = {
     }
   },
 
-  postSalePerformance: async (user_ids, start_date, end_date) => {
+  postSalePerformance: async (user_ids, start_date, end_date, region_id) => {
     try {
       const queryParams = [];
       let sql = `SELECT
@@ -1372,6 +1483,28 @@ const DashboardModel = {
                 INNER JOIN lead_master AS l ON
                     c.lead_id = l.id
                 WHERE 1 = 1`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        sql += ` AND l.assigned_to LIKE '%${region}%'`;
+      }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -1758,7 +1891,7 @@ const DashboardModel = {
     }
   },
 
-  getFollowUpAction: async (user_ids, start_date, end_date) => {
+  getFollowUpAction: async (user_ids, start_date, end_date, region_id) => {
     try {
       const queryParams = [];
       let query = `SELECT
@@ -1778,6 +1911,28 @@ const DashboardModel = {
 
       query += ` LEFT JOIN lead_master AS lm ON
                     lh.lead_id = lm.id`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        query += ` AND lm.assigned_to LIKE '%${region}%'`;
+      }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
