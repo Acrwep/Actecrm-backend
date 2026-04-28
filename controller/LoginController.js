@@ -2,13 +2,16 @@ const jwt = require("jsonwebtoken");
 const loginModel = require("../models/LoginModel");
 
 const login = async (request, response) => {
-  const { user_id, password } = request.body;
+  const { user_id, password, last_login_date } = request.body;
   try {
-    const validateUser = await loginModel.login(user_id, password);
+    const validateUser = await loginModel.login(
+      user_id,
+      password,
+      last_login_date,
+    );
 
     if (validateUser) {
       const socketService = require("../services/SocketService");
-      // 🚀 Force logout other sessions
       socketService.emitForceLogout(user_id);
 
       const token = generateToken(validateUser);

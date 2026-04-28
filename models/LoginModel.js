@@ -1,11 +1,11 @@
 const pool = require("../config/dbconfig");
 
 const LoginModel = {
-  login: async (user_id, password) => {
+  login: async (user_id, password, last_login_date) => {
     try {
       const [isExists] = await pool.query(
         `SELECT id, user_id, password FROM users WHERE user_id = ? AND password = ? AND is_active = 1`,
-        [user_id, password]
+        [user_id, password],
       );
       if (isExists.length <= 0) throw new Error("Invalid user Id or password");
 
@@ -35,6 +35,13 @@ const LoginModel = {
 
       const roleIds = roles.map((role) => role.role_id); // Extract role_id from each role
 
+      if (last_login_date) {
+        await pool.query(
+          `UPDATE users SET last_login_date = ? WHERE user_id = ?`,
+          [last_login_date, user_id],
+        );
+      }
+
       return {
         ...getUser[0],
         child_users: childUserIds,
@@ -56,7 +63,7 @@ const LoginModel = {
 
       const [updatePassword] = await pool.query(
         `UPDATE users SET password = ? WHERE user_id = ?`,
-        [newPassword, user_id]
+        [newPassword, user_id],
       );
       return updatePassword.affectedRows;
     } catch (error) {

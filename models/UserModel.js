@@ -144,7 +144,7 @@ const UserModel = {
   getUsers: async (user_id, user_name, page, limit) => {
     try {
       const params = [];
-      let getQuery = `SELECT id, user_id, user_name, phone, profile_image, password, child_users, roles, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active FROM users WHERE is_active = 1`;
+      let getQuery = `SELECT id, user_id, user_name, phone, profile_image, password, child_users, roles, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active, last_login_date FROM users WHERE is_active = 1`;
 
       let countQuery = `SELECT COUNT(id) AS total FROM users WHERE is_active = 1`;
       if (user_id) {
@@ -173,7 +173,7 @@ const UserModel = {
 
       // Get all users
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name, phone, profile_image FROM users WHERE is_active = 1`,
+        `SELECT id, user_id, user_name, phone, profile_image, last_login_date FROM users WHERE is_active = 1`,
       );
 
       const formattedResult = await Promise.all(
