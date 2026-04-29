@@ -365,6 +365,7 @@ const TicketModel = {
       const queryParams = [];
       const countParams = [];
       const statusParams = [];
+      const categoryCountParams = [];
 
       // Optimized getQuery: Use a more robust join for latest assigned_to and avoid inefficient subqueries
       let getQuery = `SELECT
@@ -435,14 +436,28 @@ const TicketModel = {
                         FROM tickets AS t
                         WHERE 1 = 1`;
 
+      let categoryCount = `SELECT
+                              tc.category_id,
+                              tc.category_name,
+                              COUNT(*) AS ticket_count
+                          FROM
+                              ticket_categories AS tc
+                          LEFT JOIN tickets AS t ON
+                              t.category_id = tc.category_id
+                          WHERE 1 = 1
+                          GROUP BY
+                              tc.category_id`;
+
       if (show_all == false) {
         const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ?)`;
         getQuery += userFilter;
         countQuery += userFilter;
         statusQuery += userFilter;
+        categoryCount += userFilter;
         queryParams.push(user_id, user_id);
         countParams.push(user_id, user_id);
         statusParams.push(user_id, user_id);
+        categoryCountParams.push(user_id, user_id);
       }
 
       if (category_id) {
@@ -452,6 +467,8 @@ const TicketModel = {
         countParams.push(category_id);
         statusQuery += ` AND t.category_id = ?`;
         statusParams.push(category_id);
+        categoryCount += ` AND t.category_id = ?`;
+        categoryCountParams.push(category_id);
       }
 
       if (start_date && end_date) {
@@ -459,15 +476,22 @@ const TicketModel = {
         getQuery += dateFilter;
         countQuery += dateFilter;
         statusQuery += dateFilter;
+        categoryCount += dateFilter;
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
         statusParams.push(start_date, end_date);
+        categoryCountParams.push(start_date, end_date);
       }
 
       if (status) {
         getQuery += ` AND t.status = ?`;
         queryParams.push(status);
+        countQuery += ` AND t.status = ?`;
         countParams.push(status);
+        statusQuery += ` AND t.status = ?`;
+        statusParams.push(status);
+        categoryCount += ` AND t.status = ?`;
+        categoryCountParams.push(status);
       }
 
       // Pagination
@@ -478,12 +502,21 @@ const TicketModel = {
       getQuery += ` ORDER BY t.ticket_id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
+      categoryCount += `
+                    GROUP BY
+                        tc.category_id,
+                        tc.category_name
+                    ORDER BY
+                        tc.category_name ASC`;
+
       // Execute all 3 primary queries in parallel using Promise.all
-      const [[result], [countResult], [statusResult]] = await Promise.all([
-        pool.query(getQuery, queryParams),
-        pool.query(countQuery, countParams),
-        pool.query(statusQuery, statusParams),
-      ]);
+      const [[result], [countResult], [statusResult], [categoryCountResult]] =
+        await Promise.all([
+          pool.query(getQuery, queryParams),
+          pool.query(countQuery, countParams),
+          pool.query(statusQuery, statusParams),
+          pool.query(categoryCount, categoryCountParams),
+        ]);
 
       const total = parseInt(countResult[0]?.total) || 0;
       const statusCount = {
@@ -519,6 +552,7 @@ const TicketModel = {
       return {
         tickets,
         statusCount,
+        categoryCount: categoryCountResult,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
