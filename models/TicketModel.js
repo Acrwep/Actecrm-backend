@@ -439,14 +439,11 @@ const TicketModel = {
       let categoryCount = `SELECT
                               tc.category_id,
                               tc.category_name,
-                              COUNT(*) AS ticket_count
+                              COUNT(t.ticket_id) AS ticket_count
                           FROM
                               ticket_categories AS tc
                           LEFT JOIN tickets AS t ON
-                              t.category_id = tc.category_id
-                          WHERE 1 = 1
-                          GROUP BY
-                              tc.category_id`;
+                              t.category_id = tc.category_id`;
 
       if (show_all == false) {
         const userFilter = ` AND (t.manager_id = ? OR t.ra_id = ?)`;
