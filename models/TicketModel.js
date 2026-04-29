@@ -359,6 +359,7 @@ const TicketModel = {
     limit,
     user_id,
     show_all,
+    category_id,
   ) => {
     try {
       const queryParams = [];
@@ -442,6 +443,15 @@ const TicketModel = {
         queryParams.push(user_id, user_id);
         countParams.push(user_id, user_id);
         statusParams.push(user_id, user_id);
+      }
+
+      if (category_id) {
+        getQuery += ` AND t.category_id = ?`;
+        queryParams.push(category_id);
+        countQuery += ` AND t.category_id = ?`;
+        countParams.push(category_id);
+        statusQuery += ` AND t.category_id = ?`;
+        statusParams.push(category_id);
       }
 
       if (start_date && end_date) {
