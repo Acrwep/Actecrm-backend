@@ -464,8 +464,8 @@ const TicketModel = {
         countParams.push(category_id);
         statusQuery += ` AND t.category_id = ?`;
         statusParams.push(category_id);
-        categoryCount += ` AND t.category_id = ?`;
-        categoryCountParams.push(category_id);
+        // categoryCount += ` AND t.category_id = ?`;
+        // categoryCountParams.push(category_id);
       }
 
       if (start_date && end_date) {
@@ -483,12 +483,11 @@ const TicketModel = {
       if (status) {
         getQuery += ` AND t.status = ?`;
         queryParams.push(status);
-        countQuery += ` AND t.status = ?`;
         countParams.push(status);
         statusQuery += ` AND t.status = ?`;
         statusParams.push(status);
-        categoryCount += ` AND t.status = ?`;
-        categoryCountParams.push(status);
+        // categoryCount += ` AND t.status = ?`;
+        // categoryCountParams.push(status);
       }
 
       // Pagination
