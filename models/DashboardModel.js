@@ -1964,7 +1964,7 @@ const DashboardModel = {
                     WHERE 1 = 1`;
 
       if (start_date && end_date) {
-        query += ` AND CAST(created_date AS DATE) BETWEEN ? AND ?`;
+        query += ` AND DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
 
