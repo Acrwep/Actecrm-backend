@@ -1,14 +1,53 @@
 const pool = require("../config/dbconfig");
 
 const TrainerModel = {
-  getTechnologies: async (name) => {
+  getTechnologies: async (name, start_date, end_date, region_id) => {
     try {
-      let getQuery = `SELECT id, name, price, offer_price, brouchures, syllabus FROM technologies WHERE is_active = 1`;
+      const queryParams = [];
+      let getQuery = `SELECT
+                          t.id,
+                          t.name,
+                          t.price,
+                          t.offer_price,
+                          t.brouchures,
+                          t.syllabus,
+                          IFNULL(COUNT(lm.id), 0) AS total_leads,
+                          SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS total_customer
+                      FROM
+                          technologies AS t
+                      LEFT JOIN lead_master AS lm ON
+                        t.id = lm.primary_course_id`;
+
+      if (start_date && end_date) {
+        getQuery += ` AND CAST(lm.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        getQuery += ` AND lm.region_id = ?`;
+        queryParams.push(region_id);
+      }
+
+      getQuery += ` LEFT JOIN customers AS c ON
+                      c.lead_id = lm.id
+                    WHERE
+                        t.is_active = 1`;
 
       if (name) {
         getQuery += ` AND name LIKE '%${name}%'`;
       }
-      const [tech] = await pool.query(getQuery);
+
+      getQuery += ` GROUP BY
+                        t.id,
+                        t.name,
+                        t.price,
+                        t.offer_price,
+                        t.brouchures,
+                        t.syllabus
+                    ORDER BY
+                        total_leads
+                    DESC`;
+      const [tech] = await pool.query(getQuery, queryParams);
       return tech;
     } catch (error) {
       throw new Error(error.message);

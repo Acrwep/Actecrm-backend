@@ -32,7 +32,7 @@ router.put("/changePassword", verifyToken, LoginController.changePassword);
 // User end
 
 // Trainer start
-router.get("/getTechnologies", TrainerController.getTechnologies);
+router.post("/getTechnologies", TrainerController.getTechnologies);
 router.get("/getBatches", TrainerController.getBatches);
 router.post("/addTrainer", verifyToken, TrainerController.addTrainer);
 router.put("/updateTrainer", TrainerController.updateTrainer);

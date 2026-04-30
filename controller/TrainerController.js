@@ -2,9 +2,14 @@ const { request, response } = require("express");
 const TrainerModel = require("../models/TrainerModel");
 
 const getTechnologies = async (request, response) => {
-  const { name } = request.query;
+  const { name, start_date, end_date, region_id } = request.body;
   try {
-    const tech = await TrainerModel.getTechnologies(name);
+    const tech = await TrainerModel.getTechnologies(
+      name,
+      start_date,
+      end_date,
+      region_id,
+    );
     return response.status(200).send({
       message: "Technologies fetched successfully",
       data: tech,
