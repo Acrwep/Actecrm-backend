@@ -104,6 +104,7 @@ const LeadModel = {
     is_manager,
     is_reentry,
     lead_action_id,
+    domain_origin,
   ) => {
     try {
       if (is_reentry === false) {
@@ -152,9 +153,10 @@ const LeadModel = {
                             batch_track_id,
                             comments,
                             created_date,
-                            region_id
+                            region_id,
+                            domain_origin,
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -181,6 +183,7 @@ const LeadModel = {
         comments,
         created_date,
         region_id,
+        domain_origin,
       ];
 
       // Insert into lead master table
@@ -267,6 +270,7 @@ const LeadModel = {
                         l.email,
                         l.country,
                         l.state,
+                        l.domain_origin,
                         l.district AS area_id,
                         a.name AS district,
                         l.primary_course_id,
@@ -463,7 +467,8 @@ const LeadModel = {
                     r.id AS region_id,
                     c.id AS customer_id,
                     la.name AS action_name,
-                    la.id AS action_id
+                    la.id AS action_id,
+                    l.domain_origin,
                 FROM
                     lead_master AS l
                 INNER JOIN (
@@ -765,6 +770,7 @@ const LeadModel = {
     region_id,
     previous_junk,
     lead_action_id,
+    domain_origin,
   ) => {
     try {
       let affectedRows = 0;
@@ -797,7 +803,8 @@ const LeadModel = {
                               branch_id = ?,
                               batch_track_id = ?,
                               comments = ?,
-                              region_id = ?
+                              region_id = ?,
+                              domain_origin = ?
                           WHERE
                               id = ?`;
       const values = [
@@ -823,6 +830,7 @@ const LeadModel = {
         batch_track_id,
         comments,
         region_id,
+        domain_origin,
         lead_id,
       ];
 
@@ -937,18 +945,20 @@ const LeadModel = {
         }
       }
 
-      const [getFollowupCount] = await pool.query(
-        followUpQuery,
-        followUpParams,
-      );
+      const [
+        [getFollowupCount],
+        [getLeadCount],
+        [webResult],
+        [junkResult],
+        [assignLeads],
+      ] = await Promise.all([
+        await pool.query(followUpQuery, followUpParams),
+        await pool.query(leadCountQuery, leadParams),
+        await pool.query(webLeadsCount, webParams),
+        await pool.query(junkQuery, junkParams),
+        await pool.query(assignQuery, assignParams),
+      ]);
 
-      const [getLeadCount] = await pool.query(leadCountQuery, leadParams);
-
-      const [webResult] = await pool.query(webLeadsCount, webParams);
-
-      const [junkResult] = await pool.query(junkQuery, junkParams);
-
-      const [assignLeads] = await pool.query(assignQuery, assignParams);
       return {
         follow_up_count: getFollowupCount[0].follow_up_count,
         total_lead_count: getLeadCount[0].total_lead_count,
