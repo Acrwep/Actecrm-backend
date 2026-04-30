@@ -34,7 +34,7 @@ const TrainerModel = {
                         t.is_active = 1`;
 
       if (name) {
-        getQuery += ` AND name LIKE '%${name}%'`;
+        getQuery += ` AND t.name LIKE '%${name}%'`;
       }
 
       getQuery += ` GROUP BY
