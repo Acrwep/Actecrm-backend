@@ -3636,6 +3636,149 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  candidateFeesHistory: async (start_date, end_date, status, name, phone) => {
+    try {
+      const queryParams = [];
+      let query = `SELECT
+                      c.id,
+                      c.name,
+                      c.phone,
+                      c.email,
+                      lm.assigned_to AS sale_id,
+                      u.user_name AS sale_name,
+                      t.name AS course_name,
+                      lm.primary_fees,
+                      pm.gst_amount,
+                      pm.total_amount,
+                      SUM(IFNULL(pt.amount, 0) + IFNULL(pt.convenience_fees, 0)) AS paid_amount,
+                      pm.total_amount - SUM(IFNULL(pt.amount, 0) + IFNULL(pt.convenience_fees, 0)) AS pending_fees,
+                      c.status,
+                      pm.id AS payment_master_id,
+                      c.created_date
+                  FROM
+                      lead_master AS lm
+                  INNER JOIN customers AS c ON
+                      c.lead_id = lm.id
+                  INNER JOIN technologies AS t ON
+                      c.enrolled_course = t.id
+                  INNER JOIN users AS u ON
+                    u.user_id = lm.assigned_to
+                  LEFT JOIN payment_master AS pm ON
+                      pm.lead_id = lm.id
+                  LEFT JOIN payment_trans AS pt ON
+                    pm.id = pt.payment_master_id
+                      AND pt.payment_status <> 'Rejected'
+                  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        query += ` AND CAST(c.created_at AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      if (status) {
+        query += ` AND c.status = ?`;
+        queryParams.push(status);
+      }
+
+      if (name) {
+        query += ` AND c.name LIKE ?`;
+        queryParams.push(`%${name}%`);
+      }
+
+      if (phone) {
+        query += ` AND c.phone LIKE ?`;
+        queryParams.push(`%${phone}%`);
+      }
+
+      query += ` GROUP BY
+                    c.id,
+                    c.name,
+                    c.phone,
+                    c.email,
+                    lm.assigned_to,
+                    u.user_name,
+                    t.name,
+                    lm.primary_fees,
+                    pm.gst_amount,
+                    pm.total_amount,
+                    c.status,
+                    pm.id,
+                    c.created_date`;
+
+      const [result] = await pool.query(query, queryParams);
+
+      let transMap = new Map();
+      const paymentMasterIds = [
+        ...new Set(result.map((item) => item.payment_master_id)),
+      ];
+
+      if (paymentMasterIds.length > 0) {
+        const [transactions] = await pool.query(
+          `SELECT
+              pt.id,
+              pt.amount,
+              pt.convenience_fees,
+              pt.invoice_number,
+              pt.invoice_date,
+              pt.payment_master_id,
+              pm.name AS mode
+          FROM
+              payment_trans AS pt
+          INNER JOIN payment_mode AS pm ON
+            pt.paymode_id = pm.id
+          WHERE
+              pt.payment_master_id IN (?)
+              AND pt.payment_status <> 'Rejected'
+          ORDER BY
+              pt.invoice_date ASC`,
+          [paymentMasterIds],
+        );
+
+        transactions.forEach((t) =>
+          transMap.set(t.payment_master_id, [
+            ...(transMap.get(t.payment_master_id) || []),
+            t,
+          ]),
+        );
+      }
+
+      const formattedResult = result.map((item) => {
+        const trans = transMap.get(item.payment_master_id) || [];
+
+        const formatInstallment = (t) => {
+          if (t) {
+            return {
+              amount: t.amount,
+              date: t.invoice_date,
+              mode: t.mode,
+            };
+          }
+          return {
+            amount: null,
+            date: null,
+            mode: null,
+          };
+        };
+
+        const { payment_master_id, ...rest } = item;
+
+        return {
+          ...rest,
+          payment_master_id,
+          "1st_installment": formatInstallment(trans[0]),
+          "2nd_installment": formatInstallment(trans[1]),
+          "3rd_installment": formatInstallment(trans[2]),
+          "4th_installment": formatInstallment(trans[3]),
+          "5th_installment": formatInstallment(trans[4]),
+        };
+      });
+
+      return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;

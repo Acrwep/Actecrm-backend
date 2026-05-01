@@ -325,6 +325,28 @@ const getTicketReport = async (request, response) => {
   }
 };
 
+const candidateFeesHistory = async (request, response) => {
+  const { start_date, end_date, status, name, phone } = request.body;
+  try {
+    const result = await ReportModel.candidateFeesHistory(
+      start_date,
+      end_date,
+      status,
+      name,
+      phone,
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -342,4 +364,5 @@ module.exports = {
   getUserwiseTransaction,
   getServerReport,
   getTicketReport,
+  candidateFeesHistory,
 };

@@ -556,4 +556,10 @@ router.post(
   verifyToken,
   DashboardController.getWebsiteDashboard,
 );
+
+router.post(
+  "/candidateFeesHistory",
+  verifyToken,
+  ReportController.candidateFeesHistory,
+);
 module.exports = router;
