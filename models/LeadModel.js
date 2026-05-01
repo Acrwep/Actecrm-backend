@@ -1944,6 +1944,47 @@ const LeadModel = {
         countParams.push(start_date, end_date);
       }
 
+      let prefix;
+      if (region_type) {
+        const match = region_type.match(/^[A-Za-z]+/);
+        prefix = match ? match[0] : "";
+      }
+
+      const courseFilter = `
+                          (
+                            LOWER(course) LIKE '%data analytics%'
+                            OR LOWER(course) LIKE 'data science'
+                            OR LOWER(course) LIKE '%fullstack developer%'
+                            OR LOWER(course) LIKE '%software testing%'
+                            OR LOWER(course) LIKE '%cloud computing%'
+                            OR LOWER(course) LIKE '%digital marketing%'
+                            OR LOWER(course) LIKE '%machine learning%'
+                            OR LOWER(course) LIKE '%gen ai%'
+                            OR LOWER(course) LIKE '%sap fico%'
+                            OR LOWER(course) LIKE '%sap mm%'
+                          )`;
+
+      if (prefix === "HUB") {
+        getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+
+        countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+      }
+
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+        countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+      }
+
+      if (prefix !== "" && prefix === "HUB") {
+        getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+        countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+      }
+
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += ` AND training LIKE '%Class%'`;
+        countQuery += ` AND training LIKE '%Class%'`;
+      }
+
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
