@@ -1079,6 +1079,17 @@ const CustomerModel = {
 
       if (Array.isArray(customers)) {
         for (const customer of customers) {
+          if (customer.class_percentage === 100) {
+            const [getFeesDetails] = await pool.query(
+              `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
+              [customer.customer_id],
+            );
+
+            if (getFeesDetails.length > 0 && getFeesDetails[0].pending_fees > 0)
+              throw new Error(
+                `The candidate has pending due (${getFeesDetails[0].pending_fees}), Kindly collect the pending fees`,
+              );
+          }
           const [result] = await pool.query(
             `UPDATE customers SET class_schedule_id = ?, class_percentage = ?, class_comments = ?, class_attachment = ? WHERE id = ?`,
             [

@@ -468,7 +468,7 @@ const LeadModel = {
                     c.id AS customer_id,
                     la.name AS action_name,
                     la.id AS action_id,
-                    l.domain_origin,
+                    l.domain_origin
                 FROM
                     lead_master AS l
                 INNER JOIN (
