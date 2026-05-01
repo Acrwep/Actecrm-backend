@@ -154,7 +154,7 @@ const LeadModel = {
                             comments,
                             created_date,
                             region_id,
-                            domain_origin,
+                            domain_origin
                         )
                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
