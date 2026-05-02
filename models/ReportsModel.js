@@ -3651,8 +3651,10 @@ const ReportModel = {
                       lm.primary_fees,
                       pm.gst_amount,
                       pm.total_amount,
-                      SUM(IFNULL(pt.amount, 0) + IFNULL(pt.convenience_fees, 0)) AS paid_amount,
-                      pm.total_amount - SUM(IFNULL(pt.amount, 0) + IFNULL(pt.convenience_fees, 0)) AS pending_fees,
+                      SUM(IFNULL(pt.amount, 0)) AS paid_amount,
+                      SUM(IFNULL(pt.convenience_fees, 0)) AS convenience_fees_amount,
+                      SUM(IFNULL(pt.amount, 0) + IFNULL(pt.convenience_fees, 0)) AS total_paid_amount,
+                      pm.total_amount - SUM(IFNULL(pt.amount, 0)) AS pending_fees,
                       c.status,
                       pm.id AS payment_master_id,
                       c.created_date
@@ -3718,7 +3720,7 @@ const ReportModel = {
           `SELECT
               pt.id,
               pt.amount,
-              pt.convenience_fees,
+              IFNULL(pt.convenience_fees, 0) as convenience_fees,
               pt.invoice_number,
               pt.invoice_date,
               pt.payment_master_id,
@@ -3752,12 +3754,14 @@ const ReportModel = {
               amount: t.amount,
               date: t.invoice_date,
               mode: t.mode,
+              convenience_fees: t.convenience_fees,
             };
           }
           return {
             amount: null,
             date: null,
             mode: null,
+            convenience_fees: null,
           };
         };
 
