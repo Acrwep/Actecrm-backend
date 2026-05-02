@@ -154,7 +154,7 @@ const BatchModel = {
 
       let customerMap = new Map();
 
-      if(batchIds.length > 0){
+      if (batchIds.length > 0) {
         const [customers] = await pool.query(
           `SELECT
               bt.id AS batch_trans_id,
@@ -187,7 +187,7 @@ const BatchModel = {
           LEFT JOIN certificates AS cer ON
             cer.customer_id = c.id
           WHERE bt.batch_master_id IN (?)`,
-          [batchIds]
+          [batchIds],
         );
 
         customers.forEach((r) => {
@@ -199,14 +199,20 @@ const BatchModel = {
       }
 
       let res = batches.map((item) => {
-
         const customers = customerMap.get(item.batch_id) || [];
 
-        const completed_student = customers.filter((c) => Number(c.class_percentage) === 100).length;
+        const completed_student = customers.filter(
+          (c) => Number(c.class_percentage) === 100,
+        ).length;
         const total_students = customers.length;
-        const linkedin_review = customers.filter((c) => c.linkedin_review !== null).length;
-        const google_review = customers.filter((c) => c.google_review !== null).length;
-        const status = completed_student === total_students ? "Completed" : "In Progress";
+        const linkedin_review = customers.filter(
+          (c) => c.linkedin_review !== null,
+        ).length;
+        const google_review = customers.filter(
+          (c) => c.google_review !== null,
+        ).length;
+        const status =
+          completed_student === total_students ? "Completed" : "In Progress";
 
         return {
           ...item,

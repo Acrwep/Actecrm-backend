@@ -3672,7 +3672,7 @@ const ReportModel = {
                   WHERE 1 = 1`;
 
       if (start_date && end_date) {
-        query += ` AND CAST(c.created_at AS DATE) BETWEEN ? AND ?`;
+        query += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
 
