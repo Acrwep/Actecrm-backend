@@ -920,12 +920,12 @@ const LeadModel = {
       if (start_date && end_date) {
         followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
         leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        // webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         junkQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         assignQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
         followUpParams.push(start_date, end_date);
         leadParams.push(start_date, end_date);
-        webParams.push(start_date, end_date);
+        // webParams.push(start_date, end_date);
         junkParams.push(start_date, end_date);
         assignParams.push(start_date, end_date);
       }
