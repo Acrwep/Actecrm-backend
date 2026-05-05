@@ -2218,6 +2218,7 @@ const LeadModel = {
     lead_ids,
     is_assigned,
     assigned_date,
+    is_reassigned,
   ) => {
     const conn = await pool.getConnection();
 
@@ -2245,12 +2246,14 @@ const LeadModel = {
         // Check already assigned leads
         const alreadyAssigned = rows.filter((r) => r.assigned_to !== null);
 
-        if (alreadyAssigned.length > 0) {
-          throw new Error(
-            `Some leads are already assigned: ${alreadyAssigned
-              .map((l) => l.id)
-              .join(", ")}`,
-          );
+        if (is_reassigned === true) {
+          if (alreadyAssigned.length > 0) {
+            throw new Error(
+              `Some leads are already assigned: ${alreadyAssigned
+                .map((l) => l.id)
+                .join(", ")}`,
+            );
+          }
         }
 
         // Assign all
