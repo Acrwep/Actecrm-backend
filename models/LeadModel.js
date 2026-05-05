@@ -902,7 +902,7 @@ const LeadModel = {
       const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
       const followUpParams = [];
       const leadParams = [];
-      const webParams = [];
+      // const webParams = [];
       const junkParams = [];
       const assignParams = [];
       let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE lf.is_updated = 0 AND c.id IS NULL`;
@@ -954,7 +954,7 @@ const LeadModel = {
       ] = await Promise.all([
         await pool.query(followUpQuery, followUpParams),
         await pool.query(leadCountQuery, leadParams),
-        await pool.query(webLeadsCount, webParams),
+        await pool.query(webLeadsCount),
         await pool.query(junkQuery, junkParams),
         await pool.query(assignQuery, assignParams),
       ]);
