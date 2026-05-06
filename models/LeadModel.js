@@ -2302,12 +2302,16 @@ const LeadModel = {
       const queryParams = [];
       const countParams = [];
 
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY l.assigned_date DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, l.assigned_date AS assigned_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY l.assigned_date DESC) AS row_num, l.id, l.name, l.email, l.phone, l.course, l.comments, IFNULL(l.location, '') AS location, l.date, l.time, l.training, l.corporate_training, l.status, l.is_junk, l.is_deleted, l.assigned_date AS assigned_date_ist, l.lead_type, l.assigned_to, u.user_name AS assigned_to_user, ab.user_id AS assigned_by, ab.user_name AS assigned_by_user, l.domain_origin FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL AND (u.user_id = ? OR ab.user_id = ?)`;
+      let countQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL`;
 
-      queryParams.push(user_id, user_id);
-      countParams.push(user_id, user_id);
+      if (user_id) {
+        getQuery += ` AND (u.user_id = ? OR ab.user_id = ?)`;
+        countQuery += ` AND (u.user_id = ? OR ab.user_id = ?)`;
+        queryParams.push(user_id, user_id);
+        countParams.push(user_id, user_id);
+      }
 
       const addCondition = (field, value) => {
         getQuery += ` AND ${field} LIKE ?`;
