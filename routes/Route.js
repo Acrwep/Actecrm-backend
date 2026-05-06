@@ -562,4 +562,5 @@ router.post(
   verifyToken,
   ReportController.candidateFeesHistory,
 );
+
 module.exports = router;
