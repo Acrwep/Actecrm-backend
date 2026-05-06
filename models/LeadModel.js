@@ -235,6 +235,11 @@ const LeadModel = {
 
         affectedRows += next_follow_up.affectedRows;
       }
+
+      await pool.query(
+        `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        [result.insertId, "Form Pending", created_date, user_id],
+      );
       return result.insertId;
     } catch (error) {
       throw new Error(error.message);
@@ -2006,6 +2011,7 @@ const LeadModel = {
       }));
 
       const today = new Date().toISOString().split("T")[0];
+      console.log("today", today);
 
       const [getLeadCount] = await pool.query(
         `SELECT IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,

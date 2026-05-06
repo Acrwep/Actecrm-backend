@@ -1026,6 +1026,35 @@ const CustomerModel = {
           );
 
           affectedRows += result.affectedRows;
+
+          const [isExists] = await pool.query(
+            `SELECT id FROM customer_status_history WHERE customer_id = ? AND status = ?`,
+            [customer.customer_id, customer.status],
+          );
+
+          if (isExists.length === 0) {
+            await pool.query(
+              `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
+              [
+                customer.customer_id,
+                customer.status,
+                customer.updated_at,
+                customer.updated_by,
+              ],
+            );
+            affectedRows += 1;
+          } else {
+            await pool.query(
+              `UPDATE customer_status_history SET updated_at = ?, updated_by = ? WHERE customer_id = ? AND status = ?`,
+              [
+                customer.updated_at,
+                customer.updated_by,
+                customer.customer_id,
+                customer.status,
+              ],
+            );
+            affectedRows += 1;
+          }
         }
       }
 
