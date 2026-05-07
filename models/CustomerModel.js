@@ -1528,12 +1528,53 @@ const CustomerModel = {
                         WHERE
                             1 = 1`;
 
-      let financeQuery = `SELECT COUNT(CASE WHEN c.status IN ('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN region AS r ON r.id = c.region_id LEFT JOIN payment_master AS pm ON c.lead_id = pm.lead_id LEFT JOIN (SELECT pm.lead_id, MAX(pt.payment_status = 'Verify Pending') AS has_verify_pending FROM payment_master pm JOIN payment_trans pt ON pm.id = pt.payment_master_id GROUP BY pm.lead_id) AS pf ON pf.lead_id = c.lead_id WHERE 1 = 1`;
+      let financeQuery = `SELECT
+                              COUNT(CASE WHEN c.status IN('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance
+                          FROM
+                              customers AS c
+                          INNER JOIN lead_master AS l ON
+                              c.lead_id = l.id
+                          INNER JOIN region AS r ON
+                              r.id = c.region_id
+                          LEFT JOIN payment_master AS pm ON
+                              c.lead_id = pm.lead_id
+                          LEFT JOIN(
+                              SELECT
+                                  pm.lead_id,
+                                  MAX(pt.payment_status = 'Verify Pending') AS has_verify_pending
+                              FROM
+                                  payment_master pm
+                              JOIN payment_trans pt ON
+                                  pm.id = pt.payment_master_id
+                              GROUP BY pm.lead_id
+                          ) AS pf ON
+                              pf.lead_id = c.lead_id
+                          WHERE 1 = 1`;
 
       // Get second due payments count query
-      let paymentQuery = `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
+      let paymentQuery = `SELECT
+                              COUNT(pt.id) AS awaiting_finance
+                          FROM customers AS c
+                          INNER JOIN lead_master AS l ON
+                              c.lead_id = l.id
+                          INNER JOIN payment_master AS pm ON
+                              pm.lead_id = c.lead_id
+                          INNER JOIN payment_trans AS pt ON
+                              pt.payment_master_id = pm.id
+                          WHERE
+                              pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
 
-      let rejectedPaymentQuery = `SELECT SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE 1 = 1`;
+      let rejectedPaymentQuery = `SELECT
+                                    SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected
+                                FROM
+                                    customers AS c
+                                INNER JOIN lead_master AS l ON
+                                    c.lead_id = l.id
+                                INNER JOIN payment_master AS pm ON
+                                    pm.lead_id = c.lead_id
+                                INNER JOIN payment_trans AS pt ON
+                                    pt.payment_master_id = pm.id
+                                WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
@@ -1572,11 +1613,10 @@ const CustomerModel = {
         const dateColumn =
           status === "Awaiting Finance" || status === "Payment Rejected"
             ? "c.payment_date"
-            : "csh.status_updated_at";
-
+            : "COALESCE(csh.status_updated_at, c.created_date)";
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(csh.status_updated_at AS DATE) BETWEEN ? AND ?`;
-        getCountQuery += ` AND CAST(csh.status_updated_at AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
+        getCountQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
         financeQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         rejectedPaymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
@@ -1593,7 +1633,14 @@ const CustomerModel = {
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+          getQuery += ` AND (c.status = ? OR EXISTS (
+                          SELECT 1
+                          FROM payment_trans ptx
+                          WHERE ptx.payment_master_id = pm.id
+                          AND ptx.is_second_due = 1
+                          AND ptx.is_last_pay_rejected = 0
+                          AND ptx.payment_status = 'Verify Pending'
+                      ))`;
           countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
           queryParams.push(status);
           countQueryParams.push(status);
