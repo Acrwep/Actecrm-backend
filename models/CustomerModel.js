@@ -237,8 +237,7 @@ const CustomerModel = {
                             cer.location AS cer_location,
                             payment_next.next_due_date,
 							              payment_info.is_second_due AS is_second_due,
-                            payment_rejected.is_last_pay_rejected,
-                            csh.status_updated_at
+                            payment_rejected.is_last_pay_rejected
                         FROM
                             customers AS c
                         LEFT JOIN (
@@ -455,18 +454,12 @@ const CustomerModel = {
 
       // Add date range filter
       if (from_date && to_date) {
-        const dateColumn =
-          status === "Awaiting Finance" || status === "Payment Rejected"
-            ? "c.payment_date"
-            : "csh.status_updated_at";
-
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        getQuery += ` AND CAST(${status === "Awaiting Finance" || status === "Payment Rejected" ? "c.payment_date" : "csh.status_updated_at"} AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(csh.status_updated_at AS DATE) BETWEEN ? AND ?`;
         getCountQuery += ` AND CAST(csh.status_updated_at AS DATE) BETWEEN ? AND ?`;
         financeQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         rejectedPaymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
-
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
@@ -1390,15 +1383,6 @@ const CustomerModel = {
                       pm.total_amount AS total_course_amount
                     FROM
                         customers AS c
-                    LEFT JOIN (
-                          SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                          FROM customer_status_history AS x
-                          INNER JOIN (
-                            SELECT customer_id, MAX(id) AS max_id
-                            FROM customer_status_history
-                            GROUP BY customer_id
-                          ) AS y ON y.max_id = x.id
-                        ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
                     LEFT JOIN technologies AS t ON
                         c.enrolled_course = t.id
                     LEFT JOIN region AS r ON
@@ -1445,67 +1429,32 @@ const CustomerModel = {
 
       // Get pagination count query
       let countQuery = `SELECT
-                            COUNT(c.id) AS total
-                        FROM customers AS c
-                        LEFT JOIN (
-                            SELECT
-                                x.customer_id,
-                                x.status,
-                                x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                                SELECT
-                                    customer_id,
-                                    MAX(id) AS max_id
-                                FROM customer_status_history
-                                GROUP BY customer_id
-                            ) AS y
-                                ON y.max_id = x.id
-                        ) AS csh
-                            ON csh.customer_id = c.id
-                            AND csh.status = c.status
-                        LEFT JOIN technologies AS t
-                            ON c.enrolled_course = t.id
-                        LEFT JOIN region AS r
-                            ON r.id = c.region_id
-                        LEFT JOIN lead_master AS l
-                            ON l.id = c.lead_id
-                        LEFT JOIN payment_master AS pm
-                            ON pm.lead_id = c.lead_id
-                        LEFT JOIN technologies AS tg
-                            ON l.primary_course_id = tg.id
-                        LEFT JOIN users AS au
-                            ON au.user_id = l.assigned_to
-                        LEFT JOIN (
-                            SELECT
-                                MAX(id) AS trainer_map_id,
-                                customer_id
-                            FROM trainer_mapping
-                            GROUP BY customer_id
-                        ) AS latest_map
-                            ON latest_map.customer_id = c.id
-                        LEFT JOIN trainer_mapping map
-                            ON map.id = latest_map.trainer_map_id
-                        LEFT JOIN trainer AS tr
-                            ON tr.id = map.trainer_id
-                        LEFT JOIN users AS tus
-                            ON tr.created_by = tus.user_id
-                        LEFT JOIN (
-                            SELECT
-                                payment_master_id,
-                                MAX(id) AS latest_trans_id,
-                                SUM(amount) AS total_paid
+                            COUNT(DISTINCT c.id) AS total
+                        FROM
+                            customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            l.id = c.lead_id
+                        LEFT JOIN payment_master AS pm ON
+                            pm.lead_id = c.lead_id
+                        LEFT JOIN technologies AS tg ON
+                            l.primary_course_id = tg.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN(
+                          SELECT 
+                              payment_master_id,
+                              MAX(id) AS latest_trans_id,
+                              SUM(amount) AS total_paid
                             FROM payment_trans
                             WHERE payment_status IN ('Verified', 'Verify Pending')
                             GROUP BY payment_master_id
-                        ) AS ps
-                            ON ps.payment_master_id = pm.id
-                        LEFT JOIN payment_trans AS pt
-                            ON pt.id = ps.latest_trans_id
+                        ) AS ps ON ps.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt ON
+                          pt.id = ps.latest_trans_id
                         LEFT JOIN(
                           SELECT 
-                            payment_master_id,
-                            MAX(id) AS latest_trans_id
+                              payment_master_id,
+                              MAX(id) AS latest_trans_id
                             FROM payment_trans
                             GROUP BY payment_master_id
                         ) AS ps1 ON ps1.payment_master_id = pm.id
@@ -1514,120 +1463,14 @@ const CustomerModel = {
                         WHERE 1 = 1`;
 
       // All your existing count queries remain unchanged
-      let getCountQuery = `SELECT
-                          COUNT(c.id) AS total_count,
-                          COUNT(CASE WHEN c.status IN('Form Pending') THEN 1 END) AS form_pending,
-                          COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify,
-                          COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
-                          COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,
-                          COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify,
-                          COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class,
-                          COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going,
-                          COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled,
-                          COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
-                          COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
-                          COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
-                          COUNT(CASE WHEN c.status IN(
-                                'Hold',
-                                'Partially Closed',
-                                'Discontinued',
-                                'Refund',
-                                'Demo Completed',
-                                'Videos Given'
-                            ) THEN 1 END) AS Others
-                        FROM customers AS c
-                        INNER JOIN lead_master AS l ON
-                            c.lead_id = l.id
-                        INNER JOIN region AS r ON
-                            r.id = c.region_id
-                        LEFT JOIN payment_master AS pm ON
-                            c.lead_id = pm.lead_id
-                        LEFT JOIN (
-                          SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                          FROM customer_status_history AS x
-                          INNER JOIN (
-                            SELECT customer_id, MAX(id) AS max_id
-                            FROM customer_status_history
-                            GROUP BY customer_id
-                          ) AS y ON y.max_id = x.id
-                        ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
-                        WHERE
-                            1 = 1`;
+      let getCountQuery = `SELECT COUNT(c.id) AS total_count, COUNT(CASE WHEN c.status IN ('Form Pending') THEN 1 END) AS form_pending, COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify, COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer, COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify, COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class, COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going, COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled, COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process, COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed, COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated, COUNT(CASE WHEN c.status IN ('Hold', 'Partially Closed', 'Discontinued', 'Refund', 'Demo Completed', 'Videos Given') THEN 1 END) AS Others FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN region AS r ON r.id = c.region_id LEFT JOIN payment_master AS pm ON c.lead_id = pm.lead_id WHERE 1 = 1`;
 
-      let financeQuery = `SELECT
-                              COUNT(CASE WHEN c.status IN('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance
-                          FROM
-                              customers AS c
-                          LEFT JOIN (
-                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                              SELECT customer_id, MAX(id) AS max_id
-                              FROM customer_status_history
-                              GROUP BY customer_id
-                            ) AS y ON y.max_id = x.id
-                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
-                          INNER JOIN lead_master AS l ON
-                              c.lead_id = l.id
-                          INNER JOIN region AS r ON
-                              r.id = c.region_id
-                          LEFT JOIN payment_master AS pm ON
-                              c.lead_id = pm.lead_id
-                          LEFT JOIN(
-                              SELECT
-                                  pm.lead_id,
-                                  MAX(pt.payment_status = 'Verify Pending') AS has_verify_pending
-                              FROM
-                                  payment_master pm
-                              JOIN payment_trans pt ON
-                                  pm.id = pt.payment_master_id
-                              GROUP BY pm.lead_id
-                          ) AS pf ON
-                              pf.lead_id = c.lead_id
-                          WHERE 1 = 1`;
+      let financeQuery = `SELECT COUNT(CASE WHEN c.status IN ('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN region AS r ON r.id = c.region_id LEFT JOIN payment_master AS pm ON c.lead_id = pm.lead_id LEFT JOIN (SELECT pm.lead_id, MAX(pt.payment_status = 'Verify Pending') AS has_verify_pending FROM payment_master pm JOIN payment_trans pt ON pm.id = pt.payment_master_id GROUP BY pm.lead_id) AS pf ON pf.lead_id = c.lead_id WHERE 1 = 1`;
 
       // Get second due payments count query
-      let paymentQuery = `SELECT
-                              COUNT(pt.id) AS awaiting_finance
-                          FROM customers AS c
-                          LEFT JOIN (
-                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                              SELECT customer_id, MAX(id) AS max_id
-                              FROM customer_status_history
-                              GROUP BY customer_id
-                            ) AS y ON y.max_id = x.id
-                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
-                          INNER JOIN lead_master AS l ON
-                              c.lead_id = l.id
-                          INNER JOIN payment_master AS pm ON
-                              pm.lead_id = c.lead_id
-                          INNER JOIN payment_trans AS pt ON
-                              pt.payment_master_id = pm.id
-                          WHERE
-                              pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
+      let paymentQuery = `SELECT COUNT(pt.id) AS awaiting_finance FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE pt.is_second_due = 1 AND pt.payment_status = 'Verify Pending'`;
 
-      let rejectedPaymentQuery = `SELECT
-                                    SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected
-                                FROM
-                                    customers AS c
-                                LEFT JOIN (
-                                  SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                                  FROM customer_status_history AS x
-                                  INNER JOIN (
-                                    SELECT customer_id, MAX(id) AS max_id
-                                    FROM customer_status_history
-                                    GROUP BY customer_id
-                                  ) AS y ON y.max_id = x.id
-                                ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
-                                INNER JOIN lead_master AS l ON
-                                    c.lead_id = l.id
-                                INNER JOIN payment_master AS pm ON
-                                    pm.lead_id = c.lead_id
-                                INNER JOIN payment_trans AS pt ON
-                                    pt.payment_master_id = pm.id
-                                WHERE 1 = 1`;
+      let rejectedPaymentQuery = `SELECT SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected FROM customers AS c INNER JOIN lead_master AS l ON c.lead_id = l.id INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
@@ -1663,17 +1506,12 @@ const CustomerModel = {
 
       // Add date range filter
       if (from_date && to_date) {
-        const dateColumn =
-          status === "Awaiting Finance" || status === "Payment Rejected"
-            ? "c.payment_date"
-            : "COALESCE(csh.status_updated_at, c.created_date)";
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        getCountQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
-        financeQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        paymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        rejectedPaymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-
+        getQuery += ` AND CAST(${status === "Awaiting Finance" || status === "Payment Rejected" ? "c.payment_date" : "c.created_date"} AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        getCountQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        financeQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+        paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+        rejectedPaymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
