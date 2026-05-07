@@ -236,10 +236,6 @@ const LeadModel = {
         affectedRows += next_follow_up.affectedRows;
       }
 
-      await pool.query(
-        `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
-        [result.insertId, "Form Pending", created_date, user_id],
-      );
       return result.insertId;
     } catch (error) {
       throw new Error(error.message);

@@ -171,6 +171,11 @@ const PaymentModel = {
         [values],
       );
 
+      await pool.query(
+        `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        [insertCustomer.insertId, "Form Pending", created_date, updated_by],
+      );
+
       const [getInvoiceDetails] = await pool.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
         [transInsert.insertId],
