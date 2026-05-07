@@ -1445,41 +1445,67 @@ const CustomerModel = {
 
       // Get pagination count query
       let countQuery = `SELECT
-                            COUNT(DISTINCT c.id) AS total
-                        FROM
-                            customers AS c
+                            COUNT(c.id) AS total
+                        FROM customers AS c
                         LEFT JOIN (
-                          SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                          FROM customer_status_history AS x
-                          INNER JOIN (
-                            SELECT customer_id, MAX(id) AS max_id
-                            FROM customer_status_history
+                            SELECT
+                                x.customer_id,
+                                x.status,
+                                x.updated_at AS status_updated_at
+                            FROM customer_status_history AS x
+                            INNER JOIN (
+                                SELECT
+                                    customer_id,
+                                    MAX(id) AS max_id
+                                FROM customer_status_history
+                                GROUP BY customer_id
+                            ) AS y
+                                ON y.max_id = x.id
+                        ) AS csh
+                            ON csh.customer_id = c.id
+                            AND csh.status = c.status
+                        LEFT JOIN technologies AS t
+                            ON c.enrolled_course = t.id
+                        LEFT JOIN region AS r
+                            ON r.id = c.region_id
+                        LEFT JOIN lead_master AS l
+                            ON l.id = c.lead_id
+                        LEFT JOIN payment_master AS pm
+                            ON pm.lead_id = c.lead_id
+                        LEFT JOIN technologies AS tg
+                            ON l.primary_course_id = tg.id
+                        LEFT JOIN users AS au
+                            ON au.user_id = l.assigned_to
+                        LEFT JOIN (
+                            SELECT
+                                MAX(id) AS trainer_map_id,
+                                customer_id
+                            FROM trainer_mapping
                             GROUP BY customer_id
-                          ) AS y ON y.max_id = x.id
-                        ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
-                        LEFT JOIN lead_master AS l ON
-                            l.id = c.lead_id
-                        LEFT JOIN payment_master AS pm ON
-                            pm.lead_id = c.lead_id
-                        LEFT JOIN technologies AS tg ON
-                            l.primary_course_id = tg.id
-                        LEFT JOIN region AS r ON
-                            r.id = c.region_id
-                        LEFT JOIN(
-                          SELECT 
-                              payment_master_id,
-                              MAX(id) AS latest_trans_id,
-                              SUM(amount) AS total_paid
+                        ) AS latest_map
+                            ON latest_map.customer_id = c.id
+                        LEFT JOIN trainer_mapping map
+                            ON map.id = latest_map.trainer_map_id
+                        LEFT JOIN trainer AS tr
+                            ON tr.id = map.trainer_id
+                        LEFT JOIN users AS tus
+                            ON tr.created_by = tus.user_id
+                        LEFT JOIN (
+                            SELECT
+                                payment_master_id,
+                                MAX(id) AS latest_trans_id,
+                                SUM(amount) AS total_paid
                             FROM payment_trans
                             WHERE payment_status IN ('Verified', 'Verify Pending')
                             GROUP BY payment_master_id
-                        ) AS ps ON ps.payment_master_id = pm.id
-                        LEFT JOIN payment_trans AS pt ON
-                          pt.id = ps.latest_trans_id
+                        ) AS ps
+                            ON ps.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt
+                            ON pt.id = ps.latest_trans_id
                         LEFT JOIN(
                           SELECT 
-                              payment_master_id,
-                              MAX(id) AS latest_trans_id
+                            payment_master_id,
+                            MAX(id) AS latest_trans_id
                             FROM payment_trans
                             GROUP BY payment_master_id
                         ) AS ps1 ON ps1.payment_master_id = pm.id
@@ -1615,7 +1641,7 @@ const CustomerModel = {
             ? "c.payment_date"
             : "COALESCE(csh.status_updated_at, c.created_date)";
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
+        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         getCountQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
         financeQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
         paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
@@ -1633,14 +1659,7 @@ const CustomerModel = {
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR EXISTS (
-                          SELECT 1
-                          FROM payment_trans ptx
-                          WHERE ptx.payment_master_id = pm.id
-                          AND ptx.is_second_due = 1
-                          AND ptx.is_last_pay_rejected = 0
-                          AND ptx.payment_status = 'Verify Pending'
-                      ))`;
+          getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
           countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
           queryParams.push(status);
           countQueryParams.push(status);
