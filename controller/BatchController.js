@@ -34,13 +34,15 @@ const createBatch = async (request, response) => {
 };
 
 const getBatches = async (request, response) => {
-  const { trainer_id, batch_id, start_date, end_date } = request.body;
+  const { trainer_id, batch_id, start_date, end_date, region_id } =
+    request.body;
   try {
     const result = await BatchModel.getBatches(
       trainer_id,
       batch_id,
       start_date,
       end_date,
+      region_id,
     );
     response.status(200).send({
       message: "Batches fetched successfully",

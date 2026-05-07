@@ -107,7 +107,7 @@ const BatchModel = {
     }
   },
 
-  getBatches: async (trainer_id, batch_id, start_date, end_date) => {
+  getBatches: async (trainer_id, batch_id, start_date, end_date, region_id) => {
     try {
       const batchParams = [];
       let batchQuery = `SELECT
@@ -144,6 +144,11 @@ const BatchModel = {
       if (start_date && end_date) {
         batchQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
         batchParams.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        batchQuery += ` AND bm.region_id = ?`;
+        batchParams.push(region_id);
       }
 
       batchQuery += ` ORDER BY bm.id DESC`;
