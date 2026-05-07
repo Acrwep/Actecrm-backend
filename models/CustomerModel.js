@@ -1643,9 +1643,9 @@ const CustomerModel = {
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         getCountQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
-        financeQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
-        paymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
-        rejectedPaymentQuery += ` AND CAST(c.payment_date AS DATE) BETWEEN ? AND ?`;
+        financeQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        paymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        rejectedPaymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
 
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
