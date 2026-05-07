@@ -1558,6 +1558,15 @@ const CustomerModel = {
                               COUNT(CASE WHEN c.status IN('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance
                           FROM
                               customers AS c
+                          LEFT JOIN (
+                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
+                            FROM customer_status_history AS x
+                            INNER JOIN (
+                              SELECT customer_id, MAX(id) AS max_id
+                              FROM customer_status_history
+                              GROUP BY customer_id
+                            ) AS y ON y.max_id = x.id
+                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
                           INNER JOIN lead_master AS l ON
                               c.lead_id = l.id
                           INNER JOIN region AS r ON
@@ -1581,6 +1590,15 @@ const CustomerModel = {
       let paymentQuery = `SELECT
                               COUNT(pt.id) AS awaiting_finance
                           FROM customers AS c
+                          LEFT JOIN (
+                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
+                            FROM customer_status_history AS x
+                            INNER JOIN (
+                              SELECT customer_id, MAX(id) AS max_id
+                              FROM customer_status_history
+                              GROUP BY customer_id
+                            ) AS y ON y.max_id = x.id
+                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
                           INNER JOIN lead_master AS l ON
                               c.lead_id = l.id
                           INNER JOIN payment_master AS pm ON
@@ -1594,6 +1612,15 @@ const CustomerModel = {
                                     SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected
                                 FROM
                                     customers AS c
+                                LEFT JOIN (
+                                  SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
+                                  FROM customer_status_history AS x
+                                  INNER JOIN (
+                                    SELECT customer_id, MAX(id) AS max_id
+                                    FROM customer_status_history
+                                    GROUP BY customer_id
+                                  ) AS y ON y.max_id = x.id
+                                ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
                                 INNER JOIN lead_master AS l ON
                                     c.lead_id = l.id
                                 INNER JOIN payment_master AS pm ON
