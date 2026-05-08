@@ -2327,10 +2327,10 @@ const LeadModel = {
         countParams.push(`%${value}%`);
       };
 
-      if (name) addCondition("name", name);
-      if (email) addCondition("email", email);
-      if (phone) addCondition("phone", phone);
-      if (course) addCondition("course", course);
+      if (name) addCondition("l.name", name);
+      if (email) addCondition("l.email", email);
+      if (phone) addCondition("l.phone", phone);
+      if (course) addCondition("l.course", course);
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
