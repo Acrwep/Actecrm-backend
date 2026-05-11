@@ -1083,34 +1083,48 @@ const CustomerModel = {
 
           affectedRows += result.affectedRows;
 
-          const [isExists] = await pool.query(
-            `SELECT id FROM customer_status_history WHERE customer_id = ? AND status = ?`,
-            [customer.customer_id, customer.status],
+          // const [isExists] = await pool.query(
+          //   `SELECT id FROM customer_status_history WHERE customer_id = ? AND status = ?`,
+          //   [customer.customer_id, customer.status],
+          // );
+
+          // if (isExists.length === 0) {
+          //   await pool.query(
+          //     `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
+          //     [
+          //       customer.customer_id,
+          //       customer.status,
+          //       customer.updated_at,
+          //       customer.updated_by,
+          //     ],
+          //   );
+          //   affectedRows += 1;
+          // } else {
+          //   await pool.query(
+          //     `UPDATE customer_status_history SET updated_at = ?, updated_by = ? WHERE customer_id = ? AND status = ?`,
+          //     [
+          //       customer.updated_at,
+          //       customer.updated_by,
+          //       customer.customer_id,
+          //       customer.status,
+          //     ],
+          //   );
+          //   affectedRows += 1;
+          // }
+          const [historyResult] = await pool.query(
+            `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
+            [
+              customer.customer_id,
+              customer.status,
+              customer.updated_at,
+              customer.updated_by,
+            ],
           );
 
-          if (isExists.length === 0) {
-            await pool.query(
-              `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
-              [
-                customer.customer_id,
-                customer.status,
-                customer.updated_at,
-                customer.updated_by,
-              ],
-            );
-            affectedRows += 1;
-          } else {
-            await pool.query(
-              `UPDATE customer_status_history SET updated_at = ?, updated_by = ? WHERE customer_id = ? AND status = ?`,
-              [
-                customer.updated_at,
-                customer.updated_by,
-                customer.customer_id,
-                customer.status,
-              ],
-            );
-            affectedRows += 1;
-          }
+          await pool.query(
+            `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
+            [historyResult.insertId, customer.customer_id],
+          );
         }
       }
 
@@ -1383,15 +1397,8 @@ const CustomerModel = {
                       pm.total_amount AS total_course_amount
                     FROM
                         customers AS c
-                    LEFT JOIN (
-                          SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                          FROM customer_status_history AS x
-                          INNER JOIN (
-                            SELECT customer_id, MAX(id) AS max_id
-                            FROM customer_status_history
-                            GROUP BY customer_id
-                          ) AS y ON y.max_id = x.id
-                        ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
+                    LEFT JOIN customer_status_history AS csh
+                        ON csh.id = c.latest_status_history_id
                     LEFT JOIN technologies AS t ON
                         c.enrolled_course = t.id
                     LEFT JOIN region AS r ON
@@ -1415,7 +1422,7 @@ const CustomerModel = {
                     LEFT JOIN users AS tus ON
                         tr.created_by = tus.user_id
                     LEFT JOIN(
-                      SELECT 
+                      SELECT
                           payment_master_id,
                           MAX(id) AS latest_trans_id,
                           SUM(amount) AS total_paid
@@ -1426,7 +1433,7 @@ const CustomerModel = {
                     LEFT JOIN payment_trans AS pt ON
                       pt.id = ps.latest_trans_id
                     LEFT JOIN(
-                      SELECT 
+                      SELECT
                           payment_master_id,
                           MAX(id) AS latest_trans_id
                         FROM payment_trans
@@ -1440,23 +1447,8 @@ const CustomerModel = {
       let countQuery = `SELECT
                             COUNT(c.id) AS total
                         FROM customers AS c
-                        LEFT JOIN (
-                            SELECT
-                                x.customer_id,
-                                x.status,
-                                x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                                SELECT
-                                    customer_id,
-                                    MAX(id) AS max_id
-                                FROM customer_status_history
-                                GROUP BY customer_id
-                            ) AS y
-                                ON y.max_id = x.id
-                        ) AS csh
-                            ON csh.customer_id = c.id
-                            AND csh.status = c.status
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
                         LEFT JOIN technologies AS t
                             ON c.enrolled_course = t.id
                         LEFT JOIN region AS r
@@ -1496,7 +1488,7 @@ const CustomerModel = {
                         LEFT JOIN payment_trans AS pt
                             ON pt.id = ps.latest_trans_id
                         LEFT JOIN(
-                          SELECT 
+                          SELECT
                             payment_master_id,
                             MAX(id) AS latest_trans_id
                             FROM payment_trans
@@ -1535,15 +1527,8 @@ const CustomerModel = {
                             r.id = c.region_id
                         LEFT JOIN payment_master AS pm ON
                             c.lead_id = pm.lead_id
-                        LEFT JOIN (
-                          SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                          FROM customer_status_history AS x
-                          INNER JOIN (
-                            SELECT customer_id, MAX(id) AS max_id
-                            FROM customer_status_history
-                            GROUP BY customer_id
-                          ) AS y ON y.max_id = x.id
-                        ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
                         WHERE
                             1 = 1`;
 
@@ -1551,15 +1536,8 @@ const CustomerModel = {
                               COUNT(CASE WHEN c.status IN('Awaiting Finance') AND COALESCE(pf.has_verify_pending, 0) = 1 THEN 1 END) AS awaiting_finance
                           FROM
                               customers AS c
-                          LEFT JOIN (
-                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                              SELECT customer_id, MAX(id) AS max_id
-                              FROM customer_status_history
-                              GROUP BY customer_id
-                            ) AS y ON y.max_id = x.id
-                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
+                          LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
                           INNER JOIN lead_master AS l ON
                               c.lead_id = l.id
                           INNER JOIN region AS r ON
@@ -1583,15 +1561,8 @@ const CustomerModel = {
       let paymentQuery = `SELECT
                               COUNT(pt.id) AS awaiting_finance
                           FROM customers AS c
-                          LEFT JOIN (
-                            SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                            FROM customer_status_history AS x
-                            INNER JOIN (
-                              SELECT customer_id, MAX(id) AS max_id
-                              FROM customer_status_history
-                              GROUP BY customer_id
-                            ) AS y ON y.max_id = x.id
-                          ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
+                          LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
                           INNER JOIN lead_master AS l ON
                               c.lead_id = l.id
                           INNER JOIN payment_master AS pm ON
@@ -1605,15 +1576,8 @@ const CustomerModel = {
                                     SUM(CASE WHEN pt.payment_status = 'Rejected' THEN 1 ELSE 0 END) AS payment_rejected
                                 FROM
                                     customers AS c
-                                LEFT JOIN (
-                                  SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
-                                  FROM customer_status_history AS x
-                                  INNER JOIN (
-                                    SELECT customer_id, MAX(id) AS max_id
-                                    FROM customer_status_history
-                                    GROUP BY customer_id
-                                  ) AS y ON y.max_id = x.id
-                                ) AS csh ON csh.customer_id = c.id AND csh.status = c.status
+                                LEFT JOIN customer_status_history AS csh
+                                    ON csh.id = c.latest_status_history_id
                                 INNER JOIN lead_master AS l ON
                                     c.lead_id = l.id
                                 INNER JOIN payment_master AS pm ON
@@ -1658,14 +1622,14 @@ const CustomerModel = {
       if (from_date && to_date) {
         const dateColumn =
           status === "Awaiting Finance" || status === "Payment Rejected"
-            ? "c.payment_date"
-            : "COALESCE(csh.status_updated_at, c.created_date)";
+            ? "COALESCE(csh.updated_at, c.payment_date)"
+            : "COALESCE(csh.updated_at, c.created_date)";
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        getCountQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
-        financeQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        paymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        rejectedPaymentQuery += ` AND CAST(COALESCE(csh.status_updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        getCountQuery += ` AND CAST(COALESCE(csh.updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
+        financeQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        paymentQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        rejectedPaymentQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
 
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
@@ -2155,6 +2119,356 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  // getCustomersV1: async (
+  //   from_date,
+  //   to_date,
+  //   status,
+  //   name,
+  //   email,
+  //   mobile,
+  //   course,
+  //   user_ids,
+  //   page,
+  //   limit,
+  //   region,
+  // ) => {
+  //   try {
+  //     // ─── Shared filter fragments ─────────────────────────────────────
+  //     // Built once, reused across all queries to avoid drift & duplication.
+  //     const filterClauses = [];
+  //     const filterParams = [];
+
+  //     if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+  //       filterClauses.push(
+  //         `l.assigned_to IN (${user_ids.map(() => "?").join(", ")})`,
+  //       );
+  //       filterParams.push(...user_ids);
+  //     }
+
+  //     if (region === "Classroom") {
+  //       filterClauses.push(`r.name IN ('Chennai', 'Bangalore')`);
+  //     } else if (region === "Online") {
+  //       filterClauses.push(`r.name IN ('Hub')`);
+  //     }
+
+  //     // Determine date column once
+  //     const usesPaymentDate =
+  //       status === "Awaiting Finance" || status === "Payment Rejected";
+  //     const mainDateCol = usesPaymentDate
+  //       ? "c.payment_date"
+  //       : "COALESCE(csh.status_updated_at, c.created_date)";
+
+  //     if (from_date && to_date) {
+  //       filterClauses.push(`CAST(${mainDateCol} AS DATE) BETWEEN ? AND ?`);
+  //       filterParams.push(from_date, to_date);
+  //     }
+
+  //     // Status filter for main/count queries
+  //     const statusClauses = [];
+  //     const statusParams = [];
+
+  //     if (status && status.length > 0) {
+  //       if (status === "Awaiting Finance") {
+  //         statusClauses.push(
+  //           `(c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`,
+  //         );
+  //         statusParams.push(status);
+  //       } else if (status === "Payment Rejected") {
+  //         statusClauses.push(`pt1.is_last_pay_rejected = 1`);
+  //       } else if (status === "Others") {
+  //         statusClauses.push(
+  //           `c.status IN ('Partially Closed','Discontinued','Hold','Refund','Demo Completed','Videos Given')`,
+  //         );
+  //       } else if (Array.isArray(status)) {
+  //         statusClauses.push(
+  //           `c.status IN (${status.map(() => "?").join(", ")})`,
+  //         );
+  //         statusParams.push(...status);
+  //       } else {
+  //         statusClauses.push(`c.status = ?`);
+  //         statusParams.push(status);
+  //       }
+  //     }
+
+  //     // Search filters — kept as parameterised LIKE to prevent SQL injection
+  //     const searchClauses = [];
+  //     const searchParams = [];
+
+  //     if (name) {
+  //       searchClauses.push(`c.name  LIKE ?`);
+  //       searchParams.push(`%${name}%`);
+  //     }
+  //     if (email) {
+  //       searchClauses.push(`c.email LIKE ?`);
+  //       searchParams.push(`%${email}%`);
+  //     }
+  //     if (mobile) {
+  //       searchClauses.push(`c.phone LIKE ?`);
+  //       searchParams.push(`%${mobile}%`);
+  //     }
+  //     if (course) {
+  //       searchClauses.push(`tg.name LIKE ?`);
+  //       searchParams.push(`%${course}%`);
+  //     }
+
+  //     // Helper to assemble a WHERE clause from parts
+  //     const buildWhere = (...clauseArrays) => {
+  //       const all = clauseArrays.flat().filter(Boolean);
+  //       return all.length ? `WHERE 1=1 AND ${all.join(" AND ")}` : `WHERE 1=1`;
+  //     };
+
+  //     const mainWhere = buildWhere(filterClauses, statusClauses, searchClauses);
+  //     const mainParams = [...filterParams, ...statusParams, ...searchParams];
+
+  //     // ─── Pagination ──────────────────────────────────────────────────
+  //     const pageNumber = parseInt(page, 10) || 1;
+  //     const limitNumber = parseInt(limit, 10) || 10;
+  //     const offset = (pageNumber - 1) * limitNumber;
+
+  //     // ─── Shared CTE / subquery fragments (written once) ─────────────
+  //     //
+  //     // latest_status  — most-recent status row per customer
+  //     // latest_map     — most-recent trainer mapping per customer
+  //     // paid_summary   — verified payment totals per payment_master
+  //     // last_any_trans — latest transaction id regardless of status
+  //     //
+  //     // These are inlined identically in both queries today. By extracting
+  //     // them to named variables we avoid copy-paste divergence.
+
+  //     const cteLatestStatus = `
+  //     LEFT JOIN (
+  //       SELECT x.customer_id, x.status, x.updated_at AS status_updated_at
+  //       FROM customer_status_history AS x
+  //       INNER JOIN (
+  //         SELECT customer_id, MAX(id) AS max_id
+  //         FROM customer_status_history
+  //         GROUP BY customer_id
+  //       ) AS y ON y.max_id = x.id
+  //     ) AS csh ON csh.customer_id = c.id AND csh.status = c.status`;
+
+  //     const cteLatestMap = `
+  //     LEFT JOIN (
+  //       SELECT MAX(id) AS trainer_map_id, customer_id
+  //       FROM trainer_mapping
+  //       GROUP BY customer_id
+  //     ) AS latest_map ON latest_map.customer_id = c.id
+  //     LEFT JOIN trainer_mapping map ON map.id = latest_map.trainer_map_id`;
+
+  //     const ctePaidSummary = `
+  //     LEFT JOIN (
+  //       SELECT
+  //         payment_master_id,
+  //         MAX(id)     AS latest_trans_id,
+  //         SUM(amount) AS total_paid
+  //       FROM payment_trans
+  //       WHERE payment_status IN ('Verified', 'Verify Pending')
+  //       GROUP BY payment_master_id
+  //     ) AS ps ON ps.payment_master_id = pm.id
+  //     LEFT JOIN payment_trans AS pt ON pt.id = ps.latest_trans_id`;
+
+  //     const cteLastAnyTrans = `
+  //     LEFT JOIN (
+  //       SELECT payment_master_id, MAX(id) AS latest_trans_id
+  //       FROM payment_trans
+  //       GROUP BY payment_master_id
+  //     ) AS ps1 ON ps1.payment_master_id = pm.id
+  //     LEFT JOIN payment_trans AS pt1 ON pt1.id = ps1.latest_trans_id`;
+
+  //     // ─── 1. Main data query ──────────────────────────────────────────
+  //     const getQuery = `
+  //     SELECT
+  //       c.id,
+  //       c.lead_id,
+  //       c.name,
+  //       c.email,
+  //       c.phonecode,
+  //       c.phone,
+  //       c.date_of_joining,
+  //       c.is_certificate_generated,
+  //       CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course
+  //            ELSE l.primary_course_id END                          AS enrolled_course,
+  //       CASE WHEN c.enrolled_course IS NOT NULL THEN t.name
+  //            ELSE tg.name END                                      AS course_name,
+  //       l.primary_fees,
+  //       c.status,
+  //       c.is_form_sent,
+  //       c.is_customer_updated,
+  //       c.created_date,
+  //       l.assigned_to                                              AS lead_assigned_to_id,
+  //       au.user_name                                               AS lead_assigned_to_name,
+  //       tr.name                                                    AS trainer_name,
+  //       tr.trainer_id                                              AS trainer_code,
+  //       tr.mobile_phone_code                                       AS trainer_mobile_code,
+  //       tr.mobile                                                  AS trainer_mobile,
+  //       tr.email                                                   AS trainer_email,
+  //       tr.overall_exp_year,
+  //       tus.user_id                                                AS trainer_hr_id,
+  //       tus.user_name                                              AS trainer_hr_name,
+  //       map.id                                                     AS training_map_id,
+  //       map.trainer_id,
+  //       map.commercial,
+  //       c.linkedin_review,
+  //       c.google_review,
+  //       c.payment_date                                             AS last_payment_date,
+  //       c.class_percentage,
+  //       pt.next_due_date,
+  //       pt1.is_second_due,
+  //       pt1.is_last_pay_rejected,
+  //       COALESCE(ps.total_paid, 0)                                 AS paid_amount,
+  //       pm.total_amount                                            AS total_course_amount
+  //     FROM customers AS c
+  //     ${cteLatestStatus}
+  //     LEFT JOIN technologies   AS t   ON c.enrolled_course = t.id
+  //     LEFT JOIN region         AS r   ON r.id = c.region_id
+  //     LEFT JOIN lead_master    AS l   ON l.id = c.lead_id
+  //     LEFT JOIN payment_master AS pm  ON pm.lead_id = c.lead_id
+  //     LEFT JOIN technologies   AS tg  ON l.primary_course_id = tg.id
+  //     LEFT JOIN users          AS au  ON au.user_id = l.assigned_to
+  //     ${cteLatestMap}
+  //     LEFT JOIN trainer        AS tr  ON tr.id = map.trainer_id
+  //     LEFT JOIN users          AS tus ON tr.created_by = tus.user_id
+  //     ${ctePaidSummary}
+  //     ${cteLastAnyTrans}
+  //     ${mainWhere}
+  //     ORDER BY c.created_date DESC
+  //     LIMIT ? OFFSET ?`;
+
+  //     // ─── 2. Lightweight count query (no trainer / payment detail joins) ──
+  //     //
+  //     // Drops: trainer_mapping, trainer, tus, ps, pt, ps1, pt1
+  //     // Keeps only what the WHERE clause can reference.
+  //     // "Awaiting Finance" and "Payment Rejected" still need pt1 — handled below.
+
+  //     const needsPaymentJoinForFilter =
+  //       status === "Awaiting Finance" || status === "Payment Rejected";
+
+  //     const countPaymentJoins = needsPaymentJoinForFilter
+  //       ? `LEFT JOIN payment_master AS pm  ON pm.lead_id = c.lead_id
+  //        ${cteLastAnyTrans}`
+  //       : `LEFT JOIN payment_master AS pm  ON pm.lead_id = c.lead_id`;
+
+  //     const countQuery = `
+  //     SELECT COUNT(c.id) AS total
+  //     FROM customers AS c
+  //     ${cteLatestStatus}
+  //     LEFT JOIN region      AS r  ON r.id = c.region_id
+  //     LEFT JOIN lead_master AS l  ON l.id = c.lead_id
+  //     ${countPaymentJoins}
+  //     LEFT JOIN technologies AS tg ON l.primary_course_id = tg.id
+  //     ${mainWhere}`;
+
+  //     // ─── 3–6. Aggregate / badge-count queries ────────────────────────
+  //     //
+  //     // These share the user_ids + region filters but NOT the status / search
+  //     // filters (they compute counts for ALL statuses simultaneously).
+
+  //     const badgeWhereClauses = buildWhere(filterClauses);
+  //     // Date filter for badge queries always uses the standard column
+  //     const badgeDateClauses = [];
+  //     const badgeDateParams = [];
+  //     if (from_date && to_date) {
+  //       badgeDateClauses.push(
+  //         `CAST(COALESCE(csh.status_updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`,
+  //       );
+  //       badgeDateParams.push(from_date, to_date);
+  //     }
+  //     const badgeWhere = buildWhere(filterClauses, badgeDateClauses);
+  //     const badgeParams = [...filterParams, ...badgeDateParams];
+
+  //     // Status-count query (replaces getCountQuery + financeQuery + paymentQuery + rejectedPaymentQuery)
+  //     // Merged into a single pass over the joined table.
+  //     const getCountQuery = `
+  //     SELECT
+  //       COUNT(c.id) AS total_count,
+  //       COUNT(CASE WHEN c.status IN ('Form Pending')            THEN 1 END) AS form_pending,
+  //       COUNT(CASE WHEN c.status = 'Awaiting Verify'            THEN 1 END) AS awaiting_verify,
+  //       COUNT(CASE WHEN c.status = 'Awaiting Trainer'           THEN 1 END) AS awaiting_trainer,
+  //       COUNT(CASE WHEN c.status = 'Trainer Rejected'           THEN 1 END) AS trainer_rejected,
+  //       COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify'    THEN 1 END) AS awaiting_trainer_verify,
+  //       COUNT(CASE WHEN c.status = 'Awaiting Class'             THEN 1 END) AS awaiting_class,
+  //       COUNT(CASE WHEN c.status = 'Class Going'                THEN 1 END) AS class_going,
+  //       COUNT(CASE WHEN c.status = 'Class Scheduled'            THEN 1 END) AS class_scheduled,
+  //       COUNT(CASE WHEN c.status = 'Passedout process'          THEN 1 END) AS passedout_process,
+  //       COUNT(CASE WHEN c.status = 'Completed'                  THEN 1 END) AS completed,
+  //       COUNT(CASE WHEN c.status = 'Escalated'                  THEN 1 END) AS escalated,
+  //       COUNT(CASE WHEN c.status IN (
+  //         'Hold','Partially Closed','Discontinued',
+  //         'Refund','Demo Completed','Videos Given'
+  //       )                                                       THEN 1 END) AS Others,
+  //       -- Awaiting Finance: status='Awaiting Finance' with a Verify Pending trans,
+  //       -- OR any customer whose latest trans is second-due + Verify Pending
+  //       COUNT(CASE WHEN (
+  //           (c.status = 'Awaiting Finance' AND COALESCE(pf.has_verify_pending, 0) = 1)
+  //           OR (pt1.is_second_due = 1 AND pt1.payment_status = 'Verify Pending')
+  //         ) AND pt1.is_last_pay_rejected = 0                    THEN 1 END) AS awaiting_finance,
+  //       -- Payment Rejected: latest transaction is rejected
+  //       SUM(CASE WHEN pt1.payment_status = 'Rejected'           THEN 1 ELSE 0 END) AS rejected_payment
+  //     FROM customers AS c
+  //     INNER JOIN lead_master    AS l   ON l.id  = c.lead_id
+  //     INNER JOIN region         AS r   ON r.id  = c.region_id
+  //     LEFT JOIN  payment_master AS pm  ON pm.lead_id = c.lead_id
+  //     ${cteLatestStatus}
+  //     ${cteLastAnyTrans}
+  //     LEFT JOIN (
+  //       SELECT
+  //         pm2.lead_id,
+  //         MAX(pt2.payment_status = 'Verify Pending') AS has_verify_pending
+  //       FROM payment_master pm2
+  //       JOIN payment_trans pt2 ON pm2.id = pt2.payment_master_id
+  //       GROUP BY pm2.lead_id
+  //     ) AS pf ON pf.lead_id = c.lead_id
+  //     ${badgeWhere}`;
+
+  //     // ─── Execute both groups concurrently ────────────────────────────
+  //     const [[countResult], [result], [getStatus]] = await Promise.all([
+  //       pool.query(countQuery, [...mainParams]),
+  //       pool.query(getQuery, [...mainParams, limitNumber, offset]),
+  //       pool.query(getCountQuery, badgeParams),
+  //     ]);
+
+  //     // ─── Shape response ───────────────────────────────────────────────
+  //     const total = countResult[0]?.total || 0;
+
+  //     const customers = result.map((item) => {
+  //       const totalAmount = parseFloat(item.total_course_amount || 0);
+  //       const paidAmount = parseFloat(item.paid_amount || 0);
+  //       return {
+  //         ...item,
+  //         balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+  //         total_amount: totalAmount,
+  //         paid_amount: paidAmount,
+  //         commercial_percentage: item.primary_fees
+  //           ? parseFloat(
+  //               ((item.commercial / item.primary_fees) * 100).toFixed(2),
+  //             )
+  //           : 0,
+  //       };
+  //     });
+
+  //     // Flatten the merged status-count row into the original response shape.
+  //     const { awaiting_finance, rejected_payment, ...statusCounts } =
+  //       getStatus[0];
+  //     const customer_status_count = {
+  //       ...statusCounts,
+  //       awaiting_finance,
+  //       rejected_payment,
+  //     };
+
+  //     return {
+  //       customers,
+  //       customer_status_count,
+  //       pagination: {
+  //         total: parseInt(total),
+  //         page: pageNumber,
+  //         limit: limitNumber,
+  //         totalPages: Math.ceil(total / limitNumber),
+  //       },
+  //     };
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
 };
 
 module.exports = CustomerModel;

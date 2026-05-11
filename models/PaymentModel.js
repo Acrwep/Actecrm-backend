@@ -147,7 +147,7 @@ const PaymentModel = {
           [insertCustomer.insertId, "Requested", created_date],
         );
 
-        const [serverTrack] = await pool.query(
+        await pool.query(
           `INSERT INTO server_track(server_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
           [insertServer.insertId, "Requested", created_date, updated_by],
         );
@@ -160,7 +160,7 @@ const PaymentModel = {
       ];
 
       const values = statuses.map((s) => [insertCustomer.insertId, ...s]);
-      const [cusTrack] = await pool.query(
+      await pool.query(
         `INSERT INTO customer_track (
             customer_id,
             status,
@@ -171,9 +171,14 @@ const PaymentModel = {
         [values],
       );
 
-      await pool.query(
+      const [historyResult] = await pool.query(
         `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
         [insertCustomer.insertId, "Form Pending", created_date, updated_by],
+      );
+
+      await pool.query(
+        `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
+        [historyResult.insertId, insertCustomer.insertId],
       );
 
       const [getInvoiceDetails] = await pool.query(
