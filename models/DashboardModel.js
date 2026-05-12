@@ -1896,21 +1896,17 @@ const DashboardModel = {
       const queryParams = [];
       let query = `SELECT
                       la.name AS action_name,
-                      SUM(CASE WHEN lh.is_updated = 0 THEN 1 ELSE 0 END) AS unhandled_follow_up,
-                      SUM(CASE WHEN lh.is_updated = 1 THEN 1 ELSE 0 END) AS handled_follow_up,
-                      COUNT(lh.id) AS total
+                      COUNT(lf.id) AS total,
+                      SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS handled_follow_up,
+                      SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS unhandled_follow_up,
+                      IFNULL(ROUND(((SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100), 2), 0) AS percentage
                   FROM
                       lead_action AS la
-                  LEFT JOIN lead_follow_up_history AS lh ON
-                      la.id = lh.lead_action_id`;
-
-      if (start_date && end_date) {
-        query += ` AND CAST(lh.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
-      }
-
-      query += ` LEFT JOIN lead_master AS lm ON
-                    lh.lead_id = lm.id`;
+                  LEFT JOIN (
+                      SELECT lf.*
+                      FROM lead_follow_up_history AS lf
+                      INNER JOIN lead_master AS l 
+                          ON l.id = lf.lead_id`;
 
       if (region_id) {
         let region = "";
@@ -1931,22 +1927,35 @@ const DashboardModel = {
           }
         }
 
-        query += ` AND lm.assigned_to LIKE '%${region}%'`;
+        query += ` AND l.assigned_to LIKE '%${region}%'`;
       }
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
-          query += ` AND lm.assigned_to IN (${placeholders})`;
+          query += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
         } else {
-          query += ` AND lm.assigned_to = ?`;
+          query += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
         }
       }
 
-      query += ` WHERE la.is_active = 1 GROUP BY la.name ORDER BY total DESC`;
+      query += ` WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        query += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+      }
+
+      query += ` ) AS lf ON la.id = lf.lead_action_id
+              WHERE
+                  la.is_active = 1
+              GROUP BY la.name
+              ORDER BY percentage DESC`;
+
       const [result] = await pool.query(query, queryParams);
+
       return result;
     } catch (error) {
       throw new Error(error.message);
