@@ -802,12 +802,12 @@ const PaymentModel = {
       const dParamsOverall = [];
       const dParamsUrgent = [];
 
-      if (from_date && to_date) {
-        dateFilterOverall = "CAST(ps.next_due_date AS DATE) BETWEEN ? AND ?";
-        dateFilterUrgent = "CAST(ps.next_due_date AS DATE) BETWEEN ? AND ?";
-        dParamsOverall.push(from_date, to_date);
-        dParamsUrgent.push(from_date, to_date);
-      }
+      // if (from_date && to_date) {
+      //   dateFilterOverall = "CAST(ps.next_due_date AS DATE) BETWEEN ? AND ?";
+      //   dateFilterUrgent = "CAST(ps.next_due_date AS DATE) BETWEEN ? AND ?";
+      //   dParamsOverall.push(from_date, to_date);
+      //   dParamsUrgent.push(from_date, to_date);
+      // }
 
       const sql = `
         SELECT 
