@@ -31,6 +31,8 @@ const CustomerModel = {
     address,
     state_code,
     gst_number,
+    lead_id,
+    ra_id,
   ) => {
     try {
       let affectedRows = 0;
@@ -109,6 +111,14 @@ const CustomerModel = {
 
       const [result] = await pool.query(updateQuery, queryParams);
       affectedRows += result.affectedRows;
+
+      if (ra_id) {
+        const [updateLead] = await pool.query(
+          `UPDATE lead_master SET ra_id = ? WHERE id = ?`,
+          [ra_id, lead_id],
+        );
+        affectedRows += updateLead.affectedRows;
+      }
 
       if (is_server_required === true || is_server_required === 1) {
         const [isServerExists] = await pool.query(
@@ -1589,18 +1599,21 @@ const CustomerModel = {
       // Handle user_ids parameter for both queries
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
         const placeholders = user_ids.map(() => "?").join(", ");
-        getQuery += ` AND l.assigned_to IN (${placeholders})`;
-        countQuery += ` AND l.assigned_to IN (${placeholders})`;
-        getCountQuery += ` AND l.assigned_to IN (${placeholders})`;
-        paymentQuery += ` AND l.assigned_to IN (${placeholders})`;
-        rejectedPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
-        financeQuery += ` AND l.assigned_to IN (${placeholders})`;
-        queryParams.push(...user_ids);
-        countQueryParams.push(...user_ids);
-        countParams.push(...user_ids);
-        paymentParams.push(...user_ids);
-        rejectedPaymentParams.push(...user_ids);
-        financeParams.push(...user_ids);
+        const userFilter = ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+        getQuery += userFilter;
+        countQuery += userFilter;
+        getCountQuery += userFilter;
+        paymentQuery += userFilter;
+        rejectedPaymentQuery += userFilter;
+        financeQuery += userFilter;
+
+        const doubleParams = [...user_ids, ...user_ids];
+        queryParams.push(...doubleParams);
+        countQueryParams.push(...doubleParams);
+        countParams.push(...doubleParams);
+        paymentParams.push(...doubleParams);
+        rejectedPaymentParams.push(...doubleParams);
+        financeParams.push(...doubleParams);
       }
 
       // Add region filter
@@ -2469,6 +2482,59 @@ const CustomerModel = {
   //     throw new Error(error.message);
   //   }
   // },
+
+  otpSend: async (email, otp, otp_expiry) => {
+    try {
+      let affectedRows = 0;
+      const [updateExisting] = await pool.query(
+        `UPDATE otp_master SET is_verified = 1 WHERE email = ?`,
+        [email],
+      );
+
+      affectedRows += updateExisting.affectedRows;
+
+      const [insertOTP] = await pool.query(
+        `INSERT INTO otp_master (email, otp, otp_expiry) VALUES (?, ?, ?)`,
+        [email, otp, otp_expiry],
+      );
+
+      affectedRows += insertOTP.affectedRows;
+      return affectedRows > 0 ? true : false;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  checkUserByEmail: async (email) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id, email FROM lead_master WHERE email = ?`,
+        [email],
+      );
+      return isExists[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  verifyOTP: async (email, otp) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT id FROM otp_master WHERE email = ? AND otp = ? AND otp_expiry > NOW() AND is_verified = 0`,
+        [email, otp],
+      );
+
+      if (isExists[0]) {
+        await pool.query(
+          `UPDATE otp_master SET is_verified = 1 WHERE email = ? AND otp = ?`,
+          [email, otp],
+        );
+      }
+      return isExists[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = CustomerModel;

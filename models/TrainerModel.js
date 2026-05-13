@@ -417,12 +417,12 @@ const TrainerModel = {
         countQueryParams.push(is_form_sent);
       }
 
-      if (is_onboarding != null || is_onboarding != undefined) {
-        getQuery += " AND t.is_onboarding = ?";
-        countQuery += " AND t.is_onboarding = ?";
-        queryParams.push(is_onboarding);
-        countQueryParams.push(is_onboarding);
-      }
+      // if (is_onboarding != null || is_onboarding != undefined) {
+      //   getQuery += " AND t.is_onboarding = ?";
+      //   countQuery += " AND t.is_onboarding = ?";
+      //   queryParams.push(is_onboarding);
+      //   countQueryParams.push(is_onboarding);
+      // }
 
       if (created_by) {
         getQuery += ` AND t.created_by LIKE '%${created_by}%'`;
@@ -434,14 +434,15 @@ const TrainerModel = {
       }
 
       // Modified approach with single query
-      if (ongoing === "Ongoing") {
+      if (ongoing?.toLowerCase() === "ongoing") {
+        console.log("ongoing", ongoing);
+
         getQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
                       FROM trainer_mapping AS tm 
                       INNER JOIN customers AS c ON tm.customer_id = c.id 
-                      WHERE c.class_percentage > 0 
-                        AND c.class_percentage < 100 
+                      WHERE c.class_percentage < 100 
                         AND tm.is_rejected = 0 
                       GROUP BY tm.trainer_id
                     )
@@ -451,8 +452,28 @@ const TrainerModel = {
                       SELECT tm.trainer_id 
                       FROM trainer_mapping AS tm 
                       INNER JOIN customers AS c ON tm.customer_id = c.id 
-                      WHERE c.class_percentage > 0 
-                        AND c.class_percentage < 100 
+                      WHERE c.class_percentage < 100 
+                        AND tm.is_rejected = 0 
+                      GROUP BY tm.trainer_id
+                    )
+                  `;
+      } else if (is_onboarding) {
+        getQuery += `
+                    AND t.id IN (
+                      SELECT tm.trainer_id 
+                      FROM trainer_mapping AS tm 
+                      INNER JOIN customers AS c ON tm.customer_id = c.id 
+                      WHERE c.class_percentage = 100 
+                        AND tm.is_rejected = 0 
+                      GROUP BY tm.trainer_id
+                    )
+                  `;
+        countQuery += `
+                    AND t.id IN (
+                      SELECT tm.trainer_id 
+                      FROM trainer_mapping AS tm 
+                      INNER JOIN customers AS c ON tm.customer_id = c.id 
+                      WHERE c.class_percentage = 100 
                         AND tm.is_rejected = 0 
                       GROUP BY tm.trainer_id
                     )
@@ -484,12 +505,14 @@ const TrainerModel = {
       if (isd.length > 0) {
         const [student_count] = await pool.query(
           `SELECT 
+            tm.trainer_id,
             SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END) AS not_started_student,
             SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
             COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
           FROM trainer_mapping AS tm
           LEFT JOIN customers AS c ON tm.customer_id = c.id
-          WHERE tm.trainer_id IN (?) AND tm.is_rejected = 0`,
+          WHERE tm.trainer_id IN (?) AND tm.is_rejected = 0
+          GROUP BY tm.trainer_id`,
           [isd],
         );
 
@@ -504,17 +527,15 @@ const TrainerModel = {
 
       const formattedResult = await Promise.all(
         trainers.map(async (item) => {
-          const student_count = students.get(item.id) || {
+          const student_data = students.get(item.id) || {
             not_started_student: 0,
             on_going_student: 0,
             completed_student_count: 0,
           };
 
-          const not_started =
-            parseInt(student_count[0]?.not_started_student) || 0;
-          const on_going = parseInt(student_count[0]?.on_going_student) || 0;
-          const completed =
-            parseInt(student_count[0]?.completed_student_count) || 0;
+          const not_started = parseInt(student_data.not_started_student) || 0;
+          const on_going = parseInt(student_data.on_going_student) || 0;
+          const completed = parseInt(student_data.completed_student_count) || 0;
 
           let trainer_type;
           if (not_started > 0 && on_going === 0 && completed === 0) {

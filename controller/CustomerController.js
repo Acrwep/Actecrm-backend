@@ -2,6 +2,8 @@ const { request, response } = require("express");
 const CustomerModel = require("../models/CustomerModel");
 const CommonModel = require("../models/CommonModel");
 
+const nodemailer = require("nodemailer");
+
 const updateCustomer = async (request, response) => {
   const {
     name,
@@ -32,6 +34,8 @@ const updateCustomer = async (request, response) => {
     address,
     state_code,
     gst_number,
+    lead_id,
+    ra_id,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -63,6 +67,8 @@ const updateCustomer = async (request, response) => {
       address,
       state_code,
       gst_number,
+      lead_id,
+      ra_id,
     );
     return response.status(200).send({
       message: "Customer updated successfully",
@@ -503,6 +509,142 @@ const updateCertificate = async (request, response) => {
   }
 };
 
+const otpSend = async (request, response) => {
+  const { email } = request.body;
+  try {
+    const user = await CustomerModel.checkUserByEmail(email);
+    if (!user) {
+      return response.status(404).send({ message: "Email not found" });
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp_expiry = new Date(Date.now() + 10 * 60 * 1000);
+    await CustomerModel.otpSend(email, otp, otp_expiry);
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: email,
+      subject: "OTP Verification Code",
+      html: `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>OTP Verification</title>
+            </head>
+            <body style="margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;">
+
+                <table align="center" cellpadding="0" cellspacing="0" width="100%" 
+                      style="max-width:600px; background-color:#ffffff; margin-top:30px; border-radius:8px; overflow:hidden;">
+
+                    <!-- Header -->
+                    <tr>
+                        <td align="center" 
+                            style="background-color:#2563eb; padding:20px; color:#ffffff; font-size:24px; font-weight:bold;">
+                            OTP Verification
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:30px; color:#333333; font-size:16px; line-height:1.6;">
+
+                            <p>
+                                Your One-Time Password (OTP) for verification is:
+                            </p>
+
+                            <!-- OTP Box -->
+                            <div style="text-align:center; margin:30px 0;">
+                                <span style="
+                                    display:inline-block;
+                                    background-color:#f3f4f6;
+                                    padding:15px 30px;
+                                    font-size:32px;
+                                    font-weight:bold;
+                                    letter-spacing:5px;
+                                    color:#2563eb;
+                                    border-radius:8px;
+                                    border:1px dashed #2563eb;">
+                                    ${otp}
+                                </span>
+                            </div>
+
+                            <p>
+                                This OTP is valid for the next 
+                                <strong>10 minutes</strong>.
+                            </p>
+
+                            <p style="color:#dc2626;">
+                                Please do not share this code with anyone for security reasons.
+                            </p>
+
+                            <p>
+                                If you did not request this verification, please ignore this email.
+                            </p>
+
+                            <br />
+
+                            <p>
+                                Regards,<br />
+                                <strong>ACTE Technologies</strong><br />
+                                Support Team
+                            </p>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" 
+                            style="background-color:#f9fafb; padding:15px; font-size:12px; color:#6b7280;">
+                            © ${new Date().getFullYear()} ACTE Technologies. All rights reserved.
+                        </td>
+                    </tr>
+
+                </table>
+
+            </body>
+            </html>`,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        return response
+          .status(500)
+          .send({ message: "Error sending email", error: error.message });
+      }
+      return response.status(200).send({ message: "OTP sent to your email" });
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while sending OTP",
+      details: error.message,
+    });
+  }
+};
+
+const verifyOTP = async (request, response) => {
+  const { email, otp } = request.body;
+  try {
+    const user = await CustomerModel.verifyOTP(email, otp);
+    if (!user) {
+      return response.status(400).send({ message: "Invalid or expired OTP" });
+    }
+    return response.status(200).send({ message: "OTP verified successfully" });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while verifying OTP",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -524,4 +666,6 @@ module.exports = {
   preCertificate,
   getCustomersV1,
   updateCertificate,
+  otpSend,
+  verifyOTP,
 };

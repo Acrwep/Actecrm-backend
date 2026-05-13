@@ -562,5 +562,6 @@ router.post(
   verifyToken,
   ReportController.candidateFeesHistory,
 );
-
+router.post("/otpSend", CustomerController.otpSend);
+router.post("/verifyOTP", CustomerController.verifyOTP);
 module.exports = router;
