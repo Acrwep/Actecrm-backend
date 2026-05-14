@@ -418,6 +418,29 @@ const UserModel = {
     }
   },
 
+  getMultiUsers: async (user_ids) => {
+    try {
+      const allDownlines = [];
+      const seenUserIds = new Set();
+
+      if (user_ids && Array.isArray(user_ids)) {
+        for (const id of user_ids) {
+          const downlines = await UserModel.getAllDownlines(id);
+          downlines.forEach((user) => {
+            if (!seenUserIds.has(user.user_id)) {
+              seenUserIds.add(user.user_id);
+              allDownlines.push(user);
+            }
+          });
+        }
+      }
+
+      return allDownlines;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getAllUpline: async (user_id) => {
     try {
       const upline = new Map();
@@ -538,18 +561,17 @@ const UserModel = {
     }
   },
 
-  getHRUsers: async (name, user_id) => {
+  getHRUsers: async (name, user_id, role) => {
     try {
       const queryParams = [];
       let query = `SELECT
                       id,
                       user_name,
-                      user_id,
-                      'HR' AS role_name
+                      user_id
                   FROM
                       users AS u
                   WHERE
-                      is_active = 1 AND roles LIKE '%HR%'`;
+                      is_active = 1`;
 
       if (name) {
         query += ` AND user_name LIKE ?`;
@@ -561,13 +583,27 @@ const UserModel = {
         queryParams.push(user_id);
       }
 
+      if (role) {
+        query += ` AND roles LIKE ?`;
+        queryParams.push(`%${role}%`);
+      }
+
       query += ` ORDER BY user_name ASC`;
 
       const [users] = await pool.query(query, queryParams);
 
+      const formattedResult = users.map((user) => {
+        return {
+          id: user.id,
+          user_id: user.user_id,
+          user_name: user.user_name,
+          role_name: role || "User",
+        };
+      });
+
       return {
-        data: users,
-        total: users.length,
+        data: formattedResult,
+        total: formattedResult.length,
       };
     } catch (error) {
       throw new Error(error.message);
