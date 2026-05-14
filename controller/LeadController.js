@@ -123,7 +123,6 @@ const insertLead = async (request, response) => {
     is_reentry,
     lead_action_id,
     domain_origin,
-    ra_id,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -155,7 +154,6 @@ const insertLead = async (request, response) => {
       is_reentry,
       lead_action_id,
       domain_origin,
-      ra_id,
     );
     return response.status(201).send({
       message: "Lead added successfully",

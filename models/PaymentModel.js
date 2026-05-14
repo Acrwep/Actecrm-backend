@@ -39,6 +39,7 @@ const PaymentModel = {
     address,
     state_code,
     gst_number,
+    ra_id,
   ) => {
     try {
       const paymentMasterQuery = `INSERT INTO payment_master(
@@ -180,6 +181,13 @@ const PaymentModel = {
         `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
         [historyResult.insertId, insertCustomer.insertId],
       );
+
+      if (ra_id) {
+        await pool.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
+          ra_id,
+          lead_id,
+        ]);
+      }
 
       const [getInvoiceDetails] = await pool.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,

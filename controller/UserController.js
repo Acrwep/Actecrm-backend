@@ -174,6 +174,22 @@ const checkUserExists = async (request, response) => {
   }
 };
 
+const getHRUsers = async (request, response) => {
+  const { name, user_id } = request.body;
+  try {
+    const result = await userModel.getHRUsers(name, user_id);
+    response.status(200).json({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
@@ -182,4 +198,5 @@ module.exports = {
   getAllDownlines,
   getAllUpline,
   checkUserExists,
+  getHRUsers,
 };

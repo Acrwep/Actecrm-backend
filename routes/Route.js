@@ -564,4 +564,5 @@ router.post(
 );
 router.post("/otpSend", CustomerController.otpSend);
 router.post("/verifyOTP", CustomerController.verifyOTP);
+router.post("/getHRUsers", verifyToken, UserController.getHRUsers);
 module.exports = router;

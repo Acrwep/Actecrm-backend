@@ -105,7 +105,6 @@ const LeadModel = {
     is_reentry,
     lead_action_id,
     domain_origin,
-    ra_id,
   ) => {
     try {
       if (is_reentry === false) {
@@ -155,10 +154,9 @@ const LeadModel = {
                             comments,
                             created_date,
                             region_id,
-                            domain_origin,
-                            ra_id
+                            domain_origin
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -186,7 +184,6 @@ const LeadModel = {
         created_date,
         region_id,
         domain_origin,
-        ra_id,
       ];
 
       // Insert into lead master table

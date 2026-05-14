@@ -44,6 +44,7 @@ const createPayment = async (request, response) => {
     address,
     state_code,
     gst_number,
+    ra_id,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -72,6 +73,7 @@ const createPayment = async (request, response) => {
       address,
       state_code,
       gst_number,
+      ra_id,
     );
     return response.status(201).send({
       messages: "Payment successfull",

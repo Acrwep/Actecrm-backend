@@ -537,6 +537,42 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
+
+  getHRUsers: async (name, user_id) => {
+    try {
+      const queryParams = [];
+      let query = `SELECT
+                      id,
+                      user_name,
+                      user_id,
+                      'HR' AS role_name
+                  FROM
+                      users AS u
+                  WHERE
+                      is_active = 1 AND roles LIKE '%HR%'`;
+
+      if (name) {
+        query += ` AND user_name LIKE ?`;
+        queryParams.push(`%${name}%`);
+      }
+
+      if (user_id) {
+        query += ` AND user_id = ?`;
+        queryParams.push(user_id);
+      }
+
+      query += ` ORDER BY user_name ASC`;
+
+      const [users] = await pool.query(query, queryParams);
+
+      return {
+        data: users,
+        total: users.length,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = UserModel;
