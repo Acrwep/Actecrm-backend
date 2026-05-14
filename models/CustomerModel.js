@@ -1368,15 +1368,15 @@ const CustomerModel = {
 
       // Get customers query
       let getQuery = `SELECT
-                        c.id,
-                        c.lead_id,
-                        c.name,
-                        c.email,
-                        c.phonecode,
-                        c.phone,
-                        c.date_of_joining,
-                        c.is_certificate_generated,
-                        CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
+                      c.id,
+                      c.lead_id,
+                      c.name,
+                      c.email,
+                      c.phonecode,
+                      c.phone,
+                      c.date_of_joining,
+                      c.is_certificate_generated,
+                      CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
                       CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                       l.primary_fees,
                       c.status,
@@ -1404,7 +1404,9 @@ const CustomerModel = {
                       pt1.is_second_due AS is_second_due,
                       pt1.is_last_pay_rejected,
                       COALESCE(ps.total_paid, 0) AS paid_amount,
-                      pm.total_amount AS total_course_amount
+                      pm.total_amount AS total_course_amount,
+                      l.ra_id,
+                      ra_user.user_name AS ra_name
                     FROM
                         customers AS c
                     LEFT JOIN customer_status_history AS csh
@@ -1421,6 +1423,8 @@ const CustomerModel = {
                         l.primary_course_id = tg.id
                     LEFT JOIN users AS au ON
                         au.user_id = l.assigned_to
+                    LEFT JOIN users AS ra_user ON
+                        ra_user.user_id = l.ra_id
                     LEFT JOIN(
                       SELECT MAX(id) AS trainer_map_id, customer_id FROM trainer_mapping
                         GROUP BY customer_id
