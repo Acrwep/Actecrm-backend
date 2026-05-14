@@ -862,7 +862,9 @@ const CustomerModel = {
                           pt1.is_second_due AS is_second_due,
                           pt1.is_last_pay_rejected,
                           pm.total_amount AS total_course_amount,
-                          COALESCE(ps.total_paid, 0) AS paid_amount
+                          COALESCE(ps.total_paid, 0) AS paid_amount,
+                          l.ra_id,
+                          ra.user_name as ra_name
                         FROM customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
@@ -880,6 +882,8 @@ const CustomerModel = {
                           cer.customer_id = c.id
                         LEFT JOIN lead_master AS l ON
                             l.id = c.lead_id
+                        LEFT JOIN users AS ra ON
+                            l.ra_id = ra.user_id
                         LEFT JOIN payment_master AS pm ON
                           pm.lead_id = c.lead_id
                         LEFT JOIN technologies AS tg ON
