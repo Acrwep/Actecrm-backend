@@ -142,9 +142,10 @@ const TrainerModel = {
         location,
         profile_image,
         status,
-        created_by
+        created_by,
+        created_date
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       const values = [
         trainer_name,
@@ -165,6 +166,7 @@ const TrainerModel = {
         profile_image,
         "Verify Pending",
         created_by,
+        created_date,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -361,7 +363,8 @@ const TrainerModel = {
                           tb.ifsc_code,
                           tb.signature_image,
                           t.created_by,
-                          u.user_name AS hr_head
+                          u.user_name AS hr_head,
+                          t.created_date
                       FROM
                           trainer AS t
                       LEFT JOIN technologies te ON
