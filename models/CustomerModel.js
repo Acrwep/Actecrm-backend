@@ -112,13 +112,12 @@ const CustomerModel = {
       const [result] = await pool.query(updateQuery, queryParams);
       affectedRows += result.affectedRows;
 
-      if (ra_id) {
-        const [updateLead] = await pool.query(
-          `UPDATE lead_master SET ra_id = ? WHERE id = ?`,
-          [ra_id, lead_id],
-        );
-        affectedRows += updateLead.affectedRows;
-      }
+      const raId = ra_id != null ? ra_id : null;
+
+      await pool.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
+        raId,
+        lead_id,
+      ]);
 
       if (is_server_required === true || is_server_required === 1) {
         const [isServerExists] = await pool.query(
