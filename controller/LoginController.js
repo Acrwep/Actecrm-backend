@@ -2,7 +2,8 @@ const jwt = require("jsonwebtoken");
 const loginModel = require("../models/LoginModel");
 
 const login = async (request, response) => {
-  const { user_id, password, last_login_date } = request.body;
+  const { user_id, password, last_login_date, platform } = request.body;
+
   try {
     const validateUser = await loginModel.login(
       user_id,
@@ -12,9 +13,12 @@ const login = async (request, response) => {
 
     if (validateUser) {
       const socketService = require("../services/SocketService");
-      socketService.emitForceLogout(user_id);
+
+      // same platform users மட்டும் logout
+      socketService.emitForceLogout(user_id, platform);
 
       const token = generateToken(validateUser);
+
       return response.status(200).send({
         message: "Login successful",
         token: token,

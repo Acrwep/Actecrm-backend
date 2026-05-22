@@ -14,10 +14,16 @@ const init = (server) => {
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
-    socket.on("register", (userId) => {
+    socket.on("register", ({ userId, platform }) => {
       if (userId) {
+        socket.userId = userId;
+        socket.platform = platform;
+
         socket.join(`user_${userId}`);
-        console.log(`User ${userId} registered with socket ${socket.id}`);
+
+        console.log(
+          `User ${userId} registered on ${platform} with socket ${socket.id}`,
+        );
       }
     });
 
@@ -45,13 +51,19 @@ const emitLeadUpdate = (data) => {
   }
 };
 
-const emitForceLogout = (userId) => {
-  if (io && userId) {
-    io.to(`user_${userId}`).emit("force_logout", {
-      message:
-        "You have been logged out because of a new login on another system.",
-    });
-  }
+const emitForceLogout = (userId, platform) => {
+  if (!io || !userId) return;
+
+  const sockets = io.sockets.sockets;
+
+  sockets.forEach((socket) => {
+    if (socket.userId == userId && socket.platform === platform) {
+      socket.emit("force_logout", {
+        message:
+          "You have been logged out because of a new login on another system.",
+      });
+    }
+  });
 };
 
 module.exports = { init, emitNotification, emitLeadUpdate, emitForceLogout };
