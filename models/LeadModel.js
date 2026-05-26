@@ -1948,46 +1948,46 @@ const LeadModel = {
         countParams.push(start_date, end_date);
       }
 
-      // let prefix;
-      // if (region_type) {
-      //   const match = region_type.match(/^[A-Za-z]+/);
-      //   prefix = match ? match[0] : "";
-      // }
+      let prefix;
+      if (region_type) {
+        const match = region_type.match(/^[A-Za-z]+/);
+        prefix = match ? match[0] : "";
+      }
 
-      // const courseFilter = `
-      //                     (
-      //                       LOWER(course) LIKE '%data analytics%'
-      //                       OR LOWER(course) LIKE 'data science'
-      //                       OR LOWER(course) LIKE '%fullstack developer%'
-      //                       OR LOWER(course) LIKE '%software testing%'
-      //                       OR LOWER(course) LIKE '%cloud computing%'
-      //                       OR LOWER(course) LIKE '%digital marketing%'
-      //                       OR LOWER(course) LIKE '%machine learning%'
-      //                       OR LOWER(course) LIKE '%gen ai%'
-      //                       OR LOWER(course) LIKE '%sap fico%'
-      //                       OR LOWER(course) LIKE '%sap mm%'
-      //                     )`;
+      const courseFilter = `
+                          (
+                            LOWER(course) LIKE '%data analytics%'
+                            OR LOWER(course) LIKE 'data science'
+                            OR LOWER(course) LIKE '%fullstack developer%'
+                            OR LOWER(course) LIKE '%software testing%'
+                            OR LOWER(course) LIKE '%cloud computing%'
+                            OR LOWER(course) LIKE '%digital marketing%'
+                            OR LOWER(course) LIKE '%machine learning%'
+                            OR LOWER(course) LIKE '%gen ai%'
+                            OR LOWER(course) LIKE '%sap fico%'
+                            OR LOWER(course) LIKE '%sap mm%'
+                          )`;
 
-      // if (prefix === "HUB") {
-      //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+      if (prefix === "HUB") {
+        getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
 
-      //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-      // }
+        countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+      }
 
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      // }
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+        countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+      }
 
-      // if (prefix !== "" && prefix === "HUB") {
-      //   getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-      //   countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
-      // }
+      if (prefix !== "" && prefix === "HUB") {
+        getQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+        countQuery += ` AND (training LIKE '%Online%' OR training LIKE '%Corporate%')`;
+      }
 
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += ` AND training LIKE '%Class%'`;
-      //   countQuery += ` AND training LIKE '%Class%'`;
-      // }
+      if (prefix === "BNG" || prefix === "CHN") {
+        getQuery += ` AND training LIKE '%Class%'`;
+        countQuery += ` AND training LIKE '%Class%'`;
+      }
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
@@ -2010,13 +2010,33 @@ const LeadModel = {
       console.log("today", today);
 
       const [getLeadCount] = await pool.query(
-        `SELECT IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
         [today],
       );
 
+      const [getAcquiredLeadCount] = await pool.query(
+        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE assigned_to IS NOT NULL AND DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+        [today],
+      );
+
+      let onlineCount = 0;
+      let classroomCount = 0;
+      let corporateCount = 0;
+      let totalCount = 0;
+
+      onlineCount = `${getAcquiredLeadCount[0].online_count} / ${getLeadCount[0].online_count}`;
+      classroomCount = `${getAcquiredLeadCount[0].classroom_count} / ${getLeadCount[0].classroom_count}`;
+      corporateCount = `${getAcquiredLeadCount[0].corporate_count} / ${getLeadCount[0].corporate_count}`;
+      totalCount = `${getAcquiredLeadCount[0].total} / ${getLeadCount[0].total}`;
+
       return {
         data: formattedData,
-        lead_count: getLeadCount[0],
+        lead_count: {
+          online_count: onlineCount,
+          classroom_count: classroomCount,
+          corporate_count: corporateCount,
+          total_count: totalCount,
+        },
         pagination: {
           total: parseInt(total),
           page: pageNumber,
