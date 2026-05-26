@@ -488,7 +488,7 @@ const getFollowupCountByUser = async (request, response) => {
 };
 
 const websiteLead = async (request, response) => {
-  const {
+  let {
     name,
     phone,
     email,
@@ -500,6 +500,43 @@ const websiteLead = async (request, response) => {
     corporate_training,
   } = request.body;
   try {
+    if (request.body.user_column_data) {
+      const fields = request.body.user_column_data;
+
+      fields.forEach((field) => {
+        switch (field.column_id) {
+          case "FULL_NAME":
+            name = field.string_value;
+            break;
+
+          case "EMAIL":
+            email = field.string_value;
+            break;
+
+          case "PHONE_NUMBER":
+            phone = field.string_value;
+            break;
+
+          case "CITY":
+            location = field.string_value;
+            break;
+
+          case "which_course_are_you_interested_in?":
+            course = field.string_value;
+            break;
+        }
+      });
+
+      // Default Values for Google Ads Leads
+      comments = "Google Ads Lead";
+      training = "Classroom Training";
+      domain_origin = "acte.in";
+      corporate_training = "";
+    }
+    training = training || "Classroom Training";
+    comments = comments || "";
+    domain_origin = domain_origin || "acte.in";
+    corporate_training = corporate_training || "";
     const result = await LeadModel.websiteLead(
       name,
       phone,
