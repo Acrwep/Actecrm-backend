@@ -553,7 +553,7 @@ const websiteLead = async (request, response) => {
     const updatedCount = await LeadModel.getWebsiteLeadCount();
     SocketService.emitLeadUpdate({ lead_count: updatedCount });
 
-    return response.status(201).send({
+    return response.status(200).send({
       message: "Lead added successfully",
       data: result,
     });
