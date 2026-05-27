@@ -530,7 +530,7 @@ const websiteLead = async (request, response) => {
       // Default Values for Google Ads Leads
       comments = "Google Ads Lead";
       training = "Classroom Training";
-      domain_origin = "acte.in";
+      domain_origin = "Google Ads";
       corporate_training = "";
     }
     training = training || "Classroom Training";
