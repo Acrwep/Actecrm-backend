@@ -1570,10 +1570,11 @@ const LeadModel = {
                         l.name  COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                     OR l.phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                     OR l.email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
+                    OR l.whatsapp COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                   )
                 `;
 
-        queryParams.push(filter, filter, filter);
+        queryParams.push(filter, filter, filter, filter);
       }
 
       const [result] = await pool.query(getQuery, queryParams);

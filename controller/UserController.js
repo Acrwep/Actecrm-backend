@@ -190,6 +190,22 @@ const getHRUsers = async (request, response) => {
   }
 };
 
+const getMultiUsers = async (request, response) => {
+  const { user_ids } = request.body;
+  try {
+    const result = await userModel.getMultiUsers(user_ids);
+    response.status(200).json({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
@@ -199,4 +215,5 @@ module.exports = {
   getAllUpline,
   checkUserExists,
   getHRUsers,
+  getMultiUsers,
 };
