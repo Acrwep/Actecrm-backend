@@ -406,7 +406,7 @@ const PaymentModel = {
 
       const countQueryParams = [];
       let countQuery = `
-                        SELECT COUNT(DISTINCT c.id) as total
+                        SELECT COUNT(DISTINCT c.id) as total, SUM(payment_summary.balance_amount) as overall_balance
                         FROM customers AS c
                         INNER JOIN payment_master AS pm 
                             ON pm.lead_id = c.lead_id
@@ -502,6 +502,7 @@ const PaymentModel = {
       // Get total count
       const [countResult] = await pool.query(countQuery, countQueryParams);
       const total = countResult[0]?.total || 0;
+      const overall_balance = countResult[0]?.overall_balance || 0;
 
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
@@ -529,7 +530,6 @@ const PaymentModel = {
               pm.gst_amount,
               pm.total_amount,
               pm.created_date AS master_created_date,
-
               pt.id,
               pt.payment_master_id,
               pt.invoice_number,
@@ -631,6 +631,7 @@ const PaymentModel = {
           page: pageNumber,
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
+          overall_balance: parseFloat(overall_balance).toFixed(2),
         },
       };
     } catch (error) {
@@ -744,9 +745,10 @@ const PaymentModel = {
       `;
 
       // Count Query
-      const countQuery = `SELECT COUNT(DISTINCT c.id) as total ${baseFromSql} ${whereClause}`;
+      const countQuery = `SELECT COUNT(DISTINCT c.id) as total, SUM(pm.total_amount - ps.total_paid) as overall_balance ${baseFromSql} ${whereClause}`;
       const [countResult] = await pool.query(countQuery, queryParams);
       const total = countResult[0]?.total || 0;
+      const overall_balance = countResult[0]?.overall_balance || 0;
 
       // Data Query
       const getQuery = `
@@ -782,6 +784,7 @@ const PaymentModel = {
           page: pageNumber,
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
+          overall_balance: parseFloat(overall_balance).toFixed(2),
         },
       };
     } catch (error) {

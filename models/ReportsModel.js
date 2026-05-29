@@ -3931,9 +3931,14 @@ const ReportModel = {
     type = "month",
   ) => {
     try {
+      const userIdsParam =
+        Array.isArray(user_ids) && user_ids.length > 0
+          ? user_ids.join(",")
+          : user_ids || null;
+
       const params = [];
-      params.push(user_ids);
-      params.push(user_ids);
+      params.push(userIdsParam);
+      params.push(userIdsParam);
       params.push(start_date);
       params.push(end_date);
       params.push(start_date);
