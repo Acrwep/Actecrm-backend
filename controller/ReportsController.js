@@ -2,12 +2,14 @@ const { request, response } = require("express");
 const ReportModel = require("../models/ReportsModel");
 
 const reportScoreBoard = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, boundaryDay, type } = request.body;
   try {
     const result = await ReportModel.reportScoreBoard(
       user_ids,
       start_date,
       end_date,
+      boundaryDay,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -22,12 +24,14 @@ const reportScoreBoard = async (request, response) => {
 };
 
 const reportUserWiseScoreBoard = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, boundaryDay, type } = request.body;
   try {
     const result = await ReportModel.reportUserWiseScoreBoard(
       user_ids,
       start_date,
       end_date,
+      boundaryDay,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -62,13 +66,16 @@ const reportUserWiseLead = async (request, response) => {
 };
 
 const reportBranchWiseScoreBoard = async (request, response) => {
-  const { region_id, branch_id, start_date, end_date } = request.body;
+  const { region_id, branch_id, start_date, end_date, boundaryDay, type } =
+    request.body;
   try {
     const result = await ReportModel.reportBranchWiseScoreBoard(
       region_id,
       branch_id,
       start_date,
       end_date,
+      boundaryDay,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -83,13 +90,16 @@ const reportBranchWiseScoreBoard = async (request, response) => {
 };
 
 const reportBranchWiseLeads = async (request, response) => {
-  const { region_id, branch_id, start_date, end_date } = request.body;
+  const { region_id, branch_id, start_date, end_date, boundaryDay, type } =
+    request.body;
   try {
     const result = await ReportModel.reportBranchWiseLeads(
       region_id,
       branch_id,
       start_date,
       end_date,
+      boundaryDay,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -185,12 +195,14 @@ const reportUserWiseQuality = async (request, response) => {
 };
 
 const reportPostSale = async (request, response) => {
-  const { user_ids, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date, boundaryDay, type } = request.body;
   try {
     const result = await ReportModel.reportPostSale(
       user_ids,
       start_date,
       end_date,
+      boundaryDay,
+      type,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
@@ -306,10 +318,10 @@ const getServerReport = async (request, response) => {
 };
 
 const getTicketReport = async (request, response) => {
-  const { user_id, start_date, end_date } = request.body;
+  const { user_ids, start_date, end_date } = request.body;
   try {
     const result = await ReportModel.getTicketReport(
-      user_id,
+      user_ids,
       start_date,
       end_date,
     );
@@ -347,6 +359,38 @@ const candidateFeesHistory = async (request, response) => {
   }
 };
 
+const regionReportDatewise = async (request, response) => {
+  const { start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.regionReportDatewise(start_date, end_date);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getLeadSourceReport = async (request, response) => {
+  const { start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.getLeadSourceReport(start_date, end_date);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -365,4 +409,6 @@ module.exports = {
   getServerReport,
   getTicketReport,
   candidateFeesHistory,
+  regionReportDatewise,
+  getLeadSourceReport,
 };

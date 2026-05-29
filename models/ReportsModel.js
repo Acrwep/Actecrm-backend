@@ -6,6 +6,7 @@ const ReportModel = {
     start_date,
     end_date,
     boundaryDay = 26,
+    type = "month",
   ) => {
     try {
       // --- Helpers ---------------------------------------------------------
@@ -63,21 +64,32 @@ const ReportModel = {
       // --- SQL (we inject boundaryDay as a safe number after validation) ----
       // Note: boundaryDay is inserted into SQL string (safe because validated as integer).
       const b = boundaryDay;
+      const isDateMode = type === "date";
+
+      const getLabelSQL = (col) =>
+        isDateMode
+          ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+          : `DATE_FORMAT(
+          CASE WHEN DAY(CAST(${col} AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(${col} AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(${col} AS DATE)
+          END, '%M %Y'
+        )`;
+
+      const getSortSQL = (col) =>
+        isDateMode
+          ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+          : `DATE_FORMAT(
+          CASE WHEN DAY(CAST(${col} AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(${col} AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(${col} AS DATE)
+          END, '%Y-%m'
+        )`;
 
       const saleVolumeQuery = `
       SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pm.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pm.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pm.created_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pm.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pm.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pm.created_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("pm.created_date")} AS sale_month,
+        ${getSortSQL("pm.created_date")} AS ym
       FROM customers AS c
       INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
       INNER JOIN lead_master AS l ON l.id = c.lead_id
@@ -87,18 +99,8 @@ const ReportModel = {
 
       const collectionQuery = `
       SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("c.created_date")} AS sale_month,
+        ${getSortSQL("c.created_date")} AS ym
       FROM customers AS c
       INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
       INNER JOIN lead_master AS l ON l.id = c.lead_id
@@ -109,18 +111,8 @@ const ReportModel = {
 
       const totalCollectionQuery = `
       SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("pt.invoice_date")} AS sale_month,
+        ${getSortSQL("pt.invoice_date")} AS ym
       FROM lead_master AS l
       INNER JOIN customers AS c ON c.lead_id = l.id
       INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
@@ -131,18 +123,8 @@ const ReportModel = {
 
       const leadQuery = `
       SELECT COUNT(id) AS total_leads,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(created_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(created_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("created_date")} AS sale_month,
+        ${getSortSQL("created_date")} AS ym
       FROM lead_master
       WHERE 1 = 1
         AND CAST(created_date AS DATE) BETWEEN ? AND ?
@@ -150,18 +132,8 @@ const ReportModel = {
 
       const joinQuery = `
       SELECT COUNT(c.id) AS join_count,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("c.created_date")} AS sale_month,
+        ${getSortSQL("c.created_date")} AS ym
       FROM customers AS c
       INNER JOIN lead_master AS l ON c.lead_id = l.id
       WHERE 1 = 1
@@ -178,18 +150,8 @@ const ReportModel = {
             ELSE (SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100
           END, 2
         ) AS percentage,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(lf.next_follow_up_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(lf.next_follow_up_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(lf.next_follow_up_date AS DATE)
-          END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(lf.next_follow_up_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(lf.next_follow_up_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(lf.next_follow_up_date AS DATE)
-          END, '%Y-%m'
-        ) AS ym
+        ${getLabelSQL("lf.next_follow_up_date")} AS sale_month,
+        ${getSortSQL("lf.next_follow_up_date")} AS ym
       FROM lead_follow_up_history AS lf
       INNER JOIN lead_master AS l ON l.id = lf.lead_id
       LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -352,45 +314,62 @@ const ReportModel = {
       const formatLabel = (d) =>
         `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
 
-      const getMonths = (startDateStr, endDateStr) => {
+      const getLabels = (startDateStr, endDateStr) => {
         const sDate = parseToDateOnly(startDateStr);
         const eDate = parseToDateOnly(endDateStr);
         if (!sDate || !eDate) return [];
 
-        const startMapped = getMappedMonthStart(sDate);
-        const endMapped = getMappedMonthStart(eDate);
+        if (isDateMode) {
+          const dates = [];
+          const cur = new Date(sDate.getTime());
+          const end = new Date(eDate.getTime());
+          const formatDate = (d) => {
+            const z = (n) => n.toString().padStart(2, "0");
+            return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+          };
+          while (cur <= end) {
+            dates.push(formatDate(cur));
+            cur.setDate(cur.getDate() + 1);
+          }
+          return dates;
+        } else {
+          const startMapped = getMappedMonthStart(sDate);
+          const endMapped = getMappedMonthStart(eDate);
 
-        // iterate from startMapped to endMapped inclusive
-        const months = [];
-        const cur = new Date(startMapped.getTime());
-        while (cur <= endMapped) {
-          months.push(formatLabel(cur));
-          cur.setMonth(cur.getMonth() + 1);
+          const months = [];
+          const cur = new Date(startMapped.getTime());
+          while (cur <= endMapped) {
+            months.push(formatLabel(cur));
+            cur.setMonth(cur.getMonth() + 1);
+          }
+          return months;
         }
-        return months;
       };
 
-      const months = getMonths(start_date, end_date); // e.g. ["January 2025"]
+      const labels = getLabels(start_date, end_date); // e.g. ["January 2025"] or ["2025-01-01", ...]
 
-      // --- Prepare month-wise array & totals ------------------------------
-      const month_wise = [];
+      // --- Prepare row-wise array & totals ------------------------------
+      const row_wise = [];
       let total_sale = 0;
-      let total_collection = 0;
-      let total_pending = 0;
+      let total_collection_all = 0;
       let total_leads = 0;
       let total_joins = 0;
       let total_followups = 0;
       let total_followup_handled = 0;
       let total_followup_unhandled = 0;
 
-      for (const m of months) {
-        const sale_volume = saleMap[m] ?? 0;
-        const collection = collectionMap[m] ?? 0;
+      // To ensure total_pending is consistent between date and month views,
+      // we must aggregate sale_volume and collection by month before calculating pending total.
+      const monthPendingAgg = {};
+
+      for (const label of labels) {
+        const sale_volume = saleMap[label] ?? 0;
+        const collection = collectionMap[label] ?? 0;
         const pending = Math.max(0, sale_volume - collection);
-        const total_collection_month = totalMap[m] ?? 0;
-        const total_lead = leadMap[m] ?? 0;
-        const joins = joinMap[m] ?? 0;
-        const follow = followupMap[m] || {
+        const total_collection_month = totalMap[label] ?? 0;
+        const total_lead = leadMap[label] ?? 0;
+        const joins = joinMap[label] ?? 0;
+        const follow = followupMap[label] || {
           total_followups: 0,
           follow_up_handled: 0,
           follow_up_unhandled: 0,
@@ -398,16 +377,27 @@ const ReportModel = {
         };
 
         total_sale += sale_volume;
-        total_collection += total_collection_month;
-        total_pending += pending;
+        total_collection_all += total_collection_month;
         total_leads += total_lead;
         total_joins += joins;
         total_followups += follow.total_followups;
         total_followup_handled += follow.follow_up_handled;
         total_followup_unhandled += follow.follow_up_unhandled;
 
-        month_wise.push({
-          sale_month: m,
+        // Track monthly aggregation for consistent pending total
+        let mLabel = label;
+        if (isDateMode) {
+          const d = new Date(label + "T00:00:00");
+          mLabel = formatLabel(getMappedMonthStart(d));
+        }
+        if (!monthPendingAgg[mLabel]) {
+          monthPendingAgg[mLabel] = { sale: 0, coll: 0 };
+        }
+        monthPendingAgg[mLabel].sale += sale_volume;
+        monthPendingAgg[mLabel].coll += collection;
+
+        row_wise.push({
+          sale_month: label, // keep field name for schema consistency
           sale_volume: Number(sale_volume.toFixed(2)),
           collection: Number(collection.toFixed(2)),
           total_collection: Number(total_collection_month.toFixed(2)),
@@ -421,6 +411,11 @@ const ReportModel = {
         });
       }
 
+      // Calculate total_pending based on monthly sums to ensure consistency
+      const total_pending = Object.values(monthPendingAgg).reduce((sum, m) => {
+        return sum + Math.max(0, m.sale - m.coll);
+      }, 0);
+
       const overall_followup_percentage =
         total_followups > 0
           ? Number(
@@ -430,7 +425,7 @@ const ReportModel = {
 
       const totals = {
         sale_volume: Number(total_sale.toFixed(2)),
-        total_collection: Number(total_collection.toFixed(2)),
+        total_collection: Number(total_collection_all.toFixed(2)),
         pending_payment: Number(total_pending.toFixed(2)),
         total_leads: Number(total_leads),
         total_joins: Number(total_joins),
@@ -440,374 +435,440 @@ const ReportModel = {
         overall_followup_percentage: overall_followup_percentage,
       };
 
-      return { month_wise, totals };
+      return {
+        month_wise: row_wise,
+        totals,
+      };
     } catch (error) {
       // bubble error message up (preserve original message)
       throw new Error(error && error.message ? error.message : String(error));
     }
   },
 
-  reportUserWiseScoreBoard: async (
-    user_ids,
-    start_date,
-    end_date,
-    boundaryDay = 26,
-  ) => {
-    try {
-      const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
+  // reportUserWiseScoreBoard: async (
+  //   user_ids,
+  //   start_date,
+  //   end_date,
+  //   boundaryDay = 26,
+  //   type = "month",
+  // ) => {
+  //   try {
+  //     const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 
-      boundaryDay = Math.min(Math.max(Number(boundaryDay) || 26, 1), 31);
+  //     boundaryDay = Math.min(Math.max(Number(boundaryDay) || 26, 1), 31);
 
-      const parseDate = (d) => {
-        const dt = new Date(d);
-        if (isNaN(dt)) return null;
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-      };
+  //     const parseDate = (d) => {
+  //       const dt = new Date(d);
+  //       if (isNaN(dt)) return null;
+  //       dt.setHours(0, 0, 0, 0);
+  //       return dt;
+  //     };
 
-      const startDate = parseDate(start_date);
-      const endDate = parseDate(end_date);
-      if (!startDate || !endDate) throw new Error("Invalid date");
+  //     const startDate = parseDate(start_date);
+  //     const endDate = parseDate(end_date);
+  //     if (!startDate || !endDate) throw new Error("Invalid date");
 
-      const endExclusive = new Date(endDate);
-      endExclusive.setDate(endExclusive.getDate() + 1);
+  //     const endExclusive = new Date(endDate);
+  //     endExclusive.setDate(endExclusive.getDate() + 1);
 
-      let saleUserIds = [];
+  //     const isDateMode = type === "date";
+  //     const b = boundaryDay;
 
-      if (user_ids) {
-        const ids = Array.isArray(user_ids) ? user_ids : [user_ids];
-        const [rows] = await pool.query(
-          `SELECT user_id FROM users WHERE roles LIKE '%Sale%' AND user_id IN (${ids
-            .map(() => "?")
-            .join(",")})`,
-          ids,
-        );
-        saleUserIds = rows.map((r) => r.user_id);
-      } else {
-        const [rows] = await pool.query(
-          `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`,
-        );
-        saleUserIds = rows.map((r) => r.user_id);
-      }
+  //     const getLabelSQL = (col) =>
+  //       isDateMode
+  //         ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+  //         : `DATE_FORMAT(
+  //         CASE WHEN DAY(${col}) >= ${b}
+  //           THEN DATE_ADD(${col}, INTERVAL 1 MONTH)
+  //           ELSE ${col} END,
+  //         '%M %Y'
+  //       )`;
 
-      if (!saleUserIds.length) return [];
-      const ph = saleUserIds.map(() => "?").join(",");
+  //     const getSortSQL = (col) =>
+  //       isDateMode
+  //         ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+  //         : `DATE_FORMAT(
+  //         CASE WHEN DAY(${col}) >= ${b}
+  //           THEN DATE_ADD(${col}, INTERVAL 1 MONTH)
+  //           ELSE ${col} END,
+  //         '%Y-%m'
+  //       )`;
 
-      /* ----------------------------------------------------
-       STEP 2: Queries (UNCHANGED)
-    ---------------------------------------------------- */
-      const b = boundaryDay;
+  //     let saleUserIds = [];
 
-      const [saleRows] = await pool.query(
-        `
-      SELECT 
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(c.created_date) >= ${b}
-            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-            ELSE c.created_date END,
-          '%M %Y'
-        ) AS sale_month,
-        IFNULL(SUM(pm.total_amount), 0) AS sale_volume
-      FROM users u
-      JOIN lead_master l ON l.assigned_to = u.user_id
-      JOIN customers c ON c.lead_id = l.id
-      LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
-      WHERE u.user_id IN (${ph})
-        AND c.created_date >= ?
-        AND c.created_date < ?
-      GROUP BY u.user_id, sale_month
-    `,
-        [...saleUserIds, startDate, endExclusive],
-      );
+  //     if (user_ids) {
+  //       const ids = Array.isArray(user_ids) ? user_ids : [user_ids];
+  //       const [rows] = await pool.query(
+  //         `SELECT user_id FROM users WHERE roles LIKE '%Sale%' AND user_id IN (${ids
+  //           .map(() => "?")
+  //           .join(",")})`,
+  //         ids,
+  //       );
+  //       saleUserIds = rows.map((r) => r.user_id);
+  //     } else {
+  //       const [rows] = await pool.query(
+  //         `SELECT user_id FROM users WHERE roles LIKE '%Sale%'`,
+  //       );
+  //       saleUserIds = rows.map((r) => r.user_id);
+  //     }
 
-      const [collectionRows] = await pool.query(
-        `
-      SELECT 
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(c.created_date) >= ${b}
-            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-            ELSE c.created_date END,
-          '%M %Y'
-        ) AS sale_month,
-        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
-      FROM users u
-      JOIN lead_master l ON l.assigned_to = u.user_id
-      JOIN customers c ON c.lead_id = l.id
-      JOIN payment_master pm ON pm.lead_id = c.lead_id
-      JOIN payment_trans pt ON pt.payment_master_id = pm.id
-       AND pt.payment_status <> 'Rejected'
-      WHERE u.user_id IN (${ph})
-        AND c.created_date >= ?
-        AND c.created_date < ?
-      GROUP BY u.user_id, sale_month
-    `,
-        [...saleUserIds, startDate, endExclusive],
-      );
+  //     if (!saleUserIds.length) return [];
+  //     const ph = saleUserIds.map(() => "?").join(",");
 
-      const [totalRows] = await pool.query(
-        `SELECT 
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(pt.invoice_date) >= ${b}
-            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
-            ELSE pt.invoice_date END,
-          '%M %Y'
-        ) AS sale_month,
-        (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
-      FROM users u
-      JOIN lead_master l ON l.assigned_to = u.user_id
-      JOIN customers c ON c.lead_id = l.id
-      JOIN payment_master pm ON pm.lead_id = c.lead_id
-      JOIN payment_trans pt ON pt.payment_master_id = pm.id
-       AND pt.payment_status <> 'Rejected'
-      WHERE u.user_id IN (${ph})
-        AND pt.invoice_date >= ?
-        AND pt.invoice_date < ?
-      GROUP BY u.user_id, sale_month`,
-        [...saleUserIds, startDate, endExclusive],
-      );
+  //     /* ----------------------------------------------------
+  //      STEP 2: Queries (Robust Aggregation)
+  //   ---------------------------------------------------- */
 
-      const [leadsAgg] = await pool.query(
-        `SELECT
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(l.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(l.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(l.created_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        COUNT(l.id) AS total_leads,
-        SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count
-      FROM users u
-      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
-        AND l.created_date >= ?
-        AND l.created_date < ?
-      LEFT JOIN customers c ON c.lead_id = l.id
-      WHERE u.user_id IN (${ph})
-      GROUP BY u.user_id, sale_month`,
-        [startDate, endExclusive, ...saleUserIds],
-      );
+  //     // Helper to avoid JOIN-based double counting for users
+  //     // We'll aggregate per user_id and sale_month in subqueries.
 
-      const [followupsAgg] = await pool.query(
-        `SELECT
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(lfh.next_follow_up_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(lfh.next_follow_up_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(lfh.next_follow_up_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        COUNT(lfh.id) AS lead_followup_count,
-        SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled,
-        SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled
-      FROM users u
-      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
-      LEFT JOIN customers c ON c.lead_id = l.id
-      LEFT JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
-        AND lfh.next_follow_up_date >= ? 
-        AND lfh.next_follow_up_date < ?
-      WHERE c.id IS NULL AND u.user_id IN (${ph})
-      GROUP BY u.user_id, sale_month`,
-        [startDate, endExclusive, ...saleUserIds],
-      );
+  //     const [saleRows] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("pm.created_date")} AS sale_month,
+  //       IFNULL(SUM(pm.total_amount), 0) AS sale_volume
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //     JOIN customers c ON c.lead_id = l.id
+  //     JOIN payment_master pm ON pm.lead_id = c.lead_id
+  //     WHERE u.user_id IN (${ph})
+  //       AND pm.created_date >= ?
+  //       AND pm.created_date < ?
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-      const [joiningAgg] = await pool.query(
-        `SELECT
-        u.user_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        COUNT(DISTINCT c.id) AS joined_customers
-      FROM users u
-      LEFT JOIN lead_master l ON l.assigned_to = u.user_id
-      LEFT JOIN customers c ON c.lead_id = l.id
-        AND c.created_date >= ? 
-        AND c.created_date < ?
-      WHERE u.user_id IN (${ph})
-      GROUP BY u.user_id, sale_month`,
-        [startDate, endExclusive, ...saleUserIds],
-      );
+  //     const [collectionRows] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("c.created_date")} AS sale_month,
+  //       (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //     JOIN customers c ON c.lead_id = l.id
+  //     JOIN payment_master pm ON pm.lead_id = c.lead_id
+  //     JOIN payment_trans pt ON pt.payment_master_id = pm.id
+  //     WHERE u.user_id IN (${ph})
+  //       AND c.created_date >= ?
+  //       AND c.created_date < ?
+  //       AND pt.payment_status <> 'Rejected'
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-      const [targetRows] = await pool.query(
-        `SELECT id, user_id, target_month, target_value
-      FROM user_target_master
-      WHERE user_id IN (${ph})
-      ORDER BY id DESC`,
-        saleUserIds,
-      );
+  //     const [totalRows] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("pt.invoice_date")} AS sale_month,
+  //       (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //     JOIN customers c ON c.lead_id = l.id
+  //     JOIN payment_master pm ON pm.lead_id = c.lead_id
+  //     JOIN payment_trans pt ON pt.payment_master_id = pm.id
+  //     WHERE u.user_id IN (${ph})
+  //       AND pt.invoice_date >= ?
+  //       AND pt.invoice_date < ?
+  //       AND pt.payment_status <> 'Rejected'
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-      const targetMap = {};
-      targetRows.forEach((t) => {
-        if (!targetMap[t.user_id]) {
-          targetMap[t.user_id] = {
-            target_month: t.target_month,
-            target_value: toNum(t.target_value),
-          };
-        }
-      });
+  //     const [leadsAgg] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("l.created_date")} AS sale_month,
+  //       COUNT(DISTINCT l.id) AS total_leads,
+  //       COUNT(DISTINCT c.id) AS customer_count
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //     LEFT JOIN customers c ON c.lead_id = l.id
+  //     WHERE u.user_id IN (${ph})
+  //       AND l.created_date >= ?
+  //       AND l.created_date < ?
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-      const mapBy = (rows, key, val) =>
-        rows.reduce((a, r) => {
-          a[`${r.sale_month}||${r.user_id}`] = toNum(r[val]);
-          return a;
-        }, {});
+  //     const [followupsAgg] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("lfh.next_follow_up_date")} AS sale_month,
+  //       COUNT(DISTINCT lfh.id) AS lead_followup_count,
+  //       COUNT(DISTINCT CASE WHEN lfh.is_updated = 1 THEN lfh.id END) AS followup_handled,
+  //       COUNT(DISTINCT CASE WHEN lfh.is_updated = 0 THEN lfh.id END) AS followup_unhandled
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //     JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
+  //     LEFT JOIN customers c ON c.lead_id = l.id
+  //     WHERE c.id IS NULL
+  //       AND u.user_id IN (${ph})
+  //       AND lfh.next_follow_up_date >= ?
+  //       AND lfh.next_follow_up_date < ?
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-      const mapByMulti = (rows, fields) =>
-        rows.reduce((acc, r) => {
-          const key = `${r.sale_month}||${r.user_id}`;
-          acc[key] = {};
+  //     const [joiningAgg] = await pool.query(
+  //       `
+  //     SELECT
+  //       u.user_id,
+  //       ${getLabelSQL("c.created_date")} AS sale_month,
+  //       COUNT(DISTINCT c.id) AS joined_customers
+  //     FROM users u
+  //     JOIN lead_master l ON l.assigned_to = u.user_id
+  //       AND l.assigned_to IN (${ph})
+  //     JOIN customers c ON c.lead_id = l.id
+  //     WHERE c.created_date >= ?
+  //       AND c.created_date < ?
+  //     GROUP BY u.user_id, sale_month
+  //   `,
+  //       [...saleUserIds, startDate, endExclusive],
+  //     );
 
-          fields.forEach((f) => {
-            acc[key][f] = toNum(r[f]);
-          });
+  //     const [targetRows] = await pool.query(
+  //       `SELECT id, user_id, target_month, target_value
+  //     FROM user_target_master
+  //     WHERE user_id IN (${ph})
+  //     ORDER BY id DESC`,
+  //       saleUserIds,
+  //     );
 
-          return acc;
-        }, {});
+  //     const targetMap = {};
+  //     targetRows.forEach((t) => {
+  //       if (!targetMap[t.user_id]) {
+  //         targetMap[t.user_id] = {
+  //           target_month: t.target_month,
+  //           target_value: toNum(t.target_value),
+  //         };
+  //       }
+  //     });
 
-      const saleMap = mapBy(saleRows, "sale_month", "sale_volume");
-      const collectionMap = mapBy(collectionRows, "sale_month", "collection");
-      const totalMap = mapBy(totalRows, "sale_month", "total_collection");
-      const leadMap = mapByMulti(leadsAgg, ["total_leads", "customer_count"]);
-      const followMap = mapByMulti(followupsAgg, [
-        "lead_followup_count",
-        "followup_handled",
-        "followup_unhandled",
-      ]);
+  //     const mapBy = (rows, key, val) =>
+  //       rows.reduce((a, r) => {
+  //         a[`${r.sale_month}||${r.user_id}`] = toNum(r[val]);
+  //         return a;
+  //       }, {});
 
-      const joinMap = mapByMulti(joiningAgg, ["joined_customers"]);
+  //     const mapByMulti = (rows, fields) =>
+  //       rows.reduce((acc, r) => {
+  //         const key = `${r.sale_month}||${r.user_id}`;
+  //         acc[key] = {};
 
-      const [users] = await pool.query(
-        `SELECT user_id, user_name FROM users WHERE user_id IN (${ph})`,
-        saleUserIds,
-      );
-      const userNameMap = {};
-      users.forEach((u) => (userNameMap[u.user_id] = u.user_name));
+  //         fields.forEach((f) => {
+  //           acc[key][f] = toNum(r[f]);
+  //         });
 
-      const monthNames = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ];
+  //         return acc;
+  //       }, {});
 
-      const monthAbbrev = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ];
+  //     const saleMap = mapBy(saleRows, "sale_month", "sale_volume");
+  //     const collectionMap = mapBy(collectionRows, "sale_month", "collection");
+  //     const totalMap = mapBy(totalRows, "sale_month", "total_collection");
+  //     const leadMap = mapByMulti(leadsAgg, ["total_leads", "customer_count"]);
+  //     const followMap = mapByMulti(followupsAgg, [
+  //       "lead_followup_count",
+  //       "followup_handled",
+  //       "followup_unhandled",
+  //     ]);
 
-      const getMappedMonthStart = (d) => {
-        const dt = new Date(d);
-        if (dt.getDate() >= boundaryDay) dt.setMonth(dt.getMonth() + 1);
-        dt.setDate(1);
-        dt.setHours(0, 0, 0, 0);
-        return dt;
-      };
+  //     const joinMap = mapByMulti(joiningAgg, ["joined_customers"]);
 
-      const months = [];
-      let cur = getMappedMonthStart(startDate);
-      const end = getMappedMonthStart(endDate);
+  //     const [users] = await pool.query(
+  //       `SELECT user_id, user_name FROM users WHERE user_id IN (${ph})`,
+  //       saleUserIds,
+  //     );
+  //     const userNameMap = {};
+  //     users.forEach((u) => (userNameMap[u.user_id] = u.user_name));
 
-      while (cur <= end) {
-        months.push({
-          label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`,
-          abbrev: `${monthAbbrev[cur.getMonth()]} ${cur.getFullYear()}`,
-        });
-        cur.setMonth(cur.getMonth() + 1);
-      }
+  //     const monthNames = [
+  //       "January",
+  //       "February",
+  //       "March",
+  //       "April",
+  //       "May",
+  //       "June",
+  //       "July",
+  //       "August",
+  //       "September",
+  //       "October",
+  //       "November",
+  //       "December",
+  //     ];
 
-      const result = [];
+  //     const monthAbbrevs = [
+  //       "Jan",
+  //       "Feb",
+  //       "Mar",
+  //       "Apr",
+  //       "May",
+  //       "Jun",
+  //       "Jul",
+  //       "Aug",
+  //       "Sep",
+  //       "Oct",
+  //       "Nov",
+  //       "Dec",
+  //     ];
 
-      for (const uid of saleUserIds) {
-        for (const m of months) {
-          const key = `${m.label}||${uid}`;
+  //     const getMappedMonthStart = (d) => {
+  //       const dt = new Date(d);
+  //       if (dt.getDate() >= boundaryDay) dt.setMonth(dt.getMonth() + 1);
+  //       dt.setDate(1);
+  //       dt.setHours(0, 0, 0, 0);
+  //       return dt;
+  //     };
 
-          const sale = saleMap[key] || 0;
-          const collection = collectionMap[key] || 0;
-          const total = totalMap[key] || 0;
+  //     const getLabels = (startDateStr, endDateStr) => {
+  //       const sDate = parseDate(startDateStr);
+  //       const eDate = parseDate(endDateStr);
+  //       if (!sDate || !eDate) return [];
 
-          const pending = Math.max(0, sale - collection).toFixed(2);
+  //       if (isDateMode) {
+  //         const dates = [];
+  //         const cur = new Date(sDate.getTime());
+  //         const end = new Date(eDate.getTime());
+  //         const formatStr = (d) => {
+  //           const z = (n) => n.toString().padStart(2, "0");
+  //           return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+  //         };
+  //         while (cur <= end) {
+  //           const label = formatStr(cur);
+  //           dates.push({ label: label, abbrev: label });
+  //           cur.setDate(cur.getDate() + 1);
+  //         }
+  //         return dates;
+  //       } else {
+  //         const startMapped = getMappedMonthStart(sDate);
+  //         const endMapped = getMappedMonthStart(eDate);
 
-          const leads = leadMap[key] || {};
-          const followups = followMap[key] || {};
-          const joining = joinMap[key] || {};
+  //         const months = [];
+  //         const cur = new Date(startMapped.getTime());
+  //         while (cur <= endMapped) {
+  //           months.push({
+  //             label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`,
+  //             abbrev: `${monthAbbrevs[cur.getMonth()]} ${cur.getFullYear()}`,
+  //           });
+  //           cur.setMonth(cur.getMonth() + 1);
+  //         }
+  //         return months;
+  //       }
+  //     };
 
-          const target = targetMap[uid] || {
-            target_value: 0,
-            target_month: "",
-          };
-          const percentage =
-            target.target_value > 0
-              ? Number(((total / target.target_value) * 100).toFixed(2))
-              : 0;
+  //     const labels = getLabels(start_date, end_date);
+  //     const result = [];
 
-          const total_leads = leads.total_leads || 0;
-          const customer_count = leads.customer_count || 0;
-          const lead_to_customer_percentage =
-            total_leads > 0
-              ? Number(((customer_count / total_leads) * 100).toFixed(2))
-              : 0;
+  //     for (const uid of saleUserIds) {
+  //       // Track monthly aggregation for consistent pending calculation per user
+  //       const userMonthAgg = {};
 
-          const lead_followup_count = followups.lead_followup_count || 0;
-          const followup_handled = followups.followup_handled || 0;
-          const followup_unhandled = followups.followup_unhandled || 0;
-          const followup_handled_percentage =
-            lead_followup_count > 0
-              ? Number(
-                  ((followup_handled / lead_followup_count) * 100).toFixed(2),
-                )
-              : 0;
+  //       for (const m of labels) {
+  //         const key = `${m.label}||${uid}`;
 
-          const joined_customers = joining.joined_customers || 0;
+  //         const sale = saleMap[key] || 0;
+  //         const collection = collectionMap[key] || 0;
+  //         const total = totalMap[key] || 0;
 
-          result.push({
-            user_id: uid,
-            user_name: userNameMap[uid] || "",
-            month: m.abbrev, // "Nov 2025"
-            label: m.label, // "November 2025"
-            sale_volume: sale,
-            collection,
-            total_collection: total,
-            pending,
-            target_month: target.target_month,
-            target_value: target.target_value,
-            percentage,
-            total_leads,
-            customer_count,
-            lead_to_customer_percentage,
-            lead_followup_count,
-            followup_handled,
-            followup_unhandled,
-            followup_handled_percentage,
-            joined_customers,
-          });
-        }
-      }
+  //         let pendingValue = 0;
+  //         if (isDateMode) {
+  //           const d = new Date(m.label + "T00:00:00");
+  //           const targetMonthLabel = `${
+  //             monthNames[getMappedMonthStart(d).getMonth()]
+  //           } ${getMappedMonthStart(d).getFullYear()}`;
 
-      return result;
-    } catch (err) {
-      throw new Error(err.message || String(err));
-    }
-  },
+  //           if (!userMonthAgg[targetMonthLabel]) {
+  //             userMonthAgg[targetMonthLabel] = { sale: 0, coll: 0 };
+  //           }
+  //           const prevP = Math.max(
+  //             0,
+  //             userMonthAgg[targetMonthLabel].sale -
+  //               userMonthAgg[targetMonthLabel].coll,
+  //           );
+  //           userMonthAgg[targetMonthLabel].sale += sale;
+  //           userMonthAgg[targetMonthLabel].coll += collection;
+  //           const nextP = Math.max(
+  //             0,
+  //             userMonthAgg[targetMonthLabel].sale -
+  //               userMonthAgg[targetMonthLabel].coll,
+  //           );
+  //           pendingValue = nextP - prevP;
+  //         } else {
+  //           pendingValue = Math.max(0, sale - collection);
+  //         }
+
+  //         const pending = Number(pendingValue).toFixed(2);
+
+  //         const leads = leadMap[key] || {};
+  //         const followups = followMap[key] || {};
+  //         const joining = joinMap[key] || {};
+
+  //         const target = targetMap[uid] || {
+  //           target_value: 0,
+  //           target_month: "",
+  //         };
+  //         const percentage =
+  //           target.target_value > 0
+  //             ? Number(((total / target.target_value) * 100).toFixed(2))
+  //             : 0;
+
+  //         const total_leads = leads.total_leads || 0;
+  //         const customer_count = leads.customer_count || 0;
+  //         const lead_to_customer_percentage =
+  //           total_leads > 0
+  //             ? Number(((customer_count / total_leads) * 100).toFixed(2))
+  //             : 0;
+
+  //         const lead_followup_count = followups.lead_followup_count || 0;
+  //         const followup_handled = followups.followup_handled || 0;
+  //         const followup_unhandled = followups.followup_unhandled || 0;
+  //         const followup_handled_percentage =
+  //           lead_followup_count > 0
+  //             ? Number(
+  //                 ((followup_handled / lead_followup_count) * 100).toFixed(2),
+  //               )
+  //             : 0;
+
+  //         const joined_customers = joining.joined_customers || 0;
+
+  //         result.push({
+  //           user_id: uid,
+  //           user_name: userNameMap[uid] || "",
+  //           month: m.abbrev,
+  //           label: m.label,
+  //           sale_volume: Number(sale.toFixed(2)),
+  //           collection: Number(collection.toFixed(2)),
+  //           total_collection: Number(total.toFixed(2)),
+  //           pending: pending,
+  //           target_month: target.target_month,
+  //           target_value: target.target_value,
+  //           percentage,
+  //           total_leads,
+  //           customer_count,
+  //           lead_to_customer_percentage,
+  //           lead_followup_count,
+  //           followup_handled,
+  //           followup_unhandled,
+  //           followup_handled_percentage,
+  //           joined_customers,
+  //         });
+  //       }
+  //     }
+
+  //     return result;
+  //   } catch (err) {
+  //     throw new Error(err.message || String(err));
+  //   }
+  // },
 
   reportUserWiseLead: async (
     user_ids,
@@ -1145,6 +1206,7 @@ const ReportModel = {
     start_date,
     end_date,
     boundaryDay = 26,
+    type = "month",
   ) => {
     try {
       // --- helpers & validate boundaryDay --------------------------------
@@ -1240,6 +1302,27 @@ const ReportModel = {
       }
 
       const b = boundaryDay;
+      const isDateMode = type === "date";
+
+      const getLabelSQL = (col) =>
+        isDateMode
+          ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+          : `DATE_FORMAT(
+          CASE WHEN DAY(CAST(${col} AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(${col} AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(${col} AS DATE)
+          END, '%M %Y'
+        )`;
+
+      const getSortSQL = (col) =>
+        isDateMode
+          ? `DATE_FORMAT(CAST(${col} AS DATE), '%Y-%m-%d')`
+          : `DATE_FORMAT(
+          CASE WHEN DAY(CAST(${col} AS DATE)) >= ${b}
+            THEN DATE_ADD(CAST(${col} AS DATE), INTERVAL 1 MONTH)
+            ELSE CAST(${col} AS DATE)
+          END, '%Y-%m'
+        )`;
 
       // --- Queries: move date filters into JOINs (so LEFT JOIN remains LEFT JOIN) ---
       // sale uses c.created_date mapping/filter inside the customer join
@@ -1247,16 +1330,8 @@ const ReportModel = {
       SELECT
         b.id AS branch_id,
         b.name AS branch_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
-        ) AS ym,
+        ${getLabelSQL("c.created_date")} AS sale_month,
+        ${getSortSQL("c.created_date")} AS ym,
         IFNULL(SUM(pm.total_amount), 0) AS sale_volume
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1277,16 +1352,8 @@ const ReportModel = {
       SELECT
         b.id AS branch_id,
         b.name AS branch_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
-        ) AS ym,
+        ${getLabelSQL("c.created_date")} AS sale_month,
+        ${getSortSQL("c.created_date")} AS ym,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1308,16 +1375,8 @@ const ReportModel = {
       SELECT
         b.id AS branch_id,
         b.name AS branch_name,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE) END, '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE) END, '%Y-%m'
-        ) AS ym,
+        ${getLabelSQL("pt.invoice_date")} AS sale_month,
+        ${getSortSQL("pt.invoice_date")} AS ym,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1414,26 +1473,45 @@ const ReportModel = {
       const formatAbbrev = (d) =>
         `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`;
 
-      const getMonths = (startDateStr, endDateStr) => {
+      const getLabels = (startDateStr, endDateStr) => {
         const sDate = parseToDateOnly(startDateStr);
         const eDate = parseToDateOnly(endDateStr);
         if (!sDate || !eDate) return [];
-        const startMapped = getMappedMonthStart(sDate);
-        const endMapped = getMappedMonthStart(eDate);
-        const months = [];
-        const cur = new Date(startMapped.getTime());
-        while (cur <= endMapped) {
-          months.push({
-            label: formatLabel(cur),
-            abbrev: formatAbbrev(cur),
-            d: new Date(cur.getTime()),
-          });
-          cur.setMonth(cur.getMonth() + 1);
+
+        if (isDateMode) {
+          const dates = [];
+          const cur = new Date(sDate.getTime());
+          const end = new Date(eDate.getTime());
+          const formatDate = (d) => {
+            const z = (n) => n.toString().padStart(2, "0");
+            return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+          };
+          while (cur <= end) {
+            const label = formatDate(cur);
+            dates.push({
+              label: label,
+              abbrev: label,
+            });
+            cur.setDate(cur.getDate() + 1);
+          }
+          return dates;
+        } else {
+          const startMapped = getMappedMonthStart(sDate);
+          const endMapped = getMappedMonthStart(eDate);
+          const months = [];
+          const cur = new Date(startMapped.getTime());
+          while (cur <= endMapped) {
+            months.push({
+              label: formatLabel(cur),
+              abbrev: formatAbbrev(cur),
+            });
+            cur.setMonth(cur.getMonth() + 1);
+          }
+          return months;
         }
-        return months;
       };
 
-      const months = getMonths(start_date, end_date);
+      const labels = getLabels(start_date, end_date);
 
       // --- assemble branch list: fetch all branches matching region (so every branch is included) ------
       const branchFetchQuery = `SELECT id AS branch_id, name AS branch_name FROM branches ${branchFetchRegionWhere}`;
@@ -1461,14 +1539,49 @@ const ReportModel = {
       const result = [];
       for (const bid of branchIds) {
         const bname = branchNameMap[bid] || "";
-        for (const mObj of months) {
-          const mLabel = mObj.label; // "January 2025"
-          const mAbbrev = mObj.abbrev; // "Jan 2025"
+
+        // Track monthly aggregation for consistent pending calculation per branch
+        const branchMonthAgg = {};
+
+        for (const mObj of labels) {
+          const mLabel = mObj.label;
+          const mAbbrev = mObj.abbrev;
 
           const sale_volume = saleMap[`${mLabel}||${bid}`] ?? 0;
           const collection = collectionMap[`${mLabel}||${bid}`] ?? 0;
           const total_collection = totalMap[`${mLabel}||${bid}`] ?? 0;
-          const pending = Math.max(0, sale_volume - collection);
+
+          let pendingValue = 0;
+          if (isDateMode) {
+            // Determine which "sale month" this date belongs to
+            const d = new Date(mLabel + "T00:00:00");
+            const targetMonthLabel = formatLabel(getMappedMonthStart(d));
+
+            if (!branchMonthAgg[targetMonthLabel]) {
+              branchMonthAgg[targetMonthLabel] = { sale: 0, coll: 0 };
+            }
+
+            const prevPending = Math.max(
+              0,
+              branchMonthAgg[targetMonthLabel].sale -
+                branchMonthAgg[targetMonthLabel].coll,
+            );
+
+            branchMonthAgg[targetMonthLabel].sale += sale_volume;
+            branchMonthAgg[targetMonthLabel].coll += collection;
+
+            const nextPending = Math.max(
+              0,
+              branchMonthAgg[targetMonthLabel].sale -
+                branchMonthAgg[targetMonthLabel].coll,
+            );
+
+            // Daily pending is the delta in the monthly pending amount
+            pendingValue = nextPending - prevPending;
+          } else {
+            // Monthly view: standard max(0, sale-coll)
+            pendingValue = Math.max(0, sale_volume - collection);
+          }
 
           result.push({
             branch_id: bid,
@@ -1478,7 +1591,7 @@ const ReportModel = {
             sale_volume: Number(sale_volume.toFixed(2)),
             collection: Number(collection.toFixed(2)),
             total_collection: Number(total_collection.toFixed(2)),
-            pending: Number(pending.toFixed(2)),
+            pending: Number(pendingValue.toFixed(2)),
           });
         }
       }
@@ -1495,6 +1608,7 @@ const ReportModel = {
     start_date,
     end_date,
     boundaryDay = 26,
+    type = "month",
   ) => {
     try {
       // --- helpers & validate boundaryDay --------------------------------
@@ -1507,6 +1621,8 @@ const ReportModel = {
       boundaryDay = Number(boundaryDay) || 26;
       if (boundaryDay < 1) boundaryDay = 1;
       if (boundaryDay > 31) boundaryDay = 31;
+
+      const isDate = type === "date";
 
       const parseToDateOnly = (d) => {
         if (!d) return null;
@@ -1544,7 +1660,7 @@ const ReportModel = {
       endExclusive.setDate(endExclusive.getDate() + 1);
       const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
 
-      // --- region logic (same rules as yours) -----------------------------
+      // --- region logic -----------------------------
       let regionSuffix = "";
       let branchFetchRegionWhere = "";
       const regionParams = [];
@@ -1558,22 +1674,17 @@ const ReportModel = {
         if (getRegion.length) {
           const rname = getRegion[0].name;
 
-          // ---------- REGION + BRANCH ----------
           if (branch_id) {
             regionSuffix = ` AND b.region_id = ? AND b.id = ?`;
             branchFetchRegionWhere = ` WHERE region_id = ? AND id = ? AND is_active = 1`;
 
-            // Exclude Online branch only for Chennai & Bangalore
             if (["Chennai", "Bangalore"].includes(rname)) {
               regionSuffix += ` AND b.name <> 'Online'`;
               branchFetchRegionWhere += ` AND name <> 'Online'`;
             }
 
             regionParams.push(region_id, branch_id);
-          }
-
-          // ---------- ONLY REGION ----------
-          else {
+          } else {
             if (["Chennai", "Bangalore"].includes(rname)) {
               regionSuffix = ` AND b.region_id = ? AND b.name <> 'Online'`;
               branchFetchRegionWhere = ` WHERE region_id = ? AND is_active = 1 AND name <> 'Online'`;
@@ -1591,16 +1702,24 @@ const ReportModel = {
 
       const b = boundaryDay;
 
-      // --- Aggregates (date filters moved into JOINs to preserve LEFT JOIN) ---
-      // Leads aggregate (mapped by l.created_date)
+      // Grouping expression based on type
+      const groupExpr = (field) => {
+        if (isDate) {
+          return `DATE_FORMAT(${field}, '%Y-%m-%d')`;
+        } else {
+          return `DATE_FORMAT(
+            CASE WHEN DAY(CAST(${field} AS DATE)) >= ${b}
+              THEN DATE_ADD(CAST(${field} AS DATE), INTERVAL 1 MONTH)
+              ELSE CAST(${field} AS DATE) END, '%Y-%m'
+          )`;
+        }
+      };
+
+      // Aggregates
       const leadsAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(l.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(l.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(l.created_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("l.created_date")} AS month,
         COUNT(l.id) AS total_leads,
         SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count
       FROM branches b
@@ -1612,17 +1731,12 @@ const ReportModel = {
       LEFT JOIN customers c ON c.lead_id = l.id
       WHERE 1 = 1 ${regionSuffix}
       GROUP BY b.id, month
-    `;
+      `;
 
-      // Followups aggregate (mapped by lfh.next_follow_up_date) only for leads where c.id IS NULL
       const followupsAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(lfh.next_follow_up_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(lfh.next_follow_up_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(lfh.next_follow_up_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("lfh.next_follow_up_date")} AS month,
         COUNT(lfh.id) AS lead_followup_count,
         SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled,
         SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled
@@ -1636,17 +1750,12 @@ const ReportModel = {
       }
       WHERE c.id IS NULL ${regionSuffix}
       GROUP BY b.id, month
-    `;
+      `;
 
-      // Joining aggregate (mapped by c.created_date)
       const joiningAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("c.created_date")} AS month,
         COUNT(DISTINCT c.id) AS joined_customers
       FROM branches b
       LEFT JOIN lead_master l ON l.branch_id = b.id
@@ -1657,16 +1766,12 @@ const ReportModel = {
       }
       WHERE 1 = 1 ${regionSuffix}
       GROUP BY b.id, month
-    `;
+      `;
 
       const saleAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("c.created_date")} AS month,
         IFNULL(SUM(pm.total_amount), 0) AS sale_volume
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1677,18 +1782,14 @@ const ReportModel = {
         }
       LEFT JOIN lead_master l ON c.lead_id = l.id
       LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
-      WHERE 1 = 1
-        ${regionSuffix}
-      GROUP BY b.id, month`;
+      WHERE 1 = 1 ${regionSuffix}
+      GROUP BY b.id, month
+      `;
 
       const collectionAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("c.created_date")} AS month,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1700,18 +1801,14 @@ const ReportModel = {
       LEFT JOIN lead_master l ON c.lead_id = l.id
       LEFT JOIN payment_master pm ON pm.lead_id = c.lead_id
       LEFT JOIN payment_trans pt ON pt.payment_master_id = pm.id AND pt.payment_status <> 'Rejected'
-      WHERE 1 = 1
-        ${regionSuffix}
-      GROUP BY b.id, month`;
+      WHERE 1 = 1 ${regionSuffix}
+      GROUP BY b.id, month
+      `;
 
       const totalAgg = `
       SELECT
         b.id AS branch_id,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(pt.invoice_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(pt.invoice_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(pt.invoice_date AS DATE) END, '%Y-%m'
-        ) AS month,
+        ${groupExpr("pt.invoice_date")} AS month,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM branches b
       LEFT JOIN customers c ON b.id = c.branch_id
@@ -1723,11 +1820,14 @@ const ReportModel = {
             ? ` AND pt.invoice_date >= ? AND pt.invoice_date < ?`
             : ""
         }
-      WHERE 1 = 1
-        ${regionSuffix}
-      GROUP BY b.id, month`;
+      WHERE 1 = 1 ${regionSuffix}
+      GROUP BY b.id, month
+      `;
 
-      // --- Build CTE combining aggregates into user_months-like structure ----
+      const labelExpr = isDate
+        ? `DATE_FORMAT(STR_TO_DATE(bm.month, '%Y-%m-%d'), '%d %b %Y')`
+        : `DATE_FORMAT(STR_TO_DATE(CONCAT(bm.month, '-01'), '%Y-%m-%d'), '%b %Y')`;
+
       const finalQuery = `
       WITH leads AS (${leadsAgg}),
            followups AS (${followupsAgg}),
@@ -1752,7 +1852,7 @@ const ReportModel = {
         bm.branch_id,
         br.name AS branch_name,
         bm.month,
-        DATE_FORMAT(STR_TO_DATE(CONCAT(bm.month, '-01'), '%Y-%m-%d'), '%b %Y') AS label,
+        ${labelExpr} AS label,
         IFNULL(l.total_leads, 0) AS total_leads,
         IFNULL(l.customer_count, 0) AS customer_count,
         ROUND((IFNULL(l.customer_count,0) / NULLIF(IFNULL(l.total_leads,0),0)) * 100, 2) AS lead_to_customer_percentage,
@@ -1773,9 +1873,8 @@ const ReportModel = {
       LEFT JOIN total t ON t.branch_id = bm.branch_id AND t.month = bm.month
       LEFT JOIN branches br ON br.id = bm.branch_id
       ORDER BY br.name ASC, bm.month DESC;
-    `;
+      `;
 
-      // --- final params order: leads params, followups params, joining params ---
       const leadsParams = [];
       const followupParams = [];
       const joiningParams = [];
@@ -1791,7 +1890,6 @@ const ReportModel = {
         collectionParams.push(startDateTimeSQL, endExclusiveDateTimeSQL);
         totalParams.push(startDateTimeSQL, endExclusiveDateTimeSQL);
       }
-      // append region params for each (regionSuffix appears in each aggregate)
       leadsParams.push(...regionParams);
       followupParams.push(...regionParams);
       joiningParams.push(...regionParams);
@@ -1808,10 +1906,8 @@ const ReportModel = {
         ...totalParams,
       ];
 
-      // --- run query to get raw rows per branch+month -----------------------
       const [rows] = await pool.query(finalQuery, finalParams);
 
-      // --- compute months list (mapped) for the full range so every branch gets same months ---
       const monthNames = [
         "January",
         "February",
@@ -1840,6 +1936,7 @@ const ReportModel = {
         "Nov",
         "Dec",
       ];
+
       const getMappedMonthStart = (dateInput) => {
         const d = new Date(dateInput.getTime());
         const day = d.getDate();
@@ -1848,10 +1945,7 @@ const ReportModel = {
         d.setHours(0, 0, 0, 0);
         return d;
       };
-      const formatLabel = (d) =>
-        `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      const formatAbbrev = (d) =>
-        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`;
+
       const getMonths = (startDateStr, endDateStr) => {
         const sDate = parseToDateOnly(startDateStr);
         const eDate = parseToDateOnly(endDateStr);
@@ -1862,26 +1956,44 @@ const ReportModel = {
         const cur = new Date(startMapped.getTime());
         while (cur <= endMapped) {
           months.push({
-            label: formatLabel(cur),
-            abbrev: formatAbbrev(cur),
-            d: new Date(cur.getTime()),
+            label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`,
+            abbrev: `${monthAbbrev[cur.getMonth()]} ${cur.getFullYear()}`,
+            key: `${cur.getFullYear()}-${(cur.getMonth() + 1)
+              .toString()
+              .padStart(2, "0")}`,
           });
           cur.setMonth(cur.getMonth() + 1);
         }
         return months;
       };
-      const months = getMonths(start_date, end_date);
 
-      // --- assemble branch list (all branches for region or all active branches) ---
+      const getDates = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const dates = [];
+        const cur = new Date(sDate.getTime());
+        while (cur <= eDate) {
+          const dd = cur.getDate().toString().padStart(2, "0");
+          const mmAbbrev = monthAbbrev[cur.getMonth()];
+          const mmFull = monthNames[cur.getMonth()];
+          const yy = cur.getFullYear();
+          dates.push({
+            label: `${dd} ${mmFull} ${yy}`,
+            abbrev: `${dd} ${mmAbbrev} ${yy}`,
+            key: `${yy}-${(cur.getMonth() + 1).toString().padStart(2, "0")}-${dd}`,
+          });
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      };
+
+      const timeItems = isDate
+        ? getDates(start_date, end_date)
+        : getMonths(start_date, end_date);
+
       const branchFetchQuery = `SELECT id AS branch_id, name AS branch_name FROM branches ${branchFetchRegionWhere}`;
-      const branchFetchParams = [];
-
-      if (region_id && branch_id) {
-        branchFetchParams.push(region_id, branch_id);
-      } else if (region_id) {
-        branchFetchParams.push(region_id);
-      }
-
+      const branchFetchParams = [...regionParams];
       const [branchRows] = await pool.query(
         branchFetchQuery,
         branchFetchParams,
@@ -1894,66 +2006,46 @@ const ReportModel = {
         return acc;
       }, {});
 
-      // --- convert raw rows to lookup maps keyed by 'branchId||month' ----------
       const rowMap = {};
       (rows || []).forEach((r) => {
-        const key = `${r.branch_id}||${r.month}`;
-        rowMap[key] = {
-          total_leads: toNum(r.total_leads),
-          customer_count: toNum(r.customer_count),
-          lead_to_customer_percentage: toNum(r.lead_to_customer_percentage),
-          lead_followup_count: toNum(r.lead_followup_count),
-          followup_handled: toNum(r.followup_handled),
-          followup_unhandled: toNum(r.followup_unhandled),
-          followup_handled_percentage: toNum(r.followup_handled_percentage),
-          joined_customers: toNum(r.joined_customers),
-          sale_volume: toNum(r.sale_volume),
-          collection: toNum(r.collection),
-          total_collection: toNum(r.total_collection),
+        rowMap[`${r.branch_id}||${r.month}`] = {
+          ...r,
           pending: toNum(r.sale_volume - r.collection),
-          label: r.label,
         };
       });
 
-      // --- build final per-branch array with months array ---------------------
       const result = [];
       for (const bid of branchIds) {
-        months.map((mObj) => {
-          const monthKey = mObj.label.includes(" ")
-            ? (() => {
-                // convert "January 2025" -> "2025-01"
-                const [mn, yy] = mObj.label.split(" ");
-                // find numeric month index from monthNames
-                const mi = monthNames.indexOf(mn) + 1;
-                const mm = mi.toString().padStart(2, "0");
-                return `${yy}-${mm}`;
-              })()
-            : mObj.label;
-
-          const data = rowMap[`${bid}||${monthKey}`] || null;
-          result.push({
+        for (const item of timeItems) {
+          const data = rowMap[`${bid}||${item.key}`] || null;
+          const entry = {
             branch_id: bid,
             branch_name: branchNameMap[bid] || "",
-            month: mObj.abbrev, // "Jan 2025"
-            label: mObj.label, // "January 2025"
-            total_leads: data ? data.total_leads : 0,
-            customer_count: data ? data.customer_count : 0,
+            label: item.label,
+            total_leads: data ? toNum(data.total_leads) : 0,
+            customer_count: data ? toNum(data.customer_count) : 0,
             lead_to_customer_percentage: data
-              ? data.lead_to_customer_percentage
+              ? toNum(data.lead_to_customer_percentage)
               : 0,
-            lead_followup_count: data ? data.lead_followup_count : 0,
-            followup_handled: data ? data.followup_handled : 0,
-            followup_unhandled: data ? data.followup_unhandled : 0,
+            lead_followup_count: data ? toNum(data.lead_followup_count) : 0,
+            followup_handled: data ? toNum(data.followup_handled) : 0,
+            followup_unhandled: data ? toNum(data.followup_unhandled) : 0,
             followup_handled_percentage: data
-              ? data.followup_handled_percentage
+              ? toNum(data.followup_handled_percentage)
               : 0,
-            joined_customers: data ? data.joined_customers : 0,
-            sale_volume: data ? data.sale_volume : 0,
-            collection: data ? data.collection : 0,
-            total_collection: data ? data.total_collection : 0,
-            pending: data ? data.pending : 0,
-          });
-        });
+            joined_customers: data ? toNum(data.joined_customers) : 0,
+            sale_volume: data ? toNum(data.sale_volume) : 0,
+            collection: data ? toNum(data.collection) : 0,
+            total_collection: data ? toNum(data.total_collection) : 0,
+            pending: data ? toNum(data.pending) : 0,
+          };
+          if (isDate) {
+            entry.date = item.abbrev;
+          } else {
+            entry.month = item.abbrev;
+          }
+          result.push(entry);
+        }
       }
 
       return result;
@@ -2703,7 +2795,13 @@ const ReportModel = {
     }
   },
 
-  reportPostSale: async (user_ids, start_date, end_date, boundaryDay = 26) => {
+  reportPostSale: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26,
+    type = "month",
+  ) => {
     try {
       // --- helpers & normalize boundaryDay --------------------------------
       const toNum = (v) => {
@@ -2715,6 +2813,8 @@ const ReportModel = {
       boundaryDay = Number(boundaryDay) || 26;
       if (boundaryDay < 1) boundaryDay = 1;
       if (boundaryDay > 31) boundaryDay = 31;
+
+      const isDate = type === "date";
 
       const parseToDateOnly = (d) => {
         if (!d) return null;
@@ -2753,21 +2853,36 @@ const ReportModel = {
       endExclusive.setDate(endExclusive.getDate() + 1);
       const endExclusiveDateTimeSQL = formatDateTimeSQL(endExclusive);
 
-      // --- SQL: aggregate by mapped month (use c.created_date for mapping/filter) ---
+      // --- SQL aggregate ---
       const b = boundaryDay;
+
+      const getGroupExpr = (field) => {
+        if (isDate) {
+          return `DATE_FORMAT(${field}, '%Y-%m-%d')`;
+        } else {
+          return `DATE_FORMAT(
+            CASE WHEN DAY(CAST(${field} AS DATE)) >= ${b}
+              THEN DATE_ADD(CAST(${field} AS DATE), INTERVAL 1 MONTH)
+              ELSE CAST(${field} AS DATE) END, '%Y-%m'
+          )`;
+        }
+      };
+
+      const getLabelExpr = (field) => {
+        if (isDate) {
+          return `DATE_FORMAT(${field}, '%d %M %Y')`;
+        } else {
+          return `DATE_FORMAT(
+            CASE WHEN DAY(CAST(${field} AS DATE)) >= ${b}
+              THEN DATE_ADD(CAST(${field} AS DATE), INTERVAL 1 MONTH)
+              ELSE CAST(${field} AS DATE) END, '%M %Y'
+          )`;
+        }
+      };
+
       let sql = `SELECT
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%M %Y'
-        ) AS sale_month,
-        DATE_FORMAT(
-          CASE WHEN DAY(CAST(c.created_date AS DATE)) >= ${b}
-            THEN DATE_ADD(CAST(c.created_date AS DATE), INTERVAL 1 MONTH)
-            ELSE CAST(c.created_date AS DATE) END,
-          '%Y-%m'
-        ) AS ym,
+        ${getLabelExpr("c.created_date")} AS sale_month,
+        ${getGroupExpr("c.created_date")} AS ym,
         SUM(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 ELSE 0 END) AS awaiting_trainer,
         SUM(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 ELSE 0 END) AS awaiting_trainer_verify,
         SUM(CASE WHEN c.status = 'Trainer Rejected' THEN 1 ELSE 0 END) AS rejected_trainer,
@@ -2805,7 +2920,6 @@ const ReportModel = {
 
       const [rows] = await pool.query(sql, params);
 
-      // --- compute mapped months list for full range so months with zero appear --
       const monthNames = [
         "January",
         "February",
@@ -2834,6 +2948,7 @@ const ReportModel = {
         "Nov",
         "Dec",
       ];
+
       const getMappedMonthStart = (dateInput) => {
         const d = new Date(dateInput.getTime());
         const day = d.getDate();
@@ -2842,10 +2957,7 @@ const ReportModel = {
         d.setHours(0, 0, 0, 0);
         return d;
       };
-      const formatLabel = (d) =>
-        `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-      const formatAbbrev = (d) =>
-        `${monthAbbrev[d.getMonth()]} ${d.getFullYear()}`;
+
       const getMonths = (startDateStr, endDateStr) => {
         const sDate = parseToDateOnly(startDateStr);
         const eDate = parseToDateOnly(endDateStr);
@@ -2856,21 +2968,47 @@ const ReportModel = {
         const cur = new Date(startMapped.getTime());
         while (cur <= endMapped) {
           months.push({
-            label: formatLabel(cur),
-            abbrev: formatAbbrev(cur),
-            d: new Date(cur.getTime()),
+            label: `${monthNames[cur.getMonth()]} ${cur.getFullYear()}`,
+            abbrev: `${monthAbbrev[cur.getMonth()]} ${cur.getFullYear()}`,
+            key: `${cur.getFullYear()}-${(cur.getMonth() + 1)
+              .toString()
+              .padStart(2, "0")}`,
           });
           cur.setMonth(cur.getMonth() + 1);
         }
         return months;
       };
-      const months = getMonths(start_date, end_date);
 
-      // build lookup map from query rows keyed by 'YYYY-MM' (ym)
+      const getDates = (startDateStr, endDateStr) => {
+        const sDate = parseToDateOnly(startDateStr);
+        const eDate = parseToDateOnly(endDateStr);
+        if (!sDate || !eDate) return [];
+        const dates = [];
+        const cur = new Date(sDate.getTime());
+        while (cur <= eDate) {
+          const dd = cur.getDate().toString().padStart(2, "0");
+          const mmAbbrev = monthAbbrev[cur.getMonth()];
+          const mmFull = monthNames[cur.getMonth()];
+          const yy = cur.getFullYear();
+          dates.push({
+            label: `${dd} ${mmFull} ${yy}`,
+            abbrev: `${dd} ${mmAbbrev} ${yy}`,
+            key: `${yy}-${(cur.getMonth() + 1).toString().padStart(2, "0")}-${dd}`,
+          });
+          cur.setDate(cur.getDate() + 1);
+        }
+        return dates;
+      };
+
+      const timeItems = isDate
+        ? getDates(start_date, end_date)
+        : getMonths(start_date, end_date);
+
+      // build lookup map from query rows keyed by 'YYYY-MM' or 'YYYY-MM-DD'
       const rowMap = {};
       (rows || []).forEach((r) => {
         rowMap[r.ym] = {
-          sale_month: r.sale_month,
+          ...r,
           awaiting_trainer: toNum(r.awaiting_trainer),
           awaiting_trainer_verify: toNum(r.awaiting_trainer_verify),
           rejected_trainer: toNum(r.rejected_trainer),
@@ -2888,18 +3026,10 @@ const ReportModel = {
         };
       });
 
-      // build final month_wise array (ensure every mapped month present)
-      const month_wise = months.map((mObj) => {
-        // convert "January 2025" -> "2025-01"
-        const [mn, yy] = mObj.label.split(" ");
-        const mi = monthNames.indexOf(mn) + 1;
-        const mm = mi.toString().padStart(2, "0");
-        const ymKey = `${yy}-${mm}`;
-
-        const data = rowMap[ymKey] || null;
-        return {
-          month: mObj.abbrev, // "Jan 2025"
-          label: mObj.label, // "January 2025"
+      const items = timeItems.map((item) => {
+        const data = rowMap[item.key] || null;
+        const entry = {
+          label: item.label,
           awaiting_trainer: data ? data.awaiting_trainer : 0,
           awaiting_trainer_verify: data ? data.awaiting_trainer_verify : 0,
           rejected_trainer: data ? data.rejected_trainer : 0,
@@ -2915,9 +3045,15 @@ const ReportModel = {
           videos_given: data ? data.videos_given : 0,
           certificate_generated: data ? data.certificate_generated : 0,
         };
+        if (isDate) {
+          entry.date = item.abbrev;
+        } else {
+          entry.month = item.abbrev;
+        }
+        return entry;
       });
 
-      return { month_wise };
+      return isDate ? { date_wise: items } : { month_wise: items };
     } catch (error) {
       throw new Error(error && error.message ? error.message : String(error));
     }
@@ -3586,7 +3722,7 @@ const ReportModel = {
     }
   },
 
-  getTicketReport: async (user_id, start_date, end_date) => {
+  getTicketReport: async (user_ids, start_date, end_date) => {
     try {
       const queryParams = [];
       let query = `SELECT 
@@ -3617,9 +3753,12 @@ const ReportModel = {
                       u.user_id = tt.assigned_to
                     WHERE tt.details IS NOT NULL`;
 
-      if (user_id) {
-        query += ` AND u.user_id = ?`;
-        queryParams.push(user_id);
+      if (user_ids) {
+        const userIdsParam =
+          Array.isArray(user_ids) && user_ids.length > 0
+            ? user_ids.join(",")
+            : null;
+        query += ` AND u.user_id IN (${userIdsParam})`;
       }
 
       if (start_date && end_date) {
@@ -3779,6 +3918,472 @@ const ReportModel = {
       });
 
       return formattedResult;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  reportUserWiseScoreBoard: async (
+    user_ids,
+    start_date,
+    end_date,
+    boundaryDay = 26,
+    type = "month",
+  ) => {
+    try {
+      const params = [];
+      params.push(user_ids);
+      params.push(user_ids);
+      params.push(start_date);
+      params.push(end_date);
+      params.push(start_date);
+      params.push(end_date);
+      params.push(start_date);
+      params.push(end_date);
+      params.push(start_date);
+      params.push(end_date);
+      params.push(start_date);
+      params.push(end_date);
+      params.push(start_date);
+      params.push(end_date);
+      let query = `WITH RECURSIVE date_series AS (
+                        SELECT DATE('${start_date}') AS dt
+                        UNION ALL
+                        SELECT DATE_ADD(dt, INTERVAL 1 DAY)
+                        FROM date_series
+                        WHERE dt < DATE('${end_date}')
+                    ),
+                    labels AS (
+                        SELECT DISTINCT
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(dt, '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(dt) >= ${boundaryDay}
+                                            THEN DATE_ADD(dt, INTERVAL 1 MONTH)
+                                        ELSE dt
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS label,
+
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(dt, '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(dt) >= ${boundaryDay}
+                                            THEN DATE_ADD(dt, INTERVAL 1 MONTH)
+                                        ELSE dt
+                                    END,
+                                    '%b %Y'
+                                )
+                            END AS month
+                        FROM date_series
+                    ),
+                    sales_users AS (
+                        SELECT user_id, user_name
+                        FROM users
+                        WHERE roles LIKE '%Sale%'
+                          AND (
+                                ? IS NULL
+                                OR FIND_IN_SET(user_id, ?)
+                              )
+                    ),
+                    sale_data AS (
+                        SELECT
+                            u.user_id,
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(pm.created_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(pm.created_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(pm.created_date, INTERVAL 1 MONTH)
+                                        ELSE pm.created_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            IFNULL(SUM(pm.total_amount), 0) AS sale_volume
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        JOIN customers c ON c.lead_id = l.id
+                        JOIN payment_master pm ON pm.lead_id = c.lead_id
+                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
+                          AND pm.created_date >= ?
+                          AND pm.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    collection_data AS (
+                        SELECT
+                            u.user_id,
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(c.created_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(c.created_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+                                        ELSE c.created_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            IFNULL(SUM(pt.amount), 0) +
+                            IFNULL(SUM(pt.convenience_fees), 0) AS collection
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        JOIN customers c ON c.lead_id = l.id
+                        JOIN payment_master pm ON pm.lead_id = c.lead_id
+                        JOIN payment_trans pt ON pt.payment_master_id = pm.id
+                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
+                          AND c.created_date >= ?
+                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                          AND pt.payment_status <> 'Rejected'
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    total_collection_data AS (
+                        SELECT
+                            u.user_id,
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(pt.invoice_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(pt.invoice_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
+                                        ELSE pt.invoice_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            IFNULL(SUM(pt.amount), 0) +
+                            IFNULL(SUM(pt.convenience_fees), 0) AS total_collection
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        JOIN customers c ON c.lead_id = l.id
+                        JOIN payment_master pm ON pm.lead_id = c.lead_id
+                        JOIN payment_trans pt ON pt.payment_master_id = pm.id
+                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
+                          AND pt.invoice_date >= ?
+                          AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
+                          AND pt.payment_status <> 'Rejected'
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    lead_data AS (
+                        SELECT
+                            u.user_id,
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(l.created_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(l.created_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(l.created_date, INTERVAL 1 MONTH)
+                                        ELSE l.created_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            COUNT(DISTINCT l.id) AS total_leads,
+                            COUNT(DISTINCT c.id) AS customer_count
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        LEFT JOIN customers c ON c.lead_id = l.id
+                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
+                          AND l.created_date >= ?
+                          AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    followup_data AS (
+                        SELECT
+                            u.user_id,
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(lfh.next_follow_up_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(lfh.next_follow_up_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(lfh.next_follow_up_date, INTERVAL 1 MONTH)
+                                        ELSE lfh.next_follow_up_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            COUNT(DISTINCT lfh.id) AS lead_followup_count,
+                            COUNT(DISTINCT CASE WHEN lfh.is_updated = 1 THEN lfh.id END) AS followup_handled,
+                            COUNT(DISTINCT CASE WHEN lfh.is_updated = 0 THEN lfh.id END) AS followup_unhandled
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
+                        LEFT JOIN customers c ON c.lead_id = l.id
+                        WHERE c.id IS NULL
+                          AND u.user_id IN (SELECT user_id FROM sales_users)
+                          AND lfh.next_follow_up_date >= ?
+                          AND lfh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    joining_data AS (
+                        SELECT
+                            u.user_id,
+
+                            CASE
+                                WHEN '${type}' = 'date'
+                                    THEN DATE_FORMAT(CAST(c.created_date AS DATE), '%Y-%m-%d')
+                                ELSE DATE_FORMAT(
+                                    CASE
+                                        WHEN DAY(c.created_date) >= ${boundaryDay}
+                                            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
+                                        ELSE c.created_date
+                                    END,
+                                    '%M %Y'
+                                )
+                            END AS sale_month,
+                            COUNT(DISTINCT c.id) AS joined_customers
+                        FROM users u
+                        JOIN lead_master l ON l.assigned_to = u.user_id
+                        JOIN customers c ON c.lead_id = l.id
+                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
+                          AND c.created_date >= ?
+                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY u.user_id, sale_month
+                    ),
+                    target_data AS (
+                        SELECT t1.*
+                        FROM user_target_master t1
+                        INNER JOIN (
+                            SELECT user_id, MAX(id) AS max_id
+                            FROM user_target_master
+                            WHERE user_id IN (SELECT user_id FROM sales_users)
+                            GROUP BY user_id
+                        ) t2
+                        ON t1.user_id = t2.user_id
+                        AND t1.id = t2.max_id
+                    )
+                    SELECT
+                        su.user_id,
+                        su.user_name,
+                        l.month,
+                        l.label,
+                        ROUND(IFNULL(sd.sale_volume, 0), 2) AS sale_volume,
+                        ROUND(IFNULL(cd.collection, 0), 2) AS collection,
+                        ROUND(IFNULL(td2.total_collection, 0), 2) AS total_collection,
+                        ROUND(
+                            GREATEST(
+                                0,
+                                IFNULL(sd.sale_volume, 0) -
+                                IFNULL(cd.collection, 0)
+                            ),
+                            2
+                        ) AS pending,
+                        IFNULL(tg.target_month, '') AS target_month,
+                        IFNULL(tg.target_value, 0) AS target_value,
+                        CASE
+                            WHEN IFNULL(tg.target_value, 0) > 0
+                                THEN ROUND(
+                                    (IFNULL(td2.total_collection, 0) / tg.target_value) * 100,
+                                    2
+                                )
+                            ELSE 0
+                        END AS percentage,
+                        IFNULL(ld.total_leads, 0) AS total_leads,
+                        IFNULL(ld.customer_count, 0) AS customer_count,
+                        CASE
+                            WHEN IFNULL(ld.total_leads, 0) > 0
+                                THEN ROUND(
+                                    (IFNULL(ld.customer_count, 0) / ld.total_leads) * 100,
+                                    2
+                                )
+                            ELSE 0
+                        END AS lead_to_customer_percentage,
+                        IFNULL(fd.lead_followup_count, 0) AS lead_followup_count,
+                        IFNULL(fd.followup_handled, 0) AS followup_handled,
+                        IFNULL(fd.followup_unhandled, 0) AS followup_unhandled,
+                        CASE
+                            WHEN IFNULL(fd.lead_followup_count, 0) > 0
+                                THEN ROUND(
+                                    (IFNULL(fd.followup_handled, 0) / fd.lead_followup_count) * 100,
+                                    2
+                                )
+                            ELSE 0
+                        END AS followup_handled_percentage,
+                        IFNULL(jd.joined_customers, 0) AS joined_customers
+                    FROM sales_users su
+                    CROSS JOIN labels l
+                    LEFT JOIN sale_data sd
+                        ON sd.user_id = su.user_id
+                      AND sd.sale_month = l.label
+                    LEFT JOIN collection_data cd
+                        ON cd.user_id = su.user_id
+                      AND cd.sale_month = l.label
+                    LEFT JOIN total_collection_data td2
+                        ON td2.user_id = su.user_id
+                      AND td2.sale_month = l.label
+                    LEFT JOIN lead_data ld
+                        ON ld.user_id = su.user_id
+                      AND ld.sale_month = l.label
+                    LEFT JOIN followup_data fd
+                        ON fd.user_id = su.user_id
+                      AND fd.sale_month = l.label
+                    LEFT JOIN joining_data jd
+                        ON jd.user_id = su.user_id
+                      AND jd.sale_month = l.label
+                    LEFT JOIN target_data tg
+                        ON tg.user_id = su.user_id
+                    ORDER BY su.user_id, l.label;`;
+
+      const [result] = await pool.query(query, params);
+      return result;
+    } catch (err) {
+      throw new Error(err.message || String(err));
+    }
+  },
+
+  regionReportDatewise: async (start_date, end_date) => {
+    try {
+      const params = [
+        start_date,
+        end_date,
+        start_date,
+        end_date,
+        start_date,
+        end_date,
+        start_date,
+        end_date,
+        start_date,
+        end_date,
+      ];
+      let query = `WITH RECURSIVE date_range AS
+                    (
+                        SELECT DATE(?) AS report_date
+
+                        UNION ALL
+
+                        SELECT DATE_ADD(report_date, INTERVAL 1 DAY)
+                        FROM date_range
+                        WHERE report_date < ?
+                    ),
+                    lead_data AS
+                    (
+                        SELECT
+                            DATE(lm.created_date) AS report_date,
+                            lr.name AS region_name,
+                            COUNT(*) AS total_leads
+                        FROM lead_master lm
+                        INNER JOIN region lr
+                            ON lr.id = lm.region_id
+                        WHERE lm.created_date >= ?
+                          AND lm.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY DATE(lm.created_date), lr.name
+                    ),
+                    join_data AS
+                    (
+                        SELECT
+                            DATE(c.created_date) AS report_date,
+                            cr.name AS region_name,
+                            COUNT(DISTINCT c.id) AS total_joins
+                        FROM customers c
+                        INNER JOIN region cr
+                            ON cr.id = c.region_id
+                        WHERE c.created_date >= ?
+                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+                        GROUP BY DATE(c.created_date), cr.name
+                    ),
+                    collection_data AS
+                    (
+                        SELECT
+                            DATE(pt.invoice_date) AS report_date,
+                            cr.name AS region_name,
+                            SUM(pt.amount + pt.convenience_fees) AS total_collection
+                        FROM payment_trans pt
+                        INNER JOIN payment_master pm
+                            ON pm.id = pt.payment_master_id
+                        INNER JOIN customers c
+                            ON c.lead_id = pm.lead_id
+                        INNER JOIN region cr
+                            ON cr.id = c.region_id
+                        WHERE pt.invoice_date >= ?
+                          AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
+                          AND pt.payment_status <> 'Rejected'
+                        GROUP BY DATE(pt.invoice_date), cr.name
+                    )
+                    SELECT
+                        dr.report_date AS 'date',
+                        IFNULL(MAX(CASE WHEN ld.region_name = 'Hub'
+                            THEN ld.total_leads END), 0) AS hub_leads,
+                        IFNULL(MAX(CASE WHEN jd.region_name = 'Hub'
+                            THEN jd.total_joins END), 0) AS hub_joins,
+                        IFNULL(MAX(CASE WHEN cd.region_name = 'Hub'
+                            THEN cd.total_collection END), 0) AS hub_collections,
+                        IFNULL(MAX(CASE WHEN ld.region_name = 'Chennai'
+                            THEN ld.total_leads END), 0) AS chennai_leads,
+                        IFNULL(MAX(CASE WHEN jd.region_name = 'Chennai'
+                            THEN jd.total_joins END), 0) AS chennai_joins,
+                        IFNULL(MAX(CASE WHEN cd.region_name = 'Chennai'
+                            THEN cd.total_collection END), 0) AS chennai_collections,
+                        IFNULL(MAX(CASE WHEN ld.region_name = 'Bangalore'
+                            THEN ld.total_leads END), 0) AS bangalore_leads,
+                        IFNULL(MAX(CASE WHEN jd.region_name = 'Bangalore'
+                            THEN jd.total_joins END), 0) AS bangalore_joins,
+                        IFNULL(MAX(CASE WHEN cd.region_name = 'Bangalore'
+                            THEN cd.total_collection END), 0) AS bangalore_collections,
+                        (
+                            IFNULL(MAX(CASE WHEN ld.region_name = 'Hub'
+                                THEN ld.total_leads END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN ld.region_name = 'Chennai'
+                                THEN ld.total_leads END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN ld.region_name = 'Bangalore'
+                                THEN ld.total_leads END), 0)
+                        ) AS overall_leads,
+                        (
+                            IFNULL(MAX(CASE WHEN jd.region_name = 'Hub'
+                                THEN jd.total_joins END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN jd.region_name = 'Chennai'
+                                THEN jd.total_joins END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN jd.region_name = 'Bangalore'
+                                THEN jd.total_joins END), 0)
+                        ) AS overall_joins,
+                        (
+                            IFNULL(MAX(CASE WHEN cd.region_name = 'Hub'
+                                THEN cd.total_collection END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN cd.region_name = 'Chennai'
+                                THEN cd.total_collection END), 0)
+                            +
+                            IFNULL(MAX(CASE WHEN cd.region_name = 'Bangalore'
+                                THEN cd.total_collection END), 0)
+                        ) AS overall_collections
+                    FROM date_range dr
+                    LEFT JOIN lead_data ld
+                        ON ld.report_date = dr.report_date
+                    LEFT JOIN join_data jd
+                        ON jd.report_date = dr.report_date
+                      AND jd.region_name = ld.region_name
+                    LEFT JOIN collection_data cd
+                        ON cd.report_date = dr.report_date
+                      AND cd.region_name = ld.region_name
+                    GROUP BY dr.report_date
+                    ORDER BY dr.report_date;`;
+
+      const [result] = await pool.query(query, params);
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getLeadSourceReport: async (start_date, end_date) => {
+    try {
+      const params = [start_date, end_date];
+      let query = `CALL sp_lead_source_report(?, ?)`;
+      const [result] = await pool.query(query, params);
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }

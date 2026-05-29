@@ -566,9 +566,14 @@ router.post("/otpSend", CustomerController.otpSend);
 router.post("/verifyOTP", CustomerController.verifyOTP);
 router.post("/getHRUsers", verifyToken, UserController.getHRUsers);
 router.post("/getMultiUsers", verifyToken, UserController.getMultiUsers);
-// router.post(
-//   "/regionReportDatewise",
-//   verifyToken,
-//   ReportController.regionReportDatewise,
-// );
+router.post(
+  "/regionReportDatewise",
+  verifyToken,
+  ReportController.regionReportDatewise,
+);
+router.post(
+  "/getLeadSourceReport",
+  verifyToken,
+  ReportController.getLeadSourceReport,
+);
 module.exports = router;
