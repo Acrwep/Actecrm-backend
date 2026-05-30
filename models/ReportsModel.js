@@ -2899,8 +2899,10 @@ const ReportModel = {
         SUM(CASE WHEN c.is_certificate_generated = 1 THEN 1 ELSE 0 END) AS certificate_generated
       FROM customers c
       INNER JOIN lead_master l ON c.lead_id = l.id
+      LEFT JOIN customer_status_history AS csh
+        ON csh.id = c.latest_status_history_id
       WHERE 1 = 1
-        AND c.created_date >= ? AND c.created_date < ?`;
+        AND CAST(COALESCE(csh.updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
 
       const params = [startDateTimeSQL, endExclusiveDateTimeSQL];
 
@@ -3923,458 +3925,221 @@ const ReportModel = {
     }
   },
 
-  reportUserWiseScoreBoard: async (
-    user_ids,
-    start_date,
-    end_date,
-    boundaryDay = 26,
-    type = "month",
-  ) => {
+  regionReportDatewise: async (start_date, end_date, type) => {
     try {
-      const userIdsParam =
-        Array.isArray(user_ids) && user_ids.length > 0
-          ? user_ids.join(",")
-          : user_ids || null;
+      let query;
+      let params;
 
-      const params = [];
-      params.push(userIdsParam);
-      params.push(userIdsParam);
-      params.push(start_date);
-      params.push(end_date);
-      params.push(start_date);
-      params.push(end_date);
-      params.push(start_date);
-      params.push(end_date);
-      params.push(start_date);
-      params.push(end_date);
-      params.push(start_date);
-      params.push(end_date);
-      params.push(start_date);
-      params.push(end_date);
-      let query = `WITH RECURSIVE date_series AS (
-                        SELECT DATE('${start_date}') AS dt
-                        UNION ALL
-                        SELECT DATE_ADD(dt, INTERVAL 1 DAY)
-                        FROM date_series
-                        WHERE dt < DATE('${end_date}')
-                    ),
-                    labels AS (
-                        SELECT DISTINCT
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(dt, '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(dt) >= ${boundaryDay}
-                                            THEN DATE_ADD(dt, INTERVAL 1 MONTH)
-                                        ELSE dt
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS label,
+      if (type === "month") {
+        params = [
+          start_date,
+          end_date, // lead_data
+          start_date,
+          end_date, // join_data
+          start_date,
+          end_date, // collection_data
+        ];
 
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(dt, '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(dt) >= ${boundaryDay}
-                                            THEN DATE_ADD(dt, INTERVAL 1 MONTH)
-                                        ELSE dt
-                                    END,
-                                    '%b %Y'
-                                )
-                            END AS month
-                        FROM date_series
-                    ),
-                    sales_users AS (
-                        SELECT user_id, user_name
-                        FROM users
-                        WHERE roles LIKE '%Sale%'
-                          AND (
-                                ? IS NULL
-                                OR FIND_IN_SET(user_id, ?)
-                              )
-                    ),
-                    sale_data AS (
-                        SELECT
-                            u.user_id,
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(pm.created_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(pm.created_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(pm.created_date, INTERVAL 1 MONTH)
-                                        ELSE pm.created_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            IFNULL(SUM(pm.total_amount), 0) AS sale_volume
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        JOIN customers c ON c.lead_id = l.id
-                        JOIN payment_master pm ON pm.lead_id = c.lead_id
-                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
-                          AND pm.created_date >= ?
-                          AND pm.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    collection_data AS (
-                        SELECT
-                            u.user_id,
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(c.created_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(c.created_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-                                        ELSE c.created_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            IFNULL(SUM(pt.amount), 0) +
-                            IFNULL(SUM(pt.convenience_fees), 0) AS collection
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        JOIN customers c ON c.lead_id = l.id
-                        JOIN payment_master pm ON pm.lead_id = c.lead_id
-                        JOIN payment_trans pt ON pt.payment_master_id = pm.id
-                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
-                          AND c.created_date >= ?
-                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                          AND pt.payment_status <> 'Rejected'
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    total_collection_data AS (
-                        SELECT
-                            u.user_id,
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(pt.invoice_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(pt.invoice_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)
-                                        ELSE pt.invoice_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            IFNULL(SUM(pt.amount), 0) +
-                            IFNULL(SUM(pt.convenience_fees), 0) AS total_collection
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        JOIN customers c ON c.lead_id = l.id
-                        JOIN payment_master pm ON pm.lead_id = c.lead_id
-                        JOIN payment_trans pt ON pt.payment_master_id = pm.id
-                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
-                          AND pt.invoice_date >= ?
-                          AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
-                          AND pt.payment_status <> 'Rejected'
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    lead_data AS (
-                        SELECT
-                            u.user_id,
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(l.created_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(l.created_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(l.created_date, INTERVAL 1 MONTH)
-                                        ELSE l.created_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            COUNT(DISTINCT l.id) AS total_leads,
-                            COUNT(DISTINCT c.id) AS customer_count
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        LEFT JOIN customers c ON c.lead_id = l.id
-                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
-                          AND l.created_date >= ?
-                          AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    followup_data AS (
-                        SELECT
-                            u.user_id,
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(lfh.next_follow_up_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(lfh.next_follow_up_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(lfh.next_follow_up_date, INTERVAL 1 MONTH)
-                                        ELSE lfh.next_follow_up_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            COUNT(DISTINCT lfh.id) AS lead_followup_count,
-                            COUNT(DISTINCT CASE WHEN lfh.is_updated = 1 THEN lfh.id END) AS followup_handled,
-                            COUNT(DISTINCT CASE WHEN lfh.is_updated = 0 THEN lfh.id END) AS followup_unhandled
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        JOIN lead_follow_up_history lfh ON lfh.lead_id = l.id
-                        LEFT JOIN customers c ON c.lead_id = l.id
-                        WHERE c.id IS NULL
-                          AND u.user_id IN (SELECT user_id FROM sales_users)
-                          AND lfh.next_follow_up_date >= ?
-                          AND lfh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    joining_data AS (
-                        SELECT
-                            u.user_id,
+        query = `
+        WITH lead_data AS (
+            SELECT
+                CASE
+                    WHEN DAY(lm.created_date) >= 26
+                    THEN STR_TO_DATE(
+                            CONCAT(
+                                YEAR(DATE_ADD(lm.created_date, INTERVAL 1 MONTH)), '-',
+                                LPAD(MONTH(DATE_ADD(lm.created_date, INTERVAL 1 MONTH)), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                    ELSE STR_TO_DATE(
+                            CONCAT(
+                                YEAR(lm.created_date), '-',
+                                LPAD(MONTH(lm.created_date), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                END AS billing_month,
+                lr.name AS region_name,
+                COUNT(*) AS total_leads
+            FROM lead_master lm
+            INNER JOIN region lr ON lr.id = lm.region_id
+            WHERE lm.created_date >= ?
+              AND lm.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+            GROUP BY billing_month, lr.name
+        ),
+        join_data AS (
+            SELECT
+                CASE
+                    WHEN DAY(c.created_date) >= 26
+                    THEN STR_TO_DATE(
+                            CONCAT(
+                                YEAR(DATE_ADD(c.created_date, INTERVAL 1 MONTH)), '-',
+                                LPAD(MONTH(DATE_ADD(c.created_date, INTERVAL 1 MONTH)), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                    ELSE STR_TO_DATE(
+                            CONCAT(
+                                YEAR(c.created_date), '-',
+                                LPAD(MONTH(c.created_date), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                END AS billing_month,
+                cr.name AS region_name,
+                COUNT(DISTINCT c.id) AS total_joins
+            FROM customers c
+            INNER JOIN region cr ON cr.id = c.region_id
+            WHERE c.created_date >= ?
+              AND c.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+            GROUP BY billing_month, cr.name
+        ),
+        collection_data AS (
+            SELECT
+                CASE
+                    WHEN DAY(pt.invoice_date) >= 26
+                    THEN STR_TO_DATE(
+                            CONCAT(
+                                YEAR(DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)), '-',
+                                LPAD(MONTH(DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                    ELSE STR_TO_DATE(
+                            CONCAT(
+                                YEAR(pt.invoice_date), '-',
+                                LPAD(MONTH(pt.invoice_date), 2, '0'),
+                                '-01'
+                            ), '%Y-%m-%d'
+                         )
+                END AS billing_month,
+                cr.name AS region_name,
+                SUM(pt.amount + pt.convenience_fees) AS total_collection
+            FROM payment_trans pt
+            INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
+            INNER JOIN customers c ON c.lead_id = pm.lead_id
+            INNER JOIN region cr ON cr.id = c.region_id
+            WHERE pt.invoice_date >= ?
+              AND pt.invoice_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+              AND pt.payment_status <> 'Rejected'
+            GROUP BY billing_month, cr.name
+        ),
+        all_months AS (
+            SELECT billing_month FROM lead_data
+            UNION
+            SELECT billing_month FROM join_data
+            UNION
+            SELECT billing_month FROM collection_data
+        ),
+        combined_metrics AS (
+            SELECT billing_month, region_name, total_leads, 0 AS total_joins, 0 AS total_collection FROM lead_data
+            UNION ALL
+            SELECT billing_month, region_name, 0, total_joins, 0 FROM join_data
+            UNION ALL
+            SELECT billing_month, region_name, 0, 0, total_collection FROM collection_data
+        )
+        SELECT
+            DATE_FORMAT(am.billing_month, '%M %Y') AS date,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_leads      ELSE 0 END), 0) AS hub_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_joins      ELSE 0 END), 0) AS hub_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_collection ELSE 0 END), 0) AS hub_collections,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_leads      ELSE 0 END), 0) AS chennai_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_joins      ELSE 0 END), 0) AS chennai_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_collection ELSE 0 END), 0) AS chennai_collections,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_leads      ELSE 0 END), 0) AS bangalore_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_joins      ELSE 0 END), 0) AS bangalore_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_collection ELSE 0 END), 0) AS bangalore_collections,
+            IFNULL(SUM(cm.total_leads),      0) AS overall_leads,
+            IFNULL(SUM(cm.total_joins),      0) AS overall_joins,
+            IFNULL(SUM(cm.total_collection), 0) AS overall_collections
+        FROM all_months am
+        LEFT JOIN combined_metrics cm ON cm.billing_month = am.billing_month
+        GROUP BY am.billing_month
+        ORDER BY am.billing_month ASC`;
+      } else {
+        // date type
+        params = [
+          start_date,
+          end_date, // date_range
+          start_date,
+          end_date, // lead_data
+          start_date,
+          end_date, // join_data
+          start_date,
+          end_date, // collection_data
+        ];
 
-                            CASE
-                                WHEN '${type}' = 'date'
-                                    THEN DATE_FORMAT(CAST(c.created_date AS DATE), '%Y-%m-%d')
-                                ELSE DATE_FORMAT(
-                                    CASE
-                                        WHEN DAY(c.created_date) >= ${boundaryDay}
-                                            THEN DATE_ADD(c.created_date, INTERVAL 1 MONTH)
-                                        ELSE c.created_date
-                                    END,
-                                    '%M %Y'
-                                )
-                            END AS sale_month,
-                            COUNT(DISTINCT c.id) AS joined_customers
-                        FROM users u
-                        JOIN lead_master l ON l.assigned_to = u.user_id
-                        JOIN customers c ON c.lead_id = l.id
-                        WHERE u.user_id IN (SELECT user_id FROM sales_users)
-                          AND c.created_date >= ?
-                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY u.user_id, sale_month
-                    ),
-                    target_data AS (
-                        SELECT t1.*
-                        FROM user_target_master t1
-                        INNER JOIN (
-                            SELECT user_id, MAX(id) AS max_id
-                            FROM user_target_master
-                            WHERE user_id IN (SELECT user_id FROM sales_users)
-                            GROUP BY user_id
-                        ) t2
-                        ON t1.user_id = t2.user_id
-                        AND t1.id = t2.max_id
-                    )
-                    SELECT
-                        su.user_id,
-                        su.user_name,
-                        l.month,
-                        l.label,
-                        ROUND(IFNULL(sd.sale_volume, 0), 2) AS sale_volume,
-                        ROUND(IFNULL(cd.collection, 0), 2) AS collection,
-                        ROUND(IFNULL(td2.total_collection, 0), 2) AS total_collection,
-                        ROUND(
-                            GREATEST(
-                                0,
-                                IFNULL(sd.sale_volume, 0) -
-                                IFNULL(cd.collection, 0)
-                            ),
-                            2
-                        ) AS pending,
-                        IFNULL(tg.target_month, '') AS target_month,
-                        IFNULL(tg.target_value, 0) AS target_value,
-                        CASE
-                            WHEN IFNULL(tg.target_value, 0) > 0
-                                THEN ROUND(
-                                    (IFNULL(td2.total_collection, 0) / tg.target_value) * 100,
-                                    2
-                                )
-                            ELSE 0
-                        END AS percentage,
-                        IFNULL(ld.total_leads, 0) AS total_leads,
-                        IFNULL(ld.customer_count, 0) AS customer_count,
-                        CASE
-                            WHEN IFNULL(ld.total_leads, 0) > 0
-                                THEN ROUND(
-                                    (IFNULL(ld.customer_count, 0) / ld.total_leads) * 100,
-                                    2
-                                )
-                            ELSE 0
-                        END AS lead_to_customer_percentage,
-                        IFNULL(fd.lead_followup_count, 0) AS lead_followup_count,
-                        IFNULL(fd.followup_handled, 0) AS followup_handled,
-                        IFNULL(fd.followup_unhandled, 0) AS followup_unhandled,
-                        CASE
-                            WHEN IFNULL(fd.lead_followup_count, 0) > 0
-                                THEN ROUND(
-                                    (IFNULL(fd.followup_handled, 0) / fd.lead_followup_count) * 100,
-                                    2
-                                )
-                            ELSE 0
-                        END AS followup_handled_percentage,
-                        IFNULL(jd.joined_customers, 0) AS joined_customers
-                    FROM sales_users su
-                    CROSS JOIN labels l
-                    LEFT JOIN sale_data sd
-                        ON sd.user_id = su.user_id
-                      AND sd.sale_month = l.label
-                    LEFT JOIN collection_data cd
-                        ON cd.user_id = su.user_id
-                      AND cd.sale_month = l.label
-                    LEFT JOIN total_collection_data td2
-                        ON td2.user_id = su.user_id
-                      AND td2.sale_month = l.label
-                    LEFT JOIN lead_data ld
-                        ON ld.user_id = su.user_id
-                      AND ld.sale_month = l.label
-                    LEFT JOIN followup_data fd
-                        ON fd.user_id = su.user_id
-                      AND fd.sale_month = l.label
-                    LEFT JOIN joining_data jd
-                        ON jd.user_id = su.user_id
-                      AND jd.sale_month = l.label
-                    LEFT JOIN target_data tg
-                        ON tg.user_id = su.user_id
-                    ORDER BY su.user_id, l.label;`;
-
-      const [result] = await pool.query(query, params);
-      return result;
-    } catch (err) {
-      throw new Error(err.message || String(err));
-    }
-  },
-
-  regionReportDatewise: async (start_date, end_date) => {
-    try {
-      const params = [
-        start_date,
-        end_date,
-        start_date,
-        end_date,
-        start_date,
-        end_date,
-        start_date,
-        end_date,
-        start_date,
-        end_date,
-      ];
-      let query = `WITH RECURSIVE date_range AS
-                    (
-                        SELECT DATE(?) AS report_date
-
-                        UNION ALL
-
-                        SELECT DATE_ADD(report_date, INTERVAL 1 DAY)
-                        FROM date_range
-                        WHERE report_date < ?
-                    ),
-                    lead_data AS
-                    (
-                        SELECT
-                            DATE(lm.created_date) AS report_date,
-                            lr.name AS region_name,
-                            COUNT(*) AS total_leads
-                        FROM lead_master lm
-                        INNER JOIN region lr
-                            ON lr.id = lm.region_id
-                        WHERE lm.created_date >= ?
-                          AND lm.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY DATE(lm.created_date), lr.name
-                    ),
-                    join_data AS
-                    (
-                        SELECT
-                            DATE(c.created_date) AS report_date,
-                            cr.name AS region_name,
-                            COUNT(DISTINCT c.id) AS total_joins
-                        FROM customers c
-                        INNER JOIN region cr
-                            ON cr.id = c.region_id
-                        WHERE c.created_date >= ?
-                          AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
-                        GROUP BY DATE(c.created_date), cr.name
-                    ),
-                    collection_data AS
-                    (
-                        SELECT
-                            DATE(pt.invoice_date) AS report_date,
-                            cr.name AS region_name,
-                            SUM(pt.amount + pt.convenience_fees) AS total_collection
-                        FROM payment_trans pt
-                        INNER JOIN payment_master pm
-                            ON pm.id = pt.payment_master_id
-                        INNER JOIN customers c
-                            ON c.lead_id = pm.lead_id
-                        INNER JOIN region cr
-                            ON cr.id = c.region_id
-                        WHERE pt.invoice_date >= ?
-                          AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
-                          AND pt.payment_status <> 'Rejected'
-                        GROUP BY DATE(pt.invoice_date), cr.name
-                    )
-                    SELECT
-                        dr.report_date AS 'date',
-                        IFNULL(MAX(CASE WHEN ld.region_name = 'Hub'
-                            THEN ld.total_leads END), 0) AS hub_leads,
-                        IFNULL(MAX(CASE WHEN jd.region_name = 'Hub'
-                            THEN jd.total_joins END), 0) AS hub_joins,
-                        IFNULL(MAX(CASE WHEN cd.region_name = 'Hub'
-                            THEN cd.total_collection END), 0) AS hub_collections,
-                        IFNULL(MAX(CASE WHEN ld.region_name = 'Chennai'
-                            THEN ld.total_leads END), 0) AS chennai_leads,
-                        IFNULL(MAX(CASE WHEN jd.region_name = 'Chennai'
-                            THEN jd.total_joins END), 0) AS chennai_joins,
-                        IFNULL(MAX(CASE WHEN cd.region_name = 'Chennai'
-                            THEN cd.total_collection END), 0) AS chennai_collections,
-                        IFNULL(MAX(CASE WHEN ld.region_name = 'Bangalore'
-                            THEN ld.total_leads END), 0) AS bangalore_leads,
-                        IFNULL(MAX(CASE WHEN jd.region_name = 'Bangalore'
-                            THEN jd.total_joins END), 0) AS bangalore_joins,
-                        IFNULL(MAX(CASE WHEN cd.region_name = 'Bangalore'
-                            THEN cd.total_collection END), 0) AS bangalore_collections,
-                        (
-                            IFNULL(MAX(CASE WHEN ld.region_name = 'Hub'
-                                THEN ld.total_leads END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN ld.region_name = 'Chennai'
-                                THEN ld.total_leads END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN ld.region_name = 'Bangalore'
-                                THEN ld.total_leads END), 0)
-                        ) AS overall_leads,
-                        (
-                            IFNULL(MAX(CASE WHEN jd.region_name = 'Hub'
-                                THEN jd.total_joins END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN jd.region_name = 'Chennai'
-                                THEN jd.total_joins END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN jd.region_name = 'Bangalore'
-                                THEN jd.total_joins END), 0)
-                        ) AS overall_joins,
-                        (
-                            IFNULL(MAX(CASE WHEN cd.region_name = 'Hub'
-                                THEN cd.total_collection END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN cd.region_name = 'Chennai'
-                                THEN cd.total_collection END), 0)
-                            +
-                            IFNULL(MAX(CASE WHEN cd.region_name = 'Bangalore'
-                                THEN cd.total_collection END), 0)
-                        ) AS overall_collections
-                    FROM date_range dr
-                    LEFT JOIN lead_data ld
-                        ON ld.report_date = dr.report_date
-                    LEFT JOIN join_data jd
-                        ON jd.report_date = dr.report_date
-                      AND jd.region_name = ld.region_name
-                    LEFT JOIN collection_data cd
-                        ON cd.report_date = dr.report_date
-                      AND cd.region_name = ld.region_name
-                    GROUP BY dr.report_date
-                    ORDER BY dr.report_date;`;
+        query = `
+        WITH RECURSIVE date_range AS (
+            SELECT DATE(?) AS report_date
+            UNION ALL
+            SELECT DATE_ADD(report_date, INTERVAL 1 DAY)
+            FROM date_range
+            WHERE report_date < DATE(?)
+        ),
+        lead_data AS (
+            SELECT
+                DATE(lm.created_date) AS report_date,
+                lr.name AS region_name,
+                COUNT(*) AS total_leads
+            FROM lead_master lm
+            INNER JOIN region lr ON lr.id = lm.region_id
+            WHERE lm.created_date >= ?
+              AND lm.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+            GROUP BY DATE(lm.created_date), lr.name
+        ),
+        join_data AS (
+            SELECT
+                DATE(c.created_date) AS report_date,
+                cr.name AS region_name,
+                COUNT(DISTINCT c.id) AS total_joins
+            FROM customers c
+            INNER JOIN region cr ON cr.id = c.region_id
+            WHERE c.created_date >= ?
+              AND c.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+            GROUP BY DATE(c.created_date), cr.name
+        ),
+        collection_data AS (
+            SELECT
+                DATE(pt.invoice_date) AS report_date,
+                cr.name AS region_name,
+                SUM(pt.amount + pt.convenience_fees) AS total_collection
+            FROM payment_trans pt
+            INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
+            INNER JOIN customers c ON c.lead_id = pm.lead_id
+            INNER JOIN region cr ON cr.id = c.region_id
+            WHERE pt.invoice_date >= ?
+              AND pt.invoice_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+              AND pt.payment_status <> 'Rejected'
+            GROUP BY DATE(pt.invoice_date), cr.name
+        ),
+        combined_metrics AS (
+            SELECT report_date, region_name, total_leads, 0 AS total_joins, 0 AS total_collection FROM lead_data
+            UNION ALL
+            SELECT report_date, region_name, 0, total_joins, 0 FROM join_data
+            UNION ALL
+            SELECT report_date, region_name, 0, 0, total_collection FROM collection_data
+        )
+        SELECT
+            DATE_FORMAT(dr.report_date, '%Y-%m-%d') AS date,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_leads      ELSE 0 END), 0) AS hub_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_joins      ELSE 0 END), 0) AS hub_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_collection ELSE 0 END), 0) AS hub_collections,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_leads      ELSE 0 END), 0) AS chennai_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_joins      ELSE 0 END), 0) AS chennai_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_collection ELSE 0 END), 0) AS chennai_collections,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_leads      ELSE 0 END), 0) AS bangalore_leads,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_joins      ELSE 0 END), 0) AS bangalore_joins,
+            IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_collection ELSE 0 END), 0) AS bangalore_collections,
+            IFNULL(SUM(cm.total_leads),      0) AS overall_leads,
+            IFNULL(SUM(cm.total_joins),      0) AS overall_joins,
+            IFNULL(SUM(cm.total_collection), 0) AS overall_collections
+        FROM date_range dr
+        LEFT JOIN combined_metrics cm ON cm.report_date = dr.report_date
+        GROUP BY dr.report_date
+        ORDER BY dr.report_date ASC`;
+      }
 
       const [result] = await pool.query(query, params);
       return result;
@@ -4383,10 +4148,215 @@ const ReportModel = {
     }
   },
 
-  getLeadSourceReport: async (start_date, end_date) => {
+  // regionReportDatewise: async (start_date, end_date, type) => {
+  //   try {
+  //     let query;
+  //     let params;
+
+  //     if (type === "month") {
+  //       params = [
+  //         start_date,
+  //         end_date, // lead_data
+  //         start_date,
+  //         end_date, // join_data
+  //         start_date,
+  //         end_date, // collection_data
+  //       ];
+
+  //       query = `
+  //       WITH lead_data AS (
+  //           SELECT
+  //               CASE
+  //                   WHEN DAY(lm.created_date) >= 26
+  //                   THEN STR_TO_DATE(CONCAT(
+  //                           YEAR(DATE_ADD(lm.created_date, INTERVAL 1 MONTH)), '-',
+  //                           LPAD(MONTH(DATE_ADD(lm.created_date, INTERVAL 1 MONTH)), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //                   ELSE STR_TO_DATE(CONCAT(
+  //                           YEAR(lm.created_date), '-',
+  //                           LPAD(MONTH(lm.created_date), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //               END AS billing_month,
+  //               lr.name AS region_name,
+  //               COUNT(*) AS total_leads
+  //           FROM lead_master lm
+  //           INNER JOIN region lr ON lr.id = lm.region_id
+  //           WHERE lm.created_date >= ?
+  //             AND lm.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+  //           GROUP BY billing_month, lr.name
+  //       ),
+  //       join_data AS (
+  //           SELECT
+  //               CASE
+  //                   WHEN DAY(c.created_date) >= 26
+  //                   THEN STR_TO_DATE(CONCAT(
+  //                           YEAR(DATE_ADD(c.created_date, INTERVAL 1 MONTH)), '-',
+  //                           LPAD(MONTH(DATE_ADD(c.created_date, INTERVAL 1 MONTH)), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //                   ELSE STR_TO_DATE(CONCAT(
+  //                           YEAR(c.created_date), '-',
+  //                           LPAD(MONTH(c.created_date), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //               END AS billing_month,
+  //               cr.name AS region_name,
+  //               COUNT(DISTINCT c.id) AS total_joins
+  //           FROM customers c
+  //           INNER JOIN region cr ON cr.id = c.region_id
+  //           WHERE c.created_date >= ?
+  //             AND c.created_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+  //           GROUP BY billing_month, cr.name
+  //       ),
+  //       collection_data AS (
+  //           SELECT
+  //               CASE
+  //                   WHEN DAY(pt.invoice_date) >= 26
+  //                   THEN STR_TO_DATE(CONCAT(
+  //                           YEAR(DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)), '-',
+  //                           LPAD(MONTH(DATE_ADD(pt.invoice_date, INTERVAL 1 MONTH)), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //                   ELSE STR_TO_DATE(CONCAT(
+  //                           YEAR(pt.invoice_date), '-',
+  //                           LPAD(MONTH(pt.invoice_date), 2, '0'),
+  //                           '-01'), '%Y-%m-%d')
+  //               END AS billing_month,
+  //               cr.name AS region_name,
+  //               SUM(pt.amount + pt.convenience_fees) AS total_collection
+  //           FROM payment_trans pt
+  //           INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
+  //           INNER JOIN customers c ON c.lead_id = pm.lead_id
+  //           INNER JOIN region cr ON cr.id = c.region_id
+  //           WHERE pt.invoice_date >= ?
+  //             AND pt.invoice_date < DATE_ADD(DATE(?), INTERVAL 1 DAY)
+  //             AND pt.payment_status <> 'Rejected'
+  //           GROUP BY billing_month, cr.name
+  //       ),
+  //       all_months AS (
+  //           SELECT billing_month FROM lead_data
+  //           UNION
+  //           SELECT billing_month FROM join_data
+  //           UNION
+  //           SELECT billing_month FROM collection_data
+  //       ),
+  //       combined_metrics AS (
+  //           SELECT billing_month, region_name, total_leads, 0 AS total_joins, 0 AS total_collection FROM lead_data
+  //           UNION ALL
+  //           SELECT billing_month, region_name, 0, total_joins, 0 FROM join_data
+  //           UNION ALL
+  //           SELECT billing_month, region_name, 0, 0, total_collection FROM collection_data
+  //       )
+  //       SELECT
+  //           DATE_FORMAT(am.billing_month, '%M %Y') AS date,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_leads      ELSE 0 END), 0) AS hub_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_joins      ELSE 0 END), 0) AS hub_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_collection ELSE 0 END), 0) AS hub_collections,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_leads      ELSE 0 END), 0) AS chennai_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_joins      ELSE 0 END), 0) AS chennai_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_collection ELSE 0 END), 0) AS chennai_collections,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_leads      ELSE 0 END), 0) AS bangalore_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_joins      ELSE 0 END), 0) AS bangalore_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_collection ELSE 0 END), 0) AS bangalore_collections,
+  //           IFNULL(SUM(cm.total_leads),      0) AS overall_leads,
+  //           IFNULL(SUM(cm.total_joins),      0) AS overall_joins,
+  //           IFNULL(SUM(cm.total_collection), 0) AS overall_collections
+  //       FROM all_months am
+  //       LEFT JOIN combined_metrics cm ON cm.billing_month = am.billing_month
+  //       GROUP BY am.billing_month
+  //       ORDER BY am.billing_month ASC`;
+  //     } else {
+  //       // date type — original logic, no month shifting needed
+  //       params = [
+  //         start_date,
+  //         end_date, // date_range
+  //         start_date,
+  //         end_date, // lead_data
+  //         start_date,
+  //         end_date, // join_data
+  //         start_date,
+  //         end_date, // collection_data
+  //       ];
+
+  //       query = `
+  //       WITH RECURSIVE date_range AS (
+  //           SELECT DATE(?) AS report_date
+  //           UNION ALL
+  //           SELECT DATE_ADD(report_date, INTERVAL 1 DAY)
+  //           FROM date_range
+  //           WHERE report_date < DATE(?)
+  //       ),
+  //       lead_data AS (
+  //           SELECT
+  //               DATE(lm.created_date) AS report_date,
+  //               lr.name AS region_name,
+  //               COUNT(*) AS total_leads
+  //           FROM lead_master lm
+  //           INNER JOIN region lr ON lr.id = lm.region_id
+  //           WHERE lm.created_date >= ?
+  //             AND lm.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+  //           GROUP BY DATE(lm.created_date), lr.name
+  //       ),
+  //       join_data AS (
+  //           SELECT
+  //               DATE(c.created_date) AS report_date,
+  //               cr.name AS region_name,
+  //               COUNT(DISTINCT c.id) AS total_joins
+  //           FROM customers c
+  //           INNER JOIN region cr ON cr.id = c.region_id
+  //           WHERE c.created_date >= ?
+  //             AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+  //           GROUP BY DATE(c.created_date), cr.name
+  //       ),
+  //       collection_data AS (
+  //           SELECT
+  //               DATE(pt.invoice_date) AS report_date,
+  //               cr.name AS region_name,
+  //               SUM(pt.amount + pt.convenience_fees) AS total_collection
+  //           FROM payment_trans pt
+  //           INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
+  //           INNER JOIN customers c ON c.lead_id = pm.lead_id
+  //           INNER JOIN region cr ON cr.id = c.region_id
+  //           WHERE pt.invoice_date >= ?
+  //             AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
+  //             AND pt.payment_status <> 'Rejected'
+  //           GROUP BY DATE(pt.invoice_date), cr.name
+  //       ),
+  //       combined_metrics AS (
+  //           SELECT report_date, region_name, total_leads, 0 AS total_joins, 0 AS total_collection FROM lead_data
+  //           UNION ALL
+  //           SELECT report_date, region_name, 0, total_joins, 0 FROM join_data
+  //           UNION ALL
+  //           SELECT report_date, region_name, 0, 0, total_collection FROM collection_data
+  //       )
+  //       SELECT
+  //           DATE_FORMAT(dr.report_date, '%Y-%m-%d') AS date,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_leads      ELSE 0 END), 0) AS hub_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_joins      ELSE 0 END), 0) AS hub_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Hub'       THEN cm.total_collection ELSE 0 END), 0) AS hub_collections,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_leads      ELSE 0 END), 0) AS chennai_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_joins      ELSE 0 END), 0) AS chennai_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Chennai'   THEN cm.total_collection ELSE 0 END), 0) AS chennai_collections,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_leads      ELSE 0 END), 0) AS bangalore_leads,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_joins      ELSE 0 END), 0) AS bangalore_joins,
+  //           IFNULL(SUM(CASE WHEN cm.region_name = 'Bangalore' THEN cm.total_collection ELSE 0 END), 0) AS bangalore_collections,
+  //           IFNULL(SUM(cm.total_leads),      0) AS overall_leads,
+  //           IFNULL(SUM(cm.total_joins),      0) AS overall_joins,
+  //           IFNULL(SUM(cm.total_collection), 0) AS overall_collections
+  //       FROM date_range dr
+  //       LEFT JOIN combined_metrics cm ON cm.report_date = dr.report_date
+  //       GROUP BY dr.report_date
+  //       ORDER BY dr.report_date ASC;`;
+  //     }
+
+  //     const [result] = await pool.query(query, params);
+  //     return result;
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
+
+  getLeadSourceReport: async (start_date, end_date, user_ids) => {
     try {
-      const params = [start_date, end_date];
-      let query = `CALL sp_lead_source_report(?, ?)`;
+      const params = [start_date, end_date, user_ids];
+      let query = `CALL sp_lead_source_report(?, ?, ?)`;
       const [result] = await pool.query(query, params);
       return result;
     } catch (error) {

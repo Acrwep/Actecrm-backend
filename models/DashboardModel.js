@@ -1495,6 +1495,8 @@ const DashboardModel = {
                 FROM customers AS c
                 INNER JOIN lead_master AS l ON
                     c.lead_id = l.id
+                LEFT JOIN customer_status_history AS csh
+                    ON csh.id = c.latest_status_history_id
                 WHERE 1 = 1`;
 
       if (region_id) {
@@ -1531,7 +1533,7 @@ const DashboardModel = {
       }
 
       if (start_date && end_date) {
-        sql += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        sql += ` AND CAST(COALESCE(csh.updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
       }
 

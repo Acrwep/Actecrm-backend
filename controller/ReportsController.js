@@ -360,9 +360,13 @@ const candidateFeesHistory = async (request, response) => {
 };
 
 const regionReportDatewise = async (request, response) => {
-  const { start_date, end_date } = request.body;
+  const { start_date, end_date, type } = request.body;
   try {
-    const result = await ReportModel.regionReportDatewise(start_date, end_date);
+    const result = await ReportModel.regionReportDatewise(
+      start_date,
+      end_date,
+      type,
+    );
     return response.status(200).send({
       message: "Data fetched successfully",
       data: result,
@@ -376,9 +380,13 @@ const regionReportDatewise = async (request, response) => {
 };
 
 const getLeadSourceReport = async (request, response) => {
-  const { start_date, end_date } = request.body;
+  const { start_date, end_date, user_ids } = request.body;
   try {
-    const result = await ReportModel.getLeadSourceReport(start_date, end_date);
+    const result = await ReportModel.getLeadSourceReport(
+      start_date,
+      end_date,
+      user_ids,
+    );
     return response.status(200).send({
       message: "Data fetched successfully",
       data: result,
