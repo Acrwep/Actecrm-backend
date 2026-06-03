@@ -576,4 +576,6 @@ router.post(
   verifyToken,
   ReportController.getLeadSourceReport,
 );
+
+router.post("/annualReport", verifyToken, ReportController.annualReport);
 module.exports = router;

@@ -399,6 +399,22 @@ const getLeadSourceReport = async (request, response) => {
   }
 };
 
+const annualReport = async (request, response) => {
+  const { start_date, end_date } = request.body;
+  try {
+    const result = await ReportModel.annualReport(start_date, end_date);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   reportScoreBoard,
   reportUserWiseScoreBoard,
@@ -419,4 +435,5 @@ module.exports = {
   candidateFeesHistory,
   regionReportDatewise,
   getLeadSourceReport,
+  annualReport,
 };

@@ -4363,6 +4363,289 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
+
+  annualReport: async (start_date, end_date) => {
+    try {
+      const leadQuery = `
+      SELECT
+        CASE
+          WHEN DAY(created_date) >= 26
+            THEN MONTH(DATE_ADD(created_date, INTERVAL 1 MONTH))
+          ELSE MONTH(created_date)
+        END AS report_month,
+
+        CASE
+          WHEN DAY(created_date) >= 26
+            THEN YEAR(DATE_ADD(created_date, INTERVAL 1 MONTH))
+          ELSE YEAR(created_date)
+        END AS report_year,
+
+        COUNT(*) AS leads
+      FROM lead_master
+      WHERE DATE(created_date) BETWEEN ? AND ?
+      GROUP BY report_year, report_month
+    `;
+
+      const joinQuery = `
+      SELECT
+        CASE
+          WHEN DAY(created_date) >= 26
+            THEN MONTH(DATE_ADD(created_date, INTERVAL 1 MONTH))
+          ELSE MONTH(created_date)
+        END AS report_month,
+
+        CASE
+          WHEN DAY(created_date) >= 26
+            THEN YEAR(DATE_ADD(created_date, INTERVAL 1 MONTH))
+          ELSE YEAR(created_date)
+        END AS report_year,
+
+        COUNT(*) AS joints
+      FROM customers
+      WHERE DATE(created_date) BETWEEN ? AND ?
+      GROUP BY report_year, report_month
+    `;
+
+      const paymentQuery = `
+      SELECT
+        CASE
+          WHEN DAY(invoice_date) >= 26
+            THEN MONTH(DATE_ADD(invoice_date, INTERVAL 1 MONTH))
+          ELSE MONTH(invoice_date)
+        END AS report_month,
+
+        CASE
+          WHEN DAY(invoice_date) >= 26
+            THEN YEAR(DATE_ADD(invoice_date, INTERVAL 1 MONTH))
+          ELSE YEAR(invoice_date)
+        END AS report_year,
+
+        ROUND(
+          SUM(
+            IFNULL(amount, 0) +
+            IFNULL(convenience_fees, 0)
+          ),
+          2
+        ) AS payments
+
+      FROM payment_trans
+
+      WHERE DATE(invoice_date) BETWEEN ? AND ?
+        AND payment_status <> 'Rejected'
+      GROUP BY report_year, report_month
+    `;
+
+      const [[leadRows], [joinRows], [paymentRows]] = await Promise.all([
+        pool.query(leadQuery, [start_date, end_date]),
+        pool.query(joinQuery, [start_date, end_date]),
+        pool.query(paymentQuery, [start_date, end_date]),
+      ]);
+
+      const rowsMap = {};
+
+      const getKey = (year, month) => `${year}_${month}`;
+
+      // Leads
+      leadRows.forEach((row) => {
+        const key = getKey(row.report_year, row.report_month);
+
+        rowsMap[key] = {
+          report_year: row.report_year,
+          report_month: row.report_month,
+          leads: Number(row.leads || 0),
+          joints: 0,
+          payments: 0,
+        };
+      });
+
+      // Joins
+      joinRows.forEach((row) => {
+        const key = getKey(row.report_year, row.report_month);
+
+        if (!rowsMap[key]) {
+          rowsMap[key] = {
+            report_year: row.report_year,
+            report_month: row.report_month,
+            leads: 0,
+            joints: 0,
+            payments: 0,
+          };
+        }
+
+        rowsMap[key].joints = Number(row.joints || 0);
+      });
+
+      // Payments
+      paymentRows.forEach((row) => {
+        const key = getKey(row.report_year, row.report_month);
+
+        if (!rowsMap[key]) {
+          rowsMap[key] = {
+            report_year: row.report_year,
+            report_month: row.report_month,
+            leads: 0,
+            joints: 0,
+            payments: 0,
+          };
+        }
+
+        rowsMap[key].payments = Number(row.payments || 0);
+      });
+
+      const rows = Object.values(rowsMap);
+
+      rows.forEach((row) => {
+        row.quarter_name =
+          row.report_month >= 4 && row.report_month <= 6
+            ? "Q1"
+            : row.report_month >= 7 && row.report_month <= 9
+              ? "Q2"
+              : row.report_month >= 10 && row.report_month <= 12
+                ? "Q3"
+                : "Q4";
+
+        row.half_name =
+          row.report_month >= 4 && row.report_month <= 9
+            ? "FIRST_HALF"
+            : "SECOND_HALF";
+
+        row.financial_year =
+          row.report_month >= 4 ? row.report_year : row.report_year - 1;
+      });
+
+      rows.sort((a, b) => {
+        if (a.financial_year !== b.financial_year) {
+          return a.financial_year - b.financial_year;
+        }
+        return a.report_month - b.report_month;
+      });
+
+      const result = {};
+
+      const monthNames = {
+        1: "JAN",
+        2: "FEB",
+        3: "MAR",
+        4: "APR",
+        5: "MAY",
+        6: "JUN",
+        7: "JUL",
+        8: "AUG",
+        9: "SEP",
+        10: "OCT",
+        11: "NOV",
+        12: "DEC",
+      };
+
+      rows.forEach((row) => {
+        const fy = row.financial_year;
+
+        if (!result[fy]) {
+          result[fy] = {
+            financial_year: fy,
+
+            total: {
+              lead: 0,
+              joint: 0,
+              payment: 0,
+            },
+
+            average_per_month: {
+              lead: 0,
+              joint: 0,
+              payment: 0,
+            },
+
+            average_per_day: {
+              lead: 0,
+              joint: 0,
+              payment: 0,
+            },
+
+            half_yearly: {
+              first_half: {
+                lead: 0,
+                joint: 0,
+                payment: 0,
+              },
+              second_half: {
+                lead: 0,
+                joint: 0,
+                payment: 0,
+              },
+            },
+
+            quarterly: {
+              Q1: { lead: 0, joint: 0, payment: 0 },
+              Q2: { lead: 0, joint: 0, payment: 0 },
+              Q3: { lead: 0, joint: 0, payment: 0 },
+              Q4: { lead: 0, joint: 0, payment: 0 },
+            },
+
+            monthly: {
+              APR: { lead: 0, joint: 0, payment: 0 },
+              MAY: { lead: 0, joint: 0, payment: 0 },
+              JUN: { lead: 0, joint: 0, payment: 0 },
+              JUL: { lead: 0, joint: 0, payment: 0 },
+              AUG: { lead: 0, joint: 0, payment: 0 },
+              SEP: { lead: 0, joint: 0, payment: 0 },
+              OCT: { lead: 0, joint: 0, payment: 0 },
+              NOV: { lead: 0, joint: 0, payment: 0 },
+              DEC: { lead: 0, joint: 0, payment: 0 },
+              JAN: { lead: 0, joint: 0, payment: 0 },
+              FEB: { lead: 0, joint: 0, payment: 0 },
+              MAR: { lead: 0, joint: 0, payment: 0 },
+            },
+          };
+        }
+
+        const lead = Number(row.leads || 0);
+        const joint = Number(row.joints || 0);
+        const payment = Number(row.payments || 0);
+
+        const monthName = monthNames[row.report_month];
+
+        result[fy].monthly[monthName] = {
+          lead,
+          joint,
+          payment,
+        };
+
+        result[fy].total.lead += lead;
+        result[fy].total.joint += joint;
+        result[fy].total.payment += payment;
+
+        result[fy].quarterly[row.quarter_name].lead += lead;
+        result[fy].quarterly[row.quarter_name].joint += joint;
+        result[fy].quarterly[row.quarter_name].payment += payment;
+
+        const halfKey =
+          row.half_name === "FIRST_HALF" ? "first_half" : "second_half";
+
+        result[fy].half_yearly[halfKey].lead += lead;
+        result[fy].half_yearly[halfKey].joint += joint;
+        result[fy].half_yearly[halfKey].payment += payment;
+      });
+
+      Object.values(result).forEach((fyData) => {
+        fyData.average_per_month = {
+          lead: Number((fyData.total.lead / 12).toFixed(2)),
+          joint: Number((fyData.total.joint / 12).toFixed(2)),
+          payment: Number((fyData.total.payment / 12).toFixed(2)),
+        };
+
+        fyData.average_per_day = {
+          lead: Number((fyData.total.lead / 365).toFixed(2)),
+          joint: Number((fyData.total.joint / 365).toFixed(2)),
+          payment: Number((fyData.total.payment / 365).toFixed(2)),
+        };
+      });
+
+      return Object.values(result);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = ReportModel;
