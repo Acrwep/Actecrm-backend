@@ -2515,7 +2515,7 @@ const CustomerModel = {
   checkUserByEmail: async (email) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT id, email FROM lead_master WHERE email = ?`,
+        `SELECT id, email FROM customers WHERE email = ?`,
         [email],
       );
       return isExists[0];
