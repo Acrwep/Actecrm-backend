@@ -500,6 +500,7 @@ const websiteLead = async (request, response) => {
     corporate_training,
   } = request.body;
   try {
+    let is_google_add = 0;
     if (request.body.user_column_data) {
       const fields = request.body.user_column_data;
 
@@ -532,11 +533,13 @@ const websiteLead = async (request, response) => {
       training = "Classroom Training";
       domain_origin = "Google Ads";
       corporate_training = "";
+      is_google_add = 1;
     }
     training = training || "Classroom Training";
     comments = comments || "";
     domain_origin = domain_origin || "acte.in";
     corporate_training = corporate_training || "";
+    is_google_add = is_google_add || 0;
     const result = await LeadModel.websiteLead(
       name,
       phone,
@@ -547,6 +550,7 @@ const websiteLead = async (request, response) => {
       training,
       domain_origin,
       corporate_training,
+      is_google_add,
     );
 
     // Fetch updated lead count and emit to sockets
