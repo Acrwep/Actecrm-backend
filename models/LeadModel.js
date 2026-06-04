@@ -618,7 +618,7 @@ const LeadModel = {
             IFNULL(p.pending, 0) AS pending,
             (o.overall - IFNULL(p.pending, 0)) AS completed,
             CONCAT(
-                o.overall - IFNULL(p.pending, 0), '/', o.overall
+                o.overall - IFNULL(p.pending, 0), '|', o.overall
             ) AS count
         FROM (
             SELECT
@@ -686,7 +686,7 @@ const LeadModel = {
 
       const statusCounts = {};
       allStatuses.forEach((s) => {
-        statusCounts[s.name] = "0/0";
+        statusCounts[s.name] = "0|0";
       });
 
       let overallCompleted = 0;
@@ -696,14 +696,14 @@ const LeadModel = {
         if (item.status_name) {
           statusCounts[item.status_name] = item.count
             ? item.count.toString()
-            : "0/0";
+            : "0|0";
         }
 
         overallCompleted += Number(item.completed || 0);
         overallTotal += Number(item.overall || 0);
       });
 
-      statusCounts["Overall"] = `${overallCompleted}/${overallTotal}`;
+      statusCounts["Overall"] = `${overallCompleted}|${overallTotal}`;
 
       const leadIds = [...new Set(follow_ups.map((item) => item.id))];
 

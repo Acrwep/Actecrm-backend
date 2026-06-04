@@ -3879,8 +3879,7 @@ const ReportModel = {
             ? "FIRST_HALF"
             : "SECOND_HALF";
 
-        row.financial_year =
-          row.report_month >= 4 ? row.report_year : row.report_year - 1;
+        row.financial_year = row.report_year;
       });
 
       rows.sort((a, b) => {
@@ -3953,6 +3952,9 @@ const ReportModel = {
             },
 
             monthly: {
+              JAN: { lead: 0, joint: 0, payment: 0 },
+              FEB: { lead: 0, joint: 0, payment: 0 },
+              MAR: { lead: 0, joint: 0, payment: 0 },
               APR: { lead: 0, joint: 0, payment: 0 },
               MAY: { lead: 0, joint: 0, payment: 0 },
               JUN: { lead: 0, joint: 0, payment: 0 },
@@ -3962,9 +3964,6 @@ const ReportModel = {
               OCT: { lead: 0, joint: 0, payment: 0 },
               NOV: { lead: 0, joint: 0, payment: 0 },
               DEC: { lead: 0, joint: 0, payment: 0 },
-              JAN: { lead: 0, joint: 0, payment: 0 },
-              FEB: { lead: 0, joint: 0, payment: 0 },
-              MAR: { lead: 0, joint: 0, payment: 0 },
             },
           };
         }

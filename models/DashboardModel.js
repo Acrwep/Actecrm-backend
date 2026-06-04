@@ -1999,6 +1999,82 @@ const DashboardModel = {
       throw new Error(error.message);
     }
   },
+
+  getMobileDashboard: async (start_date, end_date, region_id, user_ids) => {
+    try {
+      const queryParams = [];
+      const targetParams = [];
+
+      let query = `SELECT IFNULL(SUM(pt.amount + pt.convenience_fees), 0.00) AS collection FROM payment_trans AS pt
+                  INNER JOIN payment_master AS pm ON
+                    pt.payment_master_id = pm.id
+                  INNER JOIN customers AS c ON
+                    c.lead_id = pm.lead_id
+                  INNER JOIN lead_master AS lm ON
+                    lm.id = c.lead_id
+                  WHERE pt.payment_status <> 'Rejected'`;
+
+      let targetQuery = `SELECT IFNULL(SUM(ut.target_value), 0.00) AS target FROM users AS u
+                        INNER JOIN user_target_master AS ut ON
+                          u.user_id = ut.user_id
+                        WHERE u.roles LIKE '%Sale%'`;
+
+      if (region_id) {
+        let region = "";
+        const [regionName] = await pool.query(
+          `SELECT name FROM region WHERE id = ? AND is_active = 1`,
+          [region_id],
+        );
+
+        if (regionName.length > 0) {
+          if (regionName[0].name === "Chennai") {
+            region = "CHN";
+          } else if (regionName[0].name === "Bangalore") {
+            region = "BNG";
+          } else if (regionName[0].name === "Hub") {
+            region = "HUB";
+          } else {
+            region = "";
+          }
+        }
+
+        query += ` AND lm.assigned_to LIKE '%${region}%'`;
+        targetQuery += ` AND u.user_id LIKE '%${region}%'`;
+      }
+
+      if (start_date && end_date) {
+        query += ` AND pt.invoice_date >= ? AND pt.invoice_date < ?`;
+        targetQuery += ` AND ut.target_month = CONCAT(DATE_FORMAT(?,'%b %Y'),' - ',DATE_FORMAT(?,'%b %Y'))`;
+        queryParams.push(start_date, end_date);
+        targetParams.push(start_date, end_date);
+      }
+
+      if (user_ids) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        query += ` AND lm.assigned_to IN (${placeholders})`;
+        targetQuery += ` AND u.user_id IN (${placeholders})`;
+        queryParams.push(...user_ids);
+        targetParams.push(...user_ids);
+      }
+
+      const [[result], [targetResult]] = await Promise.all([
+        pool.query(query, queryParams),
+        pool.query(targetQuery, targetParams),
+      ]);
+
+      const collection = Number(result[0].collection) || 0.0;
+      const target = Number(targetResult[0].target) || 0.0;
+
+      const average = target > 0 ? Number((collection / target).toFixed(2)) : 0;
+      return {
+        collection,
+        target,
+        average,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = DashboardModel;

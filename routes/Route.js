@@ -578,4 +578,9 @@ router.post(
 );
 
 router.post("/annualReport", verifyToken, ReportController.annualReport);
+router.post(
+  "/getMobileDashboard",
+  verifyToken,
+  DashboardController.getMobileDashboard,
+);
 module.exports = router;
