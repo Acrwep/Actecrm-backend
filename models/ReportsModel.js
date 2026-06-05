@@ -3651,7 +3651,7 @@ const ReportModel = {
             UNION ALL
             SELECT DATE_ADD(report_date, INTERVAL 1 DAY)
             FROM date_range
-            WHERE report_date < DATE(?)
+            WHERE report_date < LEAST(DATE(?), CURDATE())
         ),
         lead_data AS (
             SELECT
@@ -3712,6 +3712,7 @@ const ReportModel = {
             IFNULL(SUM(cm.total_collection), 0) AS overall_collections
         FROM date_range dr
         LEFT JOIN combined_metrics cm ON cm.report_date = dr.report_date
+        WHERE dr.report_date <= CURDATE()
         GROUP BY dr.report_date
         ORDER BY dr.report_date ASC`;
       }
