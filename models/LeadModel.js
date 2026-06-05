@@ -328,19 +328,32 @@ const LeadModel = {
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(*) as total FROM lead_master AS l INNER JOIN technologies AS pt ON pt.id = l.primary_course_id WHERE 1 = 1`;
 
+      const statusParams = [];
+      let statusQuery = `SELECT ls.id, ls.name AS status_name, COUNT(l.id) AS total_count
+                        FROM lead_master AS l
+                        INNER JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                        INNER JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                        WHERE 1 = 1`;
+
       // Handle user_ids parameter for both queries
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           getQuery += ` AND l.assigned_to IN (${placeholders})`;
           countQuery += ` AND l.assigned_to IN (${placeholders})`;
+          statusQuery += ` AND l.assigned_to IN (${placeholders})`;
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
+          statusParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND l.assigned_to = ?`;
           countQuery += ` AND l.assigned_to = ?`;
+          statusQuery += ` AND l.assigned_to = ?`;
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
+          statusParams.push(user_ids);
         }
       }
 
@@ -381,9 +394,13 @@ const LeadModel = {
       if (start_date && end_date) {
         getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        statusQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
         countQueryParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
       }
+
+      statusQuery += ` GROUP BY ls.name, ls.id`;
 
       // Apply pagination to main query
       const pageNumber = parseInt(page, 10) || 1;
@@ -393,15 +410,37 @@ const LeadModel = {
       getQuery += ` ORDER BY l.created_date DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [[countResult], [result]] = await Promise.all([
+      const [[countResult], [result], [statusResult]] = await Promise.all([
         pool.query(countQuery, countQueryParams),
         pool.query(getQuery, queryParams),
+        pool.query(statusQuery, statusParams),
       ]);
+
+      const [getLeadStatus] = await pool.query(
+        `SELECT id, name FROM lead_status`,
+      );
+      const status = [];
+      let totalStatusCount = 0;
+
+      for (const leadStatus of getLeadStatus) {
+        const statusData = statusResult.find((s) => s.id === leadStatus.id);
+        status.push({
+          name: leadStatus.name,
+          total_count: statusData ? statusData.total_count : 0,
+        });
+        totalStatusCount += statusData ? statusData.total_count : 0;
+      }
+
+      status.push({
+        name: "total",
+        total_count: totalStatusCount,
+      });
 
       const total = countResult[0]?.total || 0;
 
       return {
         data: result,
+        status: status,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
