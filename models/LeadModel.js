@@ -572,12 +572,12 @@ const LeadModel = {
       };
 
       if (from_date && to_date) {
-        getQuery += ` AND lf.next_follow_up_date >= ? AND lf.next_follow_up_date < ?`;
-        countQuery += ` AND lf.next_follow_up_date >= ? AND lf.next_follow_up_date < ?`;
+        getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
+        countQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
         commonFilters.clauses.push(
-          `lf.next_follow_up_date >= ? AND lf.next_follow_up_date < ?`,
+          `DATE(lf.next_follow_up_date) BETWEEN ? AND ?`,
         );
         commonFilters.params.push(from_date, to_date);
       }
