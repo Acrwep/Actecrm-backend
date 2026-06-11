@@ -583,4 +583,5 @@ router.post(
   verifyToken,
   DashboardController.getMobileDashboard,
 );
+router.post("/getLeadsV1", verifyToken, LeadController.getLeadsV1);
 module.exports = router;

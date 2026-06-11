@@ -123,6 +123,8 @@ const insertLead = async (request, response) => {
     is_reentry,
     lead_action_id,
     domain_origin,
+    communication_status,
+    contact_mode,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -154,6 +156,8 @@ const insertLead = async (request, response) => {
       is_reentry,
       lead_action_id,
       domain_origin,
+      communication_status,
+      contact_mode,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -986,6 +990,48 @@ const leadReEntry = async (request, response) => {
   }
 };
 
+const getLeadsV1 = async (request, response) => {
+  const {
+    name,
+    email,
+    phone,
+    start_date,
+    end_date,
+    lead_status_id,
+    user_ids,
+    page,
+    limit,
+    course,
+    lead_type,
+    bucket,
+  } = request.body;
+  try {
+    const leads = await LeadModel.getLeadsV1(
+      name,
+      email,
+      phone,
+      start_date,
+      end_date,
+      lead_status_id,
+      user_ids,
+      page,
+      limit,
+      course,
+      lead_type,
+      bucket,
+    );
+    return response.status(200).send({
+      message: "Leads fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching leads",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1023,4 +1069,5 @@ module.exports = {
   getAssignedLeads,
   updateLeadStatus,
   leadReEntry,
+  getLeadsV1,
 };
