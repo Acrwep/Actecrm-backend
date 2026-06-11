@@ -125,6 +125,7 @@ const insertLead = async (request, response) => {
     domain_origin,
     communication_status,
     contact_mode,
+    interest_rate,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -158,6 +159,7 @@ const insertLead = async (request, response) => {
       domain_origin,
       communication_status,
       contact_mode,
+      interest_rate,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -258,6 +260,7 @@ const updateFollowUp = async (request, response) => {
     lead_id,
     updated_by,
     updated_date,
+    interest_rate,
   } = request.body;
   try {
     const result = await LeadModel.updateFollowUp(
@@ -268,6 +271,7 @@ const updateFollowUp = async (request, response) => {
       lead_id,
       updated_by,
       updated_date,
+      interest_rate,
     );
     return response.status(200).send({
       message: "Updated successfully",

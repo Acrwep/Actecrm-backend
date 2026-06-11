@@ -107,6 +107,7 @@ const LeadModel = {
     domain_origin,
     communication_status,
     contact_mode,
+    interest_rate,
   ) => {
     try {
       if (is_reentry === false) {
@@ -233,10 +234,11 @@ const LeadModel = {
           `INSERT INTO lead_follow_up_history(
             lead_id,
             next_follow_up_date,
-            lead_action_id
+            lead_action_id,
+            interest_rate
         )
-        VALUES(?, ?, ?)`,
-          [result.insertId, next_follow_up_date, lead_action_id],
+        VALUES(?, ?, ?, ?)`,
+          [result.insertId, next_follow_up_date, lead_action_id, interest_rate],
         );
 
         affectedRows += next_follow_up.affectedRows;
@@ -1078,7 +1080,7 @@ const LeadModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY l.next_follow_up_date ASC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY l.next_follow_up_date ASC, lf.interest_rate DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       const [[countResult], [statusCountResult], [follow_ups], [allStatuses]] =
@@ -1175,6 +1177,7 @@ const LeadModel = {
     lead_id,
     updated_by,
     updated_date,
+    interest_rate,
   ) => {
     try {
       let affectedRows = 0;
@@ -1186,11 +1189,12 @@ const LeadModel = {
       affectedRows += update_lead.affectedRows;
 
       if (next_follow_up_date) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id) VALUES (?, ?, ?)`;
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, interest_rate) VALUES (?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
           lead_action_id,
+          interest_rate,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
