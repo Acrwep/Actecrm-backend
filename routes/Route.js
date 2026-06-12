@@ -590,7 +590,7 @@ router.get(
   LeadController.getCommunicationStatus,
 );
 router.get("/getContactMode", verifyToken, LeadController.getContactMode);
-router.post(
+router.get(
   "/getLeadSubCategory",
   verifyToken,
   LeadController.getLeadSubCategory,
