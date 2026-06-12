@@ -3152,7 +3152,7 @@ const LeadModel = {
                     LEFT JOIN contact_mode AS cm1 ON
                       l.contact_mode = cm1.id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
-                    LEFT JOIN lead_sub_source AS lss ON lss.id = l.lead_sub_source
+                    LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
                     LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
