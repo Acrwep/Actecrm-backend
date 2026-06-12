@@ -584,4 +584,15 @@ router.post(
   DashboardController.getMobileDashboard,
 );
 router.post("/getLeadsV1", verifyToken, LeadController.getLeadsV1);
+router.get(
+  "/getCommunicationStatus",
+  verifyToken,
+  LeadController.getCommunicationStatus,
+);
+router.get("/getContactMode", verifyToken, LeadController.getContactMode);
+router.post(
+  "/getLeadSubCategory",
+  verifyToken,
+  LeadController.getLeadSubCategory,
+);
 module.exports = router;

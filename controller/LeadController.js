@@ -126,6 +126,16 @@ const insertLead = async (request, response) => {
     communication_status,
     contact_mode,
     interest_rate,
+    assigned_manager_id,
+    lead_sub_source,
+    referral_name,
+    preferred_mode,
+    preferred_batch,
+    counsel,
+    lead_temperature,
+    is_today_followup,
+    next_follow_up_time,
+    lead_score,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -160,6 +170,16 @@ const insertLead = async (request, response) => {
       communication_status,
       contact_mode,
       interest_rate,
+      assigned_manager_id,
+      lead_sub_source,
+      referral_name,
+      preferred_mode,
+      preferred_batch,
+      counsel,
+      lead_temperature,
+      is_today_followup,
+      next_follow_up_time,
+      lead_score,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -256,6 +276,7 @@ const updateFollowUp = async (request, response) => {
     lead_history_id,
     comments,
     next_follow_up_date,
+    next_follow_up_time,
     lead_status_id,
     lead_id,
     updated_by,
@@ -267,6 +288,7 @@ const updateFollowUp = async (request, response) => {
       lead_history_id,
       comments,
       next_follow_up_date,
+      next_follow_up_time,
       lead_status_id,
       lead_id,
       updated_by,
@@ -315,6 +337,14 @@ const updateLead = async (request, response) => {
     domain_origin,
     communication_status,
     contact_mode,
+    assigned_manager_id,
+    lead_sub_source,
+    referral_name,
+    preferred_mode,
+    preferred_batch,
+    counsel,
+    lead_temperature,
+    is_today_followup,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -346,6 +376,14 @@ const updateLead = async (request, response) => {
       domain_origin,
       communication_status,
       contact_mode,
+      assigned_manager_id,
+      lead_sub_source,
+      referral_name,
+      preferred_mode,
+      preferred_batch,
+      counsel,
+      lead_temperature,
+      is_today_followup,
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -1040,6 +1078,52 @@ const getLeadsV1 = async (request, response) => {
   }
 };
 
+const getCommunicationStatus = async (request, response) => {
+  try {
+    const result = await LeadModel.getCommunicationStatus();
+    return response.status(200).send({
+      message: "Communication status fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching communication status",
+      details: error.message,
+    });
+  }
+};
+
+const getContactMode = async (request, response) => {
+  try {
+    const result = await LeadModel.getContactMode();
+    return response.status(200).send({
+      message: "Contact mode fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching contact mode",
+      details: error.message,
+    });
+  }
+};
+
+const getLeadSubCategory = async (request, response) => {
+  const { category_id } = request.body;
+  try {
+    const result = await LeadModel.getLeadSubCategory(category_id);
+    return response.status(200).send({
+      message: "Lead sub-category fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching lead sub-category",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1078,4 +1162,7 @@ module.exports = {
   updateLeadStatus,
   leadReEntry,
   getLeadsV1,
+  getCommunicationStatus,
+  getContactMode,
+  getLeadSubCategory,
 };
