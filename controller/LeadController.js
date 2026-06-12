@@ -132,7 +132,6 @@ const insertLead = async (request, response) => {
     preferred_mode,
     preferred_batch,
     counsel,
-    lead_temperature,
     is_today_followup,
     next_follow_up_time,
     lead_score,
@@ -176,7 +175,6 @@ const insertLead = async (request, response) => {
       preferred_mode,
       preferred_batch,
       counsel,
-      lead_temperature,
       is_today_followup,
       next_follow_up_time,
       lead_score,
@@ -343,7 +341,6 @@ const updateLead = async (request, response) => {
     preferred_mode,
     preferred_batch,
     counsel,
-    lead_temperature,
     is_today_followup,
   } = request.body;
   try {
@@ -382,7 +379,6 @@ const updateLead = async (request, response) => {
       preferred_mode,
       preferred_batch,
       counsel,
-      lead_temperature,
       is_today_followup,
     );
     return response.status(200).send({
@@ -1124,6 +1120,21 @@ const getLeadSubCategory = async (request, response) => {
   }
 };
 
+const getClassMode = async (request, response) => {
+  try {
+    const result = await LeadModel.getClassMode();
+    return response.status(200).send({
+      message: "Class mode fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching class mode",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1165,4 +1176,5 @@ module.exports = {
   getCommunicationStatus,
   getContactMode,
   getLeadSubCategory,
+  getClassMode,
 };

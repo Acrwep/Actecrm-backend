@@ -114,7 +114,6 @@ const LeadModel = {
     preferred_mode,
     preferred_batch,
     counsel,
-    lead_temperature,
     is_today_followup,
     next_follow_up_time,
     lead_score,
@@ -176,11 +175,10 @@ const LeadModel = {
                             preferred_mode,
                             preferred_batch,
                             counsel,
-                            lead_temperature,
                             is_today_followup,
                             lead_score
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -216,7 +214,6 @@ const LeadModel = {
         preferred_mode,
         preferred_batch,
         counsel,
-        lead_temperature,
         is_today_followup,
         lead_score,
       ];
@@ -1301,7 +1298,6 @@ const LeadModel = {
     preferred_mode,
     preferred_batch,
     counsel,
-    lead_temperature,
     is_today_followup,
   ) => {
     try {
@@ -1345,7 +1341,6 @@ const LeadModel = {
                               preferred_mode = ?,
                               preferred_batch = ?,
                               counsel = ?,
-                              lead_temperature = ?,
                               is_today_followup = ?
                           WHERE
                               id = ?`;
@@ -1381,7 +1376,6 @@ const LeadModel = {
         preferred_mode,
         preferred_batch,
         counsel,
-        lead_temperature,
         is_today_followup,
         lead_id,
       ];
@@ -3130,7 +3124,6 @@ const LeadModel = {
                         l.preferred_batch,
                         ba.name AS preferred_batch_name,
                         l.counsel,
-                        l.lead_temperature,
                         l.is_today_followup,
                         l.lead_score
                     FROM
@@ -3376,6 +3369,17 @@ const LeadModel = {
         WHERE
             c.category_id = ? AND c.is_active = 1`,
         [category_id],
+      );
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getClassMode: async () => {
+    try {
+      const [result] = await pool.query(
+        `SELECT id, name FROM class_mode WHERE is_active = 1`,
       );
       return result;
     } catch (error) {

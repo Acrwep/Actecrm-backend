@@ -595,4 +595,5 @@ router.get(
   verifyToken,
   LeadController.getLeadSubCategory,
 );
+router.get("/getClassMode", verifyToken, LeadController.getClassMode);
 module.exports = router;
