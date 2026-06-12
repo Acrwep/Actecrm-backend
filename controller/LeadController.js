@@ -1109,7 +1109,7 @@ const getContactMode = async (request, response) => {
 };
 
 const getLeadSubCategory = async (request, response) => {
-  const { category_id } = request.body;
+  const { category_id } = request.query;
   try {
     const result = await LeadModel.getLeadSubCategory(category_id);
     return response.status(200).send({
