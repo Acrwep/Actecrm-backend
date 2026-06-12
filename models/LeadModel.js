@@ -3116,7 +3116,7 @@ const LeadModel = {
                         l.assigned_manager,
                         m.user_name AS assigned_manager_name,
                         l.lead_sub_source,
-                        lss.name AS lead_sub_source_name,
+                        lss.sub_category AS lead_sub_source_name,
                         l.referral_name,
                         rn.user_name AS referral_user_name,
                         l.preferred_mode,
