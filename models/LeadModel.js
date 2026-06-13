@@ -1319,9 +1319,11 @@ const LeadModel = {
     comments,
     lead_id,
     region_id,
-    previous_junk,
+    is_previous_junk,
     lead_action_id,
     domain_origin,
+    communication_status,
+    contact_mode,
     assigned_manager_id,
     assigned_executive_id,
     lead_sub_source,
@@ -1444,7 +1446,7 @@ const LeadModel = {
       );
       affectedRows += update_latest.affectedRows;
 
-      if (previous_junk) {
+      if (is_previous_junk) {
         const [update_lead_master] = await pool.query(
           `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
           [next_follow_up_date, lead_status_id, lead_id],
@@ -3434,10 +3436,43 @@ function formatToBackendIST(date) {
 async function getLeadScore(lead_id) {
   try {
     const [result] = await pool.query(
-      `SELECT lead_score FROM leads WHERE id = ?`,
+      `SELECT
+          lh.id,
+          lh.lead_id,
+          lh.comments,
+          lm.counsel,
+          lm.expected_join_date,
+          cs.name AS communication_status_name,
+          cm.name AS contact_mode_name,
+          la.name AS lead_action_name
+      FROM
+          lead_follow_up_history AS lh
+      LEFT JOIN lead_master AS lm ON
+        lm.id = lh.lead_id
+      LEFT JOIN communication_master AS cs ON
+        cs.id = lh.communication_status
+      LEFT JOIN contact_mode AS cm ON
+        cm.id = lh.contact_mode
+      LEFT JOIN lead_action AS la ON
+        la.id = lh.lead_action_id
+      WHERE
+          lh.lead_id = ?
+      ORDER BY
+          lh.id
+      DESC
+      LIMIT 1`,
       [lead_id],
     );
-    return result[0]?.lead_score || 0;
+
+    let contactConnected = 0;
+    let interested = 0;
+    let demoAttended = 0;
+    let budgetDiscussed = 0;
+    let joinThisMonth = 0;
+
+    if (result[0].communication_status_name != "Not Communicated") {
+      contactConnected = 10;
+    }
   } catch (error) {
     throw new Error(error.message);
   }
