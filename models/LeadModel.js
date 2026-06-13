@@ -1241,23 +1241,28 @@ const LeadModel = {
     try {
       let affectedRows = 0;
 
-      const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1 WHERE id = ?`;
-      const values = [comments, updated_by, updated_date, lead_history_id];
+      const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1, interest_rate = ?, communication_status = ?, contact_mode = ? WHERE id = ?`;
+      const values = [
+        comments,
+        updated_by,
+        updated_date,
+        interest_rate,
+        communication_status,
+        contact_mode,
+        lead_history_id,
+      ];
       const [update_lead] = await pool.query(updateQuery, values);
 
       affectedRows += update_lead.affectedRows;
 
       if (next_follow_up_date) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, interest_rate, next_followup_time, today_followup_date, communication_status, contact_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, next_followup_time, today_followup_date) VALUES (?, ?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
           lead_action_id,
-          interest_rate,
           next_follow_up_time,
           today_followup_date,
-          communication_status,
-          contact_mode,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
@@ -1273,8 +1278,18 @@ const LeadModel = {
         );
 
         const [updateFollowUp] = await pool.query(
-          `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date, is_updated) VALUES (?, ?, ?, ?, ?, ?)`,
-          [lead_id, lead_action_id, comments, updated_by, updated_date, 1],
+          `INSERT INTO lead_follow_up_history (lead_id, lead_action_id, comments, updated_by, updated_date, is_updated, interest_rate, communication_status, contact_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            lead_id,
+            lead_action_id,
+            comments,
+            updated_by,
+            updated_date,
+            1,
+            interest_rate,
+            communication_status,
+            contact_mode,
+          ],
         );
 
         affectedRows += updateFollowUp.affectedRows;
