@@ -132,7 +132,6 @@ const insertLead = async (request, response) => {
     preferred_mode,
     preferred_batch,
     counsel,
-    is_today_followup,
     next_follow_up_time,
     lead_score,
     today_followup_date,
@@ -176,7 +175,6 @@ const insertLead = async (request, response) => {
       preferred_mode,
       preferred_batch,
       counsel,
-      is_today_followup,
       next_follow_up_time,
       lead_score,
       today_followup_date,
@@ -350,7 +348,6 @@ const updateLead = async (request, response) => {
     preferred_mode,
     preferred_batch,
     counsel,
-    is_today_followup,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -389,7 +386,6 @@ const updateLead = async (request, response) => {
       preferred_mode,
       preferred_batch,
       counsel,
-      is_today_followup,
     );
     return response.status(200).send({
       message: "Updated successfully",
@@ -1145,6 +1141,22 @@ const getClassMode = async (request, response) => {
   }
 };
 
+const getLeadById = async (request, response) => {
+  const { lead_id } = request.query;
+  try {
+    const result = await LeadModel.getLeadById(lead_id);
+    return response.status(200).send({
+      message: "Lead fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1187,4 +1199,5 @@ module.exports = {
   getContactMode,
   getLeadSubCategory,
   getClassMode,
+  getLeadById,
 };

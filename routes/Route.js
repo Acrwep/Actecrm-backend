@@ -596,4 +596,5 @@ router.get(
   LeadController.getLeadSubCategory,
 );
 router.get("/getClassMode", verifyToken, LeadController.getClassMode);
+router.get("/getLeadById", verifyToken, LeadController.getLeadById);
 module.exports = router;

@@ -114,7 +114,6 @@ const LeadModel = {
     preferred_mode,
     preferred_batch,
     counsel,
-    is_today_followup,
     next_follow_up_time,
     lead_score,
     today_followup_date,
@@ -174,10 +173,9 @@ const LeadModel = {
                             preferred_mode,
                             preferred_batch,
                             counsel,
-                            is_today_followup,
                             lead_score
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -211,7 +209,6 @@ const LeadModel = {
         preferred_mode,
         preferred_batch,
         counsel,
-        is_today_followup,
         lead_score,
       ];
 
@@ -235,8 +232,9 @@ const LeadModel = {
             is_updated,
             communication_status,
             contact_mode,
+            interest_rate
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
             lead_action_id,
@@ -246,6 +244,7 @@ const LeadModel = {
             1,
             communication_status,
             contact_mode,
+            interest_rate,
           ],
         );
 
@@ -257,17 +256,15 @@ const LeadModel = {
             next_follow_up_date,
             next_followup_time,
             today_followup_date,
-            lead_action_id,
-            interest_rate
+            lead_action_id
         )
-        VALUES(?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?)`,
           [
             result.insertId,
             next_follow_up_date,
             next_follow_up_time,
             today_followup_date,
             lead_action_id,
-            interest_rate,
           ],
         );
 
@@ -812,7 +809,7 @@ const LeadModel = {
 
       if (leadIds.length > 0) {
         const [historyResult] = await pool.query(
-          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name, lh.communication_status, cm.name AS communication_status_name, lh.contact_mode, cm1.name AS contact_mode_name
+          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name, lh.communication_status, cm.name AS communication_status_name, lh.contact_mode, cm1.name AS contact_mode_name, lh.interest_rate
            FROM lead_follow_up_history AS lh
            LEFT JOIN users AS u ON lh.updated_by = u.user_id
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id
@@ -1331,7 +1328,6 @@ const LeadModel = {
     preferred_mode,
     preferred_batch,
     counsel,
-    is_today_followup,
   ) => {
     try {
       let affectedRows = 0;
@@ -1372,8 +1368,7 @@ const LeadModel = {
                               referral_name = ?,
                               preferred_mode = ?,
                               preferred_batch = ?,
-                              counsel = ?,
-                              is_today_followup = ?
+                              counsel = ?
                           WHERE
                               id = ?`;
       const values = [
@@ -1407,7 +1402,6 @@ const LeadModel = {
         preferred_mode,
         preferred_batch,
         counsel,
-        is_today_followup,
         lead_id,
       ];
 
@@ -3151,7 +3145,6 @@ const LeadModel = {
                         l.preferred_batch,
                         ba.name AS preferred_batch_name,
                         l.counsel,
-                        l.is_today_followup,
                         l.lead_score
                     FROM
                         lead_master AS l
@@ -3422,6 +3415,145 @@ const LeadModel = {
         `SELECT id, name FROM class_mode WHERE is_active = 1`,
       );
       return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getLeadById: async (lead_id) => {
+    try {
+      let getQuery = `SELECT
+                        l.id,
+                        l.user_id,
+                        u.user_name,
+                        l.assigned_to AS lead_assigned_to_id,
+                        au.user_name AS lead_assigned_to_name,
+                        l.name,
+                        l.phone_code,
+                        l.phone,
+                        l.whatsapp_phone_code,
+                        l.whatsapp,
+                        l.email,
+                        l.country,
+                        l.state,
+                        l.domain_origin,
+                        l.district AS area_id,
+                        a.name AS district,
+                        l.primary_course_id,
+                        pt.name AS primary_course,
+                        l.primary_fees,
+                        l.price_category,
+                        l.secondary_course_id,
+                        st.name AS secondary_course,
+                        l.secondary_fees,
+                        l.lead_type_id,
+                        lt.name AS lead_type,
+                        l.lead_status_id,
+                        ls.name AS lead_status,
+                        l.next_follow_up_date,
+                        lh.next_followup_time,
+                        l.expected_join_date,
+                        l.branch_id,
+                        b.name AS branch_name,
+                        l.batch_track_id,
+                        bt.name AS batch_track,
+                        l.comments,
+                        l.created_date,
+                        CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
+                        c.id AS customer_id,
+                        r.name AS region_name,
+                        r.id AS region_id,
+                        lh.id AS lead_history_id,
+                        lh.lead_action_id,
+                        la.name AS lead_action_name,
+                        l.re_assigned_date,
+                        l.is_reassigned,
+                        l.assigned_manager,
+                        m.user_name AS assigned_manager_name,
+                        l.lead_sub_source,
+                        lss.sub_category AS lead_sub_source_name,
+                        l.referral_name,
+                        l.preferred_mode,
+                        cmo.name AS preferred_mode_name,
+                        l.preferred_batch,
+                        ba.name AS preferred_batch_name,
+                        l.counsel,
+                        l.lead_score,
+                        lh.communication_status AS communication_status_id,
+                        cm.name AS communication_status_name,
+                        lh.contact_mode AS contact_mode_id,
+                        cm1.name AS contact_mode_name
+                    FROM
+                        lead_master AS l
+                    LEFT JOIN users AS u ON u.user_id = l.user_id
+                    LEFT JOIN users AS au ON au.user_id = l.assigned_to
+                    LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+                    LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
+                    LEFT JOIN lead_type AS lt ON lt.id = l.lead_type_id
+                    LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+                    LEFT JOIN region AS r ON r.id = l.region_id
+                    LEFT JOIN branches AS b ON b.id = l.branch_id
+                    LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
+                    LEFT JOIN customers AS c ON c.lead_id = l.id
+                    LEFT JOIN areas AS a ON a.id = l.district
+                    LEFT JOIN (
+                    	SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
+                        GROUP BY lead_id
+                    ) AS latest ON latest.lead_id = l.id
+                    LEFT JOIN lead_follow_up_history AS lh ON
+                    	latest.lead_history_id = lh.id
+                    LEFT JOIN communication_master AS cm ON
+                      lh.communication_status = cm.id
+                    LEFT JOIN contact_mode AS cm1 ON
+                      lh.contact_mode = cm1.id
+                    LEFT JOIN lead_action AS la ON
+                    	la.id = lh.lead_action_id
+                    LEFT JOIN users AS m ON m.user_id = l.assigned_manager
+                    LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
+                    LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
+                    LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
+                    WHERE l.id = ?`;
+
+      const [result] = await pool.query(getQuery, [lead_id]);
+
+      const [historyResult] = await pool.query(
+        `SELECT
+            lh.id,
+            lh.lead_id,
+            lh.comments,
+            lh.updated_by,
+            u.user_name,
+            lh.updated_date,
+            lh.lead_action_id,
+            la.name AS lead_action_name,
+            lh.communication_status,
+            cm.name AS communication_status_name,
+            lh.contact_mode,
+            cm1.name AS contact_mode_name,
+            lh.next_follow_up_date,
+            lh.next_followup_time,
+            lh.interest_rate
+        FROM
+            lead_follow_up_history AS lh
+        LEFT JOIN users AS u ON
+            lh.updated_by = u.user_id
+        LEFT JOIN lead_action AS la ON
+            lh.lead_action_id = la.id
+        LEFT JOIN communication_master AS cm ON
+            lh.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON
+            lh.contact_mode = cm1.id
+        WHERE
+            lh.is_updated = 1 AND lh.lead_id = ?
+        ORDER BY lh.id ASC`,
+        [lead_id],
+      );
+
+      return {
+        ...result[0],
+        lead_score: await getLeadScore(lead_id),
+        history: historyResult,
+      };
     } catch (error) {
       throw new Error(error.message);
     }
