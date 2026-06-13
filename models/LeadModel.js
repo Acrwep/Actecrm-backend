@@ -3170,6 +3170,10 @@ const LeadModel = {
                     ) AS latest ON latest.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON
                     	latest.lead_history_id = lh.id
+                    LEFT JOIN communication_master AS cm ON
+                      lh.communication_status = cm.id
+                    LEFT JOIN contact_mode AS cm1 ON
+                      lh.contact_mode = cm1.id
                     LEFT JOIN lead_action AS la ON
                     	la.id = lh.lead_action_id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
@@ -3191,6 +3195,10 @@ const LeadModel = {
                     ) AS latest ON latest.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON
                     	latest.lead_history_id = lh.id
+                    LEFT JOIN communication_master AS cm ON
+                      lh.communication_status = cm.id
+                    LEFT JOIN contact_mode AS cm1 ON
+                      lh.contact_mode = cm1.id
                     LEFT JOIN lead_action AS la ON
                     	la.id = lh.lead_action_id
                     LEFT JOIN lead_status AS ls ON
@@ -3213,6 +3221,10 @@ const LeadModel = {
           GROUP BY lead_id
         ) AS latest ON latest.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON latest.lead_history_id = lh.id
+        LEFT JOIN communication_master AS cm ON
+          lh.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON
+          lh.contact_mode = cm1.id
         LEFT JOIN lead_action AS la ON la.id = lh.lead_action_id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         WHERE 1 = 1`;
