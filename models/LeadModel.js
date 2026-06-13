@@ -3337,8 +3337,19 @@ const LeadModel = {
 
       const total = countResult[0]?.total || 0;
 
+      const formattedResult = await Promise.all(
+        result.map(async (item) => {
+          const leadScore = await getLeadScore(item.id);
+
+          return {
+            ...item,
+            lead_score: leadScore,
+          };
+        }),
+      );
+
       return {
-        data: result,
+        data: formattedResult,
         bucket_counts: {
           all: parseInt(bucketCountResult[0]?.all_leads || 0),
           valid_leads: parseInt(bucketCountResult[0]?.valid_leads || 0),
@@ -3469,10 +3480,48 @@ async function getLeadScore(lead_id) {
     let demoAttended = 0;
     let budgetDiscussed = 0;
     let joinThisMonth = 0;
+    let leadScore = 0;
 
     if (result[0].communication_status_name != "Not Communicated") {
       contactConnected = 10;
     }
+
+    if (
+      result[0].lead_action_name === "Interested" ||
+      result[0].lead_action_name === "Highly Interested"
+    ) {
+      interested = 20;
+    }
+
+    if (result[0].counsel === "Given") {
+      demoAttended = 20;
+    }
+
+    if (
+      result[0].lead_action_name !== "Lead Lost" ||
+      result[0].lead_action_name !== "Service Not Available"
+    ) {
+      budgetDiscussed = 20;
+    }
+
+    if (result[0].expected_join_date) {
+      const expectedJoinDate = new Date(result[0].expected_join_date);
+      const currentDate = new Date();
+
+      if (
+        expectedJoinDate.getMonth() === currentDate.getMonth() &&
+        expectedJoinDate.getFullYear() === currentDate.getFullYear()
+      ) {
+        joinThisMonth = 30;
+      }
+    }
+    leadScore =
+      contactConnected +
+      interested +
+      demoAttended +
+      budgetDiscussed +
+      joinThisMonth;
+    return leadScore;
   } catch (error) {
     throw new Error(error.message);
   }
