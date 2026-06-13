@@ -117,6 +117,7 @@ const LeadModel = {
     is_today_followup,
     next_follow_up_time,
     lead_score,
+    today_followup_date,
   ) => {
     try {
       if (is_reentry === false) {
@@ -167,8 +168,6 @@ const LeadModel = {
                             created_date,
                             region_id,
                             domain_origin,
-                            communication_status,
-                            contact_mode,
                             assigned_manager,
                             lead_sub_source,
                             referral_name,
@@ -178,7 +177,7 @@ const LeadModel = {
                             is_today_followup,
                             lead_score
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -206,8 +205,6 @@ const LeadModel = {
         created_date,
         region_id,
         domain_origin,
-        communication_status,
-        contact_mode,
         assigned_manager_id,
         lead_sub_source,
         referral_name,
@@ -227,10 +224,6 @@ const LeadModel = {
         throw new Error("Error while inserting lead");
 
       if (next_follow_up_date) {
-        // Get lead action list
-        // const [getLeadAction] = await pool.query(
-        //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-        // );
         // Insert lead follow up history
         const [history] = await pool.query(
           `INSERT INTO lead_follow_up_history(
@@ -239,17 +232,20 @@ const LeadModel = {
             comments,
             updated_by,
             updated_date,
-            is_updated
+            is_updated,
+            communication_status,
+            contact_mode,
         )
-        VALUES(?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
-            // getLeadAction[0].id,
             lead_action_id,
             comments,
             user_id,
             created_date,
             1,
+            communication_status,
+            contact_mode,
           ],
         );
 
@@ -260,14 +256,16 @@ const LeadModel = {
             lead_id,
             next_follow_up_date,
             next_followup_time,
+            today_followup_date,
             lead_action_id,
             interest_rate
         )
-        VALUES(?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
             next_follow_up_date,
             next_follow_up_time,
+            today_followup_date,
             lead_action_id,
             interest_rate,
           ],
@@ -611,15 +609,39 @@ const LeadModel = {
         params: [], // bound values in order
       };
 
+      // if (from_date && to_date) {
+      //   getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
+      //   countQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
+      //   queryParams.push(from_date, to_date);
+      //   countQueryParams.push(from_date, to_date);
+      //   commonFilters.clauses.push(
+      //     `DATE(lf.next_follow_up_date) BETWEEN ? AND ?`,
+      //   );
+      //   commonFilters.params.push(from_date, to_date);
+      // }
+
       if (from_date && to_date) {
-        getQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
-        countQuery += ` AND DATE(lf.next_follow_up_date) BETWEEN ? AND ?`;
-        queryParams.push(from_date, to_date);
-        countQueryParams.push(from_date, to_date);
+        getQuery += `
+                    AND (
+                      DATE(lf.next_follow_up_date) BETWEEN ? AND ?
+                      OR DATE(lf.today_followup_date) BETWEEN ? AND ?
+                    )`;
+
+        countQuery += `
+                    AND (
+                      DATE(lf.next_follow_up_date) BETWEEN ? AND ?
+                      OR DATE(lf.today_followup_date) BETWEEN ? AND ?
+                    )`;
+
+        queryParams.push(from_date, to_date, from_date, to_date);
+        countQueryParams.push(from_date, to_date, from_date, to_date);
+
         commonFilters.clauses.push(
-          `DATE(lf.next_follow_up_date) BETWEEN ? AND ?`,
+          `(DATE(lf.next_follow_up_date) BETWEEN ? AND ? 
+      OR DATE(lf.today_followup_date) BETWEEN ? AND ?)`,
         );
-        commonFilters.params.push(from_date, to_date);
+
+        commonFilters.params.push(from_date, to_date, from_date, to_date);
       }
 
       if (name) {
@@ -790,10 +812,14 @@ const LeadModel = {
 
       if (leadIds.length > 0) {
         const [historyResult] = await pool.query(
-          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name
+          `SELECT lh.id, lh.lead_id, lh.comments, lh.updated_by, u.user_name, lh.updated_date, lh.lead_action_id, la.name AS lead_action_name, lh.communication_status, cm.name AS communication_status_name, lh.contact_mode, cm1.name AS contact_mode_name
            FROM lead_follow_up_history AS lh
            LEFT JOIN users AS u ON lh.updated_by = u.user_id
            LEFT JOIN lead_action AS la ON lh.lead_action_id = la.id
+           LEFT JOIN communication_master AS cm ON
+              lh.communication_status = cm.id
+           LEFT JOIN contact_mode AS cm1 ON
+              lh.contact_mode = cm1.id
            WHERE lh.is_updated = 1 AND lh.lead_id IN (?)
            ORDER BY lh.id ASC`,
           [leadIds],
@@ -1211,6 +1237,9 @@ const LeadModel = {
     updated_by,
     updated_date,
     interest_rate,
+    today_followup_date,
+    communication_status,
+    contact_mode,
   ) => {
     try {
       let affectedRows = 0;
@@ -1222,13 +1251,16 @@ const LeadModel = {
       affectedRows += update_lead.affectedRows;
 
       if (next_follow_up_date) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, interest_rate, next_followup_time) VALUES (?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, interest_rate, next_followup_time, today_followup_date, communication_status, contact_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
           lead_action_id,
           interest_rate,
           next_follow_up_time,
+          today_followup_date,
+          communication_status,
+          contact_mode,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
@@ -1290,9 +1322,8 @@ const LeadModel = {
     previous_junk,
     lead_action_id,
     domain_origin,
-    communication_status,
-    contact_mode,
     assigned_manager_id,
+    assigned_executive_id,
     lead_sub_source,
     referral_name,
     preferred_mode,
@@ -1333,9 +1364,8 @@ const LeadModel = {
                               comments = ?,
                               region_id = ?,
                               domain_origin = ?,
-                              communication_status = ?,
-                              contact_mode = ?,
                               assigned_manager = ?,
+                              assigned_to = ?,
                               lead_sub_source = ?,
                               referral_name = ?,
                               preferred_mode = ?,
@@ -1368,9 +1398,8 @@ const LeadModel = {
         comments,
         region_id,
         domain_origin,
-        communication_status,
-        contact_mode,
         assigned_manager_id,
+        assigned_executive_id,
         lead_sub_source,
         referral_name,
         preferred_mode,
@@ -3109,10 +3138,6 @@ const LeadModel = {
                         la.name AS lead_action_name,
                         l.re_assigned_date,
                         l.is_reassigned,
-                        l.communication_status,
-                        cm.name AS communication_status_name,
-                        l.contact_mode,
-                        cm1.name AS contact_mode_name,
                         l.assigned_manager,
                         m.user_name AS assigned_manager_name,
                         l.lead_sub_source,
@@ -3147,10 +3172,6 @@ const LeadModel = {
                     	latest.lead_history_id = lh.id
                     LEFT JOIN lead_action AS la ON
                     	la.id = lh.lead_action_id
-                    LEFT JOIN communication_master AS cm ON
-                      l.communication_status = cm.id
-                    LEFT JOIN contact_mode AS cm1 ON
-                      l.contact_mode = cm1.id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
