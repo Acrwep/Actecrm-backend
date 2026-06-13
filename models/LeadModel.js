@@ -3193,10 +3193,6 @@ const LeadModel = {
                     	latest.lead_history_id = lh.id
                     LEFT JOIN lead_action AS la ON
                     	la.id = lh.lead_action_id
-                    LEFT JOIN communication_master AS cm ON
-                      l.communication_status = cm.id
-                    LEFT JOIN contact_mode AS cm1 ON
-                      l.contact_mode = cm1.id
                     LEFT JOIN lead_status AS ls ON
                       ls.id = l.lead_status_id
                     WHERE 1 = 1`;
@@ -3218,8 +3214,6 @@ const LeadModel = {
         ) AS latest ON latest.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON latest.lead_history_id = lh.id
         LEFT JOIN lead_action AS la ON la.id = lh.lead_action_id
-        LEFT JOIN communication_master AS cm ON l.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON l.contact_mode = cm1.id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         WHERE 1 = 1`;
 
@@ -3423,6 +3417,18 @@ function formatToBackendIST(date) {
   const seconds = pad(istDate.getSeconds());
 
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+async function getLeadScore(lead_id) {
+  try {
+    const [result] = await pool.query(
+      `SELECT lead_score FROM leads WHERE id = ?`,
+      [lead_id],
+    );
+    return result[0]?.lead_score || 0;
+  } catch (error) {
+    throw new Error(error.message);
+  }
 }
 
 module.exports = LeadModel;
