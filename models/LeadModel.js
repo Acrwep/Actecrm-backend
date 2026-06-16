@@ -140,6 +140,12 @@ const LeadModel = {
       }
 
       let affectedRows = 0;
+
+      const getLeadStatus = await getLeadTemperature(created_date);
+      const nextFollowupDate = getNextFollowupDate(
+        getLeadStatus[0].name,
+        created_date,
+      );
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
                             assigned_to,
@@ -194,8 +200,10 @@ const LeadModel = {
         secondary_course_id,
         secondary_fees,
         lead_type_id,
-        lead_status_id,
-        next_follow_up_date,
+        // lead_status_id,
+        getLeadStatus[0]?.id,
+        // next_follow_up_date,
+        nextFollowupDate,
         expected_join_date,
         branch_id,
         batch_track_id,
@@ -220,7 +228,7 @@ const LeadModel = {
       if (result.affectedRows <= 0)
         throw new Error("Error while inserting lead");
 
-      if (next_follow_up_date) {
+      if (nextFollowupDate) {
         // Insert lead follow up history
         const [history] = await pool.query(
           `INSERT INTO lead_follow_up_history(
@@ -261,7 +269,7 @@ const LeadModel = {
         VALUES(?, ?, ?, ?, ?)`,
           [
             result.insertId,
-            next_follow_up_date,
+            nextFollowupDate,
             next_follow_up_time,
             today_followup_date,
             lead_action_id,
@@ -1227,8 +1235,8 @@ const LeadModel = {
   updateFollowUp: async (
     lead_history_id,
     comments,
-    next_follow_up_date,
-    next_follow_up_time,
+    // next_follow_up_date,
+    // next_follow_up_time,
     lead_action_id,
     lead_id,
     updated_by,
@@ -1255,26 +1263,36 @@ const LeadModel = {
 
       affectedRows += update_lead.affectedRows;
 
-      if (next_follow_up_date) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, next_followup_time, today_followup_date) VALUES (?, ?, ?, ?, ?)`;
+      const [getLead] = await pool.query(
+        `SELECT id, created_date, next_follow_up_date FROM lead_master WHERE id = ?`,
+        [lead_id],
+      );
+
+      const getLeadStatus = await getLeadTemperature(created_date);
+      const nextFollowupDate = getNextFollowupDate(
+        getLeadStatus[0].name,
+        created_date,
+      );
+
+      if (nextFollowupDate) {
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, lead_action_id, today_followup_date) VALUES (?, ?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
-          next_follow_up_date,
+          nextFollowupDate,
           lead_action_id,
-          next_follow_up_time,
           today_followup_date,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
         const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET next_follow_up_date = ?, comments = ? WHERE id = ?`,
-          [next_follow_up_date, comments, lead_id],
+          `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ?, comments = ? WHERE id = ?`,
+          [nextFollowupDate, getLeadStatus[0].id, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
       } else {
         const [get_lead_status] = await pool.query(
-          `SELECT id, name FROM lead_status WHERE name = 'Follow-Up Stoped'`,
+          `SELECT id, name FROM lead_status WHERE name = 'Not Interested' LIMIT 1`,
         );
 
         const [updateFollowUp] = await pool.query(
@@ -3241,23 +3259,23 @@ const LeadModel = {
 
       if (bucket) {
         if (bucket === "Valid Leads") {
-          getQuery += ` AND cm1.name <> 'Incorrect Data' AND c.id IS NULL`;
-          countQuery += ` AND cm1.name <> 'Incorrect Data' AND c.id IS NULL`;
+          getQuery += ` AND cm1.name <> 'Incorrect Data'`;
+          countQuery += ` AND cm1.name <> 'Incorrect Data'`;
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND la.name <> 'Service Not Available' AND c.id IS NULL`;
-          countQuery += ` AND la.name <> 'Service Not Available' AND c.id IS NULL`;
+          getQuery += ` AND la.name <> 'Service Not Available'`;
+          countQuery += ` AND la.name <> 'Service Not Available'`;
         }
 
         if (bucket === "Interested Leads") {
-          getQuery += ` AND ls.name IN ('Super Hot', 'Hot') AND c.id IS NULL`;
-          countQuery += ` AND ls.name IN ('Super Hot', 'Hot') AND c.id IS NULL`;
+          getQuery += ` AND ls.name IN ('Super Hot', 'Hot')`;
+          countQuery += ` AND ls.name IN ('Super Hot', 'Hot')`;
         }
 
         if (bucket === "Sales Ready") {
-          getQuery += ` AND la.name IN ('Interested', 'Highly Interested') AND c.id IS NULL`;
-          countQuery += ` AND la.name IN ('Interested', 'Highly Interested') AND c.id IS NULL`;
+          getQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
+          countQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
         }
 
         if (bucket === "Joinings") {
@@ -3672,6 +3690,48 @@ async function getLeadScore(lead_id) {
   } catch (error) {
     throw new Error(error.message);
   }
+}
+
+async function getLeadTemperature(leadCreatedDate) {
+  const today = new Date();
+
+  const ageInDays = Math.floor(
+    (today - new Date(leadCreatedDate)) / (1000 * 60 * 60 * 24),
+  );
+
+  let leadTemperature = "Dormant";
+
+  if (ageInDays <= 7) {
+    leadTemperature = "Super Hot";
+  } else if (ageInDays <= 15) {
+    leadTemperature = "Hot";
+  } else if (ageInDays <= 30) {
+    leadTemperature = "Warm";
+  } else if (ageInDays <= 45) {
+    leadTemperature = "Cold";
+  }
+
+  const [getLeadTemperature] = await pool.query(
+    `SELECT id, name FROM lead_status WHERE is_active = 1 AND name = ?`,
+    [leadTemperature],
+  );
+  return getLeadTemperature[0];
+}
+
+function getNextFollowUpDate(leadTemperature, followUpCompletedDate) {
+  const frequencyMap = {
+    "Super Hot": 1,
+    Hot: 2,
+    Warm: 3,
+    Cold: 7,
+    Dormant: 7,
+  };
+
+  const nextDate = new Date(followUpCompletedDate);
+
+  nextDate.setDate(nextDate.getDate() + frequencyMap[leadTemperature]);
+
+  return nextDate;
 }
 
 module.exports = LeadModel;

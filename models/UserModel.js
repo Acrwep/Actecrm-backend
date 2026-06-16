@@ -3,6 +3,7 @@ const pool = require("../config/dbconfig");
 const UserModel = {
   addUser: async (
     user_id,
+    manager_id,
     user_name,
     phone,
     password,
@@ -25,6 +26,7 @@ const UserModel = {
 
       const insertQuery = `INSERT INTO users(
                             user_id,
+                            manager_id,
                             user_name,
                             phone,
                             password,
@@ -32,9 +34,10 @@ const UserModel = {
                             roles,
                             profile_image
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?)`;
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         user_id,
+        manager_id,
         user_name,
         phone,
         password,
@@ -144,15 +147,33 @@ const UserModel = {
   getUsers: async (user_id, user_name, page, limit) => {
     try {
       const params = [];
-      let getQuery = `SELECT id, user_id, user_name, phone, profile_image, password, child_users, roles, CASE WHEN is_active = 1 THEN 1 ELSE 0 END AS is_active, last_login_date FROM users WHERE is_active = 1`;
+      let getQuery = `SELECT
+                        u.id,
+                        u.user_id,
+                        u.user_name,
+                        u.manager_id,
+                        um.user_name AS manager_name,
+                        u.phone,
+                        u.profile_image,
+                        u.password,
+                        u.child_users,
+                        u.roles,
+                        CASE WHEN u.is_active = 1 THEN 1 ELSE 0 END AS is_active,
+                      u.last_login_date
+                    FROM
+                        users AS u
+                    LEFT JOIN users AS um ON
+                      u.manager_id = um.user_id
+                    WHERE
+                        u.is_active = 1`;
 
       let countQuery = `SELECT COUNT(id) AS total FROM users WHERE is_active = 1`;
       if (user_id) {
-        getQuery += ` AND user_id LIKE '%${user_id}%'`;
+        getQuery += ` AND u.user_id LIKE '%${user_id}%'`;
         countQuery += ` AND user_id LIKE '%${user_id}%'`;
       }
       if (user_name) {
-        getQuery += ` AND user_name LIKE '%${user_name}%'`;
+        getQuery += ` AND u.user_name LIKE '%${user_name}%'`;
         countQuery += ` AND user_name LIKE '%${user_name}%'`;
       }
 
@@ -164,7 +185,7 @@ const UserModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY user_name`;
+      getQuery += ` ORDER BY u.user_name`;
 
       getQuery += ` LIMIT ? OFFSET ?`;
       params.push(limitNumber, offset);
@@ -217,6 +238,7 @@ const UserModel = {
   updateUser: async (
     id,
     user_id,
+    manager_id,
     user_name,
     phone,
     profile_image,
@@ -237,9 +259,10 @@ const UserModel = {
         throw new Error("Invalid Id");
       }
 
-      const updateQuery = `UPDATE users SET user_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
+      const updateQuery = `UPDATE users SET user_id = ?, manager_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
       const values = [
         user_id,
+        manager_id,
         user_name,
         phone,
         profile_image,

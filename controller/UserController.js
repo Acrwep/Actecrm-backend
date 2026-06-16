@@ -4,6 +4,7 @@ const userModel = require("../models/UserModel");
 const addUser = async (request, response) => {
   const {
     user_id,
+    manager_id,
     user_name,
     phone,
     profile_image,
@@ -25,6 +26,7 @@ const addUser = async (request, response) => {
   try {
     const result = await userModel.addUser(
       user_id,
+      manager_id,
       user_name,
       phone,
       password,
@@ -67,6 +69,7 @@ const updateUser = async (request, response) => {
   const {
     id,
     user_id,
+    manager_id,
     user_name,
     phone,
     profile_image,
@@ -83,6 +86,7 @@ const updateUser = async (request, response) => {
     const users = await userModel.updateUser(
       id,
       user_id,
+      manager_id,
       user_name,
       phone,
       profile_image,
