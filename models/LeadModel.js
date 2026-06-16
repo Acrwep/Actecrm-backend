@@ -1284,8 +1284,6 @@ const LeadModel = {
   updateFollowUp: async (
     lead_history_id,
     comments,
-    // next_follow_up_date,
-    // next_follow_up_time,
     lead_action_id,
     lead_id,
     updated_by,
@@ -1395,6 +1393,28 @@ const LeadModel = {
         LIMIT 1;`,
         [lead_id],
       );
+
+      const [isLeadScoreExists] = await pool.query(
+        `SELECT id FROM lead_score_master WHERE lead_id = ?`,
+        [lead_id],
+      );
+
+      if (isLeadScoreExists.length === 0) {
+        await pool.query(
+          `INSERT INTO lead_score_master (lead_id, contact_connected, interested, joining) VALUES (?, ?, ?, ?)`,
+          [
+            lead_id,
+            getLeadScore[0].communication_status_name === "Communicated"
+              ? 10
+              : 0,
+            getLeadScore[0].lead_action_name === "Interested" ||
+            getLeadScore[0].lead_action_name === "Highly Interested"
+              ? 20
+              : 0,
+            await getJoiningScore(getLead[0].expected_join_date, lead_id),
+          ],
+        );
+      }
 
       await pool.query(
         `UPDATE

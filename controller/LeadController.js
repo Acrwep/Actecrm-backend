@@ -273,8 +273,6 @@ const updateFollowUp = async (request, response) => {
   const {
     lead_history_id,
     comments,
-    // next_follow_up_date,
-    // next_follow_up_time,
     lead_status_id,
     lead_id,
     updated_by,
@@ -288,8 +286,6 @@ const updateFollowUp = async (request, response) => {
     const result = await LeadModel.updateFollowUp(
       lead_history_id,
       comments,
-      // next_follow_up_date,
-      // next_follow_up_time,
       lead_status_id,
       lead_id,
       updated_by,
