@@ -1341,9 +1341,9 @@ const LeadModel = {
         [lead_id],
       );
 
-      // const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
+      const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
       const leadTemperatureDate = getNextFollowUpDate(
-        getLead[0].lead_status_name,
+        getLeadStatus.name,
         updated_date,
       );
 
