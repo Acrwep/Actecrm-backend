@@ -1052,6 +1052,7 @@ const getLeadsV1 = async (request, response) => {
     course,
     lead_type,
     bucket,
+    lead_action,
   } = request.body;
   try {
     const leads = await LeadModel.getLeadsV1(
@@ -1067,6 +1068,7 @@ const getLeadsV1 = async (request, response) => {
       course,
       lead_type,
       bucket,
+      lead_action,
     );
     return response.status(200).send({
       message: "Leads fetched successfully",

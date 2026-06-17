@@ -3312,6 +3312,7 @@ const LeadModel = {
     course,
     lead_type,
     bucket,
+    lead_action,
   ) => {
     try {
       const queryParams = [];
@@ -3403,7 +3404,7 @@ const LeadModel = {
                     LEFT JOIN contact_mode AS cm1 ON
                       luh.contact_mode = cm1.id
                     LEFT JOIN lead_action AS la ON
-                    	la.id = lh.lead_action_id
+                    	la.id = luh.lead_action_id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
@@ -3434,7 +3435,7 @@ const LeadModel = {
                     LEFT JOIN contact_mode AS cm1 ON
                       luh.contact_mode = cm1.id
                     LEFT JOIN lead_action AS la ON
-                    	la.id = lh.lead_action_id
+                    	la.id = luh.lead_action_id
                     LEFT JOIN lead_status AS ls ON
                       ls.id = l.lead_status_id
                     WHERE 1 = 1`;
@@ -3458,6 +3459,18 @@ const LeadModel = {
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // joinings (2)
         bucketCountQueryParams.push(start_date, end_date);
+        // highly_interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // sale_ready (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // not_interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // exploring (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // not_responding (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
       }
 
       let bucketCountQuery = `SELECT 
@@ -3465,7 +3478,13 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
-          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
+          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name IN ('Sale Ready', 'Sales Ready') AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding
         FROM lead_master AS l
         INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -3484,7 +3503,7 @@ const LeadModel = {
           luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON
           luh.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON la.id = lh.lead_action_id
+        LEFT JOIN lead_action AS la ON la.id = luh.lead_action_id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         WHERE 1 = 1`;
 
@@ -3569,8 +3588,21 @@ const LeadModel = {
         countQueryParams.push(lead_status_id);
       }
 
+      if (lead_action) {
+        const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
+        if (actionStr === "sale ready" || actionStr === "sales ready") {
+          getQuery += ` AND la.name IN ('Sale Ready', 'Sales Ready')`;
+          countQuery += ` AND la.name IN ('Sale Ready', 'Sales Ready')`;
+        } else {
+          getQuery += ` AND la.name LIKE ?`;
+          countQuery += ` AND la.name LIKE ?`;
+          queryParams.push(`%${actionStr}%`);
+          countQueryParams.push(`%${actionStr}%`);
+        }
+      }
+
       if (start_date && end_date) {
-        if (bucket === "Interested Leads") {
+        if (bucket === "Interested Leads" || lead_action) {
           getQuery += ` AND (
                       DATE(lh.next_follow_up_date) BETWEEN ? AND ?
                       OR DATE(lh.today_followup_date) BETWEEN ? AND ?
@@ -3620,8 +3652,19 @@ const LeadModel = {
           interested_leads: parseInt(
             bucketCountResult[0]?.interested_leads || 0,
           ),
-          sales_ready: parseInt(bucketCountResult[0]?.sales_ready || 0),
+          sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
+        },
+        interested_lead_actions: {
+          all: parseInt(bucketCountResult[0]?.interested_leads || 0),
+          highly_interested: parseInt(
+            bucketCountResult[0]?.highly_interested || 0,
+          ),
+          interested: parseInt(bucketCountResult[0]?.interested || 0),
+          sale_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
+          not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
+          exploring: parseInt(bucketCountResult[0]?.exploring || 0),
+          not_responding: parseInt(bucketCountResult[0]?.not_responding || 0),
         },
         pagination: {
           total: parseInt(total),
