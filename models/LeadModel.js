@@ -141,12 +141,24 @@ const LeadModel = {
 
       let affectedRows = 0;
 
-      const getLeadStatus = await getLeadTemperature(created_date);
+      let leadStatusId = lead_status_id;
+      let leadStatusName;
+      let leadTemperatureDate;
 
-      const nextFollowupDate = getNextFollowUpDate(
-        getLeadStatus.name,
-        created_date,
-      );
+      if (!lead_status_id) {
+        const getLeadStatus = await getLeadTemperature(created_date);
+        leadStatusId = getLeadStatus.id;
+        leadStatusName = getLeadStatus.name;
+      } else {
+        const [getLeadStatus] = await pool.query(
+          `SELECT id, name FROM lead_status WHERE id = ?`,
+          [lead_status_id],
+        );
+        leadStatusName = getLeadStatus[0].name;
+      }
+
+      leadTemperatureDate = getNextFollowUpDate(leadStatusName, created_date);
+
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
                             assigned_to,
@@ -201,10 +213,8 @@ const LeadModel = {
         secondary_course_id,
         secondary_fees,
         lead_type_id,
-        // lead_status_id,
-        getLeadStatus?.id,
-        // next_follow_up_date,
-        nextFollowupDate,
+        leadStatusId,
+        next_follow_up_date,
         expected_join_date,
         branch_id,
         batch_track_id,
@@ -229,7 +239,7 @@ const LeadModel = {
       if (result.affectedRows <= 0)
         throw new Error("Error while inserting lead");
 
-      if (nextFollowupDate) {
+      if (leadTemperatureDate) {
         // Insert lead follow up history
         const [history] = await pool.query(
           `INSERT INTO lead_follow_up_history(
@@ -264,14 +274,16 @@ const LeadModel = {
             lead_id,
             next_follow_up_date,
             next_followup_time,
-            today_followup_date
+            today_followup_date,
+            lead_temperature_date
         )
-        VALUES(?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?)`,
           [
             result.insertId,
-            nextFollowupDate,
+            next_follow_up_date,
             next_follow_up_time,
             today_followup_date,
+            leadTemperatureDate,
           ],
         );
 
@@ -1292,6 +1304,8 @@ const LeadModel = {
     today_followup_date,
     communication_status,
     contact_mode,
+    next_follow_up_date,
+    next_follow_up_time,
   ) => {
     try {
       let affectedRows = 0;
@@ -1312,28 +1326,41 @@ const LeadModel = {
       affectedRows += update_lead.affectedRows;
 
       const [getLead] = await pool.query(
-        `SELECT id, created_date, next_follow_up_date, expected_join_date FROM lead_master WHERE id = ?`,
+        `SELECT
+            l.id,
+            l.created_date,
+            l.next_follow_up_date,
+            l.expected_join_date,
+            ls.name AS lead_status_name
+        FROM
+            lead_master AS l
+        INNER JOIN lead_status AS ls ON
+            l.lead_status_id = ls.id
+        WHERE
+            l.id = ?`,
         [lead_id],
       );
 
-      const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
-      const nextFollowupDate = getNextFollowUpDate(
-        getLeadStatus.name,
+      // const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
+      const leadTemperatureDate = getNextFollowUpDate(
+        getLead[0].lead_status_name,
         updated_date,
       );
 
-      if (nextFollowupDate) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date) VALUES (?, ?, ?)`;
+      if (leadTemperatureDate) {
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_follow_up_time, lead_temperature_date) VALUES (?, ?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
-          nextFollowupDate,
+          next_follow_up_date,
           today_followup_date,
+          next_follow_up_time,
+          leadTemperatureDate,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
         const [update_lead_master] = await pool.query(
           `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ?, comments = ? WHERE id = ?`,
-          [nextFollowupDate, getLeadStatus.id, comments, lead_id],
+          [next_follow_up_date, getLeadStatus.id, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
@@ -3415,8 +3442,8 @@ const LeadModel = {
       const bucketCountQueryParams = [];
       let bucketCountQuery = `SELECT 
           COUNT(*) as all_leads,
-          SUM(CASE WHEN cm1.name <> 'Incorrect Data' AND c.id IS NULL THEN 1 ELSE 0 END) as valid_leads,
-          SUM(CASE WHEN la.name <> 'Service Not Available' AND c.id IS NULL THEN 1 ELSE 0 END) as eligible_leads,
+          SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND c.id IS NULL THEN 1 ELSE 0 END) as valid_leads,
+          SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND c.id IS NULL THEN 1 ELSE 0 END) as eligible_leads,
           SUM(CASE WHEN ls.name IN ('Super Hot', 'Hot') AND c.id IS NULL THEN 1 ELSE 0 END) as interested_leads,
           SUM(CASE WHEN la.name IN ('Interested', 'Highly Interested') AND c.id IS NULL THEN 1 ELSE 0 END) as sales_ready,
           SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) as joinings
@@ -3524,10 +3551,33 @@ const LeadModel = {
       }
 
       if (start_date && end_date) {
-        getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+        if (bucket === "Interested Leads") {
+          getQuery += ` AND (
+                      DATE(lh.next_follow_up_date) BETWEEN ? AND ?
+                      OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+                    )`;
+          // countQuery += ` AND (
+          //             DATE(lh.next_follow_up_date) BETWEEN ? AND ?
+          //             OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+          //           )`;
+          // bucketCountQuery += ` AND (
+          //             DATE(lh.next_follow_up_date) BETWEEN ? AND ?
+          //             OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+          //           )`;
+          queryParams.push(start_date, end_date, start_date, end_date);
+          //countQueryParams.push(start_date, end_date, start_date, end_date);
+          // bucketCountQueryParams.push(
+          //   start_date,
+          //   end_date,
+          //   start_date,
+          //   end_date,
+          // );
+        } else {
+          getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+        }
         countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
         bucketCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
         countQueryParams.push(start_date, end_date);
         bucketCountQueryParams.push(start_date, end_date);
       }
@@ -3538,7 +3588,7 @@ const LeadModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       if (bucket === "Interested Leads") {
-        getQuery += ` ORDER BY ls.sort_order DESC, lsm.total_score DESC, luh.interest_rate DESC`;
+        getQuery += ` ORDER BY ls.sort_order DESC`;
       } else {
         getQuery += ` ORDER BY l.created_date DESC `;
       }
@@ -3553,17 +3603,6 @@ const LeadModel = {
       ]);
 
       const total = countResult[0]?.total || 0;
-
-      // const formattedResult = await Promise.all(
-      //   result.map(async (item) => {
-      //     const leadScore = await getLeadScore(item.id);
-
-      //     return {
-      //       ...item,
-      //       lead_score: leadScore,
-      //     };
-      //   }),
-      // );
 
       return {
         data: result,

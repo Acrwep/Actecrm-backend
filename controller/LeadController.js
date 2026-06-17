@@ -281,6 +281,8 @@ const updateFollowUp = async (request, response) => {
     is_today_followup,
     communication_status,
     contact_mode,
+    next_follow_up_date,
+    next_follow_up_time,
   } = request.body;
   try {
     const result = await LeadModel.updateFollowUp(
@@ -294,6 +296,8 @@ const updateFollowUp = async (request, response) => {
       is_today_followup,
       communication_status,
       contact_mode,
+      next_follow_up_date,
+      next_follow_up_time,
     );
     return response.status(200).send({
       message: "Updated successfully",
