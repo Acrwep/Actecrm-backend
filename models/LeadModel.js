@@ -3372,7 +3372,8 @@ const LeadModel = {
                         l.preferred_batch,
                         ba.name AS preferred_batch_name,
                         l.counsel,
-                        lsm.total_score AS lead_score
+                        lsm.total_score AS lead_score,
+                        (SELECT COUNT(*) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1) AS completed_followup_count
                     FROM
                         lead_master AS l
                     LEFT JOIN lead_score_master AS lsm ON lsm.lead_id = l.id
