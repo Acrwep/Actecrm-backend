@@ -3440,13 +3440,32 @@ const LeadModel = {
                     WHERE 1 = 1`;
 
       const bucketCountQueryParams = [];
+      let dateFilterAll = "1 = 1";
+      let dateFilterInterested = "1 = 1";
+
+      if (start_date && end_date) {
+        dateFilterAll = "CAST(l.created_date AS DATE) BETWEEN ? AND ?";
+        dateFilterInterested =
+          "(DATE(lh.next_follow_up_date) BETWEEN ? AND ? OR DATE(lh.today_followup_date) BETWEEN ? AND ?)";
+
+        // all_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // valid_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // interested_leads (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // joinings (2)
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
       let bucketCountQuery = `SELECT 
-          COUNT(*) as all_leads,
-          SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND c.id IS NULL THEN 1 ELSE 0 END) as valid_leads,
-          SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND c.id IS NULL THEN 1 ELSE 0 END) as eligible_leads,
-          SUM(CASE WHEN ls.name IN ('Super Hot', 'Hot') AND c.id IS NULL THEN 1 ELSE 0 END) as interested_leads,
-          SUM(CASE WHEN la.name IN ('Interested', 'Highly Interested') AND c.id IS NULL THEN 1 ELSE 0 END) as sales_ready,
-          SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) as joinings
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
+          IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
+          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
         FROM lead_master AS l
         INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -3476,19 +3495,19 @@ const LeadModel = {
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND la.name <> 'Service Not Available'`;
-          countQuery += ` AND la.name <> 'Service Not Available'`;
+          getQuery += ` AND cm1.name <> 'Incorrect Data'`;
+          countQuery += ` AND cm1.name <> 'Incorrect Data'`;
         }
 
         if (bucket === "Interested Leads") {
-          getQuery += ` AND ls.name IN ('Super Hot', 'Hot')`;
-          countQuery += ` AND ls.name IN ('Super Hot', 'Hot')`;
+          getQuery += ` AND lh.is_updated = 0`;
+          countQuery += ` AND lh.is_updated = 0`;
         }
 
-        if (bucket === "Sales Ready") {
-          getQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
-          countQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
-        }
+        // if (bucket === "Sales Ready") {
+        //   getQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
+        //   countQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
+        // }
 
         if (bucket === "Joinings") {
           getQuery += ` AND c.id IS NOT NULL`;
@@ -3556,30 +3575,18 @@ const LeadModel = {
                       DATE(lh.next_follow_up_date) BETWEEN ? AND ?
                       OR DATE(lh.today_followup_date) BETWEEN ? AND ?
                     )`;
-          // countQuery += ` AND (
-          //             DATE(lh.next_follow_up_date) BETWEEN ? AND ?
-          //             OR DATE(lh.today_followup_date) BETWEEN ? AND ?
-          //           )`;
-          // bucketCountQuery += ` AND (
-          //             DATE(lh.next_follow_up_date) BETWEEN ? AND ?
-          //             OR DATE(lh.today_followup_date) BETWEEN ? AND ?
-          //           )`;
+          countQuery += ` AND (
+                      DATE(lh.next_follow_up_date) BETWEEN ? AND ?
+                      OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+                    )`;
           queryParams.push(start_date, end_date, start_date, end_date);
-          //countQueryParams.push(start_date, end_date, start_date, end_date);
-          // bucketCountQueryParams.push(
-          //   start_date,
-          //   end_date,
-          //   start_date,
-          //   end_date,
-          // );
+          countQueryParams.push(start_date, end_date, start_date, end_date);
         } else {
           getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
           queryParams.push(start_date, end_date);
+          countQueryParams.push(start_date, end_date);
         }
-        countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        bucketCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        countQueryParams.push(start_date, end_date);
-        bucketCountQueryParams.push(start_date, end_date);
       }
 
       // Apply pagination to main query
@@ -3588,7 +3595,7 @@ const LeadModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       if (bucket === "Interested Leads") {
-        getQuery += ` ORDER BY ls.sort_order DESC`;
+        getQuery += ` ORDER BY ls.sort_order ASC, lh.is_updated ASC`;
       } else {
         getQuery += ` ORDER BY l.created_date DESC `;
       }
