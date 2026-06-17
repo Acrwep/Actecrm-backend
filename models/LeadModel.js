@@ -1348,7 +1348,7 @@ const LeadModel = {
       );
 
       if (leadTemperatureDate) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_follow_up_time, lead_temperature_date) VALUES (?, ?, ?, ?, ?)`;
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_followup_time, lead_temperature_date) VALUES (?, ?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
