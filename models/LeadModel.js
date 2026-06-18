@@ -3448,7 +3448,7 @@ const LeadModel = {
       if (start_date && end_date) {
         dateFilterAll = "CAST(l.created_date AS DATE) BETWEEN ? AND ?";
         dateFilterInterested =
-          "(DATE(lh.next_follow_up_date) BETWEEN ? AND ? OR DATE(lh.today_followup_date) BETWEEN ? AND ?)";
+          "(DATE(lh.next_follow_up_date) BETWEEN ? AND ? OR DATE(lh.today_followup_date) BETWEEN ? AND ? OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?)";
 
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
@@ -3457,21 +3457,70 @@ const LeadModel = {
         // eligible_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // interested_leads (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // joinings (2)
         bucketCountQueryParams.push(start_date, end_date);
         // highly_interested (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // interested (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // sale_ready (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // not_interested (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // exploring (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
         // not_responding (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
       }
 
       let bucketCountQuery = `SELECT 
@@ -3607,13 +3656,29 @@ const LeadModel = {
           getQuery += ` AND (
                       DATE(lh.next_follow_up_date) BETWEEN ? AND ?
                       OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+                      OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?
                     )`;
           countQuery += ` AND (
                       DATE(lh.next_follow_up_date) BETWEEN ? AND ?
                       OR DATE(lh.today_followup_date) BETWEEN ? AND ?
+                      OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?
                     )`;
-          queryParams.push(start_date, end_date, start_date, end_date);
-          countQueryParams.push(start_date, end_date, start_date, end_date);
+          queryParams.push(
+            start_date,
+            end_date,
+            start_date,
+            end_date,
+            start_date,
+            end_date,
+          );
+          countQueryParams.push(
+            start_date,
+            end_date,
+            start_date,
+            end_date,
+            start_date,
+            end_date,
+          );
         } else {
           getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
           countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
