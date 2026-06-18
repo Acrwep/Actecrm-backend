@@ -3227,6 +3227,8 @@ const LeadModel = {
     next_follow_up_date,
     assigned_to,
     updated_by,
+    next_followup_time,
+    today_followup_date,
   ) => {
     try {
       let totalAffectedRows = 0;
@@ -3235,7 +3237,7 @@ const LeadModel = {
       for (const lead_id of ids) {
         let affectedRows = 0;
         const [isExists] = await pool.query(
-          `SELECT id FROM lead_master WHERE id = ?`,
+          `SELECT id, created_date FROM lead_master WHERE id = ?`,
           [lead_id],
         );
 
@@ -3253,31 +3255,51 @@ const LeadModel = {
           [lead_id],
         );
 
+        const [getLeadAction] = await pool.query(
+          `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
+        );
+
         if (getFollowup.length > 0) {
           const [updateFollowUp] = await pool.query(
-            `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1 WHERE id = ?`,
-            [updated_by, "Lead re-entry", assign_date, getFollowup[0].id],
+            `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1, lead_action_id = ? WHERE id = ?`,
+            [
+              updated_by,
+              "Lead re-entry",
+              assign_date,
+              getLeadAction[0].id,
+              getFollowup[0].id,
+            ],
           );
 
           affectedRows += updateFollowUp.affectedRows;
         }
 
-        const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
+        const getLeadStatus = await getLeadTemperature(
+          isExists[0].created_date,
+        );
+        const leadTemperatureDate = getNextFollowUpDate(
+          getLeadStatus.name,
+          assign_date,
         );
 
-        if (getLeadAction.length >= 1) {
-          const [next_follow_up] = await pool.query(
-            `INSERT INTO lead_follow_up_history(
+        const [next_follow_up] = await pool.query(
+          `INSERT INTO lead_follow_up_history(
               lead_id,
               next_follow_up_date,
-              lead_action_id
+              next_followup_time,
+              today_followup_date,
+              lead_temperature_date
           )
-          VALUES(?, ?, ?)`,
-            [lead_id, next_follow_up_date, getLeadAction[0].id],
-          );
-          affectedRows += next_follow_up.affectedRows;
-        }
+          VALUES(?, ?, ?, ?, ?)`,
+          [
+            lead_id,
+            next_follow_up_date,
+            next_followup_time,
+            today_followup_date,
+            leadTemperatureDate,
+          ],
+        );
+        affectedRows += next_follow_up.affectedRows;
 
         totalAffectedRows += affectedRows;
       }
@@ -3388,18 +3410,12 @@ const LeadModel = {
                     LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
-                    LEFT JOIN (
-                    	SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-                        GROUP BY lead_id
-                    ) AS latest ON latest.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS lh ON
-                    	latest.lead_history_id = lh.id
-                    LEFT JOIN (
-                      SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-                      WHERE is_updated = 1
-                      GROUP BY lead_id
-                    ) AS latest_updated ON latest_updated.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS luh ON latest_updated.lead_history_id = luh.id
+                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+                    )
+                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+                    )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
@@ -3419,18 +3435,12 @@ const LeadModel = {
                       pt.id = l.primary_course_id
                     LEFT JOIN customers AS c ON
                       c.lead_id = l.id
-                    LEFT JOIN (
-                    	SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-                        GROUP BY lead_id
-                    ) AS latest ON latest.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS lh ON
-                    	latest.lead_history_id = lh.id
-                    LEFT JOIN (
-                      SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-                      WHERE is_updated = 1
-                      GROUP BY lead_id
-                    ) AS latest_updated ON latest_updated.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS luh ON latest_updated.lead_history_id = luh.id
+                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+                    )
+                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+                    )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
@@ -3446,9 +3456,10 @@ const LeadModel = {
       let dateFilterInterested = "1 = 1";
 
       if (start_date && end_date) {
-        dateFilterAll = "CAST(l.created_date AS DATE) BETWEEN ? AND ?";
+        dateFilterAll =
+          "l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)";
         dateFilterInterested =
-          "(DATE(lh.next_follow_up_date) BETWEEN ? AND ? OR DATE(lh.today_followup_date) BETWEEN ? AND ? OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?)";
+          "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY))";
 
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
@@ -3538,17 +3549,12 @@ const LeadModel = {
         FROM lead_master AS l
         INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
-        LEFT JOIN (
-          SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-          GROUP BY lead_id
-        ) AS latest ON latest.lead_id = l.id
-        LEFT JOIN lead_follow_up_history AS lh ON latest.lead_history_id = lh.id
-        LEFT JOIN (
-          SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-          WHERE is_updated = 1
-          GROUP BY lead_id
-        ) AS latest_updated ON latest_updated.lead_id = l.id
-        LEFT JOIN lead_follow_up_history AS luh ON latest_updated.lead_history_id = luh.id
+        LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
+          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+        )
+        LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
+          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+        )
         LEFT JOIN communication_master AS cm ON
           luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON
@@ -3654,14 +3660,14 @@ const LeadModel = {
       if (start_date && end_date) {
         if (bucket === "Interested Leads" || lead_action) {
           getQuery += ` AND (
-                      DATE(lh.next_follow_up_date) BETWEEN ? AND ?
-                      OR DATE(lh.today_followup_date) BETWEEN ? AND ?
-                      OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?
+                      lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
+                      OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
+                      OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY)
                     )`;
           countQuery += ` AND (
-                      DATE(lh.next_follow_up_date) BETWEEN ? AND ?
-                      OR DATE(lh.today_followup_date) BETWEEN ? AND ?
-                      OR DATE(lh.lead_temperature_date) BETWEEN ? AND ?
+                      lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
+                      OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
+                      OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY)
                     )`;
           queryParams.push(
             start_date,
@@ -3680,8 +3686,10 @@ const LeadModel = {
             end_date,
           );
         } else {
-          getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-          countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          // getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          // countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
+          getQuery += ` AND l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           queryParams.push(start_date, end_date);
           countQueryParams.push(start_date, end_date);
         }
@@ -3875,12 +3883,9 @@ const LeadModel = {
                     LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
-                    LEFT JOIN (
-                    	SELECT MAX(id) AS lead_history_id, lead_id FROM lead_follow_up_history
-                        GROUP BY lead_id
-                    ) AS latest ON latest.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS lh ON
-                    	latest.lead_history_id = lh.id
+                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+                    )
                     LEFT JOIN communication_master AS cm ON
                       lh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON

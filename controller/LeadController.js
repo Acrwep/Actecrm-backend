@@ -1017,6 +1017,8 @@ const leadReEntry = async (request, response) => {
     next_follow_up_date,
     assigned_to,
     updated_by,
+    next_followup_time,
+    today_followup_date,
   } = request.body;
   try {
     const result = await LeadModel.leadReEntry(
@@ -1025,6 +1027,8 @@ const leadReEntry = async (request, response) => {
       next_follow_up_date,
       assigned_to,
       updated_by,
+      next_followup_time,
+      today_followup_date,
     );
     return response.status(200).send({
       message: "Lead updated successfully",
