@@ -3263,7 +3263,7 @@ const LeadModel = {
         }
 
         const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Hot Follow Up' AND is_active = 1`,
+          `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
         );
 
         if (getLeadAction.length >= 1) {

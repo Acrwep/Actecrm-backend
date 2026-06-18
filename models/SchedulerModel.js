@@ -19,6 +19,7 @@ let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
 let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let liveLeadTime = "*/30 * * * * *"; // Schedule: Runs every 30 seconds
+let automateNextFollowupTime = "0 0 0 * * *"; // Schedule: Runs every day at midnight
 
 // Configure log file path
 const logFilePath = path.join(__dirname, "cron_job_logs.txt");
@@ -397,6 +398,148 @@ const liveLeadNotify = cron.schedule(liveLeadTime, async () => {
   }
 });
 
+const automateNextFollowup = cron.schedule(
+  automateNextFollowupTime,
+  async () => {
+    const conn = await pool.getConnection();
+
+    try {
+      await conn.beginTransaction();
+
+      const query = `
+        SELECT
+            lm.id,
+            lm.created_date,
+            lm.lead_status_id,
+            ls.name AS lead_status_name,
+            lh.id AS lead_history_id,
+            lh.lead_temperature_date
+        FROM lead_master lm
+        INNER JOIN lead_status ls
+            ON ls.id = lm.lead_status_id
+        INNER JOIN (
+            SELECT
+                MAX(id) AS latest_history_id,
+                lead_id
+            FROM lead_follow_up_history
+            WHERE is_updated = 0
+            GROUP BY lead_id
+        ) latest
+            ON latest.lead_id = lm.id
+        INNER JOIN lead_follow_up_history lh
+            ON lh.id = latest.latest_history_id
+        WHERE lh.lead_temperature_date < CURDATE()
+      `;
+
+      const [rows] = await conn.query(query);
+
+      if (!rows.length) {
+        await conn.commit();
+        await logToFile("No leads found for automation");
+        return;
+      }
+
+      const [statuses] = await conn.query(`
+        SELECT id, name
+        FROM lead_status
+      `);
+
+      const statusMap = {};
+
+      statuses.forEach((status) => {
+        statusMap[status.name] = status.id;
+      });
+
+      const today = moment().startOf("day");
+
+      for (const row of rows) {
+        const createdDate = moment(row.created_date).startOf("day");
+
+        const daysDiff = today.diff(createdDate, "days");
+
+        let targetStatusName;
+        let frequency;
+
+        if (daysDiff <= 7) {
+          targetStatusName = "Super Hot";
+          frequency = 1;
+        } else if (daysDiff <= 15) {
+          targetStatusName = "Hot";
+          frequency = 2;
+        } else if (daysDiff <= 30) {
+          targetStatusName = "Warm";
+          frequency = 3;
+        } else if (daysDiff <= 45) {
+          targetStatusName = "Cold";
+          frequency = 7;
+        } else {
+          targetStatusName = "Dormant";
+          frequency = 7;
+        }
+
+        // Update Lead Status if changed
+        if (row.lead_status_name !== targetStatusName) {
+          await conn.query(
+            `
+            UPDATE lead_master
+            SET lead_status_id = ?
+            WHERE id = ?
+            `,
+            [statusMap[targetStatusName], row.id],
+          );
+
+          await logToFile(
+            `Lead ${row.id} status changed from ${row.lead_status_name} to ${targetStatusName}`,
+          );
+        }
+
+        // Next Followup Date = Today + Frequency
+        const nextFollowupDate = moment()
+          .startOf("day")
+          .add(frequency, "days")
+          .format("YYYY-MM-DD HH:mm:ss");
+
+        await conn.query(
+          `
+          UPDATE lead_follow_up_history
+          SET lead_temperature_date = ?
+          WHERE id = ?
+          `,
+          [nextFollowupDate, row.lead_history_id],
+        );
+
+        await logToFile(
+          `Lead ${row.id} followup date updated to ${nextFollowupDate}`,
+        );
+      }
+
+      await conn.commit();
+
+      await logToFile(
+        `Transaction committed successfully. Processed ${rows.length} leads`,
+      );
+    } catch (error) {
+      try {
+        await conn.rollback();
+
+        await logToFile(`Transaction rolled back. Error: ${error.message}`);
+      } catch (rollbackError) {
+        await logToFile(`Rollback Error: ${rollbackError.message}`);
+      }
+    } finally {
+      try {
+        conn.release();
+      } catch (releaseError) {
+        await logToFile(`Connection Release Error: ${releaseError.message}`);
+      }
+    }
+
+    await logToFile("Automate Next Followup Cron Completed");
+
+    await logToFile("");
+  },
+);
+
 // Log when the job is first scheduled
 logToFile(`Cron job scheduled to run at pattern: ${scheduleTime}`);
 
@@ -404,7 +547,8 @@ console.log("✅ Scheduler initialized");
 
 module.exports = {
   job,
-  // nextFollowupNotify,
-  // nextDueDateNotify,
+  nextFollowupNotify,
+  nextDueDateNotify,
   liveLeadNotify,
+  automateNextFollowup,
 };
