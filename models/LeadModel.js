@@ -2000,9 +2000,9 @@ const LeadModel = {
 
   getAllBranches: async () => {
     try {
-      const getQuery = `SELECT id, name, region_id FROM branches WHERE name <> 'Online'
+      const getQuery = `SELECT id, name, region_id FROM branches WHERE name <> 'Online' AND is_active = 1
                         UNION
-                        SELECT b.id, b.name, b.region_id FROM branches AS b INNER JOIN region AS r ON b.region_id = r.id WHERE r.name = 'Hub' ORDER BY region_id, name ASC;`;
+                        SELECT b.id, b.name, b.region_id FROM branches AS b INNER JOIN region AS r ON b.region_id = r.id WHERE r.name = 'Hub' AND b.is_active = 1 ORDER BY region_id, name ASC;`;
       const [result] = await pool.query(getQuery);
       return result;
     } catch (error) {
