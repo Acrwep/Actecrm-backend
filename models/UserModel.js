@@ -588,30 +588,34 @@ const UserModel = {
     try {
       const queryParams = [];
       let query = `SELECT
-                      id,
-                      user_name,
-                      user_id
+                      u.id,
+                      u.user_name,
+                      u.user_id,
+                      mu.user_id AS manager_id,
+                      mu.user_name AS manager_name
                   FROM
                       users AS u
+                  LEFT JOIN users AS mu ON
+                  	  u.manager_id = mu.user_id
                   WHERE
-                      is_active = 1`;
+                      u.is_active = 1`;
 
       if (name) {
-        query += ` AND user_name LIKE ?`;
+        query += ` AND u.user_name LIKE ?`;
         queryParams.push(`%${name}%`);
       }
 
       if (user_id) {
-        query += ` AND user_id = ?`;
+        query += ` AND u.user_id = ?`;
         queryParams.push(user_id);
       }
 
       if (role) {
-        query += ` AND roles LIKE ?`;
+        query += ` AND u.roles LIKE ?`;
         queryParams.push(`%${role}%`);
       }
 
-      query += ` ORDER BY user_name ASC`;
+      query += ` ORDER BY u.user_name ASC`;
 
       const [users] = await pool.query(query, queryParams);
 
