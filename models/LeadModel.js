@@ -3545,12 +3545,12 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name IN ('Sale Ready', 'Sales Ready') AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as hot,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Warm' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as warm,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Cold' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as cold,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Dormant' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as dormant,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested
         FROM lead_master AS l
         INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -3646,15 +3646,10 @@ const LeadModel = {
 
       if (lead_action) {
         const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
-        if (actionStr === "sale ready" || actionStr === "sales ready") {
-          getQuery += ` AND la.name IN ('Sale Ready', 'Sales Ready')`;
-          countQuery += ` AND la.name IN ('Sale Ready', 'Sales Ready')`;
-        } else {
-          getQuery += ` AND la.name LIKE ?`;
-          countQuery += ` AND la.name LIKE ?`;
-          queryParams.push(`%${actionStr}%`);
-          countQueryParams.push(`%${actionStr}%`);
-        }
+        getQuery += ` AND ls.name LIKE ?`;
+        countQuery += ` AND ls.name LIKE ?`;
+        queryParams.push(`%${actionStr}%`);
+        countQueryParams.push(`%${actionStr}%`);
       }
 
       if (start_date && end_date) {
@@ -3731,14 +3726,12 @@ const LeadModel = {
         },
         interested_lead_actions: {
           all: parseInt(bucketCountResult[0]?.interested_leads || 0),
-          highly_interested: parseInt(
-            bucketCountResult[0]?.highly_interested || 0,
-          ),
-          interested: parseInt(bucketCountResult[0]?.interested || 0),
-          sale_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
+          super_hot: parseInt(bucketCountResult[0]?.super_hot || 0),
+          hot: parseInt(bucketCountResult[0]?.hot || 0),
+          warm: parseInt(bucketCountResult[0]?.warm || 0),
+          cold: parseInt(bucketCountResult[0]?.cold || 0),
+          dormant: parseInt(bucketCountResult[0]?.dormant || 0),
           not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
-          exploring: parseInt(bucketCountResult[0]?.exploring || 0),
-          not_responding: parseInt(bucketCountResult[0]?.not_responding || 0),
         },
         pagination: {
           total: parseInt(total),
