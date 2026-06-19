@@ -1608,7 +1608,7 @@ const LeadModel = {
         [lead_id],
       );
 
-      if (followupCount[0].count <= 0) {
+      if (followupCount[0].count <= 0 && !communication_status) {
         let leadStatusId;
         let leadStatusName;
         let leadTemperatureDate;
