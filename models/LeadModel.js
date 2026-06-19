@@ -3541,8 +3541,8 @@ const LeadModel = {
 
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
-          IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
-          IFNULL(SUM(CASE WHEN cm1.name <> 'Data Incorrect' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested,
@@ -3570,13 +3570,13 @@ const LeadModel = {
 
       if (bucket) {
         if (bucket === "Valid Leads") {
-          getQuery += ` AND cm1.name <> 'Incorrect Data'`;
-          countQuery += ` AND cm1.name <> 'Incorrect Data'`;
+          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND cm1.name <> 'Incorrect Data'`;
-          countQuery += ` AND cm1.name <> 'Incorrect Data'`;
+          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
         }
 
         if (bucket === "Interested Leads") {
