@@ -1608,7 +1608,7 @@ const LeadModel = {
         [lead_id],
       );
 
-      if (followupCount[0].count > 0) {
+      if (followupCount[0].count <= 0) {
         let leadStatusId;
         let leadStatusName;
         let leadTemperatureDate;
@@ -1726,7 +1726,7 @@ const LeadModel = {
             ],
           );
         }
-      } else {
+      } else if (followupCount[0].count > 0) {
         // Get first lead history Id
         const [lead_history_id] = await pool.query(
           `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
