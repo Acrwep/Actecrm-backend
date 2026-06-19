@@ -242,10 +242,11 @@ const LeadModel = {
       if (result.affectedRows <= 0)
         throw new Error("Error while inserting lead");
 
-      if (leadTemperatureDate) {
-        // Insert lead follow up history
-        const [history] = await pool.query(
-          `INSERT INTO lead_follow_up_history(
+      if (communication_status) {
+        if (leadTemperatureDate) {
+          // Insert lead follow up history
+          const [history] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
             lead_id,
             lead_action_id,
             comments,
@@ -258,24 +259,24 @@ const LeadModel = {
             response_status
         )
         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            result.insertId,
-            lead_action_id,
-            comments,
-            user_id,
-            created_date,
-            1,
-            communication_status,
-            contact_mode,
-            interest_rate,
-            response_status,
-          ],
-        );
+            [
+              result.insertId,
+              lead_action_id,
+              comments,
+              user_id,
+              created_date,
+              1,
+              communication_status,
+              contact_mode,
+              interest_rate,
+              response_status,
+            ],
+          );
 
-        affectedRows += history.affectedRows;
+          affectedRows += history.affectedRows;
 
-        const [next_follow_up] = await pool.query(
-          `INSERT INTO lead_follow_up_history(
+          const [next_follow_up] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
             lead_id,
             next_follow_up_date,
             next_followup_time,
@@ -283,20 +284,20 @@ const LeadModel = {
             lead_temperature_date
         )
         VALUES(?, ?, ?, ?, ?)`,
-          [
-            result.insertId,
-            next_follow_up_date,
-            next_follow_up_time,
-            today_followup_date,
-            leadTemperatureDate,
-          ],
-        );
+            [
+              result.insertId,
+              next_follow_up_date,
+              next_follow_up_time,
+              today_followup_date,
+              leadTemperatureDate,
+            ],
+          );
 
-        affectedRows += next_follow_up.affectedRows;
-      }
+          affectedRows += next_follow_up.affectedRows;
+        }
 
-      const [getLeadScore] = await pool.query(
-        `SELECT
+        const [getLeadScore] = await pool.query(
+          `SELECT
             lf.id,
             lf.lead_id,
             lf.lead_action_id,
@@ -319,11 +320,11 @@ const LeadModel = {
             lf.id
         DESC
         LIMIT 1;`,
-        [result.insertId],
-      );
+          [result.insertId],
+        );
 
-      await pool.query(
-        `INSERT INTO lead_score_master(
+        await pool.query(
+          `INSERT INTO lead_score_master(
             lead_id,
             contact_connected,
             interested,
@@ -332,18 +333,21 @@ const LeadModel = {
             joining
         )
         VALUES(?, ?, ?, ?, ?, ?)`,
-        [
-          result.insertId,
-          getLeadScore[0].communication_status_name === "Communicated" ? 10 : 0,
-          getLeadScore[0].lead_action_name === "Interested" ||
-          getLeadScore[0].lead_action_name === "Highly Interested"
-            ? 20
-            : 0,
-          counsel === "Given" ? 20 : 0,
-          primary_fees != 0 ? 20 : 0,
-          await getJoiningScore(expected_join_date, result.insertId),
-        ],
-      );
+          [
+            result.insertId,
+            getLeadScore[0].communication_status_name === "Communicated"
+              ? 10
+              : 0,
+            getLeadScore[0].lead_action_name === "Interested" ||
+            getLeadScore[0].lead_action_name === "Highly Interested"
+              ? 20
+              : 0,
+            counsel === "Given" ? 20 : 0,
+            primary_fees != 0 ? 20 : 0,
+            await getJoiningScore(expected_join_date, result.insertId),
+          ],
+        );
+      }
 
       return result.insertId;
     } catch (error) {
@@ -3687,7 +3691,7 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Dormant' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested
         FROM lead_master AS l
-        INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
           SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
