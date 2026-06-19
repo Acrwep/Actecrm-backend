@@ -3543,14 +3543,14 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name IN ('Sale Ready', 'Sales Ready') AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND la.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name IN ('Sale Ready', 'Sales Ready') AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND la.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding
         FROM lead_master AS l
         INNER JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -3580,8 +3580,8 @@ const LeadModel = {
         }
 
         if (bucket === "Interested Leads") {
-          getQuery += ` AND lh.is_updated = 0`;
-          countQuery += ` AND lh.is_updated = 0`;
+          getQuery += ` AND lh.is_updated = 0 AND c.id IS NULL`;
+          countQuery += ` AND lh.is_updated = 0 AND c.id IS NULL`;
         }
 
         if (bucket === "Joinings") {
