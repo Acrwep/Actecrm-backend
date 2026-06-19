@@ -625,6 +625,8 @@ const UserModel = {
           user_id: user.user_id,
           user_name: user.user_name,
           role_name: role || "User",
+          manager_id: user.manager_id,
+          manager_name: user.manager_name,
         };
       });
 
