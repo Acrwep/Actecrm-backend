@@ -158,7 +158,9 @@ const LeadModel = {
         leadStatusName = getLeadStatus[0].name;
       }
 
-      leadTemperatureDate = getNextFollowUpDate(leadStatusName, created_date);
+      if (communication_status) {
+        leadTemperatureDate = getNextFollowUpDate(leadStatusName, created_date);
+      }
 
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
@@ -1508,6 +1510,12 @@ const LeadModel = {
     preferred_mode,
     preferred_batch,
     counsel,
+    updated_date,
+    next_follow_up_time,
+    today_followup_date,
+    updated_by,
+    interest_rate,
+    response_status,
   ) => {
     try {
       let affectedRows = 0;
@@ -1591,60 +1599,79 @@ const LeadModel = {
         throw new Error("Error while updating lead");
       affectedRows += updateLead.affectedRows;
 
-      // Get first lead history Id
-      const [lead_history_id] = await pool.query(
-        `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
+      const [followupCount] = await pool.query(
+        `SELECT COUNT(*) as count FROM lead_follow_up_history WHERE lead_id = ?`,
         [lead_id],
       );
 
-      // Update lead history
-      const [update_lead_history] = await pool.query(
-        `UPDATE lead_follow_up_history SET comments = ?, lead_action_id = ? WHERE id = ?`,
-        [comments, lead_action_id, lead_history_id[0].lead_history_id],
-      );
-      affectedRows += update_lead_history.affectedRows;
+      if (followupCount[0].count > 0) {
+        let leadStatusId;
+        let leadStatusName;
+        let leadTemperatureDate;
 
-      // Get latest lead history Id
-      const [latest_history_id] = await pool.query(
-        `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
-        [lead_id],
-      );
-
-      // Update lead history
-      const [update_latest] = await pool.query(
-        `UPDATE lead_follow_up_history SET lead_action_id = ?, next_follow_up_date = ?, is_updated = 0 WHERE id = ?`,
-        [
-          lead_action_id,
-          next_follow_up_date,
-          latest_history_id[0].lead_history_id,
-        ],
-      );
-      affectedRows += update_latest.affectedRows;
-
-      if (is_previous_junk) {
-        const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
-          [next_follow_up_date, lead_status_id, lead_id],
+        const [getLead] = await pool.query(
+          `SELECT id, created_date, assigned_to FROM lead_master WHERE id = ?`,
+          [lead_id],
         );
-        affectedRows += update_lead_master.affectedRows;
+        const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
+        leadStatusId = getLeadStatus.id;
+        leadStatusName = getLeadStatus.name;
+        leadTemperatureDate = getNextFollowUpDate(leadStatusName, new Date());
 
-        // const [getLeadAction] = await pool.query(
-        //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-        // );
+        if (leadTemperatureDate) {
+          // Insert lead follow up history
+          const [history] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
+            lead_id,
+            lead_action_id,
+            comments,
+            updated_by,
+            updated_date,
+            is_updated,
+            communication_status,
+            contact_mode,
+            interest_rate,
+            response_status
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              lead_id,
+              lead_action_id,
+              comments,
+              updated_by,
+              updated_date,
+              1,
+              communication_status,
+              contact_mode,
+              interest_rate,
+              response_status,
+            ],
+          );
 
-        await pool.query(
-          `INSERT INTO lead_follow_up_history(
+          affectedRows += history.affectedRows;
+
+          const [next_follow_up] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
+            lead_id,
+            next_follow_up_date,
+            next_followup_time,
+            today_followup_date,
+            lead_temperature_date
+        )
+        VALUES(?, ?, ?, ?, ?)`,
+            [
               lead_id,
               next_follow_up_date,
-              lead_action_id
-          )
-          VALUES(?, ?, ?)`,
-          [lead_id, next_follow_up_date, lead_action_id],
-        );
-      }
+              next_follow_up_time,
+              today_followup_date,
+              leadTemperatureDate,
+            ],
+          );
 
-      const [getLeadScore] = await pool.query(
-        `SELECT
+          affectedRows += next_follow_up.affectedRows;
+
+          const [getLeadScore] = await pool.query(
+            `SELECT
             lf.id,
             lf.lead_id,
             lf.lead_action_id,
@@ -1667,11 +1694,116 @@ const LeadModel = {
             lf.id
         DESC
         LIMIT 1;`,
-        [lead_id],
-      );
+            [lead_id],
+          );
 
-      await pool.query(
-        `UPDATE
+          await pool.query(
+            `INSERT INTO lead_score_master(
+            lead_id,
+            contact_connected,
+            interested,
+            demo_attended,
+            budget_available,
+            joining
+        )
+        VALUES(?, ?, ?, ?, ?, ?)`,
+            [
+              lead_id,
+              getLeadScore[0].communication_status_name === "Communicated"
+                ? 10
+                : 0,
+              getLeadScore[0].lead_action_name === "Interested" ||
+              getLeadScore[0].lead_action_name === "Highly Interested"
+                ? 20
+                : 0,
+              counsel === "Given" ? 20 : 0,
+              primary_fees != 0 ? 20 : 0,
+              await getJoiningScore(expected_join_date, lead_id),
+            ],
+          );
+        }
+      } else {
+        // Get first lead history Id
+        const [lead_history_id] = await pool.query(
+          `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
+          [lead_id],
+        );
+
+        // Update lead history
+        const [update_lead_history] = await pool.query(
+          `UPDATE lead_follow_up_history SET comments = ?, lead_action_id = ? WHERE id = ?`,
+          [comments, lead_action_id, lead_history_id[0].lead_history_id],
+        );
+        affectedRows += update_lead_history.affectedRows;
+
+        // Get latest lead history Id
+        const [latest_history_id] = await pool.query(
+          `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+          [lead_id],
+        );
+
+        // Update lead history
+        const [update_latest] = await pool.query(
+          `UPDATE lead_follow_up_history SET lead_action_id = ?, next_follow_up_date = ?, is_updated = 0 WHERE id = ?`,
+          [
+            lead_action_id,
+            next_follow_up_date,
+            latest_history_id[0].lead_history_id,
+          ],
+        );
+        affectedRows += update_latest.affectedRows;
+
+        if (is_previous_junk) {
+          const [update_lead_master] = await pool.query(
+            `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ? WHERE id = ?`,
+            [next_follow_up_date, lead_status_id, lead_id],
+          );
+          affectedRows += update_lead_master.affectedRows;
+
+          // const [getLeadAction] = await pool.query(
+          //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
+          // );
+
+          await pool.query(
+            `INSERT INTO lead_follow_up_history(
+              lead_id,
+              next_follow_up_date,
+              lead_action_id
+          )
+          VALUES(?, ?, ?)`,
+            [lead_id, next_follow_up_date, lead_action_id],
+          );
+        }
+
+        const [getLeadScore] = await pool.query(
+          `SELECT
+            lf.id,
+            lf.lead_id,
+            lf.lead_action_id,
+            la.name AS lead_action_name,
+            lf.communication_status,
+            cm.name AS communication_status_name,
+            lf.contact_mode,
+            cm1.name AS contact_mode_name
+        FROM
+            lead_follow_up_history AS lf
+        LEFT JOIN communication_master AS cm ON
+          lf.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON
+          lf.contact_mode = cm1.id
+        LEFT JOIN lead_action AS la ON
+          la.id = lf.lead_action_id
+        WHERE
+            lf.lead_id = ? AND lf.is_updated = 1
+        ORDER BY
+            lf.id
+        DESC
+        LIMIT 1;`,
+          [lead_id],
+        );
+
+        await pool.query(
+          `UPDATE
             lead_score_master
         SET
             contact_connected = ?,
@@ -1680,18 +1812,21 @@ const LeadModel = {
             budget_available = ?,
             joining = ?
         WHERE lead_id = ?`,
-        [
-          getLeadScore[0].communication_status_name === "Communicated" ? 10 : 0,
-          getLeadScore[0].lead_action_name === "Interested" ||
-          getLeadScore[0].lead_action_name === "Highly Interested"
-            ? 20
-            : 0,
-          counsel === "Given" ? 20 : 0,
-          primary_fees != 0 ? 20 : 0,
-          await getJoiningScore(expected_join_date, lead_id),
-          lead_id,
-        ],
-      );
+          [
+            getLeadScore[0].communication_status_name === "Communicated"
+              ? 10
+              : 0,
+            getLeadScore[0].lead_action_name === "Interested" ||
+            getLeadScore[0].lead_action_name === "Highly Interested"
+              ? 20
+              : 0,
+            counsel === "Given" ? 20 : 0,
+            primary_fees != 0 ? 20 : 0,
+            await getJoiningScore(expected_join_date, lead_id),
+            lead_id,
+          ],
+        );
+      }
 
       return affectedRows;
     } catch (error) {
@@ -3542,7 +3677,7 @@ const LeadModel = {
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
@@ -3575,8 +3710,8 @@ const LeadModel = {
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
-          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
         }
 
         if (bucket === "Interested Leads") {

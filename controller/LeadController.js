@@ -352,6 +352,12 @@ const updateLead = async (request, response) => {
     preferred_mode,
     preferred_batch,
     counsel,
+    updated_date,
+    next_follow_up_time,
+    today_followup_date,
+    updated_by,
+    interest_rate,
+    response_status,
   } = request.body;
   try {
     const result = await LeadModel.updateLead(
@@ -390,6 +396,12 @@ const updateLead = async (request, response) => {
       preferred_mode,
       preferred_batch,
       counsel,
+      updated_date,
+      next_follow_up_time,
+      today_followup_date,
+      updated_by,
+      interest_rate,
+      response_status,
     );
     return response.status(200).send({
       message: "Updated successfully",
