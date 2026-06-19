@@ -135,6 +135,7 @@ const insertLead = async (request, response) => {
     next_follow_up_time,
     lead_score,
     is_today_followup,
+    response_status,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -178,6 +179,7 @@ const insertLead = async (request, response) => {
       next_follow_up_time,
       lead_score,
       is_today_followup,
+      response_status,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -283,6 +285,7 @@ const updateFollowUp = async (request, response) => {
     contact_mode,
     next_follow_up_date,
     next_follow_up_time,
+    response_status,
   } = request.body;
   try {
     const result = await LeadModel.updateFollowUp(
@@ -298,6 +301,7 @@ const updateFollowUp = async (request, response) => {
       contact_mode,
       next_follow_up_date,
       next_follow_up_time,
+      response_status,
     );
     return response.status(200).send({
       message: "Updated successfully",

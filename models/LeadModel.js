@@ -117,6 +117,7 @@ const LeadModel = {
     next_follow_up_time,
     lead_score,
     today_followup_date,
+    response_status,
   ) => {
     try {
       if (is_reentry === false) {
@@ -251,9 +252,10 @@ const LeadModel = {
             is_updated,
             communication_status,
             contact_mode,
-            interest_rate
+            interest_rate,
+            response_status
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             result.insertId,
             lead_action_id,
@@ -264,6 +266,7 @@ const LeadModel = {
             communication_status,
             contact_mode,
             interest_rate,
+            response_status,
           ],
         );
 
@@ -1306,11 +1309,12 @@ const LeadModel = {
     contact_mode,
     next_follow_up_date,
     next_follow_up_time,
+    response_status,
   ) => {
     try {
       let affectedRows = 0;
 
-      const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1, interest_rate = ?, communication_status = ?, contact_mode = ?, lead_action_id = ? WHERE id = ?`;
+      const updateQuery = `UPDATE lead_follow_up_history SET comments = ?, updated_by = ?, updated_date = ?, is_updated = 1, interest_rate = ?, communication_status = ?, contact_mode = ?, lead_action_id = ?, response_status = ? WHERE id = ?`;
       const values = [
         comments,
         updated_by,
@@ -1319,6 +1323,7 @@ const LeadModel = {
         communication_status,
         contact_mode,
         lead_action_id,
+        response_status,
         lead_history_id,
       ];
       const [update_lead] = await pool.query(updateQuery, values);
@@ -3578,11 +3583,6 @@ const LeadModel = {
           getQuery += ` AND lh.is_updated = 0`;
           countQuery += ` AND lh.is_updated = 0`;
         }
-
-        // if (bucket === "Sales Ready") {
-        //   getQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
-        //   countQuery += ` AND la.name IN ('Interested', 'Highly Interested')`;
-        // }
 
         if (bucket === "Joinings") {
           getQuery += ` AND c.id IS NOT NULL`;
