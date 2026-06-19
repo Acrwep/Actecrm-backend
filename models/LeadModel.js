@@ -3916,7 +3916,8 @@ const LeadModel = {
             cm1.name AS contact_mode_name,
             lh.next_follow_up_date,
             lh.next_followup_time,
-            lh.interest_rate
+            lh.interest_rate,
+            lh.response_status
         FROM
             lead_follow_up_history AS lh
         LEFT JOIN users AS u ON
