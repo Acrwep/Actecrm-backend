@@ -140,27 +140,27 @@ const LeadModel = {
         }
       }
 
-      let affectedRows = 0;
+      // let affectedRows = 0;
 
-      let leadStatusId = lead_status_id;
-      let leadStatusName;
-      let leadTemperatureDate;
+      // let leadStatusId = lead_status_id;
+      // let leadStatusName;
+      // let leadTemperatureDate;
 
-      if (!lead_status_id) {
-        const getLeadStatus = await getLeadTemperature(created_date);
-        leadStatusId = getLeadStatus.id;
-        leadStatusName = getLeadStatus.name;
-      } else {
-        const [getLeadStatus] = await pool.query(
-          `SELECT id, name FROM lead_status WHERE id = ?`,
-          [lead_status_id],
-        );
-        leadStatusName = getLeadStatus[0].name;
-      }
+      // if (!lead_status_id) {
+      //   const getLeadStatus = await getLeadTemperature(created_date);
+      //   leadStatusId = getLeadStatus.id;
+      //   leadStatusName = getLeadStatus.name;
+      // } else {
+      //   const [getLeadStatus] = await pool.query(
+      //     `SELECT id, name FROM lead_status WHERE id = ?`,
+      //     [lead_status_id],
+      //   );
+      //   leadStatusName = getLeadStatus[0].name;
+      // }
 
-      if (communication_status) {
-        leadTemperatureDate = getNextFollowUpDate(leadStatusName, created_date);
-      }
+      // if (communication_status) {
+      //   leadTemperatureDate = getNextFollowUpDate(leadStatusName, created_date);
+      // }
 
       const insertQuery = `INSERT INTO lead_master(
                             user_id,
@@ -216,7 +216,7 @@ const LeadModel = {
         secondary_course_id,
         secondary_fees,
         lead_type_id,
-        leadStatusId,
+        lead_status_id,
         next_follow_up_date,
         expected_join_date,
         branch_id,
@@ -243,7 +243,7 @@ const LeadModel = {
         throw new Error("Error while inserting lead");
 
       if (communication_status) {
-        if (leadTemperatureDate) {
+        if (next_follow_up_date) {
           // Insert lead follow up history
           const [history] = await pool.query(
             `INSERT INTO lead_follow_up_history(
@@ -280,16 +280,14 @@ const LeadModel = {
             lead_id,
             next_follow_up_date,
             next_followup_time,
-            today_followup_date,
-            lead_temperature_date
+            today_followup_date
         )
-        VALUES(?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?)`,
             [
               result.insertId,
               next_follow_up_date,
               next_follow_up_time,
               today_followup_date,
-              leadTemperatureDate,
             ],
           );
 
@@ -1353,19 +1351,18 @@ const LeadModel = {
       );
 
       const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
-      const leadTemperatureDate = getNextFollowUpDate(
-        getLeadStatus.name,
-        updated_date,
-      );
+      // const leadTemperatureDate = getNextFollowUpDate(
+      //   getLeadStatus.name,
+      //   updated_date,
+      // );
 
-      if (leadTemperatureDate) {
-        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_followup_time, lead_temperature_date) VALUES (?, ?, ?, ?, ?)`;
+      if (next_follow_up_date) {
+        const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_followup_time) VALUES (?, ?, ?, ?)`;
         const [insert_follow_up] = await pool.query(insertQuery, [
           lead_id,
           next_follow_up_date,
           today_followup_date,
           next_follow_up_time,
-          leadTemperatureDate,
         ]);
         affectedRows += insert_follow_up.affectedRows;
 
@@ -1620,9 +1617,9 @@ const LeadModel = {
         const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
         leadStatusId = getLeadStatus.id;
         leadStatusName = getLeadStatus.name;
-        leadTemperatureDate = getNextFollowUpDate(leadStatusName, new Date());
+        // leadTemperatureDate = getNextFollowUpDate(leadStatusName, new Date());
 
-        if (leadTemperatureDate) {
+        if (next_follow_up_date) {
           // Insert lead follow up history
           const [history] = await pool.query(
             `INSERT INTO lead_follow_up_history(
@@ -1659,16 +1656,14 @@ const LeadModel = {
             lead_id,
             next_follow_up_date,
             next_followup_time,
-            today_followup_date,
-            lead_temperature_date
+            today_followup_date
         )
-        VALUES(?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?)`,
             [
               lead_id,
               next_follow_up_date,
               next_follow_up_time,
               today_followup_date,
-              leadTemperatureDate,
             ],
           );
 
