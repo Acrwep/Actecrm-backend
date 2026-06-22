@@ -550,5 +550,5 @@ module.exports = {
   nextFollowupNotify,
   nextDueDateNotify,
   liveLeadNotify,
-  automateNextFollowup,
+  // automateNextFollowup,
 };

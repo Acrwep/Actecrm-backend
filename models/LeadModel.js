@@ -3603,7 +3603,7 @@ const LeadModel = {
         dateFilterAll =
           "l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)";
         dateFilterInterested =
-          "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY))";
+          "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY))";
 
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
@@ -3612,70 +3612,21 @@ const LeadModel = {
         // eligible_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // interested_leads (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // joinings (2)
         bucketCountQueryParams.push(start_date, end_date);
         // highly_interested (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // interested (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // sale_ready (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // not_interested (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // exploring (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // not_responding (4)
-        bucketCountQueryParams.push(
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-          start_date,
-          end_date,
-        );
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
       }
 
       let bucketCountQuery = `SELECT 
@@ -3796,29 +3747,13 @@ const LeadModel = {
           getQuery += ` AND (
                       lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
                       OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
-                      OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY)
                     )`;
           countQuery += ` AND (
                       lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
                       OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
-                      OR lh.lead_temperature_date >= ? AND lh.lead_temperature_date < DATE_ADD(?, INTERVAL 1 DAY)
                     )`;
-          queryParams.push(
-            start_date,
-            end_date,
-            start_date,
-            end_date,
-            start_date,
-            end_date,
-          );
-          countQueryParams.push(
-            start_date,
-            end_date,
-            start_date,
-            end_date,
-            start_date,
-            end_date,
-          );
+          queryParams.push(start_date, end_date, start_date, end_date);
+          countQueryParams.push(start_date, end_date, start_date, end_date);
         } else {
           // getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
           // countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
