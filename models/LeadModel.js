@@ -140,7 +140,7 @@ const LeadModel = {
         }
       }
 
-      // let affectedRows = 0;
+      let affectedRows = 0;
 
       // let leadStatusId = lead_status_id;
       // let leadStatusName;
