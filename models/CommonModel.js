@@ -138,10 +138,14 @@ const CommonModel = {
   <meta charset="UTF-8" />
   <title>ACTE Certificate</title>
    <!-- Add Google Fonts link -->
+    <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
   <style>
   <style>
     @page { margin: 0; }
-    html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
+    html, body { width:100%; height:100%; margin:0; padding:0;font-family:Arial, sans-serif;}
     body { display:flex; justify-content:center; align-items:center; }
     table { border-collapse:collapse; }
   </style>
@@ -158,24 +162,24 @@ const CommonModel = {
               <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0"
        style="border:3px solid #03396c; border-radius:50px; border-collapse: separate; overflow: hidden;background-color:white">
                 <tr>
-                  <td style="padding:16px 40px 40px 40px; text-align:center;">
+                  <td style="padding:10px 40px 20px 40px; text-align:center;">
                     <!-- Header -->
                    <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:6px; left:50%; transform:translateX(-50%);" />
                     
-                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
-                    <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
-                    <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;text-transform: uppercase;">
+                   <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 0px auto;" />
+                    <p style="margin:0px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
+                    <h3 style="margin:10px 0 10px; font-size:24px; font-weight:bold;text-transform: uppercase;">
                       ${result[0].customer_name}
                     </h3>
-                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                    <p style="margin:4px 0; font-size:18px; line-height:1.6;">
                       During and After ${
                         result[0].course_duration
                       } months of Study on the Specified Curriculum<br />
                       And having found the Candidate's Performance to be
                     </p>
-                    <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
-                    <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
-                    <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;text-transform: uppercase;">
+                    <h3 style="margin:10px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
+                    <p style="margin:6px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
+                    <h4 style="margin:12px 0; font-size:28px; font-weight:bold; color:#0a4682;text-transform: uppercase;">
                       ${result[0].course_name}
                     </h4>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
@@ -185,7 +189,7 @@ const CommonModel = {
                     </p>
 
                     <!-- Signatures -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;">
                       <tr>
                         ${[
                           {
@@ -336,7 +340,7 @@ const CommonModel = {
   <style>
   <style>
     @page { margin: 0; }
-    html, body { width:100%; height:100%; margin:0; padding:0;font-family:'Poppins', sans-serif;}
+    html, body { width:100%; height:100%; margin:0; padding:0;}
     body { display:flex; justify-content:center; align-items:center; }
     table { border-collapse:collapse; }
 
@@ -376,26 +380,26 @@ const CommonModel = {
         <div class="watermark">PROVISIONAL</div>
                 <tr>
                   <!-- IMPORTANT: position:relative -->
-                  <td style="padding:16px 40px 40px 40px; text-align:center;">
+                  <td style="padding:10px 40px 20px 40px; text-align:center;">
                     <!-- WATERMARK -->
 
                    <!-- Header -->
                    <img src="${certLogoBase64}" style="width:130px; height:auto; position:absolute; top:-12px; left:50%; transform:translateX(-50%);" />
                     
                    <img src="${acteLogoBase64}" style="width:240px; height:auto; display:block;margin:65px auto 10px auto;" />
-                    <p style="margin:10px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
-                    <h3 style="margin:20px 0 10px; font-size:24px; font-weight:bold;text-transform: uppercase;">
+                    <p style="margin:0px 0; font-size:18px;line-height:1.6">The Academic Council of ACTE <br/>Having Duly Examined</p>
+                    <h3 style="margin:10px 0 10px; font-size:24px; font-weight:bold;text-transform: uppercase;">
                       ${customer_name}
                     </h3>
-                    <p style="margin:10px 0; font-size:18px; line-height:1.6;">
+                    <p style="margin:4px 0; font-size:18px; line-height:1.6;">
                       During and After ${
                         course_duration
                       } months of Study on the Specified Curriculum<br />
                       And having found the Candidate's Performance to be
                     </p>
-                    <h3 style="margin:20px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
-                    <p style="margin:10px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
-                    <h4 style="margin:15px 0; font-size:28px; font-weight:bold; color:#0a4682;text-transform: uppercase;">
+                    <h3 style="margin:10px 0 10px; font-size:26px; font-weight:bold; color:#0a4682;">EXCELLENT</h3>
+                    <p style="margin:6px 0; font-size:18px;">Have Pleasure in Recognizing this Attainment with the Title of</p>
+                    <h4 style="margin:12px 0; font-size:28px; font-weight:bold; color:#0a4682;text-transform: uppercase;">
                       ${course_name}
                     </h4>
                     <p style="margin:10px 0; font-size:18px; line-height:1.6;">
@@ -405,7 +409,7 @@ const CommonModel = {
                     </p>
 
                     <!-- Signatures -->
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:10px;">
                       <tr>
                         ${[
                           {

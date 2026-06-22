@@ -538,79 +538,76 @@ const otpSend = async (request, response) => {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <title>OTP Verification</title>
             </head>
-            <body style="margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;">
-
-                <table align="center" cellpadding="0" cellspacing="0" width="100%" 
-                      style="max-width:600px; background-color:#ffffff; margin-top:30px; border-radius:8px; overflow:hidden;">
-
+            <body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <table align="center" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
                     <!-- Header -->
                     <tr>
-                        <td align="center" 
-                            style="background-color:#2563eb; padding:20px; color:#ffffff; font-size:24px; font-weight:bold;">
-                            OTP Verification
+                        <td align="center" style="background-color: #ffffff; padding: 40px 20px 20px;">
+                        <img src="cid:companyLogo" alt="Company Logo" style="max-width: 200px; height: auto; display: block;" />
+                        </td>
+                    </tr>
+                    
+                    <!-- Divider -->
+                    <tr>
+                        <td align="center" style="padding: 0 30px;">
+                            <div style="height: 1px; background-color: #e5e7eb; width: 100%;"></div>
                         </td>
                     </tr>
 
                     <!-- Body -->
                     <tr>
-                        <td style="padding:30px; color:#333333; font-size:16px; line-height:1.6;">
-
-                            <p>
-                                Your One-Time Password (OTP) for verification is:
+                        <td style="padding: 40px 30px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                            <h2 style="color: #1f2937; margin: 0 0 20px; font-size: 24px; font-weight: 600; text-align: center;">Verify Your Email Address</h2>
+                            <p style="margin-top: 0; text-align: center;">
+                                Thank you for choosing <strong>ACTE Technologies</strong>. Please use the following One-Time Password (OTP) to complete your verification process.
                             </p>
 
                             <!-- OTP Box -->
-                            <div style="text-align:center; margin:30px 0;">
-                                <span style="
-                                    display:inline-block;
-                                    background-color:#f3f4f6;
-                                    padding:15px 30px;
-                                    font-size:32px;
-                                    font-weight:bold;
-                                    letter-spacing:5px;
-                                    color:#2563eb;
-                                    border-radius:8px;
-                                    border:1px dashed #2563eb;">
-                                    ${otp}
-                                </span>
+                            <div style="text-align: center; margin: 40px 0;">
+                                <div style="display: inline-block; background-color: #f8fafc; padding: 20px 40px; border-radius: 12px; border: 2px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                    <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2563eb; font-family: monospace;">
+                                        ${otp}
+                                    </span>
+                                </div>
                             </div>
 
-                            <p>
-                                This OTP is valid for the next 
-                                <strong>10 minutes</strong>.
+                            <p style="margin-bottom: 24px; text-align: center; font-size: 15px;">
+                                This OTP is valid for the next <strong>10 minutes</strong>.
                             </p>
 
-                            <p style="color:#dc2626;">
-                                Please do not share this code with anyone for security reasons.
+                            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 24px; border-radius: 0 8px 8px 0;">
+                                <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                                    <strong>Security Notice:</strong> Please do not share this code with anyone. Our team will never ask you for this OTP.
+                                </p>
+                            </div>
+
+                            <p style="margin-bottom: 0; text-align: center; font-size: 14px;">
+                                If you did not request this verification, you can safely ignore this email.
                             </p>
-
-                            <p>
-                                If you did not request this verification, please ignore this email.
-                            </p>
-
-                            <br />
-
-                            <p>
-                                Regards,<br />
-                                <strong>ACTE Technologies</strong><br />
-                                Support Team
-                            </p>
-
                         </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
-                        <td align="center" 
-                            style="background-color:#f9fafb; padding:15px; font-size:12px; color:#6b7280;">
-                            © ${new Date().getFullYear()} ACTE Technologies. All rights reserved.
+                        <td align="center" style="background-color: #f9fafb; padding: 24px; font-size: 13px; color: #6b7280; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0 0 8px;">
+                                <strong>ACTE Technologies</strong>
+                            </p>
+                            <p style="margin: 0; font-size: 12px;">
+                                © ${new Date().getFullYear()} ACTE Technologies. All rights reserved.
+                            </p>
                         </td>
                     </tr>
-
                 </table>
-
             </body>
             </html>`,
+      attachments: [
+        {
+          filename: "logo.png", // name of the file
+          path: "./acte-logo.png", // local path of your logo file
+          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+        },
+      ],
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
