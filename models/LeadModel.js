@@ -3550,10 +3550,10 @@ const LeadModel = {
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
                     )
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
                     )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
@@ -3575,10 +3575,10 @@ const LeadModel = {
                     LEFT JOIN customers AS c ON
                       c.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
                     )
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
                     )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
@@ -3604,7 +3604,17 @@ const LeadModel = {
         bucketCountQueryParams.push(start_date, end_date);
         // valid_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
+        // validated_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // junk_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
         // eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // no_response_eligible_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // interested_leads (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
@@ -3627,7 +3637,12 @@ const LeadModel = {
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
+          IFNULL(SUM(CASE WHEN cm1.name IN ('Data Incorrect', 'Incorrect Data') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Not Communicated' THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Not Communicated' AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
@@ -3640,10 +3655,10 @@ const LeadModel = {
         LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
+          SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
         )
         LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
+          SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
         )
         LEFT JOIN communication_master AS cm ON
           luh.communication_status = cm.id
@@ -3655,13 +3670,40 @@ const LeadModel = {
 
       if (bucket) {
         if (bucket === "Valid Leads") {
-          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
-          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+          if (lead_action) {
+            const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
+            if (actionStr === "junk") {
+              getQuery += ` AND cm1.name IN ('Data Incorrect', 'Incorrect Data')`;
+              countQuery += ` AND cm1.name IN ('Data Incorrect', 'Incorrect Data')`;
+            } else {
+              getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+              countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+            }
+          } else {
+            getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+            countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+          }
         }
 
         if (bucket === "Eligible Leads") {
           getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
           countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          if (lead_action) {
+            const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
+            if (actionStr === "communicated") {
+              getQuery += ` AND cm.name = 'Communicated'`;
+              countQuery += ` AND cm.name = 'Communicated'`;
+            } else if (actionStr === "not communicated") {
+              getQuery += ` AND cm.name = 'Not Communicated'`;
+              countQuery += ` AND cm.name = 'Not Communicated'`;
+            } else if (
+              actionStr === "data correct but no response" ||
+              actionStr === "no response"
+            ) {
+              getQuery += ` AND cm.name = 'Not Communicated' AND cm1.name = 'No Response'`;
+              countQuery += ` AND cm.name = 'Not Communicated' AND cm1.name = 'No Response'`;
+            }
+          }
         }
 
         if (bucket === "Interested Leads") {
@@ -3731,10 +3773,12 @@ const LeadModel = {
 
       if (lead_action) {
         const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
-        getQuery += ` AND ls.name LIKE ?`;
-        countQuery += ` AND ls.name LIKE ?`;
-        queryParams.push(`%${actionStr}%`);
-        countQueryParams.push(`%${actionStr}%`);
+        if (bucket !== "Valid Leads" && bucket !== "Eligible Leads") {
+          getQuery += ` AND LOWER(ls.name) = ?`;
+          countQuery += ` AND LOWER(ls.name) = ?`;
+          queryParams.push(actionStr);
+          countQueryParams.push(actionStr);
+        }
       }
 
       if (start_date && end_date) {
@@ -3757,6 +3801,9 @@ const LeadModel = {
           queryParams.push(start_date, end_date);
           countQueryParams.push(start_date, end_date);
         }
+
+        bucketCountQuery += ` AND (${dateFilterAll} OR ${dateFilterInterested})`;
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date, start_date, end_date);
       }
 
       // Apply pagination to main query
@@ -3765,7 +3812,7 @@ const LeadModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       if (bucket === "Interested Leads") {
-        getQuery += ` ORDER BY ls.sort_order ASC, lh.is_updated ASC`;
+        getQuery += ` ORDER BY ls.sort_order ASC, la.sort_order ASC`;
       } else {
         getQuery += ` ORDER BY l.created_date DESC `;
       }
@@ -3792,6 +3839,21 @@ const LeadModel = {
           ),
           sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
+        },
+        valid_lead_actions: {
+          validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
+          junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
+        },
+        eligible_lead_actions: {
+          communicated: parseInt(
+            bucketCountResult[0]?.communicated_eligible_leads || 0,
+          ),
+          not_communicated: parseInt(
+            bucketCountResult[0]?.not_communicated_eligible_leads || 0,
+          ),
+          no_response: parseInt(
+            bucketCountResult[0]?.no_response_eligible_leads || 0,
+          ),
         },
         interested_lead_actions: {
           all: parseInt(bucketCountResult[0]?.interested_leads || 0),
