@@ -3570,7 +3570,7 @@ const LeadModel = {
 
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(*) as total FROM lead_master AS l
-                    INNER JOIN technologies AS pt ON
+                    LEFT JOIN technologies AS pt ON
                       pt.id = l.primary_course_id
                     LEFT JOIN customers AS c ON
                       c.lead_id = l.id
@@ -3584,8 +3584,6 @@ const LeadModel = {
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
                       luh.contact_mode = cm1.id
-                    LEFT JOIN lead_action AS la ON
-                    	la.id = luh.lead_action_id
                     LEFT JOIN lead_status AS ls ON
                       ls.id = l.lead_status_id
                     WHERE 1 = 1`;
@@ -3641,8 +3639,8 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN cm1.name IN ('Data Incorrect', 'Incorrect Data') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Not Communicated' THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Not Communicated' AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
@@ -3652,7 +3650,6 @@ const LeadModel = {
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Dormant' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested
         FROM lead_master AS l
-        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
           SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
@@ -3664,7 +3661,6 @@ const LeadModel = {
           luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON
           luh.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON la.id = luh.lead_action_id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         WHERE 1 = 1`;
 
@@ -3694,14 +3690,14 @@ const LeadModel = {
               getQuery += ` AND cm.name = 'Communicated'`;
               countQuery += ` AND cm.name = 'Communicated'`;
             } else if (actionStr === "not communicated") {
-              getQuery += ` AND cm.name = 'Not Communicated'`;
-              countQuery += ` AND cm.name = 'Not Communicated'`;
+              getQuery += ` AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Correct But No Response')`;
+              countQuery += ` AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Correct But No Response')`;
             } else if (
               actionStr === "data correct but no response" ||
               actionStr === "no response"
             ) {
-              getQuery += ` AND cm.name = 'Not Communicated' AND cm1.name = 'No Response'`;
-              countQuery += ` AND cm.name = 'Not Communicated' AND cm1.name = 'No Response'`;
+              getQuery += ` AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response'`;
+              countQuery += ` AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response'`;
             }
           }
         }
@@ -3738,23 +3734,31 @@ const LeadModel = {
       }
 
       if (name) {
-        getQuery += ` AND l.name LIKE '%${name}%'`;
-        countQuery += ` AND l.name LIKE '%${name}%'`;
+        getQuery += ` AND l.name LIKE ?`;
+        countQuery += ` AND l.name LIKE ?`;
+        queryParams.push(`%${name}%`);
+        countQueryParams.push(`%${name}%`);
       }
 
       if (email) {
-        getQuery += ` AND l.email LIKE '%${email}%'`;
-        countQuery += ` AND l.email LIKE '%${email}%'`;
+        getQuery += ` AND l.email LIKE ?`;
+        countQuery += ` AND l.email LIKE ?`;
+        queryParams.push(`%${email}%`);
+        countQueryParams.push(`%${email}%`);
       }
 
       if (phone) {
-        getQuery += ` AND l.phone LIKE '%${phone}%'`;
-        countQuery += ` AND l.phone LIKE '%${phone}%'`;
+        getQuery += ` AND l.phone LIKE ?`;
+        countQuery += ` AND l.phone LIKE ?`;
+        queryParams.push(`%${phone}%`);
+        countQueryParams.push(`%${phone}%`);
       }
 
       if (course) {
-        getQuery += ` AND pt.name LIKE '%${course}%'`;
-        countQuery += ` AND pt.name LIKE '%${course}%'`;
+        getQuery += ` AND pt.name LIKE ?`;
+        countQuery += ` AND pt.name LIKE ?`;
+        queryParams.push(`%${course}%`);
+        countQueryParams.push(`%${course}%`);
       }
 
       if (lead_type) {
@@ -3782,7 +3786,7 @@ const LeadModel = {
       }
 
       if (start_date && end_date) {
-        if (bucket === "Interested Leads" || lead_action) {
+        if (bucket === "Interested Leads") {
           getQuery += ` AND (
                       lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
                       OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
@@ -3803,7 +3807,14 @@ const LeadModel = {
         }
 
         bucketCountQuery += ` AND (${dateFilterAll} OR ${dateFilterInterested})`;
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date, start_date, end_date);
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
       }
 
       // Apply pagination to main query
