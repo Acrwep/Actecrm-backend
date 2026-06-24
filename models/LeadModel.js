@@ -3289,6 +3289,10 @@ const LeadModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
+      let result;
+      let assigned_count = 0;
+      let consigned_count = 0;
+
       if (bucket === "Assigned") {
         let getLiveQuery = `SELECT
                       '' AS row_num,
@@ -3464,7 +3468,7 @@ const LeadModel = {
           finalCountQuery,
           finalCountParams,
         );
-        const finalTotal = countResult[0]?.total || 0;
+        assigned_count = countResult[0]?.total || 0;
 
         const finalQuery = `
           SELECT * FROM (
@@ -3490,13 +3494,13 @@ const LeadModel = {
             item.assigned_date_ist || item.date || item.created_date_ist || "",
         }));
 
-        return {
+        result = {
           data: formattedData,
           pagination: {
-            total: parseInt(finalTotal),
+            total: parseInt(assigned_count),
             page: pageNumber,
             limit: limitNumber,
-            totalPages: Math.ceil(finalTotal / limitNumber),
+            totalPages: Math.ceil(assigned_count / limitNumber),
           },
         };
       } else {
@@ -3597,7 +3601,7 @@ const LeadModel = {
         params.push(limitNumber, offset);
 
         const [countResult] = await pool.query(countQuery, countQueryParams);
-        const total = countResult[0]?.total || 0;
+        consigned_count = countResult[0]?.total || 0;
 
         const [rows] = await pool.query(query, params);
 
@@ -3606,16 +3610,23 @@ const LeadModel = {
           created_date: item.created_date_ist,
         }));
 
-        return {
+        result = {
           data: formattedData,
           pagination: {
-            total: parseInt(total),
+            total: parseInt(consigned_count),
             page: pageNumber,
             limit: limitNumber,
-            totalPages: Math.ceil(total / limitNumber),
+            totalPages: Math.ceil(consigned_count / limitNumber),
           },
         };
       }
+
+      return {
+        assigned: assigned_count,
+        consigned: consigned_count,
+        data: result.data,
+        pagination: result.pagination,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

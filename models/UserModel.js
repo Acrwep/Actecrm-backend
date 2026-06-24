@@ -714,9 +714,10 @@ const UserModel = {
     }
   },
 
-  getBranchManagers: async () => {
+  getBranchManagers: async (branch_id) => {
     try {
-      const query = `
+      const params = [];
+      let query = `
         SELECT
             b.id AS branch_id,
             b.name AS branch_name,
@@ -737,10 +738,16 @@ const UserModel = {
           ru.user_id = bm.regional_manager_id
         LEFT JOIN users AS bu ON
           bu.user_id = bm.branch_manager_id
-        WHERE b.is_active = 1
-        ORDER BY r.name ASC, b.name ASC`;
+        WHERE b.is_active = 1`;
 
-      const [users] = await pool.query(query);
+      if (branch_id) {
+        query += ` AND b.id = ?`;
+        params.push(branch_id);
+      }
+
+      query += ` ORDER BY r.name ASC, b.name ASC`;
+
+      const [users] = await pool.query(query, params);
 
       return users;
     } catch (error) {

@@ -257,8 +257,9 @@ const updateBranchManager = async (request, response) => {
 };
 
 const getBranchManagers = async (request, response) => {
+  const { branch_id } = request.query;
   try {
-    const result = await userModel.getBranchManagers();
+    const result = await userModel.getBranchManagers(branch_id);
     response.status(200).json({
       message: "Data fetched successfully",
       data: result,
