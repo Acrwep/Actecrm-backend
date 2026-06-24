@@ -3,7 +3,7 @@ const pool = require("../config/dbconfig");
 const UserModel = {
   addUser: async (
     user_id,
-    manager_id,
+    branch_id,
     user_name,
     phone,
     password,
@@ -26,7 +26,7 @@ const UserModel = {
 
       const insertQuery = `INSERT INTO users(
                             user_id,
-                            manager_id,
+                            branch_id,
                             user_name,
                             phone,
                             password,
@@ -37,7 +37,7 @@ const UserModel = {
                         VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
         user_id,
-        manager_id,
+        branch_id,
         user_name,
         phone,
         password,
@@ -151,19 +151,25 @@ const UserModel = {
                         u.id,
                         u.user_id,
                         u.user_name,
-                        u.manager_id,
-                        um.user_name AS manager_name,
                         u.phone,
                         u.profile_image,
                         u.password,
                         u.child_users,
                         u.roles,
                         CASE WHEN u.is_active = 1 THEN 1 ELSE 0 END AS is_active,
-                      u.last_login_date
+                      	u.last_login_date,
+                        u.branch_id,
+                        b.name AS branch_name,
+                        b.region_id,
+                        r.name AS region_name
                     FROM
                         users AS u
-                    LEFT JOIN users AS um ON
-                      u.manager_id = um.user_id
+                    LEFT JOIN branches AS b ON
+                    	b.id = u.branch_id
+                        AND b.is_active = 1
+                    LEFT JOIN region AS r ON
+                    	r.id = b.region_id
+                        AND r.is_active = 1
                     WHERE
                         u.is_active = 1`;
 
@@ -238,7 +244,7 @@ const UserModel = {
   updateUser: async (
     id,
     user_id,
-    manager_id,
+    branch_id,
     user_name,
     phone,
     profile_image,
@@ -259,10 +265,10 @@ const UserModel = {
         throw new Error("Invalid Id");
       }
 
-      const updateQuery = `UPDATE users SET user_id = ?, manager_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
+      const updateQuery = `UPDATE users SET user_id = ?, branch_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
       const values = [
         user_id,
-        manager_id,
+        branch_id,
         user_name,
         phone,
         profile_image,
@@ -590,13 +596,9 @@ const UserModel = {
       let query = `SELECT
                       u.id,
                       u.user_name,
-                      u.user_id,
-                      mu.user_id AS manager_id,
-                      mu.user_name AS manager_name
+                      u.user_id
                   FROM
                       users AS u
-                  LEFT JOIN users AS mu ON
-                  	  u.manager_id = mu.user_id
                   WHERE
                       u.is_active = 1`;
 
@@ -634,6 +636,93 @@ const UserModel = {
         data: formattedResult,
         total: formattedResult.length,
       };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  assignBranchManager: async (
+    branch_id,
+    regional_manager_id,
+    branch_manager_id,
+  ) => {
+    try {
+      let query = `
+        INSERT INTO branch_managers(
+          branch_id,
+          regional_manager_id,
+          branch_manager_id
+        )
+        VALUES(?, ?, ?)`;
+
+      await pool.query(query, [
+        branch_id,
+        regional_manager_id,
+        branch_manager_id,
+      ]);
+
+      return {
+        message: "Branch manager assigned successfully",
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateBranchManager: async (
+    branch_id,
+    regional_manager_id,
+    branch_manager_id,
+  ) => {
+    try {
+      let query = `
+        UPDATE branch_managers
+        SET regional_manager_id = ?, branch_manager_id = ?
+        WHERE branch_id = ?`;
+
+      await pool.query(query, [
+        regional_manager_id,
+        branch_manager_id,
+        branch_id,
+      ]);
+
+      return {
+        message: "Branch manager updated successfully",
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getBranchManagers: async () => {
+    try {
+      const query = `
+        SELECT
+            b.id AS branch_id,
+            b.name AS branch_name,
+            b.region_id,
+            r.name AS region_name,
+            bm.regional_manager_id,
+            ru.user_name AS regional_manager_name,
+            bm.branch_manager_id,
+            bu.user_name AS branch_manager_name,
+            bm.id
+        FROM
+            branches AS b
+        INNER JOIN region AS r ON
+          r.id = b.region_id
+        LEFT JOIN branch_managers AS bm ON
+          bm.branch_id = b.id
+        LEFT JOIN users AS ru ON
+          ru.user_id = bm.regional_manager_id
+        LEFT JOIN users AS bu ON
+          bu.user_id = bm.branch_manager_id
+        WHERE b.is_active = 1
+        ORDER BY r.name ASC, b.name ASC`;
+
+      const [users] = await pool.query(query);
+
+      return users;
     } catch (error) {
       throw new Error(error.message);
     }

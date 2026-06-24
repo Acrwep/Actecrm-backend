@@ -4,7 +4,7 @@ const userModel = require("../models/UserModel");
 const addUser = async (request, response) => {
   const {
     user_id,
-    manager_id,
+    branch_id,
     user_name,
     phone,
     profile_image,
@@ -26,7 +26,7 @@ const addUser = async (request, response) => {
   try {
     const result = await userModel.addUser(
       user_id,
-      manager_id,
+      branch_id,
       user_name,
       phone,
       password,
@@ -69,7 +69,7 @@ const updateUser = async (request, response) => {
   const {
     id,
     user_id,
-    manager_id,
+    branch_id,
     user_name,
     phone,
     profile_image,
@@ -86,7 +86,7 @@ const updateUser = async (request, response) => {
     const users = await userModel.updateUser(
       id,
       user_id,
-      manager_id,
+      branch_id,
       user_name,
       phone,
       profile_image,
@@ -210,6 +210,61 @@ const getMultiUsers = async (request, response) => {
   }
 };
 
+const assignBranchManager = async (request, response) => {
+  const { branch_id, regional_manager_id, branch_manager_id } = request.body;
+  try {
+    const result = await userModel.assignBranchManager(
+      branch_id,
+      regional_manager_id,
+      branch_manager_id,
+    );
+    response.status(200).json({
+      message: "Data assigned successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while assigning data",
+      details: error.message,
+    });
+  }
+};
+
+const updateBranchManager = async (request, response) => {
+  const { branch_id, regional_manager_id, branch_manager_id } = request.body;
+  try {
+    const result = await userModel.updateBranchManager(
+      branch_id,
+      regional_manager_id,
+      branch_manager_id,
+    );
+    response.status(200).json({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
+const getBranchManagers = async (request, response) => {
+  try {
+    const result = await userModel.getBranchManagers();
+    response.status(200).json({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
@@ -220,4 +275,7 @@ module.exports = {
   checkUserExists,
   getHRUsers,
   getMultiUsers,
+  assignBranchManager,
+  updateBranchManager,
+  getBranchManagers,
 };

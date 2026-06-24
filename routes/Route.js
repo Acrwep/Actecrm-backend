@@ -597,4 +597,15 @@ router.get(
 );
 router.get("/getClassMode", verifyToken, LeadController.getClassMode);
 router.get("/getLeadById", verifyToken, LeadController.getLeadById);
+router.post(
+  "/assignBranchManager",
+  verifyToken,
+  UserController.assignBranchManager,
+);
+router.put(
+  "/updateBranchManager",
+  verifyToken,
+  UserController.updateBranchManager,
+);
+router.get("/getBranchManagers", verifyToken, UserController.getBranchManagers);
 module.exports = router;
