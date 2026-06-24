@@ -138,6 +138,7 @@ const insertLead = async (request, response) => {
     is_today_followup,
     response_status,
     consigned_id,
+    assigned_to,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -184,6 +185,7 @@ const insertLead = async (request, response) => {
       is_today_followup,
       response_status,
       consigned_id,
+      assigned_to,
     );
     return response.status(201).send({
       message: "Lead added successfully",

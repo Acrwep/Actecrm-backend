@@ -120,6 +120,7 @@ const LeadModel = {
     today_followup_date,
     response_status,
     consigned_id,
+    assigned_to,
   ) => {
     try {
       if (is_reentry === false) {
@@ -204,7 +205,7 @@ const LeadModel = {
                         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
-        user_id,
+        assigned_to,
         name,
         phone_code,
         phone,
