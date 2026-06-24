@@ -3702,53 +3702,63 @@ const LeadModel = {
 
         if (isExists.length <= 0) continue;
 
-        const [result] = await pool.query(
-          `UPDATE lead_master SET re_assigned_date = ?, next_follow_up_date = ?, is_reassigned = 1, assigned_to = ? WHERE id = ?`,
-          [assign_date, next_follow_up_date, assigned_to, lead_id],
-        );
+        let query = `UPDATE lead_master SET re_assigned_date = ?, is_reassigned = 1, assigned_to = ?`;
+        const params = [assign_date, assigned_to];
+
+        if (next_follow_up_date) {
+          query += `, next_follow_up_date = ?`;
+          params.push(next_follow_up_date);
+        }
+
+        query += ` WHERE id = ?`;
+        params.push(lead_id);
+
+        const [result] = await pool.query(query, params);
 
         affectedRows += result.affectedRows;
 
-        const [getFollowup] = await pool.query(
-          `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
-          [lead_id],
-        );
-
-        const [getLeadAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
-        );
-
-        if (getFollowup.length > 0) {
-          const [updateFollowUp] = await pool.query(
-            `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1, lead_action_id = ? WHERE id = ?`,
-            [
-              updated_by,
-              "Lead re-entry",
-              assign_date,
-              getLeadAction[0].id,
-              getFollowup[0].id,
-            ],
+        if (next_follow_up_date) {
+          const [getFollowup] = await pool.query(
+            `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+            [lead_id],
           );
 
-          affectedRows += updateFollowUp.affectedRows;
-        }
+          const [getLeadAction] = await pool.query(
+            `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
+          );
 
-        const [next_follow_up] = await pool.query(
-          `INSERT INTO lead_follow_up_history(
+          if (getFollowup.length > 0) {
+            const [updateFollowUp] = await pool.query(
+              `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1, lead_action_id = ? WHERE id = ?`,
+              [
+                updated_by,
+                "Lead re-entry",
+                assign_date,
+                getLeadAction[0].id,
+                getFollowup[0].id,
+              ],
+            );
+
+            affectedRows += updateFollowUp.affectedRows;
+          }
+
+          const [next_follow_up] = await pool.query(
+            `INSERT INTO lead_follow_up_history(
               lead_id,
               next_follow_up_date,
               next_followup_time,
               today_followup_date
           )
           VALUES(?, ?, ?, ?)`,
-          [
-            lead_id,
-            next_follow_up_date,
-            next_followup_time,
-            today_followup_date,
-          ],
-        );
-        affectedRows += next_follow_up.affectedRows;
+            [
+              lead_id,
+              next_follow_up_date,
+              next_followup_time,
+              today_followup_date,
+            ],
+          );
+          affectedRows += next_follow_up.affectedRows;
+        }
 
         totalAffectedRows += affectedRows;
       }
