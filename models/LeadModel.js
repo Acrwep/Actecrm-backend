@@ -4401,6 +4401,18 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
+
+  acknowledgeLead: async (lead_id, acknowledged_by, acknowledged_date) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE lead_master SET is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ? WHERE id = ?`,
+        [acknowledged_by, acknowledged_date, lead_id],
+      );
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function formatToBackendIST(date) {

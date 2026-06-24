@@ -608,4 +608,5 @@ router.put(
   UserController.updateBranchManager,
 );
 router.get("/getBranchManagers", verifyToken, UserController.getBranchManagers);
+router.post("/acknowledgeLead", verifyToken, LeadController.acknowledgeLead);
 module.exports = router;

@@ -1177,6 +1177,26 @@ const getLeadById = async (request, response) => {
   }
 };
 
+const acknowledgeLead = async (request, response) => {
+  const { lead_id, acknowledged_by, acknowledged_date } = request.body;
+  try {
+    const result = await LeadModel.acknowledgeLead(
+      lead_id,
+      acknowledged_by,
+      acknowledged_date,
+    );
+    return response.status(200).send({
+      message: "Lead acknowledged successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while acknowledging lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1220,4 +1240,5 @@ module.exports = {
   getLeadSubCategory,
   getClassMode,
   getLeadById,
+  acknowledgeLead,
 };
