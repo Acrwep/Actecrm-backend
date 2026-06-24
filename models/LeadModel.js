@@ -3430,7 +3430,8 @@ const LeadModel = {
                         u.user_name AS assigned_to_user,
                         ab.user_id AS assigned_by,
                         ab.user_name AS assigned_by_user,
-                        l.domain_origin
+                        l.domain_origin,
+                        1 AS lead_entry_type
                     FROM
                         website_leads AS l
                     LEFT JOIN users AS u ON
@@ -3467,7 +3468,8 @@ const LeadModel = {
                     u.user_name AS assigned_to_user,
                     l.user_id AS assigned_by,
                     ab.user_name AS assigned_by_user,
-                    l.domain_origin
+                    l.domain_origin,
+                    0 AS lead_entry_type
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3578,7 +3580,8 @@ const LeadModel = {
                     u.user_name AS assigned_to_user,
                     l.user_id AS assigned_by,
                     ab.user_name AS assigned_by_user,
-                    l.domain_origin
+                    l.domain_origin,
+                    0 AS lead_entry_type
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3693,7 +3696,7 @@ const LeadModel = {
       for (const lead_id of ids) {
         let affectedRows = 0;
         const [isExists] = await pool.query(
-          `SELECT id, created_date FROM lead_master WHERE id = ?`,
+          `SELECT id FROM lead_master WHERE id = ?`,
           [lead_id],
         );
 
@@ -3730,29 +3733,19 @@ const LeadModel = {
           affectedRows += updateFollowUp.affectedRows;
         }
 
-        const getLeadStatus = await getLeadTemperature(
-          isExists[0].created_date,
-        );
-        const leadTemperatureDate = getNextFollowUpDate(
-          getLeadStatus.name,
-          assign_date,
-        );
-
         const [next_follow_up] = await pool.query(
           `INSERT INTO lead_follow_up_history(
               lead_id,
               next_follow_up_date,
               next_followup_time,
-              today_followup_date,
-              lead_temperature_date
+              today_followup_date
           )
-          VALUES(?, ?, ?, ?, ?)`,
+          VALUES(?, ?, ?, ?)`,
           [
             lead_id,
             next_follow_up_date,
             next_followup_time,
             today_followup_date,
-            leadTemperatureDate,
           ],
         );
         affectedRows += next_follow_up.affectedRows;
