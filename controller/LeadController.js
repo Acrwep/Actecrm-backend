@@ -127,6 +127,7 @@ const insertLead = async (request, response) => {
     contact_mode,
     interest_rate,
     assigned_manager_id,
+    branch_manager_id,
     lead_sub_source,
     referral_name,
     preferred_mode,
@@ -136,6 +137,7 @@ const insertLead = async (request, response) => {
     lead_score,
     is_today_followup,
     response_status,
+    consigned_id,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -171,6 +173,7 @@ const insertLead = async (request, response) => {
       contact_mode,
       interest_rate,
       assigned_manager_id,
+      branch_manager_id,
       lead_sub_source,
       referral_name,
       preferred_mode,
@@ -180,6 +183,7 @@ const insertLead = async (request, response) => {
       lead_score,
       is_today_followup,
       response_status,
+      consigned_id,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -346,6 +350,7 @@ const updateLead = async (request, response) => {
     communication_status,
     contact_mode,
     assigned_manager_id,
+    branch_manager_id,
     assigned_executive_id,
     lead_sub_source,
     referral_name,
@@ -390,6 +395,7 @@ const updateLead = async (request, response) => {
       communication_status,
       contact_mode,
       assigned_manager_id,
+      branch_manager_id,
       assigned_executive_id,
       lead_sub_source,
       referral_name,
@@ -991,28 +997,18 @@ const updateLeadStatus = async (request, response) => {
 };
 
 const getAssignedLeads = async (request, response) => {
-  const {
-    name,
-    phone,
-    email,
-    course,
-    start_date,
-    end_date,
-    user_id,
-    page,
-    limit,
-  } = request.body;
+  const { name, phone, email, course, user_ids, page, limit, bucket } =
+    request.body;
   try {
     const result = await LeadModel.getAssignedLeads(
       name,
       phone,
       email,
       course,
-      start_date,
-      end_date,
-      user_id,
+      user_ids,
       page,
       limit,
+      bucket,
     );
     return response.status(200).send({
       message: "Assigned leads fetched successfully",

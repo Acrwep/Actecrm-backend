@@ -109,6 +109,7 @@ const LeadModel = {
     contact_mode,
     interest_rate,
     assigned_manager_id,
+    branch_manager_id,
     lead_sub_source,
     referral_name,
     preferred_mode,
@@ -118,6 +119,7 @@ const LeadModel = {
     lead_score,
     today_followup_date,
     response_status,
+    consigned_id,
   ) => {
     try {
       if (is_reentry === false) {
@@ -190,14 +192,16 @@ const LeadModel = {
                             region_id,
                             domain_origin,
                             assigned_manager,
+                            branch_manager_id,
                             lead_sub_source,
                             referral_name,
                             preferred_mode,
                             preferred_batch,
                             counsel,
-                            lead_score
+                            lead_score,
+                            consigned_id
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         user_id,
@@ -226,12 +230,14 @@ const LeadModel = {
         region_id,
         domain_origin,
         assigned_manager_id,
+        branch_manager_id,
         lead_sub_source,
         referral_name,
         preferred_mode,
         preferred_batch,
         counsel,
         lead_score,
+        consigned_id,
       ];
 
       // Insert into lead master table
@@ -1505,6 +1511,7 @@ const LeadModel = {
     communication_status,
     contact_mode,
     assigned_manager_id,
+    branch_manager_id,
     assigned_executive_id,
     lead_sub_source,
     referral_name,
@@ -1552,6 +1559,7 @@ const LeadModel = {
                               region_id = ?,
                               domain_origin = ?,
                               assigned_manager = ?,
+                              branch_manager_id = ?,
                               assigned_to = ?,
                               lead_sub_source = ?,
                               referral_name = ?,
@@ -1585,6 +1593,7 @@ const LeadModel = {
         region_id,
         domain_origin,
         assigned_manager_id,
+        branch_manager_id,
         assigned_executive_id,
         lead_sub_source,
         referral_name,
@@ -3269,18 +3278,19 @@ const LeadModel = {
     phone,
     email,
     course,
-    start_date,
-    end_date,
-    user_id,
+    user_ids,
     page,
     limit,
+    bucket,
   ) => {
     try {
-      const queryParams = [];
-      const countParams = [];
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
 
-      let getQuery = `SELECT
-                      ROW_NUMBER() OVER(ORDER BY l.assigned_date DESC) AS row_num,
+      if (bucket === "Assigned") {
+        let getLiveQuery = `SELECT
+                      '' AS row_num,
                         l.id,
                         l.name,
                         l.email,
@@ -3315,7 +3325,7 @@ const LeadModel = {
                         AND l.assigned_by IS NOT NULL
                         AND l.assigned_to IS NOT NULL`;
 
-      let countQuery = `SELECT
+        let countLiveQuery = `SELECT
                         COUNT(*) AS total
                     FROM
                         website_leads AS l
@@ -3330,58 +3340,281 @@ const LeadModel = {
                         AND l.assigned_by IS NOT NULL
                         AND l.assigned_to IS NOT NULL`;
 
-      if (user_id) {
-        getQuery += ` AND (u.user_id = ? OR ab.user_id = ?)`;
-        countQuery += ` AND (u.user_id = ? OR ab.user_id = ?)`;
-        queryParams.push(user_id, user_id);
-        countParams.push(user_id, user_id);
+        const liveQueryParams = [];
+        const countLiveQueryParams = [];
+
+        let query = `SELECT
+                    '' AS row_num,
+                    l.id,
+                    l.name,
+                    l.email,
+                    l.phone,
+                    t.name AS course,
+                    l.comments,
+                    l.district AS location,
+                    '' AS date,
+                    '' AS time,
+                    '' AS training,
+                    '' AS corporate_training,
+                    ls.name AS status,
+                    0 AS is_junk,
+                    0 AS is_deleted,
+                    '' AS assigned_date_ist,
+                    lt.name AS lead_type,
+                    l.assigned_to,
+                    u.user_name AS assigned_to_user,
+                    l.user_id AS assigned_by,
+                    ab.user_name AS assigned_by_user,
+                    l.domain_origin
+                FROM
+                    lead_master AS l
+                LEFT JOIN technologies AS t ON
+                    l.primary_course_id = t.id
+                LEFT JOIN lead_status AS ls ON
+                    ls.id = l.lead_status_id
+                LEFT JOIN lead_type AS lt ON
+                    lt.id = l.lead_type_id
+                LEFT JOIN users AS u ON
+                    u.user_id = l.assigned_to
+                LEFT JOIN users AS ab ON
+                    ab.user_id = l.user_id
+                WHERE 1=1`;
+
+        let countQuery = `SELECT COUNT(l.id) AS total
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                      WHERE 1=1`;
+
+        const params = [];
+        const countQueryParams = [];
+
+        if (name) {
+          getLiveQuery += ` AND l.name LIKE ?`;
+          liveQueryParams.push(`%${name}%`);
+          countLiveQuery += ` AND l.name LIKE ?`;
+          countLiveQueryParams.push(`%${name}%`);
+          query += ` AND l.name LIKE ?`;
+          params.push(`%${name}%`);
+          countQuery += ` AND l.name LIKE ?`;
+          countQueryParams.push(`%${name}%`);
+        }
+
+        if (phone) {
+          getLiveQuery += ` AND l.phone LIKE ?`;
+          liveQueryParams.push(`%${phone}%`);
+          countLiveQuery += ` AND l.phone LIKE ?`;
+          countLiveQueryParams.push(`%${phone}%`);
+          query += ` AND l.phone LIKE ?`;
+          params.push(`%${phone}%`);
+          countQuery += ` AND l.phone LIKE ?`;
+          countQueryParams.push(`%${phone}%`);
+        }
+
+        if (email) {
+          getLiveQuery += ` AND l.email LIKE ?`;
+          liveQueryParams.push(`%${email}%`);
+          countLiveQuery += ` AND l.email LIKE ?`;
+          countLiveQueryParams.push(`%${email}%`);
+          query += ` AND l.email LIKE ?`;
+          params.push(`%${email}%`);
+          countQuery += ` AND l.email LIKE ?`;
+          countQueryParams.push(`%${email}%`);
+        }
+
+        if (course) {
+          getLiveQuery += ` AND l.course LIKE ?`;
+          liveQueryParams.push(`%${course}%`);
+          countLiveQuery += ` AND l.course LIKE ?`;
+          countLiveQueryParams.push(`%${course}%`);
+          query += ` AND t.name LIKE ?`;
+          params.push(`%${course}%`);
+          countQuery += ` AND t.name LIKE ?`;
+          countQueryParams.push(`%${course}%`);
+        }
+
+        if (user_ids) {
+          if (Array.isArray(user_ids) && user_ids.length > 0) {
+            const placeholders = user_ids.map(() => "?").join(", ");
+            getLiveQuery += ` AND l.assigned_to IN (${placeholders})`;
+            countLiveQuery += ` AND l.assigned_to IN (${placeholders})`;
+            liveQueryParams.push(...user_ids);
+            countLiveQueryParams.push(...user_ids);
+            query += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+            params.push(...user_ids, ...user_ids, ...user_ids);
+            countQuery += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+            countQueryParams.push(...user_ids, ...user_ids, ...user_ids);
+          }
+        }
+
+        const finalCountQuery = `SELECT (${countLiveQuery}) + (${countQuery}) AS total`;
+        const finalCountParams = [...countLiveQueryParams, ...countQueryParams];
+
+        const [countResult] = await pool.query(
+          finalCountQuery,
+          finalCountParams,
+        );
+        const finalTotal = countResult[0]?.total || 0;
+
+        const finalQuery = `
+          SELECT * FROM (
+            (${getLiveQuery})
+            UNION ALL
+            (${query})
+          ) AS combined
+          ORDER BY assigned_date_ist DESC
+          LIMIT ? OFFSET ?
+        `;
+
+        const finalParams = [
+          ...liveQueryParams,
+          ...params,
+          limitNumber,
+          offset,
+        ];
+        const [rows] = await pool.query(finalQuery, finalParams);
+
+        const formattedData = rows.map((item) => ({
+          ...item,
+          created_date:
+            item.assigned_date_ist || item.date || item.created_date_ist || "",
+        }));
+
+        return {
+          data: formattedData,
+          pagination: {
+            total: parseInt(finalTotal),
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: Math.ceil(finalTotal / limitNumber),
+          },
+        };
+      } else {
+        let query = `SELECT
+                    l.id,
+                    l.name,
+                    l.email,
+                    l.phone,
+                    l.primary_course_id,
+                    t.name AS course,
+                    l.comments,
+                    l.district AS location,
+                    '' AS date,
+                    '' AS time,
+                    '' AS training,
+                    '' AS corporate_training,
+                    ls.name AS status,
+                    0 AS is_junk,
+                    0 AS is_deleted,
+                    '' AS assigned_date_ist,
+                    lt.name AS lead_type,
+                    l.assigned_to,
+                    u.user_name AS assigned_to_user,
+                    l.user_id AS assigned_by,
+                    ab.user_name AS assigned_by_user,
+                    l.domain_origin
+                FROM
+                    lead_master AS l
+                LEFT JOIN technologies AS t ON
+                    l.primary_course_id = t.id
+                LEFT JOIN lead_status AS ls ON
+                    ls.id = l.lead_status_id
+                LEFT JOIN lead_type AS lt ON
+                    lt.id = l.lead_type_id
+                LEFT JOIN users AS u ON
+                    u.user_id = l.assigned_to
+                LEFT JOIN users AS ab ON
+                    ab.user_id = l.user_id
+                WHERE 1=1`;
+
+        let countQuery = `SELECT COUNT(l.id) AS total
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                      WHERE 1=1`;
+
+        const params = [];
+        const countQueryParams = [];
+
+        if (name) {
+          query += ` AND l.name LIKE ?`;
+          params.push(`%${name}%`);
+          countQuery += ` AND l.name LIKE ?`;
+          countQueryParams.push(`%${name}%`);
+        }
+
+        if (phone) {
+          query += ` AND l.phone LIKE ?`;
+          params.push(`%${phone}%`);
+          countQuery += ` AND l.phone LIKE ?`;
+          countQueryParams.push(`%${phone}%`);
+        }
+
+        if (email) {
+          query += ` AND l.email LIKE ?`;
+          params.push(`%${email}%`);
+          countQuery += ` AND l.email LIKE ?`;
+          countQueryParams.push(`%${email}%`);
+        }
+
+        if (course) {
+          query += ` AND t.name LIKE ?`;
+          params.push(`%${course}%`);
+          countQuery += ` AND t.name LIKE ?`;
+          countQueryParams.push(`%${course}%`);
+        }
+
+        if (user_ids) {
+          if (Array.isArray(user_ids) && user_ids.length > 0) {
+            const placeholders = user_ids.map(() => "?").join(", ");
+            query += ` AND (l.consigned_id IN (${placeholders}))`;
+            countQuery += ` AND (l.consigned_id IN (${placeholders}))`;
+            params.push(...user_ids);
+            countQueryParams.push(...user_ids);
+          }
+        }
+
+        query += ` ORDER BY l.created_date DESC LIMIT ? OFFSET ?`;
+        params.push(limitNumber, offset);
+
+        const [countResult] = await pool.query(countQuery, countQueryParams);
+        const total = countResult[0]?.total || 0;
+
+        const [rows] = await pool.query(query, params);
+
+        const formattedData = rows.map((item) => ({
+          ...item,
+          created_date: item.created_date_ist,
+        }));
+
+        return {
+          data: formattedData,
+          pagination: {
+            total: parseInt(total),
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: Math.ceil(total / limitNumber),
+          },
+        };
       }
-
-      const addCondition = (field, value) => {
-        getQuery += ` AND ${field} LIKE ?`;
-        countQuery += ` AND ${field} LIKE ?`;
-        queryParams.push(`%${value}%`);
-        countParams.push(`%${value}%`);
-      };
-
-      if (name) addCondition("l.name", name);
-      if (email) addCondition("l.email", email);
-      if (phone) addCondition("l.phone", phone);
-      if (course) addCondition("l.course", course);
-
-      if (start_date && end_date) {
-        getQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
-        countParams.push(start_date, end_date);
-      }
-
-      const pageNumber = parseInt(page, 10) || 1;
-      const limitNumber = parseInt(limit, 10) || 10;
-      const offset = (pageNumber - 1) * limitNumber;
-
-      getQuery += ` ORDER BY l.assigned_date DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
-
-      const [countResult] = await pool.query(countQuery, countParams);
-      const total = countResult[0]?.total || 0;
-
-      const [rows] = await pool.query(getQuery, queryParams);
-
-      const formattedData = rows.map((item) => ({
-        ...item,
-        created_date: item.created_date_ist,
-      }));
-
-      return {
-        data: formattedData,
-        pagination: {
-          total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
-        },
-      };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -3570,7 +3803,9 @@ const LeadModel = {
                         l.re_assigned_date,
                         l.is_reassigned,
                         l.assigned_manager,
-                        m.user_name AS assigned_manager_name,
+                        m.user_name AS assigned_regional_manager,
+                        l.branch_manager_id,
+                        bm.user_name AS assigned_branch_manager,
                         l.lead_sub_source,
                         lss.sub_category AS lead_sub_source_name,
                         l.referral_name,
@@ -3609,6 +3844,7 @@ const LeadModel = {
                     LEFT JOIN lead_action AS la ON
                     	la.id = luh.lead_action_id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
+                    LEFT JOIN users AS bm ON bm.user_id = l.branch_manager_id
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
@@ -4038,7 +4274,9 @@ const LeadModel = {
                         l.re_assigned_date,
                         l.is_reassigned,
                         l.assigned_manager,
-                        m.user_name AS assigned_manager_name,
+                        m.user_name AS assigned_regional_manager,
+                        l.branch_manager_id,
+                        bm.user_name AS assigned_branch_manager,
                         l.lead_sub_source,
                         lss.sub_category AS lead_sub_source_name,
                         l.referral_name,
@@ -4075,6 +4313,7 @@ const LeadModel = {
                     LEFT JOIN lead_action AS la ON
                     	la.id = lh.lead_action_id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
+                    LEFT JOIN users AS bm ON bm.user_id = l.branch_manager_id
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
                     LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
