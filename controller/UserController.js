@@ -179,9 +179,15 @@ const checkUserExists = async (request, response) => {
 };
 
 const getHRUsers = async (request, response) => {
-  const { name, user_id, role } = request.body;
+  const { name, user_id, role, branch_id, region_id } = request.body;
   try {
-    const result = await userModel.getHRUsers(name, user_id, role);
+    const result = await userModel.getHRUsers(
+      name,
+      user_id,
+      role,
+      branch_id,
+      region_id,
+    );
     response.status(200).json({
       message: "Data fetched successfully",
       data: result,

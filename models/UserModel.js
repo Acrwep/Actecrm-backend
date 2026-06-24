@@ -590,15 +590,23 @@ const UserModel = {
     }
   },
 
-  getHRUsers: async (name, user_id, role) => {
+  getHRUsers: async (name, user_id, role, branch_id, region_id) => {
     try {
       const queryParams = [];
       let query = `SELECT
                       u.id,
                       u.user_name,
-                      u.user_id
+                      u.user_id,
+                      u.branch_id,
+                      b.name AS branch_name,
+                      b.region_id,
+                      r.name AS region_name
                   FROM
                       users AS u
+                  LEFT JOIN branches AS b ON
+                  	u.branch_id = b.id
+                  LEFT JOIN region AS r ON
+                  	r.id = b.region_id
                   WHERE
                       u.is_active = 1`;
 
@@ -617,6 +625,16 @@ const UserModel = {
         queryParams.push(`%${role}%`);
       }
 
+      if (branch_id) {
+        query += ` AND u.branch_id = ?`;
+        queryParams.push(branch_id);
+      }
+
+      if (region_id) {
+        query += ` AND r.id = ?`;
+        queryParams.push(region_id);
+      }
+
       query += ` ORDER BY u.user_name ASC`;
 
       const [users] = await pool.query(query, queryParams);
@@ -627,8 +645,10 @@ const UserModel = {
           user_id: user.user_id,
           user_name: user.user_name,
           role_name: role || "User",
-          manager_id: user.manager_id,
-          manager_name: user.manager_name,
+          branch_id: user.branch_id,
+          branch_name: user.branch_name,
+          region_id: user.region_id,
+          region_name: user.region_name,
         };
       });
 
