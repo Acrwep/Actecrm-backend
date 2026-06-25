@@ -2216,7 +2216,8 @@ const LeadModel = {
                         r.id AS region_id,
                         lh.lead_history_id,
                         lh.lead_action_id,
-                        lh.lead_action_name
+                        lh.lead_action_name,
+                        l.domain_origin
                     FROM
                         lead_master AS l
                     LEFT JOIN users AS u ON u.user_id = l.user_id
@@ -2851,6 +2852,7 @@ const LeadModel = {
     region_type,
     page,
     limit,
+    bucket,
   ) => {
     try {
       const queryParams = [];
@@ -2859,155 +2861,178 @@ const LeadModel = {
       // MUST convert to IST for correct filtering
       const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
 
-      let baseCondition = `
-      is_junk = 0 
-      AND is_deleted = 0 
-      AND (assigned_to IS NULL OR assigned_to = '')
-    `;
+      // Removed if (bucket != "Trash") { to handle all buckets
+        let baseCondition = `
+          is_deleted = 0 
+          AND (assigned_to IS NULL OR assigned_to = '')
+        `;
 
-      let getQuery = `
-      SELECT 
-        ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
-        id, name, email, phone, course, comments, IFNULL(location, '') AS location, date, time,
-        training, corporate_training, status, is_junk, is_deleted,
-        ${dateColumn} AS created_date_ist,
-        lead_type, assigned_to, domain_origin, is_google_add
-      FROM website_leads
-      WHERE ${baseCondition}
-    `;
+        let filterCondition = baseCondition + (bucket === "Trash" ? " AND is_junk = 1" : " AND is_junk = 0");
 
-      let countQuery = `
-      SELECT COUNT(*) AS total
-      FROM website_leads
-      WHERE ${baseCondition}
-    `;
+        let getQuery = `
+              SELECT 
+                ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
+                id, name, email, phone, course, comments, IFNULL(location, '') AS location, date, time,
+                training, corporate_training, status, is_junk, is_deleted,
+                ${dateColumn} AS created_date_ist,
+                lead_type, assigned_to, domain_origin, is_google_add
+              FROM website_leads
+              WHERE ${filterCondition}
+            `;
 
-      const addCondition = (field, value) => {
-        getQuery += ` AND ${field} LIKE ?`;
-        countQuery += ` AND ${field} LIKE ?`;
-        queryParams.push(`%${value}%`);
-        countParams.push(`%${value}%`);
-      };
+        let countQuery = `
+              SELECT COUNT(*) AS total
+              FROM website_leads
+              WHERE ${filterCondition}
+            `;
 
-      if (name) addCondition("name", name);
-      if (email) addCondition("email", email);
-      if (phone) addCondition("phone", phone);
-      if (course) addCondition("course", course);
+        let bucketCountQuery = `
+              SELECT 
+                SUM(CASE WHEN is_junk = 0 THEN 1 ELSE 0 END) AS live_leads,
+                SUM(CASE WHEN is_junk = 1 THEN 1 ELSE 0 END) AS trash_leads
+              FROM website_leads
+              WHERE ${baseCondition}
+            `;
 
-      if (start_date && end_date) {
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
-        countParams.push(start_date, end_date);
-      }
+        const addCondition = (field, value) => {
+          getQuery += ` AND ${field} LIKE ?`;
+          countQuery += ` AND ${field} LIKE ?`;
+          bucketCountQuery += ` AND ${field} LIKE ?`;
+          queryParams.push(`%${value}%`);
+          countParams.push(`%${value}%`);
+        };
 
-      let prefix;
-      if (region_type) {
-        const match = region_type.match(/^[A-Za-z]+/);
-        prefix = match ? match[0] : "";
-      }
+        if (name) addCondition("name", name);
+        if (email) addCondition("email", email);
+        if (phone) addCondition("phone", phone);
+        if (course) addCondition("course", course);
 
-      // const courseFilter = `
-      //                     (
-      //                       LOWER(course) LIKE '%data analytics%'
-      //                       OR LOWER(course) LIKE 'data science'
-      //                       OR LOWER(course) LIKE '%fullstack developer%'
-      //                       OR LOWER(course) LIKE '%software testing%'
-      //                       OR LOWER(course) LIKE '%cloud computing%'
-      //                       OR LOWER(course) LIKE '%digital marketing%'
-      //                       OR LOWER(course) LIKE '%machine learning%'
-      //                       OR LOWER(course) LIKE '%gen ai%'
-      //                       OR LOWER(course) LIKE '%sap fico%'
-      //                       OR LOWER(course) LIKE '%sap mm%'
-      //                     )`;
+        if (start_date && end_date) {
+          getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          bucketCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          countParams.push(start_date, end_date);
+        }
 
-      // if (prefix === "HUB") {
-      //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+        let prefix;
+        if (region_type) {
+          const match = region_type.match(/^[A-Za-z]+/);
+          prefix = match ? match[0] : "";
+        }
 
-      //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-      // }
+        // const courseFilter = `
+        //                     (
+        //                       LOWER(course) LIKE '%data analytics%'
+        //                       OR LOWER(course) LIKE 'data science'
+        //                       OR LOWER(course) LIKE '%fullstack developer%'
+        //                       OR LOWER(course) LIKE '%software testing%'
+        //                       OR LOWER(course) LIKE '%cloud computing%'
+        //                       OR LOWER(course) LIKE '%digital marketing%'
+        //                       OR LOWER(course) LIKE '%machine learning%'
+        //                       OR LOWER(course) LIKE '%gen ai%'
+        //                       OR LOWER(course) LIKE '%sap fico%'
+        //                       OR LOWER(course) LIKE '%sap mm%'
+        //                     )`;
 
-      // if (prefix === "BNG" || prefix === "CHN") {
-      //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      // }
+        // if (prefix === "HUB") {
+        //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
 
-      if (prefix === "HUB") {
-        getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
+        //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
+        // }
 
-        countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
-      }
+        // if (prefix === "BNG" || prefix === "CHN") {
+        //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+        //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
+        // }
 
-      if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += `AND LOWER(training) LIKE '%class%'`;
-        countQuery += `AND LOWER(training) LIKE '%class%'`;
-      }
+        if (prefix === "HUB") {
+          getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
 
-      if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
-        countQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
-      }
+          countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
+          bucketCountQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
+        }
 
-      if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND LOWER(training) LIKE '%class%'`;
-        countQuery += ` AND LOWER(training) LIKE '%class%'`;
-      }
+        if (prefix === "BNG" || prefix === "CHN") {
+          getQuery += `AND LOWER(training) LIKE '%class%'`;
+          countQuery += `AND LOWER(training) LIKE '%class%'`;
+          bucketCountQuery += ` AND LOWER(training) LIKE '%class%'`;
+        }
 
-      const pageNumber = parseInt(page, 10) || 1;
-      const limitNumber = parseInt(limit, 10) || 10;
-      const offset = (pageNumber - 1) * limitNumber;
+        if (prefix !== "" && prefix === "HUB") {
+          getQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
+          countQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
+          bucketCountQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
+        }
 
-      getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
+        if (prefix === "BNG" || prefix === "CHN") {
+          getQuery += ` AND LOWER(training) LIKE '%class%'`;
+          countQuery += ` AND LOWER(training) LIKE '%class%'`;
+          bucketCountQuery += ` AND LOWER(training) LIKE '%class%'`;
+        }
 
-      const [countResult] = await pool.query(countQuery, countParams);
-      const total = countResult[0]?.total || 0;
+        const pageNumber = parseInt(page, 10) || 1;
+        const limitNumber = parseInt(limit, 10) || 10;
+        const offset = (pageNumber - 1) * limitNumber;
 
-      const [rows] = await pool.query(getQuery, queryParams);
+        getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
 
-      const formattedData = rows.map((item) => ({
-        ...item,
-        created_date: item.created_date_ist,
-      }));
+        const [countResult] = await pool.query(countQuery, countParams);
+        const total = countResult[0]?.total || 0;
 
-      const today = new Date().toISOString().split("T")[0];
-      console.log("today", today);
+        const [bucketCountResult] = await pool.query(bucketCountQuery, countParams);
+        const live_leads = bucketCountResult[0]?.live_leads || 0;
+        const trash_leads = bucketCountResult[0]?.trash_leads || 0;
 
-      const [getLeadCount] = await pool.query(
-        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
-        [today],
-      );
+        const [rows] = await pool.query(getQuery, queryParams);
 
-      const [getAcquiredLeadCount] = await pool.query(
-        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE assigned_to IS NOT NULL AND DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
-        [today],
-      );
+        const formattedData = rows.map((item) => ({
+          ...item,
+          created_date: item.created_date_ist,
+        }));
 
-      let onlineCount = 0;
-      let classroomCount = 0;
-      let corporateCount = 0;
-      let totalCount = 0;
+        const today = new Date().toISOString().split("T")[0];
 
-      onlineCount = `${getAcquiredLeadCount[0].online_count} / ${getLeadCount[0].online_count}`;
-      classroomCount = `${getAcquiredLeadCount[0].classroom_count} / ${getLeadCount[0].classroom_count}`;
-      corporateCount = `${getAcquiredLeadCount[0].corporate_count} / ${getLeadCount[0].corporate_count}`;
-      totalCount = `${getAcquiredLeadCount[0].total} / ${getLeadCount[0].total}`;
+        const [getLeadCount] = await pool.query(
+          `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+          [today],
+        );
 
-      return {
-        data: formattedData,
-        lead_count: {
-          online_count: onlineCount,
-          classroom_count: classroomCount,
-          corporate_count: corporateCount,
-          total_count: totalCount,
-        },
-        pagination: {
-          total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
-        },
-      };
+        const [getAcquiredLeadCount] = await pool.query(
+          `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE assigned_to IS NOT NULL AND DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+          [today],
+        );
+
+        let onlineCount = 0;
+        let classroomCount = 0;
+        let corporateCount = 0;
+        let totalCount = 0;
+
+        onlineCount = `${getAcquiredLeadCount[0].online_count} / ${getLeadCount[0].online_count}`;
+        classroomCount = `${getAcquiredLeadCount[0].classroom_count} / ${getLeadCount[0].classroom_count}`;
+        corporateCount = `${getAcquiredLeadCount[0].corporate_count} / ${getLeadCount[0].corporate_count}`;
+        totalCount = `${getAcquiredLeadCount[0].total} / ${getLeadCount[0].total}`;
+
+        return {
+          data: formattedData,
+          lead_count: {
+            online_count: onlineCount,
+            classroom_count: classroomCount,
+            corporate_count: corporateCount,
+            total_count: totalCount,
+          },
+          bucket: {
+            live_leads: parseInt(live_leads),
+            trash_leads: parseInt(trash_leads)
+          },
+          pagination: {
+            total: parseInt(total),
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: Math.ceil(total / limitNumber),
+          },
+        };
     } catch (error) {
       throw new Error(error.message);
     }
@@ -3765,19 +3790,35 @@ const LeadModel = {
             affectedRows += next_follow_up.affectedRows;
           }
 
-          totalAffectedRows += affectedRows;
+          affectedRows += affectedRows;
         } else {
+          const [getLead] = await pool.query(
+            `SELECT id, user_id, consigned_id FROM lead_master WHERE id = ?`,
+            [lead_id],
+          );
+
+          let consignedId =
+            getLead[0].consigned_id != null
+              ? getLead[0].consigned_id
+              : getLead[0].user_id;
+
           if (is_branch_changed === 0) {
-            const [result] = pool.query(
-              `UPDATE lead_master SET assigned_to = ?, is_acknowledged = 0 WHERE id = ?`,
-              [assigned_to, lead_id],
+            const [result] = await pool.query(
+              `UPDATE lead_master SET consigned_id = ?, assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ? WHERE id = ?`,
+              [consignedId, assigned_to, assign_date, lead_id],
             );
 
             affectedRows += result.affectedRows;
           } else {
-            const [result] = pool.query(
-              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0 WHERE id = ?`,
-              [assigned_manager, branch_manager_id, lead_id],
+            const [result] = await pool.query(
+              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, consigned_id = ?, is_reassigned = 1, re_assigned_date = ? WHERE id = ?`,
+              [
+                assigned_manager,
+                branch_manager_id,
+                consignedId,
+                assign_date,
+                lead_id,
+              ],
             );
 
             affectedRows += result.affectedRows;

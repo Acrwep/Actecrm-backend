@@ -833,6 +833,7 @@ const getWebsiteLead = async (request, response) => {
     region_type,
     page,
     limit,
+    bucket,
   } = request.body;
   try {
     const result = await LeadModel.getWebsiteLead(
@@ -845,6 +846,7 @@ const getWebsiteLead = async (request, response) => {
       region_type,
       page,
       limit,
+      bucket
     );
     return response.status(200).send({
       message: "Website leads fetched successfully",
