@@ -3690,82 +3690,102 @@ const LeadModel = {
     updated_by,
     next_followup_time,
     today_followup_date,
+    is_branch_changed,
+    assigned_manager,
+    branch_manager_id,
   ) => {
     try {
-      let totalAffectedRows = 0;
+      let affectedRows = 0;
       const ids = Array.isArray(lead_ids) ? lead_ids : [lead_ids];
 
       for (const lead_id of ids) {
-        let affectedRows = 0;
         const [isExists] = await pool.query(
-          `SELECT id FROM lead_master WHERE id = ?`,
+          `SELECT id, assigned_to FROM lead_master WHERE id = ?`,
           [lead_id],
         );
 
         if (isExists.length <= 0) continue;
 
-        let query = `UPDATE lead_master SET re_assigned_date = ?, is_reassigned = 1, assigned_to = ?`;
-        const params = [assign_date, assigned_to];
+        if (is_branch_changed === null) {
+          let query = `UPDATE lead_master SET re_assigned_date = ?, is_reassigned = 1, assigned_to = ?`;
+          const params = [assign_date, assigned_to];
 
-        if (next_follow_up_date) {
-          query += `, next_follow_up_date = ?`;
-          params.push(next_follow_up_date);
-        }
-
-        query += ` WHERE id = ?`;
-        params.push(lead_id);
-
-        const [result] = await pool.query(query, params);
-
-        affectedRows += result.affectedRows;
-
-        if (next_follow_up_date) {
-          const [getFollowup] = await pool.query(
-            `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
-            [lead_id],
-          );
-
-          const [getLeadAction] = await pool.query(
-            `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
-          );
-
-          if (getFollowup.length > 0) {
-            const [updateFollowUp] = await pool.query(
-              `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1, lead_action_id = ? WHERE id = ?`,
-              [
-                updated_by,
-                "Lead re-entry",
-                assign_date,
-                getLeadAction[0].id,
-                getFollowup[0].id,
-              ],
-            );
-
-            affectedRows += updateFollowUp.affectedRows;
+          if (next_follow_up_date) {
+            query += `, next_follow_up_date = ?`;
+            params.push(next_follow_up_date);
           }
 
-          const [next_follow_up] = await pool.query(
-            `INSERT INTO lead_follow_up_history(
+          query += ` WHERE id = ?`;
+          params.push(lead_id);
+
+          const [result] = await pool.query(query, params);
+
+          affectedRows += result.affectedRows;
+
+          if (next_follow_up_date) {
+            const [getFollowup] = await pool.query(
+              `SELECT id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id DESC LIMIT 1`,
+              [lead_id],
+            );
+
+            const [getLeadAction] = await pool.query(
+              `SELECT id, name FROM lead_action WHERE name = 'Highly Interested' AND is_active = 1`,
+            );
+
+            if (getFollowup.length > 0) {
+              const [updateFollowUp] = await pool.query(
+                `UPDATE lead_follow_up_history SET updated_by = ?, comments = ?, updated_date = ?, is_updated = 1, lead_action_id = ? WHERE id = ?`,
+                [
+                  updated_by,
+                  "Lead re-entry",
+                  assign_date,
+                  getLeadAction[0].id,
+                  getFollowup[0].id,
+                ],
+              );
+
+              affectedRows += updateFollowUp.affectedRows;
+            }
+
+            const [next_follow_up] = await pool.query(
+              `INSERT INTO lead_follow_up_history(
               lead_id,
               next_follow_up_date,
               next_followup_time,
               today_followup_date
           )
           VALUES(?, ?, ?, ?)`,
-            [
-              lead_id,
-              next_follow_up_date,
-              next_followup_time,
-              today_followup_date,
-            ],
-          );
-          affectedRows += next_follow_up.affectedRows;
-        }
+              [
+                lead_id,
+                next_follow_up_date,
+                next_followup_time,
+                today_followup_date,
+              ],
+            );
+            affectedRows += next_follow_up.affectedRows;
+          }
 
-        totalAffectedRows += affectedRows;
+          totalAffectedRows += affectedRows;
+        } else {
+          if (is_branch_changed === 0) {
+            const [result] = pool.query(
+              `UPDATE lead_master SET assigned_to = ?, is_acknowledged = 0 WHERE id = ?`,
+              [assigned_to, lead_id],
+            );
+
+            affectedRows += result.affectedRows;
+          } else {
+            const [result] = pool.query(
+              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0 WHERE id = ?`,
+              [assigned_manager, branch_manager_id, lead_id],
+            );
+
+            affectedRows += result.affectedRows;
+          }
+        }
       }
 
-      return totalAffectedRows;
+      return affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
