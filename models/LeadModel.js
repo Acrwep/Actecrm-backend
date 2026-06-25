@@ -3431,7 +3431,8 @@ const LeadModel = {
                         ab.user_id AS assigned_by,
                         ab.user_name AS assigned_by_user,
                         l.domain_origin,
-                        1 AS lead_entry_type
+                        1 AS lead_entry_type,
+                        1 AS is_acknowledged
                     FROM
                         website_leads AS l
                     LEFT JOIN users AS u ON
@@ -3469,7 +3470,8 @@ const LeadModel = {
                     l.user_id AS assigned_by,
                     ab.user_name AS assigned_by_user,
                     l.domain_origin,
-                    0 AS lead_entry_type
+                    0 AS lead_entry_type,
+                    is_acknowledged
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3574,7 +3576,7 @@ const LeadModel = {
                     ls.name AS status,
                     0 AS is_junk,
                     0 AS is_deleted,
-                    l.reassigned_date AS assigned_date_ist,
+                    l.re_assigned_date AS assigned_date_ist,
                     lt.name AS lead_type,
                     l.assigned_to,
                     u.user_name AS assigned_to_user,
