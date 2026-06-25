@@ -3471,7 +3471,7 @@ const LeadModel = {
                     ab.user_name AS assigned_by_user,
                     l.domain_origin,
                     0 AS lead_entry_type,
-                    is_acknowledged
+                    l.is_acknowledged
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
