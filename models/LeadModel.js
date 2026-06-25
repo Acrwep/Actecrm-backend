@@ -3574,7 +3574,7 @@ const LeadModel = {
                     ls.name AS status,
                     0 AS is_junk,
                     0 AS is_deleted,
-                    reassigned_date AS assigned_date_ist,
+                    l.reassigned_date AS assigned_date_ist,
                     lt.name AS lead_type,
                     l.assigned_to,
                     u.user_name AS assigned_to_user,
