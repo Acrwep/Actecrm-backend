@@ -139,6 +139,7 @@ const insertLead = async (request, response) => {
     response_status,
     consigned_id,
     assigned_to,
+    assigned_branch_id,
   } = request.body;
   try {
     const result = await LeadModel.insertLead(
@@ -186,6 +187,7 @@ const insertLead = async (request, response) => {
       response_status,
       consigned_id,
       assigned_to,
+      assigned_branch_id,
     );
     return response.status(201).send({
       message: "Lead added successfully",
@@ -846,7 +848,7 @@ const getWebsiteLead = async (request, response) => {
       region_type,
       page,
       limit,
-      bucket
+      bucket,
     );
     return response.status(200).send({
       message: "Website leads fetched successfully",
@@ -1038,6 +1040,7 @@ const leadReEntry = async (request, response) => {
     is_branch_changed,
     assigned_manager,
     branch_manager_id,
+    assigned_branch_id,
   } = request.body;
   try {
     const result = await LeadModel.leadReEntry(
@@ -1051,6 +1054,7 @@ const leadReEntry = async (request, response) => {
       is_branch_changed,
       assigned_manager,
       branch_manager_id,
+      assigned_branch_id,
     );
     return response.status(200).send({
       message: "Lead updated successfully",

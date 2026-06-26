@@ -121,6 +121,7 @@ const LeadModel = {
     response_status,
     consigned_id,
     assigned_to,
+    assigned_branch_id,
   ) => {
     try {
       if (is_reentry === false) {
@@ -202,9 +203,10 @@ const LeadModel = {
                             lead_score,
                             consigned_id,
                             is_reassigned,
-                            re_assigned_date
+                            re_assigned_date,
+                            assigned_branch_id
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         assigned_to,
@@ -243,6 +245,7 @@ const LeadModel = {
         consigned_id,
         consigned_id != null ? 1 : 0,
         consigned_id != null ? created_date : null,
+        assigned_branch_id,
       ];
 
       // Insert into lead master table
@@ -3458,7 +3461,8 @@ const LeadModel = {
                         ab.user_name AS assigned_by_user,
                         l.domain_origin,
                         1 AS lead_entry_type,
-                        1 AS is_acknowledged
+                        1 AS is_acknowledged,
+                        '' AS assigned_branch_name
                     FROM
                         website_leads AS l
                     LEFT JOIN users AS u ON
@@ -3497,7 +3501,8 @@ const LeadModel = {
                     ab.user_name AS assigned_by_user,
                     l.domain_origin,
                     0 AS lead_entry_type,
-                    l.is_acknowledged
+                    l.is_acknowledged,
+                    b.name AS assigned_branch_name
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3510,6 +3515,8 @@ const LeadModel = {
                     u.user_id = l.assigned_to
                 LEFT JOIN users AS ab ON
                     ab.user_id = l.user_id
+                LEFT JOIN branches AS b ON 
+                    b.id = l.assigned_branch_id
                 WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1`;
 
         const params = [];
@@ -3719,6 +3726,7 @@ const LeadModel = {
     is_branch_changed,
     assigned_manager,
     branch_manager_id,
+    assigned_branch_id,
   ) => {
     try {
       let affectedRows = 0;
@@ -3805,19 +3813,26 @@ const LeadModel = {
 
           if (is_branch_changed === 0) {
             const [result] = await pool.query(
-              `UPDATE lead_master SET consigned_id = ?, assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ? WHERE id = ?`,
-              [consignedId, assigned_to, assign_date, lead_id],
+              `UPDATE lead_master SET consigned_id = ?, assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
+              [
+                consignedId,
+                assigned_to,
+                assign_date,
+                assigned_branch_id,
+                lead_id,
+              ],
             );
 
             affectedRows += result.affectedRows;
           } else {
             const [result] = await pool.query(
-              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, consigned_id = ?, is_reassigned = 1, re_assigned_date = ? WHERE id = ?`,
+              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, consigned_id = ?, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
               [
                 assigned_manager,
                 branch_manager_id,
                 consignedId,
                 assign_date,
+                assigned_branch_id,
                 lead_id,
               ],
             );
@@ -3936,10 +3951,10 @@ const LeadModel = {
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
                     )
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
                     )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
@@ -3962,10 +3977,10 @@ const LeadModel = {
                     LEFT JOIN customers AS c ON
                       c.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
                     )
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
+                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
                     )
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
@@ -4039,10 +4054,10 @@ const LeadModel = {
         FROM lead_master AS l
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-          SELECT id FROM lead_follow_up_history WHERE lead_id = l.id ORDER BY id DESC LIMIT 1
+          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
         )
         LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-          SELECT id FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1 ORDER BY id DESC LIMIT 1
+          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
         )
         LEFT JOIN communication_master AS cm ON
           luh.communication_status = cm.id
