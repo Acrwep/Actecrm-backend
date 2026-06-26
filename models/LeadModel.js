@@ -4408,7 +4408,9 @@ const LeadModel = {
                         lh.communication_status AS communication_status_id,
                         cm.name AS communication_status_name,
                         lh.contact_mode AS contact_mode_id,
-                        cm1.name AS contact_mode_name
+                        cm1.name AS contact_mode_name,
+                        l.assigned_branch_id,
+                        ab.name AS assigned_branch_name
                     FROM
                         lead_master AS l
                     LEFT JOIN users AS u ON u.user_id = l.user_id
@@ -4422,6 +4424,7 @@ const LeadModel = {
                     LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
+                    LEFT JOIN branches AS ab ON ab.id = l.assigned_branch_id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
                       SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
                     )
@@ -4554,7 +4557,10 @@ async function getLeadScore(lead_id) {
 
     const record = result[0];
 
-    if (record.communication_status_name && record.communication_status_name !== "Not Communicated") {
+    if (
+      record.communication_status_name &&
+      record.communication_status_name !== "Not Communicated"
+    ) {
       contactConnected = 10;
     }
 
