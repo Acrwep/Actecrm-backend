@@ -4517,8 +4517,8 @@ async function getLeadScore(lead_id) {
   try {
     const [result] = await pool.query(
       `SELECT
-          lh.id,
-          lh.lead_id,
+          lm.id AS lead_id,
+          lh.id AS history_id,
           lh.comments,
           lm.counsel,
           lm.expected_join_date,
@@ -4526,9 +4526,10 @@ async function getLeadScore(lead_id) {
           cm.name AS contact_mode_name,
           la.name AS lead_action_name
       FROM
-          lead_follow_up_history AS lh
-      LEFT JOIN lead_master AS lm ON
-        lm.id = lh.lead_id
+          lead_master AS lm
+      LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
+          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = lm.id
+      )
       LEFT JOIN communication_master AS cs ON
         cs.id = lh.communication_status
       LEFT JOIN contact_mode AS cm ON
@@ -4536,13 +4537,13 @@ async function getLeadScore(lead_id) {
       LEFT JOIN lead_action AS la ON
         la.id = lh.lead_action_id
       WHERE
-          lh.lead_id = ?
-      ORDER BY
-          lh.id
-      DESC
-      LIMIT 1`,
+          lm.id = ?`,
       [lead_id],
     );
+
+    if (!result || result.length === 0) {
+      return 0;
+    }
 
     let contactConnected = 0;
     let interested = 0;
@@ -4551,30 +4552,32 @@ async function getLeadScore(lead_id) {
     let joinThisMonth = 0;
     let leadScore = 0;
 
-    if (result[0].communication_status_name != "Not Communicated") {
+    const record = result[0];
+
+    if (record.communication_status_name && record.communication_status_name !== "Not Communicated") {
       contactConnected = 10;
     }
 
     if (
-      result[0].lead_action_name === "Interested" ||
-      result[0].lead_action_name === "Highly Interested"
+      record.lead_action_name === "Interested" ||
+      record.lead_action_name === "Highly Interested"
     ) {
       interested = 20;
     }
 
-    if (result[0].counsel === "Given") {
+    if (record.counsel === "Given") {
       demoAttended = 20;
     }
 
     if (
-      result[0].lead_action_name !== "Lead Lost" ||
-      result[0].lead_action_name !== "Service Not Available"
+      record.lead_action_name !== "Lead Lost" &&
+      record.lead_action_name !== "Service Not Available"
     ) {
       budgetDiscussed = 20;
     }
 
-    if (result[0].expected_join_date) {
-      const expectedJoinDate = new Date(result[0].expected_join_date);
+    if (record.expected_join_date) {
+      const expectedJoinDate = new Date(record.expected_join_date);
       const currentDate = new Date();
 
       if (
