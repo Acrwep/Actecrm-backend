@@ -144,15 +144,17 @@ const UserModel = {
     }
   },
 
-  getUsers: async (user_id, user_name, page, limit) => {
+  getUsers: async (user_id, user_name, include_profile_image, page, limit) => {
     try {
       const params = [];
+      const profileImageQuery = include_profile_image ? "u.profile_image," : "";
+
       let getQuery = `SELECT
                         u.id,
                         u.user_id,
                         u.user_name,
                         u.phone,
-                        u.profile_image,
+                      ${profileImageQuery}
                         u.password,
                         u.child_users,
                         u.roles,
@@ -199,8 +201,12 @@ const UserModel = {
       const [users] = await pool.query(getQuery, params);
 
       // Get all users
+      const allUsersProfileImageQuery = include_profile_image
+        ? "profile_image,"
+        : "";
+
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name, phone, profile_image, last_login_date FROM users WHERE is_active = 1`,
+        `SELECT id, user_id, user_name, phone, ${allUsersProfileImageQuery} last_login_date FROM users WHERE is_active = 1`,
       );
 
       const formattedResult = await Promise.all(
