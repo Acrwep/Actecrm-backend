@@ -1329,6 +1329,7 @@ const LeadModel = {
     next_follow_up_time,
     response_status,
   ) => {
+    console.log("today_followup_date", today_followup_date);
     try {
       let affectedRows = 0;
 
@@ -1364,7 +1365,7 @@ const LeadModel = {
         [lead_id],
       );
 
-      const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
+      // const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
       // const leadTemperatureDate = getNextFollowUpDate(
       //   getLeadStatus.name,
       //   updated_date,
@@ -1381,8 +1382,8 @@ const LeadModel = {
         affectedRows += insert_follow_up.affectedRows;
 
         const [update_lead_master] = await pool.query(
-          `UPDATE lead_master SET next_follow_up_date = ?, lead_status_id = ?, comments = ? WHERE id = ?`,
-          [next_follow_up_date, getLeadStatus.id, comments, lead_id],
+          `UPDATE lead_master SET next_follow_up_date = ?, comments = ? WHERE id = ?`, // removed lead_status_id
+          [next_follow_up_date, comments, lead_id],
         );
 
         affectedRows += update_lead_master.affectedRows;
