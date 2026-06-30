@@ -144,9 +144,18 @@ const UserModel = {
     }
   },
 
-  getUsers: async (user_id, user_name, include_profile_image, page, limit) => {
+  getUsers: async (
+    user_id,
+    user_name,
+    include_profile_image,
+    page,
+    limit,
+    region_id,
+    branch_id,
+  ) => {
     try {
       const params = [];
+      const countParams = [];
       const profileImageQuery = include_profile_image ? "u.profile_image," : "";
 
       let getQuery = `SELECT
@@ -175,17 +184,41 @@ const UserModel = {
                     WHERE
                         u.is_active = 1`;
 
-      let countQuery = `SELECT COUNT(id) AS total FROM users WHERE is_active = 1`;
+      let countQuery = `SELECT 
+                        COUNT(u.id) AS total
+                    FROM
+                        users AS u
+                    LEFT JOIN branches AS b ON
+                    	b.id = u.branch_id
+                        AND b.is_active = 1
+                    LEFT JOIN region AS r ON
+                    	r.id = b.region_id
+                        AND r.is_active = 1
+                    WHERE
+                        u.is_active = 1`;
       if (user_id) {
         getQuery += ` AND u.user_id LIKE '%${user_id}%'`;
-        countQuery += ` AND user_id LIKE '%${user_id}%'`;
+        countQuery += ` AND u.user_id LIKE '%${user_id}%'`;
       }
       if (user_name) {
         getQuery += ` AND u.user_name LIKE '%${user_name}%'`;
-        countQuery += ` AND user_name LIKE '%${user_name}%'`;
+        countQuery += ` AND u.user_name LIKE '%${user_name}%'`;
       }
 
-      const [countResult] = await pool.query(countQuery);
+      if (region_id) {
+        getQuery += ` AND r.id = ?`;
+        countQuery += ` AND r.id = ?`;
+        params.push(region_id);
+        countParams.push(region_id);
+      }
+      if (branch_id) {
+        getQuery += ` AND b.id = ?`;
+        countQuery += ` AND b.id = ?`;
+        params.push(branch_id);
+        countParams.push(branch_id);
+      }
+
+      const [countResult] = await pool.query(countQuery, countParams);
       const total = countResult[0].total || 0;
 
       // Apply pagination

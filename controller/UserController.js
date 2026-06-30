@@ -56,6 +56,8 @@ const getUsers = async (request, response) => {
     include_profile_image = false,
     page,
     limit,
+    region_id,
+    branch_id,
   } = request.body;
 
   try {
@@ -65,6 +67,8 @@ const getUsers = async (request, response) => {
       include_profile_image,
       page,
       limit,
+      region_id,
+      branch_id,
     );
 
     response.status(200).json({

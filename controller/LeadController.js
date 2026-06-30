@@ -863,9 +863,14 @@ const getWebsiteLead = async (request, response) => {
 };
 
 const updateJunkValue = async (request, response) => {
-  const { lead_ids, is_junk, reason } = request.body;
+  const { lead_ids, is_junk, reason, junk_by } = request.body;
   try {
-    const result = await LeadModel.updateJunkValue(lead_ids, is_junk, reason);
+    const result = await LeadModel.updateJunkValue(
+      lead_ids,
+      is_junk,
+      reason,
+      junk_by,
+    );
     // Emit real-time update
     const updatedCount = await LeadModel.getWebsiteLeadCount();
     SocketService.emitLeadUpdate({ lead_count: updatedCount });

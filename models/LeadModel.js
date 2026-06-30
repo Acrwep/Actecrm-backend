@@ -123,10 +123,13 @@ const LeadModel = {
     assigned_to,
     assigned_branch_id,
   ) => {
+    const connection = await pool.getConnection();
     try {
+      await connection.beginTransaction();
+
       if (is_reentry === false) {
         if (is_manager === true) {
-          const [isLeadExists] = await pool.query(
+          const [isLeadExists] = await connection.query(
             `SELECT id FROM lead_master WHERE (phone = ? AND primary_course_id = ?) OR (email = ? AND primary_course_id = ?)`,
             [phone, primary_course_id, email, primary_course_id],
           );
@@ -135,7 +138,7 @@ const LeadModel = {
               "The customer has already been registered with this email and mobile number.",
             );
         } else {
-          const [isLeadExists] = await pool.query(
+          const [isLeadExists] = await connection.query(
             `SELECT id FROM lead_master WHERE phone = ? OR email = ?`,
             [phone, email],
           );
@@ -249,7 +252,7 @@ const LeadModel = {
       ];
 
       // Insert into lead master table
-      const [result] = await pool.query(insertQuery, values);
+      const [result] = await connection.query(insertQuery, values);
 
       affectedRows += result.affectedRows;
 
@@ -259,7 +262,7 @@ const LeadModel = {
       if (communication_status) {
         if (next_follow_up_date) {
           // Insert lead follow up history
-          const [history] = await pool.query(
+          const [history] = await connection.query(
             `INSERT INTO lead_follow_up_history(
             lead_id,
             lead_action_id,
@@ -289,7 +292,7 @@ const LeadModel = {
 
           affectedRows += history.affectedRows;
 
-          const [next_follow_up] = await pool.query(
+          const [next_follow_up] = await connection.query(
             `INSERT INTO lead_follow_up_history(
             lead_id,
             next_follow_up_date,
@@ -308,7 +311,7 @@ const LeadModel = {
           affectedRows += next_follow_up.affectedRows;
         }
 
-        const [getLeadScore] = await pool.query(
+        const [getLeadScore] = await connection.query(
           `SELECT
             lf.id,
             lf.lead_id,
@@ -335,7 +338,7 @@ const LeadModel = {
           [result.insertId],
         );
 
-        await pool.query(
+        await connection.query(
           `INSERT INTO lead_score_master(
             lead_id,
             contact_connected,
@@ -361,9 +364,13 @@ const LeadModel = {
         );
       }
 
+      await connection.commit();
       return result.insertId;
     } catch (error) {
+      await connection.rollback();
       throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 
@@ -2863,40 +2870,60 @@ const LeadModel = {
       const countParams = [];
 
       // MUST convert to IST for correct filtering
-      const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
+      const dateColumn = "CONVERT_TZ(wl.created_date, '+00:00', '+05:30')";
 
       // Removed if (bucket != "Trash") { to handle all buckets
       let baseCondition = `
-          is_deleted = 0 
-          AND (assigned_to IS NULL OR assigned_to = '')
+          wl.is_deleted = 0 
+          AND (wl.assigned_to IS NULL OR wl.assigned_to = '')
         `;
 
       let filterCondition =
         baseCondition +
-        (bucket === "Trash" ? " AND is_junk = 1" : " AND is_junk = 0");
+        (bucket === "Trash" ? " AND wl.is_junk = 1" : " AND wl.is_junk = 0");
 
       let getQuery = `
-              SELECT 
-                ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
-                id, name, email, phone, course, comments, IFNULL(location, '') AS location, date, time,
-                training, corporate_training, status, is_junk,junk_reason, is_deleted,
-                ${dateColumn} AS created_date_ist,
-                lead_type, assigned_to, domain_origin, is_google_add
-              FROM website_leads
-              WHERE ${filterCondition}
-            `;
+      SELECT
+	ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
+    wl.id,
+    wl.name,
+    wl.email,
+    wl.phone,
+    wl.course,
+    wl.comments,
+    IFNULL(wl.location, '') AS location,
+    wl.date,
+    wl.time,
+    wl.training,
+    wl.corporate_training,
+	  wl.status,
+    wl.is_junk,
+    wl.junk_reason,
+    wl.junk_by,
+    ju.user_name AS junk_by_user,
+    wl.is_deleted,
+    ${dateColumn} AS created_date_ist,
+    wl.lead_type,
+    wl.assigned_to,
+    wl.domain_origin,
+    wl.is_google_add
+FROM
+    website_leads AS wl
+LEFT JOIN users AS ju ON
+	wl.junk_by = ju.user_id
+WHERE ${filterCondition}`;
 
       let countQuery = `
               SELECT COUNT(*) AS total
-              FROM website_leads
+              FROM website_leads AS wl
               WHERE ${filterCondition}
             `;
 
       let bucketCountQuery = `
               SELECT 
-                SUM(CASE WHEN is_junk = 0 THEN 1 ELSE 0 END) AS live_leads,
-                SUM(CASE WHEN is_junk = 1 THEN 1 ELSE 0 END) AS trash_leads
-              FROM website_leads
+                SUM(CASE WHEN wl.is_junk = 0 THEN 1 ELSE 0 END) AS live_leads,
+                SUM(CASE WHEN wl.is_junk = 1 THEN 1 ELSE 0 END) AS trash_leads
+              FROM website_leads AS wl
               WHERE ${baseCondition}
             `;
 
@@ -2908,10 +2935,10 @@ const LeadModel = {
         countParams.push(`%${value}%`);
       };
 
-      if (name) addCondition("name", name);
-      if (email) addCondition("email", email);
-      if (phone) addCondition("phone", phone);
-      if (course) addCondition("course", course);
+      if (name) addCondition("wl.name", name);
+      if (email) addCondition("wl.email", email);
+      if (phone) addCondition("wl.phone", phone);
+      if (course) addCondition("wl.course", course);
 
       if (start_date && end_date) {
         getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
@@ -2953,28 +2980,28 @@ const LeadModel = {
       // }
 
       if (prefix === "HUB") {
-        getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
+        getQuery += `AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
 
-        countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
-        bucketCountQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%'))`;
+        countQuery += `AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
+        bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
       }
 
       if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += `AND LOWER(training) LIKE '%class%'`;
-        countQuery += `AND LOWER(training) LIKE '%class%'`;
-        bucketCountQuery += ` AND LOWER(training) LIKE '%class%'`;
+        getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
+        countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
+        bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
       }
 
       if (prefix !== "" && prefix === "HUB") {
-        getQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
-        countQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
-        bucketCountQuery += ` AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%')`;
+        getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
+        countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
+        bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
       }
 
       if (prefix === "BNG" || prefix === "CHN") {
-        getQuery += ` AND LOWER(training) LIKE '%class%'`;
-        countQuery += ` AND LOWER(training) LIKE '%class%'`;
-        bucketCountQuery += ` AND LOWER(training) LIKE '%class%'`;
+        getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
+        countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
+        bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
       }
 
       const pageNumber = parseInt(page, 10) || 1;
@@ -3047,7 +3074,7 @@ const LeadModel = {
     }
   },
 
-  updateJunkValue: async (lead_ids, is_junk, reason) => {
+  updateJunkValue: async (lead_ids, is_junk, reason, junk_by) => {
     try {
       // Build placeholders (?, ?, ?)
       const placeholders = lead_ids.map(() => "?").join(",");
@@ -3063,8 +3090,8 @@ const LeadModel = {
       }
 
       const [result] = await pool.query(
-        `UPDATE website_leads SET is_junk = ?, junk_reason = ? WHERE id IN (${placeholders})`,
-        [is_junk, reason, ...lead_ids],
+        `UPDATE website_leads SET is_junk = ?, junk_reason = ?, junk_by = ? WHERE id IN (${placeholders})`,
+        [is_junk, reason, junk_by, ...lead_ids],
       );
 
       return result.affectedRows;
@@ -3169,9 +3196,44 @@ const LeadModel = {
     try {
       const queryParams = [];
       const countParams = [];
-      let getQuery = `SELECT ROW_NUMBER() OVER (ORDER BY created_date DESC) AS row_num, id, name, email, phone, course, comments, location, date, time, training, status, domain_origin, is_junk, junk_reason, is_deleted,  created_date, lead_type, assigned_to, domain_origin FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+      let getQuery = `SELECT
+                        ROW_NUMBER() OVER(ORDER BY wl.created_date DESC) AS row_num,
+                          wl.id,
+                          wl.name,
+                          wl.email,
+                          wl.phone,
+                          wl.course,
+                          wl.comments,
+                          wl.location,
+                          wl.date,
+                          wl.time,
+                          wl.training,
+                          wl.status,
+                          wl.domain_origin,
+                          wl.is_junk,
+                          wl.junk_reason,
+                          wl.junk_by,
+                          u.user_name AS junk_by_user,
+                          wl.is_deleted,
+                          wl.created_date,
+                          wl.lead_type,
+                          wl.assigned_to,
+                          wl.domain_origin
+                      FROM
+                          website_leads AS wl
+                      LEFT JOIN users AS u ON
+                        u.user_id = wl.junk_by
+                      WHERE
+                          wl.is_junk = 1 AND wl.is_deleted = 0`;
 
-      let countQuery = `SELECT COUNT(*) AS total FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
+      let countQuery = `SELECT 
+		COUNT(*) AS total 
+	FROM
+		website_leads AS wl
+	LEFT JOIN users AS u ON
+		u.user_id = wl.junk_by
+	WHERE
+    	wl.is_junk = 1 AND wl.is_deleted = 0`;
 
       if (name) {
         getQuery += ` AND name LIKE '%${name}%'`;
@@ -4037,12 +4099,12 @@ const LeadModel = {
 
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
-          IFNULL(SUM(CASE WHEN cm1.name IN ('Data Incorrect', 'Incorrect Data') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN ls.name != 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
+          IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
@@ -4072,21 +4134,21 @@ const LeadModel = {
           if (lead_action) {
             const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
             if (actionStr === "junk") {
-              getQuery += ` AND cm1.name IN ('Data Incorrect', 'Incorrect Data')`;
-              countQuery += ` AND cm1.name IN ('Data Incorrect', 'Incorrect Data')`;
+              getQuery += ` AND ls.name = 'Dormant'`;
+              countQuery += ` AND ls.name = 'Dormant'`;
             } else {
-              getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
-              countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+              getQuery += ` AND ls.name != 'Dormant'`;
+              countQuery += ` AND ls.name != 'Dormant'`;
             }
           } else {
-            getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
-            countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data'))`;
+            getQuery += ` AND ls.name != 'Dormant'`;
+            countQuery += ` AND ls.name != 'Dormant'`;
           }
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
-          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
           if (lead_action) {
             const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
             if (actionStr === "communicated") {
