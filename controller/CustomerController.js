@@ -446,6 +446,8 @@ const getCustomersV1 = async (request, response) => {
     page,
     limit,
     region,
+    date_type,
+    domain,
   } = request.body;
   try {
     const result = await CustomerModel.getCustomersV1(
@@ -460,6 +462,8 @@ const getCustomersV1 = async (request, response) => {
       page,
       limit,
       region,
+      date_type,
+      domain,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",

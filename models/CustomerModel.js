@@ -1360,6 +1360,8 @@ const CustomerModel = {
     page,
     limit,
     region,
+    date_type,
+    domain,
   ) => {
     try {
       const queryParams = [];
@@ -1638,18 +1640,40 @@ const CustomerModel = {
         }
       }
 
+      if (domain) {
+        getQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        countQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        getCountQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        financeQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        paymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        rejectedPaymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+      }
+
       // Add date range filter
       if (from_date && to_date) {
-        const dateColumn =
-          status === "Awaiting Finance" || status === "Payment Rejected"
-            ? "COALESCE(csh.updated_at, c.payment_date)"
-            : "COALESCE(csh.updated_at, c.created_date)";
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        getCountQuery += ` AND CAST(COALESCE(csh.updated_at, c.created_date) AS DATE) BETWEEN ? AND ?`;
-        financeQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        paymentQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
-        rejectedPaymentQuery += ` AND CAST(COALESCE(csh.updated_at, c.payment_date) AS DATE) BETWEEN ? AND ?`;
+        if (date_type === "Updated") {
+          const dateColumn =
+            status === "Awaiting Finance" || status === "Payment Rejected"
+              ? "c.payment_date"
+              : "csh.updated_at";
+          getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          getCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          financeQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          paymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          rejectedPaymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        } else {
+          const dateColumn =
+            status === "Awaiting Finance" || status === "Payment Rejected"
+              ? "c.payment_date"
+              : "c.created_date";
+          getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          getCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          financeQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          paymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          rejectedPaymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        }
 
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
