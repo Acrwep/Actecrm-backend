@@ -3525,7 +3525,8 @@ WHERE ${filterCondition}`;
                         l.domain_origin,
                         1 AS lead_entry_type,
                         1 AS is_acknowledged,
-                        '' AS assigned_branch_name
+                        '' AS assigned_branch_name,
+                        0 AS assigned_branch_id
                     FROM
                         website_leads AS l
                     LEFT JOIN users AS u ON
@@ -3565,7 +3566,8 @@ WHERE ${filterCondition}`;
                     l.domain_origin,
                     0 AS lead_entry_type,
                     l.is_acknowledged,
-                    b.name AS assigned_branch_name
+                    b.name AS assigned_branch_name,
+                    l.assigned_branch_id
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3936,6 +3938,8 @@ WHERE ${filterCondition}`;
     lead_type,
     bucket,
     lead_action,
+    sub_source_id,
+    domain,
   ) => {
     try {
       const queryParams = [];
@@ -4231,6 +4235,18 @@ WHERE ${filterCondition}`;
         countQuery += ` AND l.lead_type_id = ?`;
         queryParams.push(lead_type);
         countQueryParams.push(lead_type);
+      }
+
+      if (domain) {
+        getQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        countQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+      }
+
+      if (sub_source_id) {
+        getQuery += ` AND l.lead_sub_source = ?`;
+        countQuery += ` AND l.lead_sub_source = ?`;
+        queryParams.push(sub_source_id);
+        countQueryParams.push(sub_source_id);
       }
 
       if (lead_status_id) {
