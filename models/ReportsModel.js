@@ -2655,6 +2655,23 @@ const ReportModel = {
         FROM date_range
         WHERE dt < DATE(?)
       ),
+      sources AS (
+        SELECT 
+          lsc.category_id AS lead_type_id,
+          lsc.id AS lead_sub_source,
+          CONCAT(lsc.sub_category, ' (', lt.name, ')') AS name
+        FROM lead_sub_category lsc
+        INNER JOIN lead_type lt ON lsc.category_id = lt.id
+        WHERE lsc.is_active = 1
+        UNION ALL
+        SELECT 
+          lt.id AS lead_type_id,
+          NULL AS lead_sub_source,
+          lt.name AS name
+        FROM lead_type lt
+        WHERE lt.is_active = 1
+          AND lt.id NOT IN (SELECT category_id FROM lead_sub_category WHERE is_active = 1)
+      ),
       payment_trans_agg AS (
         SELECT
           pm.lead_id,
@@ -2667,20 +2684,21 @@ const ReportModel = {
       ),
       total_collection AS (
         SELECT
-          lt.id AS lead_type_id,
+          s.name,
           CAST(pt.invoice_date AS DATE) AS invoice_date,
           (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
-        FROM lead_type lt
-        LEFT JOIN lead_master lm ON lt.id = lm.lead_type_id
+        FROM sources s
+        LEFT JOIN lead_master lm 
+          ON lm.lead_type_id = s.lead_type_id
+         AND IFNULL(lm.lead_sub_source, 0) = IFNULL(s.lead_sub_source, 0)
         LEFT JOIN payment_master pm ON lm.id = pm.lead_id
         LEFT JOIN payment_trans pt ON pm.id = pt.payment_master_id
         WHERE pt.payment_status <> 'Rejected'
-        GROUP BY lt.id, CAST(pt.invoice_date AS DATE)
+        GROUP BY s.name, CAST(pt.invoice_date AS DATE)
       ),
       base_data AS (
         SELECT
-          lt.id AS lead_type_id,
-          lt.name,
+          s.name,
           dr.dt AS date,
           COUNT(l.id) AS lead_count,
           SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
@@ -2688,10 +2706,11 @@ const ReportModel = {
           SUM(IFNULL(pta.total_collection, 0)) AS collection,
           (SUM(IFNULL(pm.total_amount, 0)) - SUM(IFNULL(pta.total_collection, 0))) AS pending
         FROM date_range dr
-        CROSS JOIN lead_type lt
+        CROSS JOIN sources s
         LEFT JOIN lead_master l
           ON CAST(l.created_date AS DATE) = dr.dt
-         AND l.lead_type_id = lt.id
+         AND l.lead_type_id = s.lead_type_id
+         AND IFNULL(l.lead_sub_source, 0) = IFNULL(s.lead_sub_source, 0)
     `;
 
       queryParams.push(start_date, end_date);
@@ -2721,7 +2740,7 @@ const ReportModel = {
         LEFT JOIN customers c ON c.lead_id = l.id
         LEFT JOIN payment_master pm ON pm.lead_id = l.id
         LEFT JOIN payment_trans_agg pta ON pta.lead_id = l.id
-        GROUP BY lt.id, lt.name, dr.dt
+        GROUP BY s.name, dr.dt
       )
       SELECT
         b.name,
@@ -2734,13 +2753,30 @@ const ReportModel = {
         IFNULL(tc.collection, 0) AS total_collection
       FROM base_data b
       LEFT JOIN total_collection tc
-        ON tc.lead_type_id = b.lead_type_id
+        ON tc.name = b.name
        AND tc.invoice_date = b.date
       ORDER BY b.name, b.date
     `;
 
       let totalQuery = `
-      WITH payment_trans_agg AS (
+      WITH sources AS (
+        SELECT 
+          lsc.category_id AS lead_type_id,
+          lsc.id AS lead_sub_source,
+          CONCAT(lsc.sub_category, ' (', lt.name, ')') AS name
+        FROM lead_sub_category lsc
+        INNER JOIN lead_type lt ON lsc.category_id = lt.id
+        WHERE lsc.is_active = 1
+        UNION ALL
+        SELECT 
+          lt.id AS lead_type_id,
+          NULL AS lead_sub_source,
+          lt.name AS name
+        FROM lead_type lt
+        WHERE lt.is_active = 1
+          AND lt.id NOT IN (SELECT category_id FROM lead_sub_category WHERE is_active = 1)
+      ),
+      payment_trans_agg AS (
         SELECT
           pm.lead_id,
           (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
@@ -2752,27 +2788,30 @@ const ReportModel = {
       ),
       total_collection AS (
         SELECT
-          lt.id AS lead_type_id,
+          s.name,
           (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
-        FROM lead_type lt
-        LEFT JOIN lead_master lm ON lt.id = lm.lead_type_id
+        FROM sources s
+        LEFT JOIN lead_master lm 
+          ON lm.lead_type_id = s.lead_type_id
+         AND IFNULL(lm.lead_sub_source, 0) = IFNULL(s.lead_sub_source, 0)
         LEFT JOIN payment_master pm ON lm.id = pm.lead_id
         LEFT JOIN payment_trans pt ON pm.id = pt.payment_master_id
         WHERE pt.payment_status <> 'Rejected'
           AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?
-        GROUP BY lt.id
+        GROUP BY s.name
       )
       SELECT
-        lt.name,
+        s.name,
         COUNT(l.id) AS lead_count,
         SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS converted_to_customer,
         SUM(IFNULL(pm.total_amount, 0)) AS sale_volume,
         SUM(IFNULL(pta.total_collection, 0)) AS collection,
         (SUM(IFNULL(pm.total_amount, 0)) - SUM(IFNULL(pta.total_collection, 0))) AS pending,
         IFNULL(tc.collection, 0) AS total_collection
-      FROM lead_type lt
+      FROM sources s
       LEFT JOIN lead_master l
-        ON l.lead_type_id = lt.id
+        ON l.lead_type_id = s.lead_type_id
+       AND IFNULL(l.lead_sub_source, 0) = IFNULL(s.lead_sub_source, 0)
        AND CAST(l.created_date AS DATE) BETWEEN ? AND ?
     `;
 
@@ -2803,9 +2842,9 @@ const ReportModel = {
       LEFT JOIN customers c ON c.lead_id = l.id
       LEFT JOIN payment_master pm ON pm.lead_id = l.id
       LEFT JOIN payment_trans_agg pta ON pta.lead_id = l.id
-      LEFT JOIN total_collection tc ON tc.lead_type_id = lt.id
-      GROUP BY lt.id, lt.name
-      ORDER BY lt.name
+      LEFT JOIN total_collection tc ON tc.name = s.name
+      GROUP BY s.name
+      ORDER BY s.name
     `;
 
       const [data] = await pool.query(getQuery, queryParams);
