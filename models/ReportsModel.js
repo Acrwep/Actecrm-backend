@@ -2807,7 +2807,7 @@ const ReportModel = {
         SUM(IFNULL(pm.total_amount, 0)) AS sale_volume,
         SUM(IFNULL(pta.total_collection, 0)) AS collection,
         (SUM(IFNULL(pm.total_amount, 0)) - SUM(IFNULL(pta.total_collection, 0))) AS pending,
-        IFNULL(tc.collection, 0) AS total_collection
+        MAX(IFNULL(tc.collection, 0)) AS total_collection
       FROM sources s
       LEFT JOIN lead_master l
         ON l.lead_type_id = s.lead_type_id
