@@ -2954,6 +2954,28 @@ WHERE ${filterCondition}`;
         prefix = match ? match[0] : "";
       }
 
+      if (prefix === "CHN") {
+        return {
+          data: [],
+          lead_count: {
+            online_count: "0 / 0",
+            classroom_count: "0 / 0",
+            corporate_count: "0 / 0",
+            total_count: "0 / 0",
+          },
+          bucket: {
+            live_leads: 0,
+            trash_leads: 0,
+          },
+          pagination: {
+            total: 0,
+            page: parseInt(page, 10) || 1,
+            limit: parseInt(limit, 10) || 10,
+            totalPages: 0,
+          },
+        };
+      }
+
       // const courseFilter = `
       //                     (
       //                       LOWER(course) LIKE '%data analytics%'
@@ -4104,7 +4126,7 @@ WHERE ${filterCondition}`;
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
-          IFNULL(SUM(CASE WHEN ls.name != 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
           IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
@@ -4141,12 +4163,12 @@ WHERE ${filterCondition}`;
               getQuery += ` AND ls.name = 'Dormant'`;
               countQuery += ` AND ls.name = 'Dormant'`;
             } else {
-              getQuery += ` AND ls.name != 'Dormant'`;
-              countQuery += ` AND ls.name != 'Dormant'`;
+              getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
+              countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
             }
           } else {
-            getQuery += ` AND ls.name != 'Dormant'`;
-            countQuery += ` AND ls.name != 'Dormant'`;
+            getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
+            countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
           }
         }
 
@@ -4186,16 +4208,19 @@ WHERE ${filterCondition}`;
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` AND l.assigned_to IN (${placeholders})`;
-          countQuery += ` AND l.assigned_to IN (${placeholders})`;
-          bucketCountQuery += ` AND l.assigned_to IN (${placeholders})`;
+
+          getQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
+          countQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
+          bucketCountQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
+
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
           bucketCountQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND l.assigned_to = ?`;
-          countQuery += ` AND l.assigned_to = ?`;
-          bucketCountQuery += ` AND l.assigned_to = ?`;
+          getQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
+          countQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
+          bucketCountQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
+
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
           bucketCountQueryParams.push(user_ids);
