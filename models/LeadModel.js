@@ -2980,9 +2980,9 @@ WHERE ${filterCondition}`;
       // }
 
       if (prefix === "HUB") {
-        getQuery += `AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
+        getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
 
-        countQuery += `AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
+        countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
         bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
       }
 
