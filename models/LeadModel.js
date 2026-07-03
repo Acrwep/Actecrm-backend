@@ -2954,27 +2954,27 @@ WHERE ${filterCondition}`;
         prefix = match ? match[0] : "";
       }
 
-      if (prefix === "CHN") {
-        return {
-          data: [],
-          lead_count: {
-            online_count: "0 / 0",
-            classroom_count: "0 / 0",
-            corporate_count: "0 / 0",
-            total_count: "0 / 0",
-          },
-          bucket: {
-            live_leads: 0,
-            trash_leads: 0,
-          },
-          pagination: {
-            total: 0,
-            page: parseInt(page, 10) || 1,
-            limit: parseInt(limit, 10) || 10,
-            totalPages: 0,
-          },
-        };
-      }
+      // if (prefix === "CHN") {
+      //   return {
+      //     data: [],
+      //     lead_count: {
+      //       online_count: "0 / 0",
+      //       classroom_count: "0 / 0",
+      //       corporate_count: "0 / 0",
+      //       total_count: "0 / 0",
+      //     },
+      //     bucket: {
+      //       live_leads: 0,
+      //       trash_leads: 0,
+      //     },
+      //     pagination: {
+      //       total: 0,
+      //       page: parseInt(page, 10) || 1,
+      //       limit: parseInt(limit, 10) || 10,
+      //       totalPages: 0,
+      //     },
+      //   };
+      // }
 
       // const courseFilter = `
       //                     (
