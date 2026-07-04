@@ -616,4 +616,5 @@ router.post(
 );
 router.get("/getPaymentById", trainerPaymentController.getPaymentById);
 router.post("/requestForUnpaid", trainerPaymentController.requestForUnpaid);
+router.get("/getTrainerBanks", trainerPaymentController.getTrainerBanks);
 module.exports = router;

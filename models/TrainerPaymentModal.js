@@ -1192,6 +1192,30 @@ const trainerPaymentModal = {
       connection.release();
     }
   },
+
+  getTrainerBanks: async (trainer_id) => {
+    try {
+      const [banks] = await pool.query(
+        `SELECT 
+            id,
+            trainer_id,
+            account_number,
+            account_holder_name,
+            bank_name,
+            ifsc_code,
+            branch_name,
+            signature_image
+        FROM 
+            trainer_bank_accounts 
+        WHERE 
+            trainer_id = ? AND is_active = 1`,
+        [trainer_id],
+      );
+      return banks;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = trainerPaymentModal;

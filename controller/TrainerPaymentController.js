@@ -345,6 +345,22 @@ const requestForUnpaid = async (req, res) => {
   }
 };
 
+const getTrainerBanks = async (req, res) => {
+  const { trainer_id } = req.query;
+  try {
+    const result = await trainerPaymentModal.getTrainerBanks(trainer_id);
+    res.status(200).send({
+      message: "Trainer banks fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching trainer banks",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -361,4 +377,5 @@ module.exports = {
   completeRequest,
   getPaymentById,
   requestForUnpaid,
+  getTrainerBanks,
 };
