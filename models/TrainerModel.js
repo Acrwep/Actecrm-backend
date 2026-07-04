@@ -372,7 +372,10 @@ const TrainerModel = {
                       LEFT JOIN batches b ON
                           b.id = t.batch_id
                       LEFT JOIN trainer_bank_accounts AS tb ON
-                        tb.trainer_id = t.id
+                        tb.id = COALESCE(
+                          (SELECT bank_id FROM trainer_payment_master WHERE trainer_id = t.id AND bank_id IS NOT NULL ORDER BY id DESC LIMIT 1),
+                          (SELECT id FROM trainer_bank_accounts WHERE trainer_id = t.id ORDER BY id DESC LIMIT 1)
+                        )
                       LEFT JOIN users AS u ON
                         u.user_id = t.created_by
                       WHERE
@@ -396,8 +399,8 @@ const TrainerModel = {
         countQuery += ` AND t.name LIKE '%${name}%'`;
       }
       if (trainer_code) {
-        getQuery += ` AND t.trainer_code LIKE '%${trainer_code}%'`;
-        countQuery += ` AND t.trainer_code LIKE '%${trainer_code}%'`;
+        getQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
+        countQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
       }
       if (mobile) {
         getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
