@@ -656,11 +656,17 @@ const TrainerModel = {
 
       const [trainers] = await pool.query(getQuery, [trainer_id]);
 
+      const [getBanks] = await pool.query(
+        `SELECT tb.id, tb.account_holder_name, tb.account_number, tb.bank_name, tb.branch_name, tb.ifsc_code, tb.signature_image FROM trainer_bank_accounts AS tb WHERE tb.trainer_id = ? AND tb.is_active = 1`,
+        [trainer_id],
+      );
+
       const formattedSkills = await getSkillsWithDetails(trainers[0].skills);
 
       return {
         ...trainers[0],
         skills: formattedSkills,
+        banks: getBanks,
       };
     } catch (error) {
       throw new Error(error.message);
