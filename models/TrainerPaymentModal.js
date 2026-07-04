@@ -231,7 +231,10 @@ const trainerPaymentModal = {
       }
 
       await connection.commit();
-      return affectedRows;
+      return {
+        trainer_id: trainer_id,
+        payment_master_id: insertMaster.insertId,
+      };
     } catch (error) {
       await connection.rollback();
       throw new Error(error.message);
