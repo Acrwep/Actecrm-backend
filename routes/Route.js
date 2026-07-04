@@ -609,4 +609,11 @@ router.put(
 );
 router.get("/getBranchManagers", verifyToken, UserController.getBranchManagers);
 router.post("/acknowledgeLead", verifyToken, LeadController.acknowledgeLead);
+router.post(
+  "/requestPaymentV1",
+  verifyToken,
+  trainerPaymentController.requestPaymentV1,
+);
+router.get("/getPaymentById", trainerPaymentController.getPaymentById);
+router.post("/requestForUnpaid", trainerPaymentController.requestForUnpaid);
 module.exports = router;

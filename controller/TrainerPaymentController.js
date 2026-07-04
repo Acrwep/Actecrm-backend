@@ -51,6 +51,41 @@ const requestPayment = async (req, res) => {
   }
 };
 
+const requestPaymentV1 = async (req, res) => {
+  const {
+    trainer_id,
+    request_amount,
+    bank_id,
+    commercial_type,
+    created_by,
+    created_date,
+    feedback,
+    students,
+  } = req.body;
+  try {
+    const result = await trainerPaymentModal.requestPaymentV1(
+      trainer_id,
+      request_amount,
+      bank_id,
+      commercial_type,
+      created_by,
+      created_date,
+      feedback,
+      students,
+    );
+
+    return res.status(201).send({
+      message: "Request sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while creating request",
+      details: error.message,
+    });
+  }
+};
+
 const getPayments = async (req, res) => {
   const { start_date, end_date, status, trainer_id, page, limit, type } =
     req.body;
@@ -65,6 +100,22 @@ const getPayments = async (req, res) => {
       type,
     );
     res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
+const getPaymentById = async (req, res) => {
+  const { payment_id } = req.query;
+  try {
+    const result = await trainerPaymentModal.getPaymentById(payment_id);
+    return res.status(200).send({
       message: "Data fetched successfully",
       data: result,
     });
@@ -256,9 +307,48 @@ const completeRequest = async (req, res) => {
   }
 };
 
+const requestForUnpaid = async (req, res) => {
+  const {
+    payment_master_id,
+    trainer_id,
+    account_number,
+    account_holder_name,
+    bank_name,
+    ifsc_code,
+    branch_name,
+    feedback,
+    students,
+    updated_date,
+  } = req.body;
+  try {
+    const result = await trainerPaymentModal.requestForUnpaid(
+      payment_master_id,
+      trainer_id,
+      account_number,
+      account_holder_name,
+      bank_name,
+      ifsc_code,
+      branch_name,
+      feedback,
+      students,
+      updated_date,
+    );
+    res.status(200).send({
+      message: "Payment request sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending payment request",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
+  requestPaymentV1,
   getPayments,
   financeJuniorApprove,
   updateTrainerPaymentStatus,
@@ -269,4 +359,6 @@ module.exports = {
   updateTrainerPayment,
   updateStudentStatus,
   completeRequest,
+  getPaymentById,
+  requestForUnpaid,
 };

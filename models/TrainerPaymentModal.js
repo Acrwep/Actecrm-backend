@@ -136,6 +136,110 @@ const trainerPaymentModal = {
     }
   },
 
+  requestPaymentV1: async (
+    trainer_id,
+    request_amount,
+    bank_id,
+    commercial_type,
+    created_by,
+    created_date,
+    feedback,
+    students,
+  ) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      let affectedRows = 0;
+
+      if (!students || students.length <= 0)
+        throw new Error("Students cannot be empty");
+
+      const masterQuery = `INSERT INTO trainer_payment_master(
+          bill_raisedate,
+          trainer_id,
+          request_amount,
+          balance_amount,
+          commercial_type,
+          bank_id,
+          status,
+          created_by,
+          created_date,
+          feedback
+      )
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const masterValues = [
+        created_date,
+        trainer_id,
+        request_amount,
+        request_amount,
+        commercial_type,
+        bank_id,
+        "Link Sent",
+        created_by,
+        created_date,
+        feedback,
+      ];
+
+      const [insertMaster] = await connection.query(masterQuery, masterValues);
+
+      affectedRows += insertMaster.affectedRows;
+
+      const transQuery = `INSERT INTO trainer_payment_trans(
+          payment_master_id,
+          trainer_mapping_id,
+          commercial,
+          commercial_percentage,
+          attendance_status,
+          attendance_sheetlink,
+          attendance_screenshot,
+          screenshot,
+          duration_in_hours,
+          training_mode,
+          branch_id,
+          study_material,
+          assessment,
+          placement_guidance,
+          hr_rating,
+          coordinator_rating
+      )
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      for (const student of students) {
+        const transValues = [
+          insertMaster.insertId,
+          student.trainer_mapping_id,
+          student.commercial,
+          student.commercial_percentage,
+          student.attendance_status,
+          student.attendance_sheetlink,
+          student.attendance_screenshot,
+          student.screenshot,
+          student.duration_in_hours,
+          student.training_mode,
+          student.branch_id,
+          student.study_material,
+          student.assessment,
+          student.placement_guidance,
+          student.hr_rating,
+          student.coordinator_rating,
+        ];
+
+        const [insertTrans] = await connection.query(transQuery, transValues);
+
+        affectedRows += insertTrans.affectedRows;
+      }
+
+      await connection.commit();
+      return affectedRows;
+    } catch (error) {
+      await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
+    }
+  },
+
   getPayments: async (
     start_date,
     end_date,
@@ -173,7 +277,15 @@ const trainerPaymentModal = {
           tm.fully_paid_date,
           tm.created_by,
           cu.user_name AS created_user,
-          tm.created_date
+          tm.created_date,
+          tm.bank_id,
+          tm.commercial_type,
+          tm.feedback,
+          tba.account_holder_name,
+          tba.account_number,
+          tba.bank_name,
+          tba.ifsc_code,
+          tba.branch_name
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
@@ -182,6 +294,8 @@ const trainerPaymentModal = {
           vu.user_id = tm.verified_by
       LEFT JOIN users AS cu ON
         cu.user_id = tm.created_by
+      LEFT JOIN trainer_bank_accounts AS tba ON
+        tba.id = tm.bank_id
       WHERE 1 = 1`;
 
       let countQuery = `SELECT
@@ -199,6 +313,7 @@ const trainerPaymentModal = {
       let statusCountQuery = `
       SELECT
         COUNT(*) AS total,
+        IFNULL(SUM(CASE WHEN status IN('Link Sent', 'Rejected') THEN 1 ELSE 0 END), 0) AS link_sent,
         IFNULL(SUM(CASE WHEN status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
         IFNULL(SUM(CASE WHEN status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval,
         IFNULL(SUM(CASE WHEN status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
@@ -253,11 +368,7 @@ const trainerPaymentModal = {
       getQuery += ` ORDER BY tm.bill_raisedate DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [
-        [countResult],
-        [statusResult],
-        [result]
-      ] = await Promise.all([
+      const [[countResult], [statusResult], [result]] = await Promise.all([
         pool.query(countQuery, countParams),
         pool.query(statusCountQuery, statusParams),
         pool.query(getQuery, queryParams),
@@ -294,7 +405,15 @@ const trainerPaymentModal = {
                 tp.screenshot,
                 COALESCE(pm.total_amount, 0) AS total_amount,
                 COALESCE(ps.paid_amount, 0) AS paid_amount,
-                (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount
+                (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount,
+                tp.duration_in_hours,
+                tp.training_mode,
+                tp.branch_id,
+                tp.study_material,
+                tp.assessment,
+                tp.placement_guidance,
+                tp.hr_rating,
+                tp.coordinator_rating
             FROM
                 trainer_payment_trans AS tp
             INNER JOIN trainer_mapping AS tm ON
@@ -402,6 +521,189 @@ const trainerPaymentModal = {
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
         },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getPaymentById: async (payment_id) => {
+    try {
+      let getQuery = `SELECT
+          tm.id,
+          tm.bill_raisedate,
+          tm.trainer_id,
+          t.name AS trainer_name,
+          t.mobile AS trainer_mobile,
+          t.email AS trainer_email,
+          tm.request_amount,
+          tm.paid_amount,
+          tm.balance_amount,
+          CASE 
+            WHEN tm.fully_paid_date IS NULL
+              THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
+            ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
+          END AS days_taken_topay,
+          tm.deadline_date,
+          tm.status,
+          tm.is_verified,
+          tm.verified_by,
+          vu.user_name AS verified_user,
+          tm.verified_date,
+          tm.fully_paid_date,
+          tm.created_by,
+          cu.user_name AS created_user,
+          tm.created_date,
+          tm.bank_id,
+          tm.commercial_type,
+          tm.feedback,
+          tba.account_holder_name,
+          tba.account_number,
+          tba.bank_name,
+          tba.ifsc_code,
+          tba.branch_name
+      FROM
+          trainer_payment_master AS tm
+      INNER JOIN trainer AS t ON
+          t.id = tm.trainer_id
+      LEFT JOIN users AS vu ON
+          vu.user_id = tm.verified_by
+      LEFT JOIN users AS cu ON
+        cu.user_id = tm.created_by
+      LEFT JOIN trainer_bank_accounts AS tba ON
+        tba.id = tm.bank_id
+      WHERE tm.id = ?`;
+
+      const [result] = await pool.query(getQuery, [payment_id]);
+
+      let students = new Map();
+      let payments = new Map();
+      let scoreCard = new Map();
+
+      const [studentsData] = await pool.query(
+        `SELECT
+                tp.id AS payment_trans_id,
+                tp.payment_master_id,
+                tp.trainer_mapping_id,
+                tm.customer_id,
+                c.name AS customer_name,
+                c.email AS customer_email,
+                t.name AS course_name,
+                c.lead_id,
+                c.linkedin_review,
+                c.google_review,
+                c.class_percentage,
+                c.is_certificate_generated,
+                tp.place_of_supply,
+                tp.place_of_sale,
+                tp.commercial,
+                tp.commercial_percentage,
+                tp.attendance_status,
+                tp.attendance_sheetlink,
+                tp.attendance_screenshot,
+                tp.screenshot,
+                COALESCE(pm.total_amount, 0) AS total_amount,
+                COALESCE(ps.paid_amount, 0) AS paid_amount,
+                (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount,
+                tp.duration_in_hours,
+                tp.training_mode,
+                tp.branch_id,
+                tp.study_material,
+                tp.assessment,
+                tp.placement_guidance,
+                tp.hr_rating,
+                tp.coordinator_rating
+            FROM
+                trainer_payment_trans AS tp
+            INNER JOIN trainer_mapping AS tm ON
+                tp.trainer_mapping_id = tm.id
+            INNER JOIN customers AS c ON
+                c.id = tm.customer_id
+            INNER JOIN technologies AS t ON
+                t.id = c.enrolled_course
+            LEFT JOIN payment_master AS pm ON
+            	pm.lead_id = c.lead_id
+            LEFT JOIN(
+            	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
+                WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+                GROUP BY pt.payment_master_id
+            ) AS ps ON ps.payment_master_id = pm.id
+            WHERE tp.payment_master_id = ?`,
+        [payment_id],
+      );
+
+      studentsData.forEach((s) => {
+        const { payment_master_id, ...rest } = s;
+        if (!students.has(payment_master_id)) {
+          students.set(payment_master_id, []);
+        }
+        students.get(payment_master_id).push(rest);
+      });
+
+      const [paymentsData] = await pool.query(
+        `SELECT
+              tp.id,
+              tp.payment_master_id,
+              tp.paid_amount,
+              tp.status,
+              tp.reason,
+              tp.rejected_date,
+              tp.payment_screenshot,
+              tp.approved_screenshot,
+              tp.paid_date,
+              tp.paid_by,
+              tp.payment_type,
+              u.user_name AS paid_user
+          FROM
+              trainer_payment AS tp
+          LEFT JOIN users AS u ON
+              tp.paid_by = u.user_id
+          WHERE tp.payment_master_id = ?`,
+        [payment_id],
+      );
+
+      paymentsData.forEach((p) => {
+        const { payment_master_id, ...rest } = p;
+        if (!payments.has(payment_master_id)) {
+          payments.set(payment_master_id, []);
+        }
+        payments.get(payment_master_id).push(rest);
+      });
+
+      const [scoreCardData] = await pool.query(
+        `SELECT
+                COUNT(tt.id) AS total_students,
+                IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
+                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google,
+                tpm.id AS payment_master_id
+            FROM
+                trainer_payment_master AS tpm
+            INNER JOIN trainer_payment_trans AS tt ON
+                tpm.id = tt.payment_master_id
+            INNER JOIN trainer_mapping AS tm ON
+                tm.id = tt.trainer_mapping_id
+            INNER JOIN customers AS c ON
+                c.id = tm.customer_id
+            WHERE tpm.id = ? GROUP BY tpm.id`,
+        [payment_id],
+      );
+
+      scoreCardData.forEach((s) => {
+        const { payment_master_id, ...rest } = s;
+        scoreCard.set(payment_master_id, rest);
+      });
+
+      let res = result.map((item) => {
+        return {
+          ...item,
+          students: students.get(item.id) || [],
+          payments: payments.get(item.id) || [],
+          scoreCard: scoreCard.get(item.id) || null,
+        };
+      });
+
+      return {
+        data: res,
       };
     } catch (error) {
       throw new Error(error.message);
@@ -762,6 +1064,132 @@ const trainerPaymentModal = {
       return affectedRows;
     } catch (error) {
       throw new Error(error.message);
+    }
+  },
+
+  requestForUnpaid: async (
+    payment_master_id,
+    trainer_id,
+    account_number,
+    account_holder_name,
+    bank_name,
+    ifsc_code,
+    branch_name,
+    feedback,
+    students,
+    updated_date,
+  ) => {
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [isUpdated] = await connection.query(
+        `SELECT id FROM trainer_payment_master WHERE id = ? AND is_trainer_updated = ?`,
+        [payment_master_id, 1],
+      );
+
+      if (isUpdated.length > 0) {
+        await connection.rollback();
+        return { status: false, message: "Payment has already been updated" };
+      }
+
+      const [isBankExists] = await connection.query(
+        `SELECT id FROM trainer_bank_accounts WHERE trainer_id = ? AND account_number = ?`,
+        [trainer_id, account_number],
+      );
+
+      if (isBankExists.length > 0) {
+        await connection.query(
+          `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
+          [isBankExists[0].id, payment_master_id],
+        );
+      } else {
+        await connection.query(
+          `INSERT INTO trainer_bank_accounts(
+              trainer_id,
+              account_number,
+              account_holder_name,
+              bank_name,
+              ifsc_code,
+              branch_name,
+              created_date
+          )
+          VALUES(?, ?, ?, ?, ?, ?, ?)`,
+          [
+            trainer_id,
+            account_number,
+            account_holder_name,
+            bank_name,
+            ifsc_code,
+            branch_name,
+            updated_date,
+          ],
+        );
+        const [newBank] = await connection.query(
+          `SELECT id FROM trainer_bank_accounts WHERE trainer_id = ? AND account_number = ?`,
+          [trainer_id, account_number],
+        );
+        await connection.query(
+          `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
+          [newBank[0].id, payment_master_id],
+        );
+      }
+
+      for (const student of students) {
+        await connection.query(
+          `UPDATE
+                trainer_payment_trans
+            SET
+                attendance_status = ?,
+                attendance_sheetlink = ?,
+                attendance_screenshot = ?,
+                duration_in_hours = ?,
+                training_mode = ?,
+                branch_id = ?,
+                study_material = ?,
+                assessment = ?,
+                placement_guidance = ?,
+                hr_rating = ?,
+                coordinator_rating = ?
+            WHERE
+                id = ?`,
+          [
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.duration_in_hours,
+            student.training_mode,
+            student.branch_id,
+            student.study_material,
+            student.assessment,
+            student.placement_guidance,
+            student.hr_rating,
+            student.coordinator_rating,
+            student.payment_trans_id,
+          ],
+        );
+      }
+
+      await connection.query(
+        `UPDATE
+            trainer_payment_master
+        SET
+            status = 'Requested',
+            updated_date = ?,
+            is_trainer_updated = 1,
+            feedback = ?
+        WHERE
+            id = ?`,
+        [updated_date, feedback, payment_master_id],
+      );
+
+      await connection.commit();
+      return { status: true };
+    } catch (error) {
+      await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 };
