@@ -1094,7 +1094,7 @@ const trainerPaymentModal = {
 
       if (isUpdated.length > 0) {
         await connection.rollback();
-        return { status: false, message: "Payment has already been updated" };
+        throw new Error("Payment has already been updated");
       }
 
       const [isBankExists] = await connection.query(
