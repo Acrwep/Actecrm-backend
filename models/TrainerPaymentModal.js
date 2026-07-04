@@ -696,17 +696,13 @@ const trainerPaymentModal = {
         scoreCard.set(payment_master_id, rest);
       });
 
-      let res = result.map((item) => {
-        return {
-          ...item,
-          students: students.get(item.id) || [],
-          payments: payments.get(item.id) || [],
-          scoreCard: scoreCard.get(item.id) || null,
-        };
-      });
+      if (result.length === 0) return null;
 
       return {
-        data: res,
+        ...result[0],
+        students: students.get(result[0].id) || [],
+        payments: payments.get(result[0].id) || [],
+        scoreCard: scoreCard.get(result[0].id) || null,
       };
     } catch (error) {
       throw new Error(error.message);
