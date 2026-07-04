@@ -216,6 +216,27 @@ const sendLoginLink = async (req, res) => {
   }
 };
 
+const sendTrainerPaymentMail = async (req, res) => {
+  const { email, link, payment_master_id, trainer_id } = req.body;
+  try {
+    const result = await EmailModel.sendTrainerPaymentMail(
+      email,
+      link,
+      payment_master_id,
+      trainer_id,
+    );
+    res.status(201).send({
+      message: "Mail sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending email",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendCustomerMail,
@@ -225,4 +246,5 @@ module.exports = {
   sendInvoicePdf,
   viewInvoicePdf,
   sendLoginLink,
+  sendTrainerPaymentMail,
 };
