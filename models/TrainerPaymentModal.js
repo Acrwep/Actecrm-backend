@@ -147,7 +147,7 @@ const trainerPaymentModal = {
     created_date,
     feedback,
     students,
-    link,
+    email_link,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -255,7 +255,7 @@ const trainerPaymentModal = {
           if (task.email) {
             await EmailModel.sendStudentAcknowledgementMail(
               task.email,
-              link,
+              email_link,
               task.customer_id,
             );
           }

@@ -61,7 +61,7 @@ const requestPaymentV1 = async (req, res) => {
     created_date,
     feedback,
     students,
-    link,
+    email_link,
   } = req.body;
   try {
     const result = await trainerPaymentModal.requestPaymentV1(
@@ -73,7 +73,7 @@ const requestPaymentV1 = async (req, res) => {
       created_date,
       feedback,
       students,
-      link,
+      email_link,
     );
 
     return res.status(201).send({

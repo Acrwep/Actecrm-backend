@@ -1447,7 +1447,11 @@ const sendTrainerPaymentMail = async (
   }
 };
 
-const sendStudentAcknowledgementMail = async (email, link, customer_id) => {
+const sendStudentAcknowledgementMail = async (
+  email,
+  email_link,
+  customer_id,
+) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -1511,7 +1515,7 @@ const sendStudentAcknowledgementMail = async (email, link, customer_id) => {
         <!-- Completed Button -->
         <p style="text-align: center; margin: 25px 0 15px 0;">
           <a 
-            href="http://localhost:5173/acknowledge-class-completion/${customer_id}" 
+            href="${email_link}/${customer_id}" 
             target="_blank"
             style="
               background: #28a745;
@@ -1532,7 +1536,7 @@ const sendStudentAcknowledgementMail = async (email, link, customer_id) => {
         <!-- Not Yet Completed Button -->
         <p style="text-align: center; margin: 0 0 25px 0;">
           <a 
-            href="http://localhost:5173/acknowledge-class-completion/${customer_id}" 
+            href="${email_link}/${customer_id}" 
             target="_blank"
             style="
               background: #dc3545;
