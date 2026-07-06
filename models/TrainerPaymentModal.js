@@ -1265,7 +1265,7 @@ const trainerPaymentModal = {
   },
 
   acknowledgeClassCompletion: async (customer_id, acknowledged_date) => {
-    const connection = pool.getConnection();
+    const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
 
