@@ -457,17 +457,32 @@ const trainerPaymentModal = {
                 tp.assessment,
                 tp.placement_guidance,
                 tp.hr_rating,
-                tp.coordinator_rating
+                tp.coordinator_rating,
+                l.ra_id AS ra_user_id,
+                ru.user_name AS ra_user_name,
+                tr.created_by AS hr_user_id,
+                hu.user_name AS hr_user_name,
+                cm.name AS mode_of_training
             FROM
                 trainer_payment_trans AS tp
-            INNER JOIN trainer_mapping AS tm ON
+            LEFT JOIN trainer_mapping AS tm ON
                 tp.trainer_mapping_id = tm.id
-            INNER JOIN customers AS c ON
+            LEFT JOIN customers AS c ON
                 c.id = tm.customer_id
-            INNER JOIN technologies AS t ON
+            LEFT JOIN lead_master AS l ON
+                l.id = c.lead_id
+            LEFT JOIN class_mode AS cm ON
+                cm.id = l.preferred_mode
+            LEFT JOIN users AS ru ON
+                ru.user_id = l.ra_id
+            LEFT JOIN technologies AS t ON
                 t.id = c.enrolled_course
             LEFT JOIN payment_master AS pm ON
-            	pm.lead_id = c.lead_id
+            	  pm.lead_id = c.lead_id
+            LEFT JOIN trainer AS tr ON
+                tm.trainer_id = tr.id
+            LEFT JOIN users AS hu ON
+                hu.user_id = tr.created_by
             LEFT JOIN(
             	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
@@ -663,17 +678,32 @@ const trainerPaymentModal = {
                 tp.assessment,
                 tp.placement_guidance,
                 tp.hr_rating,
-                tp.coordinator_rating
+                tp.coordinator_rating,
+                l.ra_id AS ra_user_id,
+                ru.user_name AS ra_user_name,
+                tr.created_by AS hr_user_id,
+                hu.user_name AS hr_user_name,
+                cm.name AS mode_of_training
             FROM
                 trainer_payment_trans AS tp
-            INNER JOIN trainer_mapping AS tm ON
+            LEFT JOIN trainer_mapping AS tm ON
                 tp.trainer_mapping_id = tm.id
-            INNER JOIN customers AS c ON
+            LEFT JOIN customers AS c ON
                 c.id = tm.customer_id
-            INNER JOIN technologies AS t ON
+            LEFT JOIN lead_master AS l ON
+                l.id = c.lead_id
+            LEFT JOIN class_mode AS cm ON
+                cm.id = l.preferred_mode
+            LEFT JOIN users AS ru ON
+                ru.user_id = l.ra_id
+            LEFT JOIN technologies AS t ON
                 t.id = c.enrolled_course
             LEFT JOIN payment_master AS pm ON
-            	pm.lead_id = c.lead_id
+            	  pm.lead_id = c.lead_id
+            LEFT JOIN trainer AS tr ON
+                tm.trainer_id = tr.id
+            LEFT JOIN users AS hu ON
+                hu.user_id = tr.created_by
             LEFT JOIN(
             	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
