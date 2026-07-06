@@ -364,11 +364,12 @@ const getTrainerBanks = async (req, res) => {
 };
 
 const acknowledgeClassCompletion = async (req, res) => {
-  const { customer_id, acknowledged_date } = req.body;
+  const { customer_id, acknowledged_date, is_acknowledged } = req.body;
   try {
     const result = await trainerPaymentModal.acknowledgeClassCompletion(
       customer_id,
       acknowledged_date,
+      is_acknowledged,
     );
     res.status(200).send({
       message: "Class acknowledged successfully",

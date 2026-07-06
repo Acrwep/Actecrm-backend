@@ -1498,7 +1498,7 @@ const sendStudentAcknowledgementMail = async (
     <tr>
       <td style="padding: 10px 20px 25px 20px; color: #333333; font-size: 15px; line-height: 1.7;">
 
-        <p>Hi ${"Balaji"},</p>
+        <p>Hi ${isCustomerExists[0].name},</p>
 
         <p>
           We hope you are doing well.
@@ -1515,7 +1515,7 @@ const sendStudentAcknowledgementMail = async (
         <!-- Completed Button -->
         <p style="text-align: center; margin: 25px 0 15px 0;">
           <a 
-            href="${email_link}/${customer_id}" 
+            href="${email_link}/${customer_id}/1" 
             target="_blank"
             style="
               background: #28a745;
@@ -1536,7 +1536,7 @@ const sendStudentAcknowledgementMail = async (
         <!-- Not Yet Completed Button -->
         <p style="text-align: center; margin: 0 0 25px 0;">
           <a 
-            href="${email_link}/${customer_id}" 
+            href="${email_link}/${customer_id}/0" 
             target="_blank"
             style="
               background: #dc3545;

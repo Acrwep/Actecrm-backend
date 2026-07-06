@@ -1264,7 +1264,11 @@ const trainerPaymentModal = {
     }
   },
 
-  acknowledgeClassCompletion: async (customer_id, acknowledged_date) => {
+  acknowledgeClassCompletion: async (
+    customer_id,
+    acknowledged_date,
+    is_acknowledged,
+  ) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
@@ -1285,8 +1289,8 @@ const trainerPaymentModal = {
       }
 
       await connection.query(
-        `UPDATE customers SET is_acknowledged = 1, acknowledged_date = ? WHERE customer_id = ?`,
-        [acknowledged_date, customer_id],
+        `UPDATE customers SET is_acknowledged = ?, acknowledged_date = ? WHERE customer_id = ?`,
+        [is_acknowledged, acknowledged_date, customer_id],
       );
       await connection.commit();
       return { status: true };
