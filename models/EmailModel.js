@@ -1469,51 +1469,121 @@ const sendStudentAcknowledgementMail = async (email, link, customer_id) => {
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "Class Completion Acknowledgement",
-      text: `Click the below link to acknowledge the class completion.`,
-      html: ` <table align="center" width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px;">
-      <tr>
-        <td style="padding: 18px 12px 12px 12px; text-align: center; color: #ffffff; font-size: 22px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px;">
-          <img src="cid:companyLogo" alt="Company Logo" width="100" style="display: block; margin: 0 auto;" />
-        </td>
+      subject: "Course Syllabus Completion Acknowledgement",
+      text: `Please confirm whether your trainer completed the full course syllabus.`,
+      html: `
+  <table align="center" width="600" cellpadding="0" cellspacing="0" 
+    style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px; font-family: Arial, sans-serif;">
 
-        <tr>
-  <td style="padding: 0 10px;">
-    <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
-  </td>
-</tr>
-      </tr>
-      <tr>
-        <td style="padding: 0px 0px 20px 20px; color: #333333; font-size: 15px; line-height: 1.6;">
-          <p>Hi ${isCustomerExists[0].name},</p>
-          <p>
-            Your training has been completed successfully.
-          </p>
-          <p style="text-align: center; margin: 20px 0;">
-            <a href=${link} target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
-              Acknowledge Class Completion
-            </a>
-          </p>
-          <p>
-            If the button above does not work, please copy and paste the following link into your browser:
-          </p>
-          <p style="word-break: break-all; color: #5b69ca; font-size: 14px;">
-            ${link}
-          </p>
-          <p style="margin-top: 30px;">Best Regards,<br/>Acte Technologies</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 15px; text-align: center; background: #f0f0f0; font-size: 12px; color: #777777; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px;">
-          © ${getCurrentYear()} Acte Technologies. All rights reserved.
-        </td>
-      </tr>
-    </table>`,
+    <!-- Header -->
+    <tr>
+      <td style="padding: 18px 12px 12px 12px; text-align: center;">
+        <img src="cid:companyLogo" alt="Company Logo" width="100" 
+          style="display: block; margin: 0 auto;" />
+      </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+      <td style="padding: 0 10px;">
+        <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
+      </td>
+    </tr>
+
+    <!-- Content -->
+    <tr>
+      <td style="padding: 10px 20px 25px 20px; color: #333333; font-size: 15px; line-height: 1.7;">
+
+        <p>Hi ${"Balaji"},</p>
+
+        <p>
+          We hope you are doing well.
+        </p>
+
+        <p>
+          This is to inform you that your trainer has successfully completed the full course syllabus as scheduled.
+        </p>
+
+        <p>
+          Kindly confirm your acknowledgement by clicking one of the options below:
+        </p>
+
+        <!-- Completed Button -->
+        <p style="text-align: center; margin: 25px 0 15px 0;">
+          <a 
+            href="http://localhost:5173/acknowledge-class-completion/${customer_id}" 
+            target="_blank"
+            style="
+              background: #28a745;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 24px;
+              font-size: 15px;
+              font-weight: bold;
+              border-radius: 6px;
+              display: inline-block;
+              min-width: 240px;
+            "
+          >
+            100% Class Completed
+          </a>
+        </p>
+
+        <!-- Not Yet Completed Button -->
+        <p style="text-align: center; margin: 0 0 25px 0;">
+          <a 
+            href="http://localhost:5173/acknowledge-class-completion/${customer_id}" 
+            target="_blank"
+            style="
+              background: #dc3545;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 24px;
+              font-size: 15px;
+              font-weight: bold;
+              border-radius: 6px;
+              display: inline-block;
+              min-width: 240px;
+            "
+          >
+            Not Yet Completed
+          </a>
+        </p>
+
+        <p>
+          If you have any feedback or pending topics to discuss, please feel free to contact us.
+        </p>
+
+        <p style="margin-top: 30px;">
+          Best Regards,<br/>
+          Acte Technologies
+        </p>
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="
+        padding: 15px;
+        text-align: center;
+        background: #f0f0f0;
+        font-size: 12px;
+        color: #777777;
+        border-bottom-left-radius: 6px;
+        border-bottom-right-radius: 6px;
+      ">
+        © ${getCurrentYear()} Acte Technologies. All rights reserved.
+      </td>
+    </tr>
+
+  </table>
+  `,
       attachments: [
         {
-          filename: "logo.png", // name of the file
-          path: "./acte-logo.png", // local path of your logo file
-          cid: "companyLogo", // same cid as used in <img src="cid:companyLogo">
+          filename: "logo.png",
+          path: "./acte-logo.png",
+          cid: "companyLogo",
         },
       ],
     };
