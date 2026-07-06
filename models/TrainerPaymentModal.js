@@ -147,6 +147,7 @@ const trainerPaymentModal = {
     created_date,
     feedback,
     students,
+    link,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -241,7 +242,6 @@ const trainerPaymentModal = {
         if (customerDetails.length > 0) {
           emailTasks.push({
             email: customerDetails[0].email,
-            link: student.link || student.acknowledgement_link || "",
             customer_id: customerDetails[0].customer_id,
           });
         }
@@ -255,7 +255,7 @@ const trainerPaymentModal = {
           if (task.email) {
             await EmailModel.sendStudentAcknowledgementMail(
               task.email,
-              task.link,
+              link,
               task.customer_id,
             );
           }
