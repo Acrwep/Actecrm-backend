@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const EmailModel = require("./EmailModel");
 
 const trainerPaymentModal = {
   getStudents: async (trainer_id) => {
@@ -206,6 +207,7 @@ const trainerPaymentModal = {
       )
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
+      const emailTasks = [];
       for (const student of students) {
         const transValues = [
           insertMaster.insertId,
@@ -229,9 +231,42 @@ const trainerPaymentModal = {
         const [insertTrans] = await connection.query(transQuery, transValues);
 
         affectedRows += insertTrans.affectedRows;
+
+        // Fetch customer details to send acknowledgement email
+        const [customerDetails] = await connection.query(
+          `SELECT c.id AS customer_id, c.email FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.id = ?`,
+          [student.trainer_mapping_id],
+        );
+
+        if (customerDetails.length > 0) {
+          emailTasks.push({
+            email: customerDetails[0].email,
+            link: student.link || student.acknowledgement_link || "",
+            customer_id: customerDetails[0].customer_id,
+          });
+        }
       }
 
       await connection.commit();
+
+      // Send emails after successful commit
+      for (const task of emailTasks) {
+        try {
+          if (task.email) {
+            await EmailModel.sendStudentAcknowledgementMail(
+              task.email,
+              task.link,
+              task.customer_id,
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            `Error sending student acknowledgement email to customer ${task.customer_id}:`,
+            emailError.message,
+          );
+        }
+      }
+
       return {
         trainer_id: trainer_id,
         payment_master_id: insertMaster.insertId,
@@ -401,6 +436,8 @@ const trainerPaymentModal = {
                 CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END AS is_google,
                 c.class_percentage,
                 CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END AS is_class_percentage,
+                c.is_acknowledged,
+                c.acknowledged_date,
                 tp.place_of_supply,
                 tp.place_of_sale,
                 tp.commercial,
@@ -599,8 +636,13 @@ const trainerPaymentModal = {
                 c.phone AS customer_mobile,
                 c.lead_id,
                 c.linkedin_review,
+                CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END AS is_linkedin,
                 c.google_review,
+                CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END AS is_google,
                 c.class_percentage,
+                CASE WHEN IFNULL(c.class_percentage, 0) = 100 THEN 1 ELSE 0 END AS is_class_percentage,
+                c.is_acknowledged,
+                c.acknowledged_date,
                 c.is_certificate_generated,
                 tp.place_of_supply,
                 tp.place_of_sale,
@@ -613,6 +655,7 @@ const trainerPaymentModal = {
                 COALESCE(pm.total_amount, 0) AS total_amount,
                 COALESCE(ps.paid_amount, 0) AS paid_amount,
                 (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) AS balance_amount,
+                CASE WHEN (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) > 0 THEN 0 ELSE 1 END AS is_payment_cleared,
                 tp.duration_in_hours,
                 tp.training_mode,
                 tp.branch_id,
@@ -1218,6 +1261,40 @@ const trainerPaymentModal = {
       return banks;
     } catch (error) {
       throw new Error(error.message);
+    }
+  },
+
+  acknowledgeClassCompletion: async (customer_id, acknowledged_date) => {
+    const connection = pool.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const [isAcknowledged] = await connection.query(
+        `SELECT is_acknowledged FROM customers WHERE customer_id = ?`,
+        [customer_id],
+      );
+
+      if (
+        isAcknowledged.length > 0 &&
+        isAcknowledged[0].is_acknowledged === 1
+      ) {
+        return {
+          status: false,
+          message: "Class has already been acknowledged.",
+        };
+      }
+
+      await connection.query(
+        `UPDATE customers SET is_acknowledged = 1, acknowledged_date = ? WHERE customer_id = ?`,
+        [acknowledged_date, customer_id],
+      );
+      await connection.commit();
+      return { status: true };
+    } catch (error) {
+      await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 };

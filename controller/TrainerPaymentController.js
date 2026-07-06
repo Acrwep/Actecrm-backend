@@ -361,6 +361,25 @@ const getTrainerBanks = async (req, res) => {
   }
 };
 
+const acknowledgeClassCompletion = async (req, res) => {
+  const { customer_id, acknowledged_date } = req.body;
+  try {
+    const result = await trainerPaymentModal.acknowledgeClassCompletion(
+      customer_id,
+      acknowledged_date,
+    );
+    res.status(200).send({
+      message: "Class acknowledged successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while acknowledging class",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -378,4 +397,5 @@ module.exports = {
   getPaymentById,
   requestForUnpaid,
   getTrainerBanks,
+  acknowledgeClassCompletion,
 };
