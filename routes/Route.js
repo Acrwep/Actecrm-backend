@@ -422,7 +422,7 @@ router.post(
 );
 
 //-------------trainer payment-------------------------
-router.get("/getStudents", verifyToken, trainerPaymentController.getStudents);
+router.get("/getStudents", trainerPaymentController.getStudents);
 router.post(
   "/requestPayment",
   verifyToken,

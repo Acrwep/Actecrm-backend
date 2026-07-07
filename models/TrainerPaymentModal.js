@@ -842,6 +842,54 @@ const trainerPaymentModal = {
     const conn = await pool.getConnection();
 
     try {
+      await conn.beginTransaction();
+
+      const [checkStatus] = await conn.query(
+        `SELECT
+            CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END AS is_linkedin,
+            CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END AS is_google,
+            CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END AS is_class_percentage,
+            CASE WHEN (COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)) > 0 THEN 0 ELSE 1 END AS is_payment_cleared,
+            c.is_acknowledged
+        FROM
+            trainer_payment_master AS tpm
+        INNER JOIN trainer_payment_trans AS tpt ON
+            tpm.id = tpt.payment_master_id
+        INNER JOIN trainer_mapping AS tm ON
+          tm.id = tpt.trainer_mapping_id
+        INNER JOIN customers AS c ON
+          c.id = tm.customer_id
+        INNER JOIN payment_master AS pm ON
+          pm.lead_id = c.lead_id
+        LEFT JOIN (
+          SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
+            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+            GROUP BY pt.payment_master_id
+        ) AS ps ON ps.payment_master_id = pm.id
+        WHERE
+          tpm.id = ?`,
+        [trainer_payment_id],
+      );
+
+      if (checkStatus.length === 0) {
+        throw new Error("No checks data found for this trainer payment.");
+      }
+
+      const hasUnsatisfied = checkStatus.some(
+        (row) =>
+          Number(row.is_linkedin) !== 1 ||
+          Number(row.is_google) !== 1 ||
+          Number(row.is_class_percentage) !== 1 ||
+          Number(row.is_payment_cleared) !== 1 ||
+          Number(row.is_acknowledged) !== 1,
+      );
+
+      if (hasUnsatisfied) {
+        throw new Error(
+          "Cannot update status: All check criteria (LinkedIn, Google, Class %, Cleared Payment, Acknowledged) must be satisfied (completed with status 1).",
+        );
+      }
+
       await conn.execute(
         `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
         [status, trainer_payment_id],
