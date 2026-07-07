@@ -1285,7 +1285,8 @@ const trainerPaymentModal = {
         FROM 
             trainer_bank_accounts 
         WHERE 
-            trainer_id = ? AND is_active = 1`,
+            trainer_id = ? AND is_active = 1
+        ORDER BY id DESC`,
         [trainer_id],
       );
       return banks;
