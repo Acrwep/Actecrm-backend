@@ -1609,7 +1609,7 @@ const trainerPaymentModal = {
       await connection.beginTransaction();
 
       const [isAcknowledged] = await connection.query(
-        `SELECT is_acknowledged FROM customers WHERE customer_id = ?`,
+        `SELECT is_acknowledged FROM customers WHERE id = ?`,
         [customer_id],
       );
 
@@ -1624,7 +1624,7 @@ const trainerPaymentModal = {
       }
 
       await connection.query(
-        `UPDATE customers SET is_acknowledged = ?, acknowledged_date = ? WHERE customer_id = ?`,
+        `UPDATE customers SET is_acknowledged = ?, acknowledged_date = ? WHERE id = ?`,
         [is_acknowledged, acknowledged_date, customer_id],
       );
       await connection.commit();
