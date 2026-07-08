@@ -428,6 +428,7 @@ const trainerPaymentModal = {
                 tm.customer_id,
                 c.name AS customer_name,
                 c.email AS customer_email,
+                c.phone AS customer_phone,
                 t.name AS course_name,
                 c.lead_id,
                 c.linkedin_review,
