@@ -210,6 +210,11 @@ const trainerPaymentModal = {
       if (!students || students.length <= 0)
         throw new Error("Students cannot be empty");
 
+      let commercial = 0;
+      if (commercial_type !== "Pay Per Head") {
+        commercial = request_amount / students.length;
+      }
+
       const masterQuery = `INSERT INTO trainer_payment_master(
           bill_raisedate,
           trainer_id,
@@ -268,7 +273,7 @@ const trainerPaymentModal = {
         const transValues = [
           insertMaster.insertId,
           student.trainer_mapping_id,
-          student.commercial,
+          commercial_type !== "Pay Per Head" ? commercial : student.commercial,
           student.commercial_percentage,
           student.attendance_status,
           student.attendance_sheetlink,
