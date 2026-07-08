@@ -1610,6 +1610,507 @@ const sendStudentAcknowledgementMail = async (
   }
 };
 
+const sendPayslip = async (
+  email,
+  trainer_name,
+  trainer_id,
+  course,
+  payment_date,
+  batch_code,
+  training_mode,
+  total_hours_taken,
+  payment_mode,
+  transaction_id,
+  payment_status,
+  commercial,
+  count_of_candidates,
+  account_number,
+  commercial_type,
+  students,
+  training_period,
+) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let html;
+
+    if (commercial_type === "Pay Per Head") {
+      html = `<!doctype html>
+            <html lang="en">
+              <head>
+                  <meta charset="UTF-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                  <title>Freelancer Payment Slip</title>
+                  <style>
+                    body {
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 12px;
+                    color: #000;
+                    margin: 20px;
+                    }
+                    .header {
+                    border: 1px solid #f39c12;
+                    background: #fef8ea;
+                    text-align: center;
+                    padding: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 16px;
+                    }
+                    .company-info {
+                    margin-bottom: 20px;
+                    }
+                    .company-info div {
+                    margin-bottom: 6px;
+                    }
+                    .label {
+                    display: inline-block;
+                    width: 130px;
+                    font-weight: 600;
+                    }
+                    table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 24px;
+                    border: 1px solid #000;
+                    }
+                    .td-header {
+                    border: 1px solid #000;
+                    padding: 6px 8px;
+                    font-weight: 600;
+                    }
+                    .td-value {
+                    border: 1px solid #000;
+                    padding: 6px 8px;
+                    }
+                    .section-title {
+                    width: 22%;
+                    text-align: center;
+                    font-size: 14px;
+                    font-weight: 600;
+                    }
+                    .blue {
+                    background: #dbe8f4;
+                    text-align: center;
+                    font-weight: 600;
+                    }
+                    .yellow {
+                    background: #fff4ce;
+                    }
+                    .declaration {
+                    background: #e2eef9;
+                    text-align: center;
+                    font-size: 14px;
+                    width: 22%;
+                    font-weight: 600;
+                    }
+                    .note {
+                    float: right;
+                    color: gray;
+                    font-size: 10px;
+                    font-weight: normal;
+                    }
+                    .footer {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                    padding: 0 10px;
+                    font-weight: 600;
+                    }
+                  </style>
+              </head>
+              <body>
+                  <!-- Header -->
+                  <div class="header">FREELANCER PAYMENT SLIP</div>
+                  <!-- Company Details -->
+                  <div class="company-info">
+                    <div>
+                        <span class="label">Institute Name:</span>
+                        <strong>ACTE TECHNOLOGIES PRIVATE LIMITED</strong>
+                    </div>
+                    <div>
+                        <span class="label">GST No:</span>
+                        <strong>33AAQCA7617L1Z9</strong>
+                    </div>
+                  </div>
+                  <!-- General Details -->
+                  <table>
+                    <tr>
+                        <td class="td-header">Freelancer Name:</td>
+                        <td class="td-value">${trainer_name}</td>
+                        <td class="td-header">Course Name</td>
+                        <td class="td-value">${course}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Trainer ID:</td>
+                        <td class="td-value">${trainer_id}</td>
+                        <td class="td-header">Student Info</td>
+                        <td class="td-value">${students}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Designation:</td>
+                        <td class="td-value">Freelance Software Trainer</td>
+                        <td class="td-header">Classes Taken</td>
+                        <td class="td-value">1</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Department</td>
+                        <td class="td-value">Training and Development</td>
+                        <td class="td-header">Total Hours Taken</td>
+                        <td class="td-value">${total_hours_taken}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Date:</td>
+                        <td class="td-value">${payment_date}</td>
+                        <td class="td-header">Mode</td>
+                        <td class="td-value">${training_mode}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Training Period</td>
+                        <td class="td-value">${training_period}</td>
+                        <td class="td-header">Total Earnings</td>
+                        <td class="td-value">${commercial}</td>
+                    </tr>
+                  </table>
+                  <!-- Earnings -->
+                  <table>
+                    <tr>
+                        <td rowspan="8" class="td-header section-title" style="width: 25%">
+                          Earnings
+                        </td>
+                        <td class="td-header blue" style="width: 50%">Particulars</td>
+                        <td class="td-header blue" style="width: 25%"></td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Training Fees</td>
+                        <td class="td-value">${commercial}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Incentives</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Bonus</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Gross Amount</td>
+                        <td class="td-value">${commercial}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">TDS</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Other Deductions</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header yellow">Net Pay</td>
+                        <td class="td-value yellow">${commercial}</td>
+                    </tr>
+                  </table>
+                  <!-- Payment Information -->
+                  <table>
+                    <tr>
+                        <td rowspan="4" class="td-header section-title" style="width: 25%">
+                          Payment Information
+                        </td>
+                        <td class="td-header blue" style="width: 50%">Particulars</td>
+                        <td class="td-header blue" style="width: 25%"></td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Acc. No</td>
+                        <td class="td-value">${account_number}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Mode</td>
+                        <td class="td-value">${payment_mode}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Transaction Reference No</td>
+                        <td class="td-value">${transaction_id}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Status</td>
+                        <td class="td-value">${payment_status}</td>
+                    </tr>
+                  </table>
+                  <!-- Declaration -->
+                  <table>
+                    <tr>
+                        <td class="declaration">Declaration</td>
+                        <td
+                          class="td-value"
+                          style="padding: 10px; font-size: 11px; line-height: 1.4"
+                          >
+                          This is a system-generated freelancer payment slip issued for
+                          professional training services rendered to the institute during the
+                          mentioned period.
+                        </td>
+                    </tr>
+                  </table>
+                  <!-- Footer -->
+              </body>
+            </html>`;
+    } else {
+      html = `<!doctype html>
+            <html lang="en">
+              <head>
+                  <meta charset="UTF-8" />
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                  <title>Freelancer Payment Slip</title>
+                  <style>
+                    body {
+                    font-family: Arial, Helvetica, sans-serif;
+                    font-size: 12px;
+                    color: #000;
+                    margin: 20px;
+                    }
+                    .header {
+                    border: 1px solid #f39c12;
+                    background: #fef8ea;
+                    text-align: center;
+                    padding: 10px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #333;
+                    margin-bottom: 16px;
+                    }
+                    .company-info {
+                    margin-bottom: 20px;
+                    }
+                    .company-info div {
+                    margin-bottom: 6px;
+                    }
+                    .label {
+                    display: inline-block;
+                    width: 130px;
+                    font-weight: 600;
+                    }
+                    table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 24px;
+                    border: 1px solid #000;
+                    }
+                    .td-header {
+                    border: 1px solid #000;
+                    padding: 6px 8px;
+                    font-weight: 600;
+                    }
+                    .td-value {
+                    border: 1px solid #000;
+                    padding: 6px 8px;
+                    }
+                    .section-title {
+                    width: 22%;
+                    text-align: center;
+                    font-size: 14px;
+                    font-weight: 600;
+                    }
+                    .blue {
+                    background: #dbe8f4;
+                    text-align: center;
+                    font-weight: 600;
+                    }
+                    .yellow {
+                    background: #fff4ce;
+                    }
+                    .declaration {
+                    background: #e2eef9;
+                    text-align: center;
+                    font-size: 14px;
+                    width: 22%;
+                    font-weight: 600;
+                    }
+                    .note {
+                    float: right;
+                    color: gray;
+                    font-size: 10px;
+                    font-weight: normal;
+                    }
+                    .footer {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                    padding: 0 10px;
+                    font-weight: 600;
+                    }
+                  </style>
+              </head>
+              <body>
+                  <!-- Header -->
+                  <div class="header">FREELANCER PAYMENT SLIP</div>
+                  <!-- Company Details -->
+                  <div class="company-info">
+                    <div>
+                        <span class="label">Institute Name:</span>
+                        <strong>ACTE TECHNOLOGIES PRIVATE LIMITED</strong>
+                    </div>
+                    <div>
+                        <span class="label">GST No:</span>
+                        <strong>33AAQCA7617L1Z9</strong>
+                    </div>
+                  </div>
+                  <!-- General Details -->
+                  <table>
+                    <tr>
+                        <td class="td-header">Freelancer Name:</td>
+                        <td class="td-value">${trainer_name}</td>
+                        <td class="td-value" style="text-align: right">Course Name</td>
+                        <td class="td-header">${course}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Trainer ID:</td>
+                        <td class="td-value">${trainer_id}</td>
+                        <td class="td-value" style="text-align: right">Bat001</td>
+                        <td class="td-header">${batch_code}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Designation</td>
+                        <td class="td-value">Freelance Software Trainer</td>
+                        <td class="td-value" style="text-align: right">Count of Candidates</td>
+                        <td class="td-header">${count_of_candidates}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Department</td>
+                        <td class="td-value">Training and Development</td>
+                        <td class="td-value" style="text-align: right">
+                          Total Hours of Classes
+                        </td>
+                        <td class="td-header">${total_hours_taken}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Date</td>
+                        <td class="td-value">${payment_date}</td>
+                        <td class="td-value" style="text-align: right">Online / Offline</td>
+                        <td class="td-header">${training_mode}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Training Period</td>
+                        <td class="td-value">${training_period}</td>
+                        <td class="td-value" style="text-align: right">Total Earnings</td>
+                        <td class="td-header">${commercial}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Student Info</td>
+                        <td class="td-value" colspan="3">${students}</td>
+                    </tr>
+                  </table>
+                  <!-- Earnings -->
+                  <table>
+                    <tr>
+                        <td rowspan="8" class="td-header section-title" style="width: 25%">
+                          Earnings
+                        </td>
+                        <td class="td-header blue" style="width: 50%">Particulars</td>
+                        <td class="td-header blue" style="width: 25%"></td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Training Fees</td>
+                        <td class="td-value">${commercial}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Incentives</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Bonus</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Gross Amount</td>
+                        <td class="td-value">${commercial}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">TDS</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Other Deductions</td>
+                        <td class="td-value">0</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header yellow">Net Pay</td>
+                        <td class="td-value yellow">${commercial}</td>
+                    </tr>
+                  </table>
+                  <!-- Payment Information -->
+                  <table>
+                    <tr>
+                        <td rowspan="4" class="td-header section-title" style="width: 25%">
+                          Payment Information
+                        </td>
+                        <td class="td-header blue" style="width: 50%">Particulars</td>
+                        <td class="td-header blue" style="width: 25%"></td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Acc. No</td>
+                        <td class="td-value">${account_number}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Mode</td>
+                        <td class="td-value">${payment_mode}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Transaction Reference No</td>
+                        <td class="td-value">${transaction_ref_no}</td>
+                    </tr>
+                    <tr>
+                        <td class="td-header">Payment Status</td>
+                        <td class="td-value">${payment_status}</td>
+                    </tr>
+                  </table>
+                  <!-- Declaration -->
+                  <table>
+                    <tr>
+                        <td class="declaration">Declaration</td>
+                        <td
+                          class="td-value"
+                          style="padding: 10px; font-size: 11px; line-height: 1.4"
+                          >
+                          This is a system-generated freelancer payment slip issued for
+                          professional training services rendered to the institute during the
+                          mentioned period.
+                        </td>
+                    </tr>
+                  </table>
+                  <!-- Footer -->
+              </body>
+            </html>`;
+    }
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Freelancer Payment Slip",
+      text: `Please find attached your freelancer payment slip.`,
+      html: html,
+      attachments: [
+        {
+          filename: "logo.png",
+          path: "./acte-logo.png",
+          cid: "companyLogo",
+        },
+      ],
+    };
+
+    // Send mail
+    await transporter.sendMail(mailOptions);
+
+    await connection.commit();
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw new Error(error.message);
+  } finally {
+    connection.release();
+  }
+};
+
 module.exports = {
   sendMail,
   sendCustomerMail,
@@ -1621,4 +2122,5 @@ module.exports = {
   sendLoginLink,
   sendTrainerPaymentMail,
   sendStudentAcknowledgementMail,
+  sendPayslip,
 };
