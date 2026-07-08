@@ -319,12 +319,7 @@ const trainerPaymentModal = {
           tm.created_date,
           tm.bank_id,
           tm.commercial_type,
-          tm.feedback,
-          tba.account_holder_name,
-          tba.account_number,
-          tba.bank_name,
-          tba.ifsc_code,
-          tba.branch_name
+          tm.feedback
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
@@ -333,8 +328,6 @@ const trainerPaymentModal = {
           vu.user_id = tm.verified_by
       LEFT JOIN users AS cu ON
         cu.user_id = tm.created_by
-      LEFT JOIN trainer_bank_accounts AS tba ON
-        tba.id = tm.bank_id
       WHERE 1 = 1`;
 
       let countQuery = `SELECT
@@ -502,73 +495,73 @@ const trainerPaymentModal = {
         });
       }
 
-      let payments = new Map();
+      // let payments = new Map();
 
-      if (ids.length > 0) {
-        const [paymentsData] = await pool.query(
-          `SELECT
-              tp.id,
-              tp.payment_master_id,
-              tp.paid_amount,
-              tp.status,
-              tp.reason,
-              tp.rejected_date,
-              tp.payment_screenshot,
-              tp.approved_screenshot,
-              tp.paid_date,
-              tp.paid_by,
-              tp.payment_type,
-              u.user_name AS paid_user
-          FROM
-              trainer_payment AS tp
-          LEFT JOIN users AS u ON
-              tp.paid_by = u.user_id
-          WHERE tp.payment_master_id IN (?)`,
-          [ids],
-        );
+      // if (ids.length > 0) {
+      //   const [paymentsData] = await pool.query(
+      //     `SELECT
+      //         tp.id,
+      //         tp.payment_master_id,
+      //         tp.paid_amount,
+      //         tp.status,
+      //         tp.reason,
+      //         tp.rejected_date,
+      //         tp.payment_screenshot,
+      //         tp.approved_screenshot,
+      //         tp.paid_date,
+      //         tp.paid_by,
+      //         tp.payment_type,
+      //         u.user_name AS paid_user
+      //     FROM
+      //         trainer_payment AS tp
+      //     LEFT JOIN users AS u ON
+      //         tp.paid_by = u.user_id
+      //     WHERE tp.payment_master_id IN (?)`,
+      //     [ids],
+      //   );
 
-        paymentsData.forEach((p) => {
-          const { payment_master_id, ...rest } = p;
-          if (!payments.has(payment_master_id)) {
-            payments.set(payment_master_id, []);
-          }
-          payments.get(payment_master_id).push(rest);
-        });
-      }
+      //   paymentsData.forEach((p) => {
+      //     const { payment_master_id, ...rest } = p;
+      //     if (!payments.has(payment_master_id)) {
+      //       payments.set(payment_master_id, []);
+      //     }
+      //     payments.get(payment_master_id).push(rest);
+      //   });
+      // }
 
-      let scoreCard = new Map();
+      // let scoreCard = new Map();
 
-      if (ids.length > 0) {
-        const [scoreCardData] = await pool.query(
-          `SELECT
-                COUNT(tt.id) AS total_students,
-                IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
-                IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google,
-                tpm.id AS payment_master_id
-            FROM
-                trainer_payment_master AS tpm
-            INNER JOIN trainer_payment_trans AS tt ON
-                tpm.id = tt.payment_master_id
-            INNER JOIN trainer_mapping AS tm ON
-                tm.id = tt.trainer_mapping_id
-            INNER JOIN customers AS c ON
-                c.id = tm.customer_id
-            WHERE tpm.id IN (?) GROUP BY tpm.id`,
-          [ids],
-        );
+      // if (ids.length > 0) {
+      //   const [scoreCardData] = await pool.query(
+      //     `SELECT
+      //           COUNT(tt.id) AS total_students,
+      //           IFNULL(SUM(CASE WHEN c.linkedin_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_linkedin,
+      //           IFNULL(SUM(CASE WHEN c.google_review IS NOT NULL THEN 1 ELSE 0 END), 0) AS total_google,
+      //           tpm.id AS payment_master_id
+      //       FROM
+      //           trainer_payment_master AS tpm
+      //       INNER JOIN trainer_payment_trans AS tt ON
+      //           tpm.id = tt.payment_master_id
+      //       INNER JOIN trainer_mapping AS tm ON
+      //           tm.id = tt.trainer_mapping_id
+      //       INNER JOIN customers AS c ON
+      //           c.id = tm.customer_id
+      //       WHERE tpm.id IN (?) GROUP BY tpm.id`,
+      //     [ids],
+      //   );
 
-        scoreCardData.forEach((s) => {
-          const { payment_master_id, ...rest } = s;
-          scoreCard.set(payment_master_id, rest);
-        });
-      }
+      //   scoreCardData.forEach((s) => {
+      //     const { payment_master_id, ...rest } = s;
+      //     scoreCard.set(payment_master_id, rest);
+      //   });
+      // }
 
       let res = result.map((item) => {
         return {
           ...item,
           students: students.get(item.id) || [],
-          payments: payments.get(item.id) || [],
-          scoreCard: scoreCard.get(item.id) || null,
+          // payments: payments.get(item.id) || [],
+          // scoreCard: scoreCard.get(item.id) || null,
         };
       });
 
