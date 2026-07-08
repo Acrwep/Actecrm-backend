@@ -379,7 +379,8 @@ const trainerPaymentModal = {
           tm.created_date,
           tm.bank_id,
           tm.commercial_type,
-          tm.feedback
+          tm.feedback,
+          tm.batch_id
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
