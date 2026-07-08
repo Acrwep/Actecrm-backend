@@ -1,9 +1,13 @@
 const trainerPaymentModal = require("../models/TrainerPaymentModal");
 
 const getStudents = async (req, res) => {
-  const { trainer_id } = req.query;
+  const { trainer_id, commercial_type, batch_id } = req.body;
   try {
-    const result = await trainerPaymentModal.getStudents(trainer_id);
+    const result = await trainerPaymentModal.getStudents(
+      trainer_id,
+      commercial_type,
+      batch_id,
+    );
     return res.status(200).send({
       message: "Data fetched successfully",
       data: result,
@@ -62,6 +66,7 @@ const requestPaymentV1 = async (req, res) => {
     feedback,
     students,
     email_link,
+    batch_id,
   } = req.body;
   try {
     const result = await trainerPaymentModal.requestPaymentV1(
@@ -74,6 +79,7 @@ const requestPaymentV1 = async (req, res) => {
       feedback,
       students,
       email_link,
+      batch_id,
     );
 
     return res.status(201).send({
@@ -415,6 +421,22 @@ const moveToPaid = async (req, res) => {
   }
 };
 
+const getNonClaimBatches = async (req, res) => {
+  const { trainer_id } = req.query;
+  try {
+    const result = await trainerPaymentModal.getNonClaimBatches(trainer_id);
+    res.status(200).send({
+      message: "Non claim batches fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching non claim batches",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -434,4 +456,5 @@ module.exports = {
   getTrainerBanks,
   acknowledgeClassCompletion,
   moveToPaid,
+  getNonClaimBatches,
 };

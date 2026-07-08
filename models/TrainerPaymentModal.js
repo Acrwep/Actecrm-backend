@@ -2,10 +2,13 @@ const pool = require("../config/dbconfig");
 const EmailModel = require("./EmailModel");
 
 const trainerPaymentModal = {
-  getStudents: async (trainer_id) => {
+  getStudents: async (trainer_id, commercial_type, batch_id) => {
     try {
-      const [result] = await pool.query(
-        `SELECT
+      let result;
+
+      if (commercial_type === "Pay Per Head") {
+        const [res] = await pool.query(
+          `SELECT
             tm.id AS trainer_mapping_id,
             tm.trainer_id,
             c.id,
@@ -46,8 +49,56 @@ const trainerPaymentModal = {
                 FROM trainer_payment_trans tpt
                 WHERE tpt.trainer_mapping_id = tm.id
             );`,
-        [trainer_id],
-      );
+          [trainer_id],
+        );
+
+        result = res;
+      } else {
+        const [res] = await pool.query(
+          `SELECT
+            tm.id AS trainer_mapping_id,
+            tm.trainer_id,
+            c.id,
+            c.name,
+            c.email AS customer_email,
+            c.phone AS customer_mobile,
+            t.name AS course_name,
+            tm.commercial,
+            ROUND(((tm.commercial / l.primary_fees) * 100), 2) AS commercial_percentage,
+            c.linkedin_review,
+            c.google_review,
+            c.class_percentage,
+            c.is_certificate_generated,
+            c.lead_id,
+            COALESCE(pm.total_amount, 0) AS total_amount,
+            COALESCE(ps.total_paid, 0) AS paid_amount,
+            (COALESCE(pm.total_amount, 0) - COALESCE(ps.total_paid, 0)) AS balance_amount
+        FROM batch_master AS bm
+        INNER JOIN batch_trans AS bt ON
+        	bt.batch_master_id = bm.id
+        INNER JOIN trainer_mapping tm ON
+        	tm.customer_id = bt.customer_id
+            AND tm.is_verified = 1
+            AND tm.is_rejected = 0
+        INNER JOIN customers AS c 
+            ON tm.customer_id = c.id
+        INNER JOIN lead_master AS l ON
+        	l.id = c.lead_id
+        INNER JOIN payment_master AS pm ON
+        	pm.lead_id = c.lead_id
+        INNER JOIN technologies AS t ON
+          t.id = c.enrolled_course
+        LEFT JOIN(
+        	SELECT SUM(pt.amount) AS total_paid, pt.payment_master_id FROM payment_trans AS pt
+            WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+            GROUP BY pt.payment_master_id
+        ) AS ps ON ps.payment_master_id = pm.id
+        WHERE
+            bm.id = ?`,
+          [batch_id],
+        );
+        result = res;
+      }
 
       return result;
     } catch (error) {
@@ -148,6 +199,7 @@ const trainerPaymentModal = {
     feedback,
     students,
     email_link,
+    batch_id,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -164,19 +216,21 @@ const trainerPaymentModal = {
           request_amount,
           balance_amount,
           commercial_type,
+          batch_id,
           bank_id,
           status,
           created_by,
           created_date,
           feedback
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const masterValues = [
         created_date,
         trainer_id,
         request_amount,
         request_amount,
         commercial_type,
+        batch_id,
         bank_id,
         "Link Sent",
         created_by,
@@ -187,6 +241,8 @@ const trainerPaymentModal = {
       const [insertMaster] = await connection.query(masterQuery, masterValues);
 
       affectedRows += insertMaster.affectedRows;
+
+      let emailTasks = [];
 
       const transQuery = `INSERT INTO trainer_payment_trans(
           payment_master_id,
@@ -208,7 +264,6 @@ const trainerPaymentModal = {
       )
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-      const emailTasks = [];
       for (const student of students) {
         const transValues = [
           insertMaster.insertId,
@@ -1438,6 +1493,32 @@ const trainerPaymentModal = {
       throw new Error(error.message);
     } finally {
       connection.release();
+    }
+  },
+
+  getNonClaimBatches: async (trainer_id) => {
+    try {
+      const query = `SELECT
+                        bm.id,
+                        bm.batch_number,
+                        bm.batch_name,
+                        bm.trainer_id,
+                        t.trainer_id AS trainer_code,
+                        t.name AS trainer_name
+                    FROM
+                        batch_master AS bm
+                    INNER JOIN trainer AS t ON
+                      t.id = bm.trainer_id
+                    WHERE
+                        bm.trainer_id = ?
+                        AND NOT EXISTS (
+                          SELECT 1 FROM trainer_payment_master
+                            WHERE batch_id = bm.id
+                        )`;
+      const [data] = await pool.query(query, [trainer_id]);
+      return data;
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 };

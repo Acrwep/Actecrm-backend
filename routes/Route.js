@@ -629,4 +629,9 @@ router.post(
 );
 
 router.put("/moveToPaid", verifyToken, trainerPaymentController.moveToPaid);
+router.get(
+  "/getNonClaimBatches",
+  verifyToken,
+  trainerPaymentController.getNonClaimBatches,
+);
 module.exports = router;
