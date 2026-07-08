@@ -380,7 +380,8 @@ const trainerPaymentModal = {
           tm.bank_id,
           tm.commercial_type,
           tm.feedback,
-          tm.batch_id
+          tm.batch_id,
+          bm.batch_number
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
@@ -389,6 +390,8 @@ const trainerPaymentModal = {
           vu.user_id = tm.verified_by
       LEFT JOIN users AS cu ON
         cu.user_id = tm.created_by
+      LEFT JOIN batch_master AS bm ON
+        bm.id = tm.batch_id
       WHERE 1 = 1`;
 
       let countQuery = `SELECT
@@ -675,7 +678,9 @@ const trainerPaymentModal = {
           tba.account_number,
           tba.bank_name,
           tba.ifsc_code,
-          tba.branch_name
+          tba.branch_name,
+          tm.batch_id,
+          bm.batch_number
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
@@ -686,6 +691,8 @@ const trainerPaymentModal = {
         cu.user_id = tm.created_by
       LEFT JOIN trainer_bank_accounts AS tba ON
         tba.id = tm.bank_id
+      LEFT JOIN batch_master AS bm ON
+        bm.id = tm.batch_id
       WHERE tm.id = ?`;
 
       const [result] = await pool.query(getQuery, [payment_id]);
