@@ -942,6 +942,134 @@ const trainerPaymentModal = {
         `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
         [totalPaid, balance, "Paid", trainer_payment_id],
       );
+
+      const [paymentMaster] = await conn.execute(
+        `SELECT request_amount, paid_amount, trainer_id, commercial_type, batch_id, bank_id FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id],
+      );
+
+      const [getTrainer] = await conn.query(
+        `SELECT email, trainer_id, name FROM trainer WHERE id = ?`,
+        [paymentMaster[0].trainer_id],
+      );
+
+      if (getTrainer.length === 0) {
+        throw new Error("Trainer not found");
+      }
+
+      const [getBanks] = await conn.query(
+        `SELECT
+            trainer_id,
+            account_holder_name,
+            account_number,
+            bank_name,
+            branch_name,
+            ifsc_code
+        FROM
+            trainer_bank_accounts
+        WHERE id = ?`,
+        [paymentMaster[0].bank_id],
+      );
+
+      const accountNumber =
+        getBanks.length > 0 ? getBanks[0].account_number : "";
+
+      let [getPaidHeads] = await conn.query(
+        `SELECT
+              tpm.request_amount,
+              tpm.commercial_type,
+              tpm.batch_id,
+              tpm.bank_id,
+              tpm.status,
+              tpt.commercial,
+              tpt.duration_in_hours,
+              tpt.training_mode,
+              t.name AS course,
+              c.name AS cus_name,
+              c.phone AS cus_phone
+          FROM
+              trainer_payment_master AS tpm
+          INNER JOIN trainer_payment_trans AS tpt ON
+              tpm.id = tpt.payment_master_id
+          INNER JOIN trainer_mapping AS tm ON
+            tm.id = tpt.trainer_mapping_id
+          INNER JOIN customers AS c ON
+            c.id = tm.customer_id
+          INNER JOIN technologies AS t ON
+            c.enrolled_course = t.id
+          WHERE tpm.id = ?`,
+        [trainer_payment_id],
+      );
+
+      const studentDetails = getPaidHeads.map(
+        (head) => `${head.cus_phone} - ${head.cus_name}`,
+      );
+
+      const dateObj = new Date(paid_date);
+      const trainingPeriod = isNaN(dateObj.getTime())
+        ? ""
+        : dateObj.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+      if (paymentMaster[0].commercial_type === "Pay Per Head") {
+        if (getPaidHeads.length > 0) {
+          for (const head of getPaidHeads) {
+            await EmailModel.sendPayslip(
+              getTrainer[0].email,
+              getTrainer[0].name,
+              getTrainer[0].trainer_id,
+              head.course,
+              paid_date,
+              "",
+              head.training_mode,
+              head.duration_in_hours,
+              payment_mode,
+              transaction_id,
+              head.status,
+              head.commercial,
+              0,
+              accountNumber,
+              head.commercial_type,
+              `${head.cus_phone} - ${head.cus_name}`,
+              trainingPeriod,
+            );
+          }
+        }
+      } else {
+        const [getBatch] = await conn.query(
+          `SELECT
+              id,
+              batch_number,
+              batch_name
+          FROM
+              batch_master
+          WHERE id = ?`,
+          [paymentMaster[0].batch_id],
+        );
+
+        const dynamicTrainingMode =
+          getPaidHeads.length > 0 ? getPaidHeads[0].training_mode : "Online";
+
+        await EmailModel.sendPayslip(
+          getTrainer[0].email,
+          getTrainer[0].name,
+          getTrainer[0].trainer_id,
+          getBatch[0].batch_name,
+          paid_date,
+          getBatch[0].batch_number,
+          dynamicTrainingMode,
+          0,
+          payment_mode,
+          transaction_id,
+          "Paid",
+          paid_amount,
+          studentDetails.length,
+          accountNumber,
+          paymentMaster[0].commercial_type,
+          studentDetails.join(", "),
+          trainingPeriod,
+        );
+      }
+
       await conn.commit();
       return { status: true };
     } catch (err) {
