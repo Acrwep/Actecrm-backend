@@ -627,4 +627,6 @@ router.post(
   verifyToken,
   EmailController.sendTrainerPaymentMail,
 );
+
+router.put("/moveToPaid", verifyToken, trainerPaymentController.moveToPaid);
 module.exports = router;

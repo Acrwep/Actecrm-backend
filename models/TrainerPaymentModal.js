@@ -838,6 +838,72 @@ const trainerPaymentModal = {
     }
   },
 
+  moveToPaid: async (
+    trainer_payment_id,
+    paid_amount,
+    payment_type,
+    paid_date,
+    paid_by,
+    transaction_id,
+    payment_mode,
+  ) => {
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [checkStatus] = await conn.query(
+        `SELECT status FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id],
+      );
+
+      if (checkStatus[0].status !== "Awaiting Finance")
+        throw new Error("Only Awaiting Finance payments can be processed");
+
+      await conn.query(
+        `INSERT INTO trainer_payment(
+          payment_master_id,
+          paid_amount,
+          status,
+          payment_type,
+          transaction_id,
+          payment_mode,
+          paid_date,
+          paid_by
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          trainer_payment_id,
+          paid_amount,
+          "Completed",
+          payment_type,
+          transaction_id,
+          payment_mode,
+          paid_date,
+          paid_by,
+        ],
+      );
+
+      const [master] = await conn.execute(
+        `SELECT request_amount, paid_amount FROM trainer_payment_master WHERE id = ?`,
+        [trainer_payment_id],
+      );
+
+      const totalPaid = Number(master[0].paid_amount) + Number(paid_amount);
+      const balance = Number(master[0].request_amount) - totalPaid;
+
+      await conn.execute(
+        `UPDATE trainer_payment_master SET paid_amount = ?, balance_amount = ?, status = ? WHERE id = ?`,
+        [totalPaid, balance, "Paid", trainer_payment_id],
+      );
+      await conn.commit();
+      return { status: true };
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+
   // Finance Head - Approve & Pay Transaction
   updateTrainerPaymentStatus: async (status, trainer_payment_id) => {
     const conn = await pool.getConnection();

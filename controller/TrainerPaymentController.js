@@ -383,6 +383,38 @@ const acknowledgeClassCompletion = async (req, res) => {
   }
 };
 
+const moveToPaid = async (req, res) => {
+  const {
+    trainer_payment_id,
+    paid_amount,
+    payment_type,
+    paid_date,
+    paid_by,
+    transaction_id,
+    payment_mode,
+  } = req.body;
+  try {
+    const result = await trainerPaymentModal.moveToPaid(
+      trainer_payment_id,
+      paid_amount,
+      payment_type,
+      paid_date,
+      paid_by,
+      transaction_id,
+      payment_mode,
+    );
+    res.status(200).send({
+      message: "Payment claimed successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while claiming payment",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getStudents,
   requestPayment,
@@ -401,4 +433,5 @@ module.exports = {
   requestForUnpaid,
   getTrainerBanks,
   acknowledgeClassCompletion,
+  moveToPaid,
 };
