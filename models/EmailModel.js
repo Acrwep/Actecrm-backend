@@ -2057,7 +2057,7 @@ const sendPayslip = async (
                     </tr>
                     <tr>
                         <td class="td-header">Transaction Reference No</td>
-                        <td class="td-value">${transaction_ref_no}</td>
+                        <td class="td-value">${transaction_id}</td>
                     </tr>
                     <tr>
                         <td class="td-header">Payment Status</td>
