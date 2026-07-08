@@ -44,6 +44,7 @@ const trainerPaymentModal = {
             tm.is_verified = 1
             AND tm.is_rejected = 0
             AND tm.trainer_id = ?
+            AND c.class_percentage > 50
             AND NOT EXISTS (
                 SELECT 1
                 FROM trainer_payment_trans tpt
