@@ -211,6 +211,42 @@ const trainerPaymentModal = {
       if (!students || students.length <= 0)
         throw new Error("Students cannot be empty");
 
+      if (commercial_type === "Pay Per Head") {
+        const trainerMappingIds = students.map((s) => s.trainer_mapping_id);
+
+        if (trainerMappingIds.length === 0) {
+          throw new Error("No students selected.");
+        }
+
+        // Get customer IDs from trainer_mapping
+        const [customers] = await connection.query(
+          `SELECT customer_id
+          FROM trainer_mapping
+          WHERE id IN (?)`,
+          [trainerMappingIds],
+        );
+
+        const customerIds = customers.map((c) => c.customer_id);
+
+        if (customerIds.length === 0) {
+          throw new Error("No customers found.");
+        }
+
+        // Check whether any customer belongs to a batch
+        const [batchCustomers] = await connection.query(
+          `SELECT customer_id
+           FROM batch_trans
+           WHERE customer_id IN (?)`,
+          [customerIds],
+        );
+
+        if (batchCustomers.length > 0) {
+          throw new Error(
+            "One or more selected customers are already assigned to a batch. Kindly request batch payment.",
+          );
+        }
+      }
+
       let commercial = 0;
       if (commercial_type !== "Pay Per Head") {
         commercial = request_amount / students.length;
@@ -462,7 +498,7 @@ const trainerPaymentModal = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY tm.bill_raisedate DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY tm.bill_raisedate DESC, id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       const [[countResult], [statusResult], [result]] = await Promise.all([
@@ -1000,7 +1036,13 @@ const trainerPaymentModal = {
               tpt.training_mode,
               t.name AS course,
               c.name AS cus_name,
-              c.phone AS cus_phone
+              c.phone AS cus_phone,
+              c.student_id,
+              CASE
+                WHEN c.student_id IS NOT NULL
+                  THEN c.student_id
+                ELSE CONCAT(c.name, " - ", c.phone)
+              END AS student_name
           FROM
               trainer_payment_master AS tpm
           INNER JOIN trainer_payment_trans AS tpt ON
@@ -1015,9 +1057,7 @@ const trainerPaymentModal = {
         [trainer_payment_id],
       );
 
-      const studentDetails = getPaidHeads.map(
-        (head) => `${head.cus_phone} - ${head.cus_name}`,
-      );
+      const studentDetails = getPaidHeads.map((head) => `${head.student_name}`);
 
       const dateObj = new Date(paid_date);
       const trainingPeriod = isNaN(dateObj.getTime())
@@ -1040,10 +1080,10 @@ const trainerPaymentModal = {
               transaction_id,
               head.status,
               head.commercial,
-              0,
+              1,
               accountNumber,
               head.commercial_type,
-              `${head.cus_phone} - ${head.cus_name}`,
+              head.student_name,
               trainingPeriod,
             );
           }
@@ -1063,6 +1103,13 @@ const trainerPaymentModal = {
         const dynamicTrainingMode =
           getPaidHeads.length > 0 ? getPaidHeads[0].training_mode : "Online";
 
+        const totalDuration = getPaidHeads.reduce(
+          (sum, head) => sum + (parseFloat(head.duration_in_hours) || 0),
+          0,
+        );
+        const averageHours =
+          getPaidHeads.length > 0 ? totalDuration / getPaidHeads.length : 0;
+
         await EmailModel.sendPayslip(
           getTrainer[0].email,
           getTrainer[0].name,
@@ -1071,7 +1118,7 @@ const trainerPaymentModal = {
           paid_date,
           getBatch[0].batch_number,
           dynamicTrainingMode,
-          0,
+          averageHours,
           payment_mode,
           transaction_id,
           "Paid",
@@ -1552,6 +1599,13 @@ const trainerPaymentModal = {
         );
       }
 
+      const date = new Date();
+      date.setDate(date.getDate() + 15);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const deadlineDate = `${year}-${month}-${day}`;
+
       await connection.query(
         `UPDATE
             trainer_payment_master
@@ -1559,10 +1613,11 @@ const trainerPaymentModal = {
             status = 'Requested',
             updated_date = ?,
             is_trainer_updated = 1,
-            feedback = ?
+            feedback = ?,
+            deadline_date = ?
         WHERE
             id = ?`,
-        [updated_date, feedback, payment_master_id],
+        [updated_date, feedback, deadlineDate, payment_master_id],
       );
 
       await connection.commit();
