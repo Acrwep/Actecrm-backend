@@ -747,7 +747,8 @@ const trainerPaymentModal = {
           tba.ifsc_code,
           tba.branch_name,
           tm.batch_id,
-          bm.batch_number
+          bm.batch_number,
+          t.created_date
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
