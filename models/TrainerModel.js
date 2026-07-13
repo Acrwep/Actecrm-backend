@@ -637,7 +637,8 @@ const TrainerModel = {
                           tb.ifsc_code,
                           tb.signature_image,
                           t.created_by,
-                          u.user_name AS hr_head
+                          u.user_name AS hr_head,
+                          t.created_date
                       FROM
                           trainer AS t
                       INNER JOIN technologies te ON
