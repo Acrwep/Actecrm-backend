@@ -340,7 +340,17 @@ const trainerPaymentModal = {
           `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
           [
             customerDetails[0].customer_id,
-            "Class Completion Acknowledgement",
+            "Trainer Payment Claim Form Sent",
+            created_date,
+            created_by,
+          ],
+        );
+
+        await connection.execute(
+          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          [
+            customerDetails[0].customer_id,
+            "Class Completion Acknowledgement Sent",
             created_date,
             created_by,
           ],
@@ -1062,7 +1072,8 @@ const trainerPaymentModal = {
                 WHEN c.student_id IS NOT NULL
                   THEN c.student_id
                 ELSE CONCAT(c.name, " - ", c.phone)
-              END AS student_name
+              END AS student_name,
+              c.id
           FROM
               trainer_payment_master AS tpm
           INNER JOIN trainer_payment_trans AS tpt ON
@@ -1151,6 +1162,15 @@ const trainerPaymentModal = {
         );
       }
 
+      if (getPaidHeads.length > 0) {
+        for (const head of getPaidHeads) {
+          await conn.execute(
+            `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+            [head.id, "Trainer Payment Paid", paid_date, paid_by],
+          );
+        }
+      }
+
       await conn.commit();
       return { status: true };
     } catch (err) {
@@ -1162,7 +1182,12 @@ const trainerPaymentModal = {
   },
 
   // Finance Head - Approve & Pay Transaction
-  updateTrainerPaymentStatus: async (status, trainer_payment_id) => {
+  updateTrainerPaymentStatus: async (
+    status,
+    trainer_payment_id,
+    updated_by,
+    updated_date,
+  ) => {
     const conn = await pool.getConnection();
 
     try {
@@ -1212,6 +1237,26 @@ const trainerPaymentModal = {
         throw new Error(
           "Cannot update status: All check criteria (LinkedIn, Google, Class %, Cleared Payment, Acknowledged) must be satisfied (completed with status 1).",
         );
+      }
+
+      const [getCus] = await conn.query(
+        `SELECT 
+            c.id
+        FROM trainer_payment_master tpm
+        INNER JOIN trainer_payment_trans tpt ON tpm.id = tpt.payment_master_id
+        INNER JOIN trainer_mapping tm ON tm.id = tpt.trainer_mapping_id
+        INNER JOIN customers c ON c.id = tm.customer_id WHERE 
+        WHERE tpm.id = ?`,
+        [trainer_payment_id],
+      );
+
+      if (getCus.length > 0) {
+        for (const customer of getCus) {
+          await conn.execute(
+            `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+            [customer.id, "Trainer Payment Approved", updated_date, updated_by],
+          );
+        }
       }
 
       await conn.execute(
@@ -1585,6 +1630,9 @@ const trainerPaymentModal = {
       }
 
       for (const student of students) {
+        const [getCus] = await pool.query(
+          `SELECT tm.customer_id FROM trainer_payment_trans tpt INNER JOIN trainer_mapping AS tm ON tpt.trainer_mapping_id = tm.id`,
+        );
         await connection.query(
           `UPDATE
                 trainer_payment_trans
@@ -1615,6 +1663,16 @@ const trainerPaymentModal = {
             student.hr_rating,
             student.coordinator_rating,
             student.payment_trans_id,
+          ],
+        );
+
+        await connection.execute(
+          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          [
+            getCus[0].customer_id,
+            "Trainer Payment Claim Submitted",
+            updated_date,
+            trainer_id,
           ],
         );
       }

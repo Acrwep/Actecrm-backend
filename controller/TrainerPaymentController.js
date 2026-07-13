@@ -158,12 +158,13 @@ const financeJuniorApprove = async (req, res) => {
 
 // Finance Head - Approve Transaction
 const updateTrainerPaymentStatus = async (req, res) => {
+  const { status, trainer_payment_id, updated_by, updated_date } = req.body;
   try {
-    const { status, trainer_payment_id } = req.body;
-
     const result = await trainerPaymentModal.updateTrainerPaymentStatus(
       status,
       trainer_payment_id,
+      updated_by,
+      updated_date,
     );
     return res.status(200).send({
       message: "Status Changed",
