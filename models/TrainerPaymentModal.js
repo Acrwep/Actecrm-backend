@@ -336,6 +336,16 @@ const trainerPaymentModal = {
           [student.trainer_mapping_id],
         );
 
+        await connection.execute(
+          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          [
+            customerDetails[0].customer_id,
+            "Class Completion Acknowledgement",
+            created_date,
+            created_by,
+          ],
+        );
+
         if (customerDetails.length > 0) {
           emailTasks.push({
             email: customerDetails[0].email,
@@ -553,9 +563,9 @@ const trainerPaymentModal = {
                 tp.placement_guidance,
                 tp.hr_rating,
                 tp.coordinator_rating,
-                l.ra_id AS ra_user_id,
-                ru.user_name AS ra_user_name,
-                tr.created_by AS hr_user_id,
+                ra.user_id AS ra_user_id,
+                ra.user_name AS ra_user_name,
+                hu.user_id AS hr_user_id,
                 hu.user_name AS hr_user_name,
                 cm.name AS mode_of_training
             FROM
@@ -568,21 +578,31 @@ const trainerPaymentModal = {
                 l.id = c.lead_id
             LEFT JOIN class_mode AS cm ON
                 cm.id = l.preferred_mode
-            LEFT JOIN users AS ru ON
-                ru.user_id = l.ra_id
             LEFT JOIN technologies AS t ON
                 t.id = c.enrolled_course
             LEFT JOIN payment_master AS pm ON
             	  pm.lead_id = c.lead_id
             LEFT JOIN trainer AS tr ON
                 tm.trainer_id = tr.id
-            LEFT JOIN users AS hu ON
-                hu.user_id = tr.created_by
             LEFT JOIN(
             	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                 GROUP BY pt.payment_master_id
             ) AS ps ON ps.payment_master_id = pm.id
+            LEFT JOIN (
+              SELECT ct.customer_id, MAX(ct.id) AS latest_id FROM customer_track AS ct WHERE ct.status = 'Trainer Assigned' GROUP BY ct.customer_id
+            ) AS latest_hr ON latest_hr.customer_id = c.id
+            LEFT JOIN customer_track AS ht ON
+              ht.id = latest_hr.latest_id
+            LEFT JOIN users AS hu ON
+              hu.user_id = ht.updated_by
+            LEFT JOIN (
+              SELECT ct.customer_id, MAX(ct.id) AS latest_id FROM customer_track AS ct WHERE ct.status = 'Student Verified' GROUP BY ct.customer_id
+            ) AS latest_ra ON latest_ra.customer_id = c.id
+            LEFT JOIN customer_track AS rt ON
+              rt.id = latest_ra.latest_id
+            LEFT JOIN users AS ra ON
+              ra.user_id = rt.updated_by
             WHERE tp.payment_master_id IN (?)`,
           [ids],
         );
@@ -1682,6 +1702,11 @@ const trainerPaymentModal = {
       await connection.query(
         `UPDATE customers SET is_acknowledged = ?, acknowledged_date = ? WHERE id = ?`,
         [is_acknowledged, acknowledged_date, customer_id],
+      );
+
+      await connection.execute(
+        `INSERT INTO customer_status_history(customer_id, status, updated_at) VALUES(?, ?, ?)`,
+        [customer_id, "Class Completion Acknowledged", acknowledged_date],
       );
       await connection.commit();
       return { status: true };
