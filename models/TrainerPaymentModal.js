@@ -1233,11 +1233,11 @@ const trainerPaymentModal = {
           Number(row.is_acknowledged) !== 1,
       );
 
-      if (hasUnsatisfied) {
-        throw new Error(
-          "Cannot update status: All check criteria (LinkedIn, Google, Class %, Cleared Payment, Acknowledged) must be satisfied (completed with status 1).",
-        );
-      }
+      // if (hasUnsatisfied) {
+      //   throw new Error(
+      //     "Cannot update status: All check criteria (LinkedIn, Google, Class %, Cleared Payment, Acknowledged) must be satisfied (completed with status 1).",
+      //   );
+      // }
 
       const [getCus] = await conn.query(
         `SELECT 
