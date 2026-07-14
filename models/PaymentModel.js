@@ -41,7 +41,10 @@ const PaymentModel = {
     gst_number,
     ra_id,
   ) => {
+    const connection = await pool.getConnection();
     try {
+      await connection.beginTransaction();
+
       const paymentMasterQuery = `INSERT INTO payment_master(
                               lead_id,
                               tax_type,
@@ -60,11 +63,11 @@ const PaymentModel = {
         created_date,
       ];
 
-      const [masterInsert] = await pool.query(paymentMasterQuery, masterValues);
+      const [masterInsert] = await connection.query(paymentMasterQuery, masterValues);
       if (masterInsert.affectedRows <= 0)
         throw new Error("Error while making payment");
 
-      const [getUserId] = await pool.query(
+      const [getUserId] = await connection.query(
         `SELECT id, user_id FROM users WHERE user_id = ?`,
         [updated_by],
       );
@@ -103,11 +106,11 @@ const PaymentModel = {
         place_of_payment,
       ];
 
-      const [transInsert] = await pool.query(paymentTransQuery, transValues);
+      const [transInsert] = await connection.query(paymentTransQuery, transValues);
 
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
-      const [getCustomer] = await pool.query(
+      const [getCustomer] = await connection.query(
         `SELECT id, name, phone_code, phone, whatsapp_phone_code, whatsapp, email, region_id, branch_id, country, state, district FROM lead_master WHERE id = ?`,
         [lead_id],
       );
@@ -117,7 +120,7 @@ const PaymentModel = {
       while (!isUnique) {
         const randomNum = Math.floor(100000 + Math.random() * 900000);
         const tempId = `ACTE${randomNum}`;
-        const [existing] = await pool.query(
+        const [existing] = await connection.query(
           `SELECT id FROM customers WHERE student_id = ?`,
           [tempId],
         );
@@ -156,15 +159,15 @@ const PaymentModel = {
         created_date,
       ];
 
-      const [insertCustomer] = await pool.query(customerQuery, customerValues);
+      const [insertCustomer] = await connection.query(customerQuery, customerValues);
 
       if (is_server_required === true) {
-        const [insertServer] = await pool.query(
+        const [insertServer] = await connection.query(
           `INSERT INTO server_master (customer_id, status, created_date) VALUES(?, ?, ?)`,
           [insertCustomer.insertId, "Requested", created_date],
         );
 
-        await pool.query(
+        await connection.query(
           `INSERT INTO server_track(server_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
           [insertServer.insertId, "Requested", created_date, updated_by],
         );
@@ -177,7 +180,7 @@ const PaymentModel = {
       ];
 
       const values = statuses.map((s) => [insertCustomer.insertId, ...s]);
-      await pool.query(
+      await connection.query(
         `INSERT INTO customer_track (
             customer_id,
             status,
@@ -188,32 +191,35 @@ const PaymentModel = {
         [values],
       );
 
-      const [historyResult] = await pool.query(
+      const [historyResult] = await connection.query(
         `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
         [insertCustomer.insertId, "Form Pending", created_date, updated_by],
       );
 
-      await pool.query(
+      await connection.query(
         `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
         [historyResult.insertId, insertCustomer.insertId],
       );
 
       if (ra_id) {
-        await pool.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
+        await connection.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
           ra_id,
           lead_id,
         ]);
       }
 
-      const [getInvoiceDetails] = await pool.query(
+      const [getInvoiceDetails] = await connection.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,
         [transInsert.insertId],
       );
 
-      const [getCourse] = await pool.query(
+      const [getCourse] = await connection.query(
         `SELECT lm.primary_course_id AS course_id, t.name AS course_name, lm.primary_fees FROM lead_master AS lm INNER JOIN technologies AS t ON lm.primary_course_id = t.id WHERE lm.id = ?`,
         [lead_id],
       );
+
+      await connection.commit();
+
       return {
         insertId: insertCustomer.insertId,
         email: getCustomer[0].email,
@@ -224,7 +230,10 @@ const PaymentModel = {
         course: getCourse[0],
       };
     } catch (error) {
+      await connection.rollback();
       throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 

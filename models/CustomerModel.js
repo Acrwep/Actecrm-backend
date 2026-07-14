@@ -1316,7 +1316,7 @@ const CustomerModel = {
                       customer_track AS ct
                   INNER JOIN customers AS c ON
                     c.id = ct.customer_id
-                  INNER JOIN users AS u ON
+                  LEFT JOIN users AS u ON
                     ct.updated_by = u.user_id
                   WHERE
                       ct.customer_id = ?

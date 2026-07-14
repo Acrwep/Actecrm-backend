@@ -336,8 +336,8 @@ const trainerPaymentModal = {
           [student.trainer_mapping_id],
         );
 
-        await connection.execute(
-          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        await connection.query(
+          `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
           [
             customerDetails[0].customer_id,
             "Trainer Payment Claim Form Sent",
@@ -346,8 +346,8 @@ const trainerPaymentModal = {
           ],
         );
 
-        await connection.execute(
-          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        await connection.query(
+          `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
           [
             customerDetails[0].customer_id,
             "Class Completion Acknowledgement Sent",
@@ -1172,8 +1172,8 @@ const trainerPaymentModal = {
 
       if (getPaidHeads.length > 0) {
         for (const head of getPaidHeads) {
-          await conn.execute(
-            `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          await conn.query(
+            `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
             [head.id, "Trainer Payment Paid", paid_date, paid_by],
           );
         }
@@ -1260,14 +1260,14 @@ const trainerPaymentModal = {
 
       if (getCus.length > 0) {
         for (const customer of getCus) {
-          await conn.execute(
-            `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          await conn.query(
+            `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
             [customer.id, "Trainer Payment Approved", updated_date, updated_by],
           );
         }
       }
 
-      await conn.execute(
+      await conn.query(
         `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
         [status, trainer_payment_id],
       );
@@ -1639,7 +1639,8 @@ const trainerPaymentModal = {
 
       for (const student of students) {
         const [getCus] = await pool.query(
-          `SELECT tm.customer_id FROM trainer_payment_trans tpt INNER JOIN trainer_mapping AS tm ON tpt.trainer_mapping_id = tm.id`,
+          `SELECT tm.customer_id FROM trainer_payment_trans tpt INNER JOIN trainer_mapping AS tm ON tpt.trainer_mapping_id = tm.id WHERE tpt.id = ?`,
+          [student.payment_trans_id],
         );
         await connection.query(
           `UPDATE
@@ -1674,8 +1675,8 @@ const trainerPaymentModal = {
           ],
         );
 
-        await connection.execute(
-          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        await connection.query(
+          `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
           [
             getCus[0].customer_id,
             "Trainer Payment Claim Submitted",
@@ -1770,8 +1771,8 @@ const trainerPaymentModal = {
         [is_acknowledged, acknowledged_date, customer_id],
       );
 
-      await connection.execute(
-        `INSERT INTO customer_status_history(customer_id, status, updated_at) VALUES(?, ?, ?)`,
+      await connection.query(
+        `INSERT INTO customer_track(customer_id, status, status_date) VALUES(?, ?, ?)`,
         [customer_id, "Class Completion Acknowledged", acknowledged_date],
       );
       await connection.commit();

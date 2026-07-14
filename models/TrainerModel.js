@@ -385,14 +385,14 @@ const TrainerModel = {
                       FROM trainer AS t
                       WHERE t.is_active = 1`;
 
-      let getStatusQuery = `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t WHERE 1 = 1`;
+      let getStatusQuery = `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t WHERE t.is_active = 1`;
 
       let onBoardingQuery = `SELECT
           COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS on_boarding_count,
-          COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) < 100 THEN t.id END) AS on_going_count
+          COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS on_going_count
         FROM trainer AS t
         INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id AND tm.is_rejected = 0
-        INNER JOIN customers AS c ON tm.customer_id = c.id WHERE 1 = 1`;
+        INNER JOIN customers AS c ON tm.customer_id = c.id WHERE t.is_active = 1`;
 
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
@@ -441,15 +441,14 @@ const TrainerModel = {
 
       // Modified approach with single query
       if (ongoing?.toLowerCase() === "ongoing") {
-        console.log("ongoing", ongoing);
-
         getQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
                       FROM trainer_mapping AS tm 
                       INNER JOIN customers AS c ON tm.customer_id = c.id 
-                      WHERE c.class_percentage < 100 
-                        AND tm.is_rejected = 0 
+                      WHERE IFNULL(c.class_percentage, 0) < 100 
+                        AND tm.is_rejected = 0
+                        AND c.status = 'Class Going'
                       GROUP BY tm.trainer_id
                     )
                   `;
@@ -458,8 +457,9 @@ const TrainerModel = {
                       SELECT tm.trainer_id 
                       FROM trainer_mapping AS tm 
                       INNER JOIN customers AS c ON tm.customer_id = c.id 
-                      WHERE c.class_percentage < 100 
-                        AND tm.is_rejected = 0 
+                      WHERE IFNULL(c.class_percentage, 0) < 100 
+                        AND tm.is_rejected = 0
+                        AND c.status = 'Class Going'
                       GROUP BY tm.trainer_id
                     )
                   `;
