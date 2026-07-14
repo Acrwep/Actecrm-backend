@@ -893,11 +893,11 @@ const sendInvoicePdf = async (
           <td>₹${parseFloat(convenience_fees ? convenience_fees : 0).toFixed(
             2,
           )}</td>
-          <td>₹${
+          <td>₹${(
             base_amount +
             parseFloat(convenience_fees ? convenience_fees : 0) +
             gstForPaid
-          }</td>
+          ).toFixed(2)}</td>
       </tr>
     </tbody>
 </table>
