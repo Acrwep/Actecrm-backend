@@ -438,7 +438,8 @@ const trainerPaymentModal = {
           tm.commercial_type,
           tm.feedback,
           tm.batch_id,
-          bm.batch_number
+          bm.batch_number,
+          tm.updated_date
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
@@ -747,7 +748,8 @@ const trainerPaymentModal = {
           tba.ifsc_code,
           tba.branch_name,
           tm.batch_id,
-          bm.batch_number
+          bm.batch_number,
+          tm.updated_date
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
