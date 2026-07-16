@@ -526,13 +526,13 @@ const otpSend = async (request, response) => {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.SMTP_USER,
+        user: process.env.SMTP_FROM,
         pass: process.env.SMTP_PASS,
       },
     });
 
     const mailOptions = {
-      from: process.env.SMTP_USER,
+      from: process.env.SMTP_FROM,
       to: email,
       subject: "OTP Verification Code",
       html: `<!DOCTYPE html>

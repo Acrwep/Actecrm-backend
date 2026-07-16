@@ -194,11 +194,10 @@ const getTrainers = async (request, response) => {
     email,
     status,
     is_form_sent,
-    is_onboarding,
-    ongoing,
     created_by,
     page,
     limit,
+    bucket,
   } = request.body;
   try {
     const trainers = await TrainerModel.getTrainers(
@@ -208,11 +207,10 @@ const getTrainers = async (request, response) => {
       email,
       status,
       is_form_sent,
-      is_onboarding,
-      ongoing,
       created_by,
       page,
       limit,
+      bucket,
     );
     return response.status(200).send({
       message: "Trainer fetched successfully",

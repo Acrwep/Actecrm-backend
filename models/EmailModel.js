@@ -7,11 +7,35 @@ const fs = require("fs");
 const path = require("path");
 const moment = require("moment");
 
-const transporter = nodemailer.createTransport({
+const transporterAdmission = nodemailer.createTransport({
+  service: process.env.SMTP_HOST,
+  auth: {
+    user: process.env.ADMISSION_MAIL, // Replace with your email
+    pass: process.env.ADMISSION_PASS_KEY, // Replace with your email password or app password for Gmail
+  },
+});
+
+const transporterNotify = nodemailer.createTransport({
   service: process.env.SMTP_HOST,
   auth: {
     user: process.env.SMTP_FROM, // Replace with your email
     pass: process.env.SMTP_PASS, // Replace with your email password or app password for Gmail
+  },
+});
+
+const transporterServer = nodemailer.createTransport({
+  service: process.env.SMTP_HOST,
+  auth: {
+    user: process.env.SERVER_MAIL, // Replace with your email
+    pass: process.env.SERVER_PASS_KEY, // Replace with your email password or app password for Gmail
+  },
+});
+
+const transporterBilling = nodemailer.createTransport({
+  service: process.env.SMTP_HOST,
+  auth: {
+    user: process.env.BILLING_MAIL, // Replace with your email
+    pass: process.env.BILLING_PASS_KEY, // Replace with your email password or app password for Gmail
   },
 });
 
@@ -25,7 +49,7 @@ const sendWelcomeMail = async (email, name) => {
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.ADMISSION_MAIL,
       to: email,
       subject: "Welcome to ACTE",
       text: `Click the below link to complete the registration.`,
@@ -143,7 +167,7 @@ const sendWelcomeMail = async (email, name) => {
     };
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterAdmission.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {
     throw new Error(error.message);
@@ -166,7 +190,7 @@ const sendMail = async (email, link, trainer_id) => {
     );
     if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.ADMISSION_MAIL,
       to: email,
       subject: "ACTE Registration From",
       text: `Click the below link to complete the registration.`,
@@ -221,13 +245,12 @@ const sendMail = async (email, link, trainer_id) => {
       ],
     };
     // Update trainer table
-    const [updateTrainer] = await pool.query(
-      `UPDATE trainer SET is_form_sent = 1 WHERE id = ?`,
-      [trainer_id],
-    );
+    await pool.query(`UPDATE trainer SET is_form_sent = 1 WHERE id = ?`, [
+      trainer_id,
+    ]);
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterAdmission.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {
     throw new Error(error.message);
@@ -250,7 +273,7 @@ const sendCustomerMail = async (email, link, customer_id) => {
     );
     if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.ADMISSION_MAIL,
       to: email,
       subject: "Registration From",
       text: `Click the below link to complete the registration.`,
@@ -305,13 +328,12 @@ const sendCustomerMail = async (email, link, customer_id) => {
       ],
     };
     // Update trainer table
-    const [updateCustomer] = await pool.query(
-      `UPDATE customers SET is_form_sent = 1 WHERE id = ?`,
-      [customer_id],
-    );
+    await pool.query(`UPDATE customers SET is_form_sent = 1 WHERE id = ?`, [
+      customer_id,
+    ]);
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterAdmission.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {
     throw new Error(error.message);
@@ -534,7 +556,7 @@ const sendPaymentMail = async (email, name) => {
     if (isEmailExists.length <= 0) throw new Error("Email not exists");
 
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.BILLING_MAIL,
       to: email,
       subject: "ACTE Payment Verification",
       text: `Click the below link to complete the registration.`,
@@ -659,7 +681,7 @@ const sendPaymentMail = async (email, name) => {
     };
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterBilling.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {
     throw new Error(error.message);
@@ -972,16 +994,8 @@ const sendInvoicePdf = async (
   await browser.close();
 
   // 3. Send mail
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-
-  return transporter.sendMail({
-    from: process.env.SMTP_FROM,
+  return transporterBilling.sendMail({
+    from: process.env.BILLING_MAIL,
     to: email,
     subject: "Acte Payment Invoice",
     text: "Please find your invoice attached.",
@@ -1348,7 +1362,7 @@ const sendLoginLink = async (email, name) => {
     };
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterNotify.sendMail(mailOptions);
     return { success: true, message: "Mail sent successfully" };
   } catch (error) {
     throw new Error(error.message);
@@ -1379,7 +1393,7 @@ const sendTrainerPaymentMail = async (
     );
     if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.BILLING_MAIL,
       to: email,
       subject: "Payment Claim",
       text: `Click the below link to complete the payment.`,
@@ -1436,7 +1450,7 @@ const sendTrainerPaymentMail = async (
     );
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterBilling.sendMail(mailOptions);
 
     await connection.commit();
     return { success: true, message: "Mail sent successfully" };
@@ -1599,7 +1613,7 @@ const sendStudentAcknowledgementMail = async (
     );
 
     // Send mail
-    await transporter.sendMail(mailOptions);
+    await transporterNotify.sendMail(mailOptions);
 
     await connection.commit();
     return { success: true, message: "Mail sent successfully" };
@@ -2244,17 +2258,8 @@ const sendPayslip = async (
     });
     await browser.close();
 
-    // 3. Send mail
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-
-    return transporter.sendMail({
-      from: process.env.SMTP_FROM,
+    return transporterBilling.sendMail({
+      from: process.env.BILLING_MAIL,
       to: email,
       subject: `ACTE Technologies - Freelancer Payment Slip | ${
         commercial_type === "Batch"

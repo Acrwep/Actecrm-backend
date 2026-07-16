@@ -319,11 +319,10 @@ const TrainerModel = {
     email,
     status,
     is_form_sent,
-    is_onboarding,
-    ongoing,
     created_by,
     page,
     limit,
+    bucket,
   ) => {
     try {
       const queryParams = [];
@@ -364,7 +363,9 @@ const TrainerModel = {
                           tb.signature_image,
                           t.created_by,
                           u.user_name AS hr_head,
-                          t.created_date
+                          t.created_date,
+                          IFNULL(cc.completed_count, 0) AS completed_count,
+                          CASE WHEN IFNULL(cc.completed_count, 0) = 0 THEN 'New' ELSE 'Existing' END AS trainer_status
                       FROM
                           trainer AS t
                       LEFT JOIN technologies te ON
@@ -378,21 +379,73 @@ const TrainerModel = {
                         )
                       LEFT JOIN users AS u ON
                         u.user_id = t.created_by
+                      LEFT JOIN (
+                      	SELECT tm.trainer_id,
+                        	COUNT(DISTINCT tm.customer_id) AS completed_count
+                        FROM trainer_mapping AS tm
+                        INNER JOIN customers AS c ON
+                          c.id = tm.customer_id
+                        WHERE tm.is_rejected = 0
+                          AND IFNULL(c.class_percentage, 0) = 100
+                        GROUP BY tm.trainer_id
+                      ) AS cc ON cc.trainer_id = t.id
                       WHERE
                           t.is_active = 1`;
 
       let countQuery = `SELECT COUNT(DISTINCT t.id) as total
                       FROM trainer AS t
+                      LEFT JOIN (
+                      	SELECT tm.trainer_id,
+                        	COUNT(DISTINCT tm.customer_id) AS completed_count
+                        FROM trainer_mapping AS tm
+                        INNER JOIN customers AS c ON
+                          c.id = tm.customer_id
+                        WHERE tm.is_rejected = 0
+                          AND IFNULL(c.class_percentage, 0) = 100
+                        GROUP BY tm.trainer_id
+                      ) AS cc ON cc.trainer_id = t.id
                       WHERE t.is_active = 1`;
 
-      let getStatusQuery = `SELECT COUNT(id) AS total_count, COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending, COUNT(CASE WHEN t.status IN ('Verify Pending') THEN 1 END) AS verify_pending, COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified, COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected FROM trainer AS t WHERE t.is_active = 1`;
+      let getStatusQuery = `SELECT
+                              COUNT(id) AS total_count,
+                              COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
+                              COUNT(CASE WHEN t.status IN('Verify Pending') THEN 1 END) AS verify_pending,
+                              COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified,
+                              COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected
+                            FROM
+                              trainer AS t
+                            WHERE
+                              t.is_active = 1`;
 
       let onBoardingQuery = `SELECT
-          COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS on_boarding_count,
-          COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS on_going_count
-        FROM trainer AS t
-        INNER JOIN trainer_mapping AS tm ON t.id = tm.trainer_id AND tm.is_rejected = 0
-        INNER JOIN customers AS c ON tm.customer_id = c.id WHERE t.is_active = 1`;
+                              COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS on_boarding_count,
+                              COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS on_going_count,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 0 AND c.status = 'Class Going' THEN t.id END) AS new_ongoing,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 0 AND c.status = 'Class Going' THEN t.id END) AS existing_ongoing,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 1 THEN t.id END) AS first_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 2 AND 5 THEN t.id END) AS second_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 6 AND 10 THEN t.id END) AS third_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 10 THEN t.id END) AS fourth_stage
+                            FROM
+                                trainer AS t
+                            INNER JOIN trainer_mapping AS tm ON
+                                tm.trainer_id = t.id AND tm.is_rejected = 0
+                            INNER JOIN customers AS c ON
+                                c.id = tm.customer_id
+                            LEFT JOIN(
+                                SELECT tm.trainer_id,
+                                    COUNT(DISTINCT tm.customer_id) AS completed_count
+                                FROM trainer_mapping AS tm
+                                INNER JOIN customers AS c ON
+                                    c.id = tm.customer_id
+                                WHERE tm.is_rejected = 0
+                                  AND IFNULL(c.class_percentage, 0) = 100
+                                GROUP BY tm.trainer_id
+                            ) AS cc
+                            ON
+                                cc.trainer_id = t.id
+                            WHERE
+                                t.is_active = 1;`;
 
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
@@ -410,25 +463,29 @@ const TrainerModel = {
         getQuery += ` AND t.email LIKE '%${email}%'`;
         countQuery += ` AND t.email LIKE '%${email}%'`;
       }
-      if (status) {
-        getQuery += ` AND t.status IN (?)`;
-        countQuery += ` AND t.status IN (?)`;
-        queryParams.push(status);
-        countQueryParams.push(status);
-      }
-      if (is_form_sent != null || is_form_sent != undefined) {
-        getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
-        countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
-        queryParams.push(is_form_sent);
-        countQueryParams.push(is_form_sent);
+
+      if (bucket && bucket === "All") {
+        if (is_form_sent != null || is_form_sent != undefined) {
+          getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
+          countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
+          queryParams.push(is_form_sent);
+          countQueryParams.push(is_form_sent);
+        }
+
+        if (status) {
+          getQuery += ` AND t.status IN (?)`;
+          countQuery += ` AND t.status IN (?)`;
+          queryParams.push(status);
+          countQueryParams.push(status);
+        }
       }
 
-      // if (is_onboarding != null || is_onboarding != undefined) {
-      //   getQuery += " AND t.is_onboarding = ?";
-      //   countQuery += " AND t.is_onboarding = ?";
-      //   queryParams.push(is_onboarding);
-      //   countQueryParams.push(is_onboarding);
-      // }
+      if (bucket && bucket === "Verified") {
+        getQuery += ` AND t.status IN (?)`;
+        countQuery += ` AND t.status IN (?)`;
+        queryParams.push("Verified");
+        countQueryParams.push("Verified");
+      }
 
       if (created_by) {
         getQuery += ` AND t.created_by LIKE '%${created_by}%'`;
@@ -440,7 +497,7 @@ const TrainerModel = {
       }
 
       // Modified approach with single query
-      if (ongoing?.toLowerCase() === "ongoing") {
+      if (bucket === "ongoing") {
         getQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
@@ -452,6 +509,10 @@ const TrainerModel = {
                       GROUP BY tm.trainer_id
                     )
                   `;
+        getQuery +=
+          status === "Existing"
+            ? ` AND IFNULL(cc.completed_count, 0) > 0`
+            : ` AND IFNULL(cc.completed_count, 0) = 0`;
         countQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
@@ -463,7 +524,11 @@ const TrainerModel = {
                       GROUP BY tm.trainer_id
                     )
                   `;
-      } else if (is_onboarding) {
+        countQuery +=
+          status === "Existing"
+            ? ` AND IFNULL(cc.completed_count, 0) > 0`
+            : ` AND IFNULL(cc.completed_count, 0) = 0`;
+      } else if (bucket === "onboarding") {
         getQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
@@ -484,6 +549,20 @@ const TrainerModel = {
                       GROUP BY tm.trainer_id
                     )
                   `;
+
+        if (status === "5") {
+          getQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
+          countQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
+        } else if (status === "10") {
+          getQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
+          countQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
+        } else if (status === "10+") {
+          getQuery += ` AND cc.completed_count > 10`;
+          countQuery += ` AND cc.completed_count > 10`;
+        } else {
+          getQuery += ` AND cc.completed_count = 1`;
+          countQuery += ` AND cc.completed_count = 1`;
+        }
       }
 
       // Apply pagination
@@ -571,6 +650,12 @@ const TrainerModel = {
         trainer_status_count: getStatus,
         on_boarding: getOnBoarding[0].on_boarding_count,
         on_going: getOnBoarding[0].on_going_count,
+        new_ongoing: getOnBoarding[0].new_ongoing,
+        existing_ongoing: getOnBoarding[0].existing_ongoing,
+        first_stage: getOnBoarding[0].first_stage,
+        second_stage: getOnBoarding[0].second_stage,
+        third_stage: getOnBoarding[0].third_stage,
+        fourth_stage: getOnBoarding[0].fourth_stage,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

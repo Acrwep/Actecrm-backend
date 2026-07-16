@@ -63,7 +63,10 @@ const PaymentModel = {
         created_date,
       ];
 
-      const [masterInsert] = await connection.query(paymentMasterQuery, masterValues);
+      const [masterInsert] = await connection.query(
+        paymentMasterQuery,
+        masterValues,
+      );
       if (masterInsert.affectedRows <= 0)
         throw new Error("Error while making payment");
 
@@ -106,7 +109,10 @@ const PaymentModel = {
         place_of_payment,
       ];
 
-      const [transInsert] = await connection.query(paymentTransQuery, transValues);
+      const [transInsert] = await connection.query(
+        paymentTransQuery,
+        transValues,
+      );
 
       if (transInsert.affectedRows <= 0) throw new Error("Error");
 
@@ -115,20 +121,27 @@ const PaymentModel = {
         [lead_id],
       );
 
-      let studentId = "";
-      let isUnique = false;
-      while (!isUnique) {
-        const randomNum = Math.floor(100000 + Math.random() * 900000);
-        const tempId = `ACTE${randomNum}`;
-        const [existing] = await connection.query(
-          `SELECT id FROM customers WHERE student_id = ?`,
-          [tempId],
-        );
-        if (existing.length === 0) {
-          studentId = tempId;
-          isUnique = true;
+      const now = new Date();
+      const year = String(now.getFullYear()).slice(-2);
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const prefix = `STD${year}${month}`;
+
+      const [latestCustomer] = await connection.query(
+        `SELECT student_id FROM customers WHERE student_id LIKE ? ORDER BY LENGTH(student_id) DESC, student_id DESC LIMIT 1 FOR UPDATE`,
+        [`${prefix}%`]
+      );
+
+      let sequence = 1;
+      if (latestCustomer.length > 0) {
+        const latestStudentId = latestCustomer[0].student_id;
+        const seqStr = latestStudentId.substring(prefix.length);
+        const parsedSeq = parseInt(seqStr, 10);
+        if (!isNaN(parsedSeq)) {
+          sequence = parsedSeq + 1;
         }
       }
+
+      const studentId = `${prefix}${String(sequence).padStart(3, "0")}`;
 
       const customerQuery = `INSERT INTO customers (lead_id, student_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
@@ -159,7 +172,10 @@ const PaymentModel = {
         created_date,
       ];
 
-      const [insertCustomer] = await connection.query(customerQuery, customerValues);
+      const [insertCustomer] = await connection.query(
+        customerQuery,
+        customerValues,
+      );
 
       if (is_server_required === true) {
         const [insertServer] = await connection.query(
@@ -202,10 +218,10 @@ const PaymentModel = {
       );
 
       if (ra_id) {
-        await connection.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
-          ra_id,
-          lead_id,
-        ]);
+        await connection.query(
+          `UPDATE lead_master SET ra_id = ? WHERE id = ?`,
+          [ra_id, lead_id],
+        );
       }
 
       const [getInvoiceDetails] = await connection.query(
