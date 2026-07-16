@@ -407,7 +407,7 @@ const TrainerModel = {
                       WHERE t.is_active = 1`;
 
       let getStatusQuery = `SELECT
-                              COUNT(id) AS total_count,
+                              COUNT(CASE WHEN (t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Verify Pending') THEN 1 END) AS total_count,
                               COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
                               COUNT(CASE WHEN t.status IN('Verify Pending') THEN 1 END) AS verify_pending,
                               COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified,
@@ -420,12 +420,12 @@ const TrainerModel = {
       let onBoardingQuery = `SELECT
                               COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS on_boarding_count,
                               COUNT(DISTINCT CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS on_going_count,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 0 AND c.status = 'Class Going' THEN t.id END) AS new_ongoing,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 0 AND c.status = 'Class Going' THEN t.id END) AS existing_ongoing,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 1 THEN t.id END) AS first_stage,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 2 AND 5 THEN t.id END) AS second_stage,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 6 AND 10 THEN t.id END) AS third_stage,
-                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 10 THEN t.id END) AS fourth_stage
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 0 AND IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS new_ongoing,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 0 AND IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN t.id END) AS existing_ongoing,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) = 1 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS first_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 2 AND 5 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS second_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 6 AND 10 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS third_stage,
+                              COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 10 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS fourth_stage
                             FROM
                                 trainer AS t
                             INNER JOIN trainer_mapping AS tm ON
@@ -450,18 +450,26 @@ const TrainerModel = {
       if (name) {
         getQuery += ` AND t.name LIKE '%${name}%'`;
         countQuery += ` AND t.name LIKE '%${name}%'`;
+        getStatusQuery += ` AND t.name LIKE '%${name}%'`;
+        onBoardingQuery += ` AND t.name LIKE '%${name}%'`;
       }
       if (trainer_code) {
         getQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
         countQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
+        getStatusQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
+        onBoardingQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
       }
       if (mobile) {
         getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
         countQuery += ` AND t.mobile LIKE '%${mobile}%'`;
+        getStatusQuery += ` AND t.mobile LIKE '%${mobile}%'`;
+        onBoardingQuery += ` AND t.mobile LIKE '%${mobile}%'`;
       }
       if (email) {
         getQuery += ` AND t.email LIKE '%${email}%'`;
         countQuery += ` AND t.email LIKE '%${email}%'`;
+        getStatusQuery += ` AND t.email LIKE '%${email}%'`;
+        onBoardingQuery += ` AND t.email LIKE '%${email}%'`;
       }
 
       if (bucket && bucket === "All") {
@@ -490,10 +498,8 @@ const TrainerModel = {
       if (created_by) {
         getQuery += ` AND t.created_by LIKE '%${created_by}%'`;
         countQuery += ` AND t.created_by LIKE '%${created_by}%'`;
-        getStatusQuery += ` AND t.created_by = ?`;
-        onBoardingQuery += ` AND t.created_by = ?`;
-        statusParams.push(created_by);
-        onBoardingParams.push(created_by);
+        getStatusQuery += ` AND t.created_by LIKE '%${created_by}%'`;
+        onBoardingQuery += ` AND t.created_by LIKE '%${created_by}%'`;
       }
 
       // Modified approach with single query
@@ -509,10 +515,12 @@ const TrainerModel = {
                       GROUP BY tm.trainer_id
                     )
                   `;
-        getQuery +=
-          status === "Existing"
-            ? ` AND IFNULL(cc.completed_count, 0) > 0`
-            : ` AND IFNULL(cc.completed_count, 0) = 0`;
+        if (status) {
+          getQuery +=
+            status === "Existing"
+              ? ` AND IFNULL(cc.completed_count, 0) > 0`
+              : ` AND IFNULL(cc.completed_count, 0) = 0`;
+        }
         countQuery += `
                     AND t.id IN (
                       SELECT tm.trainer_id 
@@ -524,10 +532,12 @@ const TrainerModel = {
                       GROUP BY tm.trainer_id
                     )
                   `;
-        countQuery +=
-          status === "Existing"
-            ? ` AND IFNULL(cc.completed_count, 0) > 0`
-            : ` AND IFNULL(cc.completed_count, 0) = 0`;
+        if (status) {
+          countQuery +=
+            status === "Existing"
+              ? ` AND IFNULL(cc.completed_count, 0) > 0`
+              : ` AND IFNULL(cc.completed_count, 0) = 0`;
+        }
       } else if (bucket === "onboarding") {
         getQuery += `
                     AND t.id IN (
@@ -550,18 +560,20 @@ const TrainerModel = {
                     )
                   `;
 
-        if (status === "5") {
-          getQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
-          countQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
-        } else if (status === "10") {
-          getQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
-          countQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
-        } else if (status === "10+") {
-          getQuery += ` AND cc.completed_count > 10`;
-          countQuery += ` AND cc.completed_count > 10`;
-        } else {
-          getQuery += ` AND cc.completed_count = 1`;
-          countQuery += ` AND cc.completed_count = 1`;
+        if (status) {
+          if (status === "5") {
+            getQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
+            countQuery += ` AND cc.completed_count BETWEEN 2 AND 5`;
+          } else if (status === "10") {
+            getQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
+            countQuery += ` AND cc.completed_count BETWEEN 6 AND 10`;
+          } else if (status === "10+") {
+            getQuery += ` AND cc.completed_count > 10`;
+            countQuery += ` AND cc.completed_count > 10`;
+          } else if (status === "1") {
+            getQuery += ` AND cc.completed_count = 1`;
+            countQuery += ` AND cc.completed_count = 1`;
+          }
         }
       }
 
