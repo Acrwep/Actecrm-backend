@@ -313,16 +313,15 @@ const TrainerModel = {
   },
 
   getTrainers: async (
-    name,
-    mobile,
-    trainer_code,
-    email,
     status,
     is_form_sent,
     created_by,
     page,
     limit,
     bucket,
+    keyword,
+    experience,
+    location,
   ) => {
     try {
       const queryParams = [];
@@ -394,6 +393,8 @@ const TrainerModel = {
 
       let countQuery = `SELECT COUNT(DISTINCT t.id) as total
                       FROM trainer AS t
+                      LEFT JOIN technologies te ON
+                          te.id = t.technology_id
                       LEFT JOIN (
                       	SELECT tm.trainer_id,
                         	COUNT(DISTINCT tm.customer_id) AS completed_count
@@ -414,6 +415,8 @@ const TrainerModel = {
                               COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected
                             FROM
                               trainer AS t
+                            LEFT JOIN technologies te ON
+                              te.id = t.technology_id
                             WHERE
                               t.is_active = 1`;
 
@@ -427,17 +430,19 @@ const TrainerModel = {
                               COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) BETWEEN 6 AND 10 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS third_stage,
                               COUNT(DISTINCT CASE WHEN IFNULL(cc.completed_count, 0) > 10 AND IFNULL(c.class_percentage, 0) = 100 THEN t.id END) AS fourth_stage
                             FROM
-                                trainer AS t
+                              trainer AS t
+                            LEFT JOIN technologies te ON
+                              te.id = t.technology_id
                             INNER JOIN trainer_mapping AS tm ON
-                                tm.trainer_id = t.id AND tm.is_rejected = 0
+                              tm.trainer_id = t.id AND tm.is_rejected = 0
                             INNER JOIN customers AS c ON
-                                c.id = tm.customer_id
+                              c.id = tm.customer_id
                             LEFT JOIN(
                                 SELECT tm.trainer_id,
-                                    COUNT(DISTINCT tm.customer_id) AS completed_count
+                                  COUNT(DISTINCT tm.customer_id) AS completed_count
                                 FROM trainer_mapping AS tm
                                 INNER JOIN customers AS c ON
-                                    c.id = tm.customer_id
+                                  c.id = tm.customer_id
                                 WHERE tm.is_rejected = 0
                                   AND IFNULL(c.class_percentage, 0) = 100
                                 GROUP BY tm.trainer_id
@@ -445,31 +450,100 @@ const TrainerModel = {
                             ON
                                 cc.trainer_id = t.id
                             WHERE
-                                t.is_active = 1;`;
+                                t.is_active = 1`;
 
-      if (name) {
-        getQuery += ` AND t.name LIKE '%${name}%'`;
-        countQuery += ` AND t.name LIKE '%${name}%'`;
-        getStatusQuery += ` AND t.name LIKE '%${name}%'`;
-        onBoardingQuery += ` AND t.name LIKE '%${name}%'`;
+      if (location) {
+        getQuery += ` AND t.location LIKE '%${location}%'`;
+        countQuery += ` AND t.location LIKE '%${location}%'`;
+        getStatusQuery += ` AND t.location LIKE '%${location}%'`;
+        onBoardingQuery += ` AND t.location LIKE '%${location}%'`;
       }
-      if (trainer_code) {
-        getQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
-        countQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
-        getStatusQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
-        onBoardingQuery += ` AND t.trainer_id LIKE '%${trainer_code}%'`;
+
+      if (experience) {
+        getQuery += ` AND t.overall_exp_year LIKE '%${experience}%'`;
+        countQuery += ` AND t.overall_exp_year LIKE '%${experience}%'`;
+        getStatusQuery += ` AND t.overall_exp_year LIKE '%${experience}%'`;
+        onBoardingQuery += ` AND t.overall_exp_year LIKE '%${experience}%'`;
       }
-      if (mobile) {
-        getQuery += ` AND t.mobile LIKE '%${mobile}%'`;
-        countQuery += ` AND t.mobile LIKE '%${mobile}%'`;
-        getStatusQuery += ` AND t.mobile LIKE '%${mobile}%'`;
-        onBoardingQuery += ` AND t.mobile LIKE '%${mobile}%'`;
-      }
-      if (email) {
-        getQuery += ` AND t.email LIKE '%${email}%'`;
-        countQuery += ` AND t.email LIKE '%${email}%'`;
-        getStatusQuery += ` AND t.email LIKE '%${email}%'`;
-        onBoardingQuery += ` AND t.email LIKE '%${email}%'`;
+
+      if (keyword) {
+        let keywordArray = [];
+        if (Array.isArray(keyword)) {
+          keywordArray = keyword;
+        } else if (typeof keyword === "string") {
+          try {
+            keywordArray = JSON.parse(keyword);
+            if (!Array.isArray(keywordArray)) {
+              keywordArray = keyword.split(",");
+            }
+          } catch (e) {
+            keywordArray = keyword.split(",");
+          }
+        } else {
+          keywordArray = [keyword];
+        }
+
+        let numericSkills = [];
+        let stringSkills = [];
+
+        keywordArray.forEach((s) => {
+          const num = Number(s);
+          if (!isNaN(num) && num > 0) {
+            numericSkills.push(num);
+          }
+          if (typeof s === "string" && s.trim() !== "") {
+            stringSkills.push(s.trim());
+          } else if (typeof s === "number") {
+            stringSkills.push(String(s));
+          }
+        });
+
+        // If user provided strings, look up matching skill IDs
+        if (stringSkills.length > 0) {
+          const likeConditions = stringSkills
+            .map(() => "name LIKE ?")
+            .join(" OR ");
+          const likeParams = stringSkills.map((s) => `%${s}%`);
+          const [skillsRows] = await pool.query(
+            `SELECT id FROM skills WHERE (${likeConditions}) AND is_active = 1`,
+            likeParams,
+          );
+          skillsRows.forEach((row) => numericSkills.push(row.id));
+        }
+
+        numericSkills = [...new Set(numericSkills)]; // remove duplicates
+
+        const keywordConditions = [];
+
+        if (numericSkills.length > 0) {
+          const skillsConditions = numericSkills
+            .map((skill) => `JSON_CONTAINS(t.skills, '${skill}')`)
+            .join(" OR ");
+          keywordConditions.push(skillsConditions);
+        }
+
+        stringSkills.forEach((s) => {
+          const safeStr = s.replace(/'/g, "''"); // escape single quotes
+          keywordConditions.push(`t.name LIKE '%${safeStr}%'`);
+          keywordConditions.push(`t.email LIKE '%${safeStr}%'`);
+          keywordConditions.push(`t.mobile LIKE '%${safeStr}%'`);
+          keywordConditions.push(`t.trainer_id LIKE '%${safeStr}%'`);
+          keywordConditions.push(`te.name LIKE '%${safeStr}%'`);
+        });
+
+        if (keywordConditions.length > 0) {
+          const combinedCondition = keywordConditions.join(" OR ");
+          getQuery += ` AND (${combinedCondition})`;
+          countQuery += ` AND (${combinedCondition})`;
+          getStatusQuery += ` AND (${combinedCondition})`;
+          onBoardingQuery += ` AND (${combinedCondition})`;
+        } else {
+          // If a keyword was requested but no valid IDs or strings were found, return empty results safely
+          getQuery += ` AND 1=0`;
+          countQuery += ` AND 1=0`;
+          getStatusQuery += ` AND 1=0`;
+          onBoardingQuery += ` AND 1=0`;
+        }
       }
 
       if (bucket && bucket === "All") {
