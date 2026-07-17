@@ -486,6 +486,9 @@ const TrainerModel = {
           queryParams.push(status);
           countQueryParams.push(status);
         }
+
+        getQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
+        countQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
       }
 
       if (bucket && bucket === "Verified") {
@@ -604,7 +607,7 @@ const TrainerModel = {
           `SELECT 
             tm.trainer_id,
             SUM(CASE WHEN c.class_percentage IS NULL THEN 1 ELSE 0 END) AS not_started_student,
-            SUM(CASE WHEN c.class_percentage IS NOT NULL AND c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
+            SUM(CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN 1 ELSE 0 END) AS on_going_student,
             COALESCE(SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END), 0) AS completed_student_count
           FROM trainer_mapping AS tm
           LEFT JOIN customers AS c ON tm.customer_id = c.id
@@ -845,14 +848,14 @@ const TrainerModel = {
       if (is_class_taken >= 1) {
         getQuery += ` AND c.class_percentage = 100`;
       } else if (is_class_taken == 0) {
-        getQuery += ` AND c.class_percentage < 100`;
+        getQuery += ` AND IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going'`;
       }
 
       const [result] = await pool.query(getQuery, [trainer_id]);
 
       // Get on-going and on-boarding students count by trainer
       const [student_count] = await pool.query(
-        `SELECT SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.is_verified = 1 AND tm.trainer_id = ?`,
+        `SELECT SUM(CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.is_rejected = 0 AND tm.is_verified = 1 AND tm.trainer_id = ?`,
         [trainer_id],
       );
       return {

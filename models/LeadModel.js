@@ -2916,8 +2916,7 @@ WHERE ${filterCondition}`;
       let countQuery = `
               SELECT COUNT(*) AS total
               FROM website_leads AS wl
-              WHERE ${filterCondition}
-            `;
+              WHERE ${filterCondition}`;
 
       let bucketCountQuery = `
               SELECT 
@@ -3405,6 +3404,8 @@ WHERE ${filterCondition}`;
     page,
     limit,
     bucket,
+    start_date,
+    end_date,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -3511,6 +3512,15 @@ WHERE ${filterCondition}`;
           countQuery1 += ` AND (l.consigned_id IN (${placeholders}))`;
           countQueryParams1.push(...user_ids);
         }
+      }
+
+      if (start_date && end_date) {
+        countLiveQuery += ` AND l.assigned_date >= ? AND l.assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        countLiveQueryParams.push(start_date, end_date);
+        countQuery += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        countQueryParams.push(start_date, end_date);
+        countQuery1 += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        countQueryParams1.push(start_date, end_date);
       }
 
       const finalCountQuery = `SELECT (${countLiveQuery}) + (${countQuery}) AS total`;
@@ -3646,6 +3656,13 @@ WHERE ${filterCondition}`;
           }
         }
 
+        if (start_date && end_date) {
+          getLiveQuery += ` AND l.assigned_date >= ? AND l.assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          liveQueryParams.push(start_date, end_date);
+          query += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          params.push(start_date, end_date);
+        }
+
         const finalQuery = `
           SELECT * FROM (
             (${getLiveQuery})
@@ -3748,6 +3765,11 @@ WHERE ${filterCondition}`;
             params.push(...user_ids);
             countQueryParams.push(...user_ids);
           }
+        }
+
+        if (start_date && end_date) {
+          query += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          params.push(start_date, end_date);
         }
 
         query += ` ORDER BY l.created_date DESC LIMIT ? OFFSET ?`;
@@ -4125,7 +4147,7 @@ WHERE ${filterCondition}`;
 
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
           IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
           IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
