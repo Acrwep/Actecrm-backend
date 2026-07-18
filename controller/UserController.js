@@ -51,8 +51,7 @@ const addUser = async (request, response) => {
 
 const getUsers = async (request, response) => {
   const {
-    user_id,
-    user_name,
+    keyword,
     include_profile_image = false,
     page,
     limit,
@@ -62,8 +61,7 @@ const getUsers = async (request, response) => {
 
   try {
     const users = await userModel.getUsers(
-      user_id,
-      user_name,
+      keyword,
       include_profile_image,
       page,
       limit,

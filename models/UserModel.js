@@ -145,8 +145,7 @@ const UserModel = {
   },
 
   getUsers: async (
-    user_id,
-    user_name,
+    keyword,
     include_profile_image,
     page,
     limit,
@@ -196,13 +195,9 @@ const UserModel = {
                         AND r.is_active = 1
                     WHERE
                         u.is_active = 1`;
-      if (user_id) {
-        getQuery += ` AND u.user_id LIKE '%${user_id}%'`;
-        countQuery += ` AND u.user_id LIKE '%${user_id}%'`;
-      }
-      if (user_name) {
-        getQuery += ` AND u.user_name LIKE '%${user_name}%'`;
-        countQuery += ` AND u.user_name LIKE '%${user_name}%'`;
+      if (keyword) {
+        getQuery += ` AND (u.user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
+        countQuery += ` AND (u.user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
       }
 
       if (region_id) {

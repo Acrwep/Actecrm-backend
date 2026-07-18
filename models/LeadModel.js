@@ -207,9 +207,10 @@ const LeadModel = {
                             consigned_id,
                             is_reassigned,
                             re_assigned_date,
-                            assigned_branch_id
+                            assigned_branch_id,
+                            assigned_count
                         )
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
       const values = [
         user_id,
         assigned_to,
@@ -245,10 +246,11 @@ const LeadModel = {
         preferred_batch,
         counsel,
         lead_score,
-        consigned_id,
+        null,
         consigned_id != null ? 1 : 0,
         consigned_id != null ? created_date : null,
         assigned_branch_id,
+        consigned_id != null ? 1 : 0,
       ];
 
       // Insert into lead master table
@@ -258,6 +260,28 @@ const LeadModel = {
 
       if (result.affectedRows <= 0)
         throw new Error("Error while inserting lead");
+
+      const trackQuery = `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by) VALUES(?,?,?,?)`;
+
+      await connection.query(trackQuery, [
+        result.insertId,
+        "Lead Created",
+        created_date,
+        user_id,
+      ]);
+
+      if (consigned_id) {
+        const [assignedUser] = await connection.query(
+          `SELECT user_id, user_name FROM users WHERE user_id = ?`,
+          [assigned_manager_id],
+        );
+        await connection.query(trackQuery, [
+          result.insertId,
+          `Assigned to ${assignedUser[0].user_name} - ${assignedUser[0].user_id}`,
+          created_date,
+          user_id,
+        ]);
+      }
 
       if (communication_status) {
         if (next_follow_up_date) {
@@ -292,6 +316,13 @@ const LeadModel = {
 
           affectedRows += history.affectedRows;
 
+          await pool.query(trackQuery, [
+            result.insertId,
+            `Initial follow up completed`,
+            created_date,
+            user_id,
+          ]);
+
           const [next_follow_up] = await connection.query(
             `INSERT INTO lead_follow_up_history(
             lead_id,
@@ -309,59 +340,14 @@ const LeadModel = {
           );
 
           affectedRows += next_follow_up.affectedRows;
-        }
 
-        const [getLeadScore] = await connection.query(
-          `SELECT
-            lf.id,
-            lf.lead_id,
-            lf.lead_action_id,
-            la.name AS lead_action_name,
-            lf.communication_status,
-            cm.name AS communication_status_name,
-            lf.contact_mode,
-            cm1.name AS contact_mode_name
-        FROM
-            lead_follow_up_history AS lf
-        LEFT JOIN communication_master AS cm ON
-          lf.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON
-          lf.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON
-          la.id = lf.lead_action_id
-        WHERE
-            lf.lead_id = ? AND lf.is_updated = 1
-        ORDER BY
-            lf.id
-        DESC
-        LIMIT 1;`,
-          [result.insertId],
-        );
-
-        await connection.query(
-          `INSERT INTO lead_score_master(
-            lead_id,
-            contact_connected,
-            interested,
-            demo_attended,
-            budget_available,
-            joining
-        )
-        VALUES(?, ?, ?, ?, ?, ?)`,
-          [
+          await pool.query(trackQuery, [
             result.insertId,
-            getLeadScore[0]?.communication_status_name === "Communicated"
-              ? 10
-              : 0,
-            getLeadScore[0]?.lead_action_name === "Interested" ||
-            getLeadScore[0]?.lead_action_name === "Highly Interested"
-              ? 20
-              : 0,
-            counsel === "Given" ? 20 : 0,
-            primary_fees != 0 ? 20 : 0,
-            await getJoiningScore(expected_join_date, result.insertId),
-          ],
-        );
+            `Next follow up scheduled on ${next_follow_up_date}`,
+            created_date,
+            user_id,
+          ]);
+        }
       }
 
       await connection.commit();
@@ -1336,7 +1322,6 @@ const LeadModel = {
     next_follow_up_time,
     response_status,
   ) => {
-    console.log("today_followup_date", today_followup_date);
     try {
       let affectedRows = 0;
 
@@ -1356,27 +1341,19 @@ const LeadModel = {
 
       affectedRows += update_lead.affectedRows;
 
-      const [getLead] = await pool.query(
-        `SELECT
-            l.id,
-            l.created_date,
-            l.next_follow_up_date,
-            l.expected_join_date,
-            ls.name AS lead_status_name
-        FROM
-            lead_master AS l
-        INNER JOIN lead_status AS ls ON
-            l.lead_status_id = ls.id
-        WHERE
-            l.id = ?`,
-        [lead_id],
+      const [getAction] = await pool.query(
+        `SELECT id, name FROM lead_action WHERE id = ?`,
+        [lead_action_id],
       );
 
-      // const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
-      // const leadTemperatureDate = getNextFollowUpDate(
-      //   getLeadStatus.name,
-      //   updated_date,
-      // );
+      const trackQuery = `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by) VALUES(?, ?, ?, ?)`;
+
+      await pool.query(trackQuery, [
+        lead_id,
+        `Lead moved to ${getAction[0].name}`,
+        updated_date,
+        updated_by,
+      ]);
 
       if (next_follow_up_date) {
         const insertQuery = `INSERT INTO lead_follow_up_history (lead_id, next_follow_up_date, today_followup_date, next_followup_time) VALUES (?, ?, ?, ?)`;
@@ -1394,6 +1371,13 @@ const LeadModel = {
         );
 
         affectedRows += update_lead_master.affectedRows;
+
+        await pool.query(trackQuery, [
+          lead_id,
+          `Next follow scheduled on ${next_follow_up_date}`,
+          updated_date,
+          updated_by,
+        ]);
       } else {
         const [get_lead_status] = await pool.query(
           `SELECT id, name FROM lead_status WHERE name = 'Not Interested'`,
@@ -1422,75 +1406,15 @@ const LeadModel = {
         );
 
         affectedRows += update_lead_master.affectedRows;
-      }
 
-      const [getLeadScore] = await pool.query(
-        `SELECT
-            lf.id,
-            lf.lead_id,
-            lf.lead_action_id,
-            la.name AS lead_action_name,
-            lf.communication_status,
-            cm.name AS communication_status_name,
-            lf.contact_mode,
-            cm1.name AS contact_mode_name
-        FROM
-            lead_follow_up_history AS lf
-        LEFT JOIN communication_master AS cm ON
-          lf.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON
-          lf.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON
-          la.id = lf.lead_action_id
-        WHERE
-            lf.lead_id = ? AND lf.is_updated = 1
-        ORDER BY
-            lf.id
-        DESC
-        LIMIT 1;`,
-        [lead_id],
-      );
-
-      const [isLeadScoreExists] = await pool.query(
-        `SELECT id FROM lead_score_master WHERE lead_id = ?`,
-        [lead_id],
-      );
-
-      if (isLeadScoreExists.length === 0) {
-        await pool.query(
-          `INSERT INTO lead_score_master (lead_id, contact_connected, interested, joining) VALUES (?, ?, ?, ?)`,
-          [
-            lead_id,
-            getLeadScore[0].communication_status_name === "Communicated"
-              ? 10
-              : 0,
-            getLeadScore[0].lead_action_name === "Interested" ||
-            getLeadScore[0].lead_action_name === "Highly Interested"
-              ? 20
-              : 0,
-            await getJoiningScore(getLead[0].expected_join_date, lead_id),
-          ],
-        );
-      }
-
-      await pool.query(
-        `UPDATE
-            lead_score_master
-        SET
-            contact_connected = ?,
-            interested = ?,
-            joining = ?
-        WHERE lead_id = ?`,
-        [
-          getLeadScore[0].communication_status_name === "Communicated" ? 10 : 0,
-          getLeadScore[0].lead_action_name === "Interested" ||
-          getLeadScore[0].lead_action_name === "Highly Interested"
-            ? 20
-            : 0,
-          await getJoiningScore(getLead[0].expected_join_date, lead_id),
+        await pool.query(trackQuery, [
           lead_id,
-        ],
-      );
+          `Lead moved to Not Interested`,
+          updated_date,
+          updated_by,
+        ]);
+      }
+
       return affectedRows;
     } catch (error) {
       throw new Error(error.message);
@@ -1625,25 +1549,21 @@ const LeadModel = {
         throw new Error("Error while updating lead");
       affectedRows += updateLead.affectedRows;
 
+      const trackQuery = `INSERT INTO lead_track(lead_id, action, track_date, updated_by) VALUES(?, ?, ?, ?)`;
+
+      await pool.query(trackQuery, [
+        lead_id,
+        `Lead updated`,
+        updated_date,
+        updated_by,
+      ]);
+
       const [followupCount] = await pool.query(
         `SELECT COUNT(*) as count FROM lead_follow_up_history WHERE lead_id = ?`,
         [lead_id],
       );
 
       if (followupCount[0].count <= 0 && communication_status != null) {
-        let leadStatusId;
-        let leadStatusName;
-        let leadTemperatureDate;
-
-        const [getLead] = await pool.query(
-          `SELECT id, created_date, assigned_to FROM lead_master WHERE id = ?`,
-          [lead_id],
-        );
-        const getLeadStatus = await getLeadTemperature(getLead[0].created_date);
-        leadStatusId = getLeadStatus.id;
-        leadStatusName = getLeadStatus.name;
-        // leadTemperatureDate = getNextFollowUpDate(leadStatusName, new Date());
-
         if (next_follow_up_date) {
           // Insert lead follow up history
           const [history] = await pool.query(
@@ -1676,6 +1596,13 @@ const LeadModel = {
 
           affectedRows += history.affectedRows;
 
+          await pool.query(trackQuery, [
+            lead_id,
+            `Initial follow up completed`,
+            updated_date,
+            updated_by,
+          ]);
+
           const [next_follow_up] = await pool.query(
             `INSERT INTO lead_follow_up_history(
             lead_id,
@@ -1694,59 +1621,18 @@ const LeadModel = {
 
           affectedRows += next_follow_up.affectedRows;
 
-          const [getLeadScore] = await pool.query(
-            `SELECT
-            lf.id,
-            lf.lead_id,
-            lf.lead_action_id,
-            la.name AS lead_action_name,
-            lf.communication_status,
-            cm.name AS communication_status_name,
-            lf.contact_mode,
-            cm1.name AS contact_mode_name
-        FROM
-            lead_follow_up_history AS lf
-        LEFT JOIN communication_master AS cm ON
-          lf.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON
-          lf.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON
-          la.id = lf.lead_action_id
-        WHERE
-            lf.lead_id = ? AND lf.is_updated = 1
-        ORDER BY
-            lf.id
-        DESC
-        LIMIT 1;`,
-            [lead_id],
-          );
-
-          await pool.query(
-            `INSERT INTO lead_score_master(
+          await pool.query(trackQuery, [
             lead_id,
-            contact_connected,
-            interested,
-            demo_attended,
-            budget_available,
-            joining
-        )
-        VALUES(?, ?, ?, ?, ?, ?)`,
-            [
-              lead_id,
-              getLeadScore[0].communication_status_name === "Communicated"
-                ? 10
-                : 0,
-              getLeadScore[0].lead_action_name === "Interested" ||
-              getLeadScore[0].lead_action_name === "Highly Interested"
-                ? 20
-                : 0,
-              counsel === "Given" ? 20 : 0,
-              primary_fees != 0 ? 20 : 0,
-              await getJoiningScore(expected_join_date, lead_id),
-            ],
-          );
+            `Next follow scheduled on ${next_follow_up_date}`,
+            updated_date,
+            updated_by,
+          ]);
         }
       } else if (followupCount[0].count > 0) {
+        const [getAction] = await pool.query(
+          `SELECT id, name FROM lead_action WHERE id = ?`,
+          [lead_action_id],
+        );
         // Get first lead history Id
         const [lead_history_id] = await pool.query(
           `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
@@ -1759,6 +1645,13 @@ const LeadModel = {
           [comments, lead_action_id, lead_history_id[0].lead_history_id],
         );
         affectedRows += update_lead_history.affectedRows;
+
+        await pool.query(trackQuery, [
+          lead_id,
+          `Lead action updated to ${getAction[0].name}`,
+          updated_date,
+          updated_by,
+        ]);
 
         // Get latest lead history Id
         const [latest_history_id] = await pool.query(
@@ -1784,10 +1677,6 @@ const LeadModel = {
           );
           affectedRows += update_lead_master.affectedRows;
 
-          // const [getLeadAction] = await pool.query(
-          //   `SELECT id, name FROM lead_action WHERE name = 'Follow Up' AND is_active = 1`,
-          // );
-
           await pool.query(
             `INSERT INTO lead_follow_up_history(
               lead_id,
@@ -1797,59 +1686,14 @@ const LeadModel = {
           VALUES(?, ?, ?)`,
             [lead_id, next_follow_up_date, lead_action_id],
           );
-        }
 
-        const [getLeadScore] = await pool.query(
-          `SELECT
-            lf.id,
-            lf.lead_id,
-            lf.lead_action_id,
-            la.name AS lead_action_name,
-            lf.communication_status,
-            cm.name AS communication_status_name,
-            lf.contact_mode,
-            cm1.name AS contact_mode_name
-        FROM
-            lead_follow_up_history AS lf
-        LEFT JOIN communication_master AS cm ON
-          lf.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON
-          lf.contact_mode = cm1.id
-        LEFT JOIN lead_action AS la ON
-          la.id = lf.lead_action_id
-        WHERE
-            lf.lead_id = ? AND lf.is_updated = 1
-        ORDER BY
-            lf.id
-        DESC
-        LIMIT 1;`,
-          [lead_id],
-        );
-
-        await pool.query(
-          `UPDATE
-            lead_score_master
-        SET
-            contact_connected = ?,
-            interested = ?,
-            demo_attended = ?,
-            budget_available = ?,
-            joining = ?
-        WHERE lead_id = ?`,
-          [
-            getLeadScore[0].communication_status_name === "Communicated"
-              ? 10
-              : 0,
-            getLeadScore[0].lead_action_name === "Interested" ||
-            getLeadScore[0].lead_action_name === "Highly Interested"
-              ? 20
-              : 0,
-            counsel === "Given" ? 20 : 0,
-            primary_fees != 0 ? 20 : 0,
-            await getJoiningScore(expected_join_date, lead_id),
+          await pool.query(trackQuery, [
             lead_id,
-          ],
-        );
+            `Next follow scheduled on ${next_follow_up_date}`,
+            updated_date,
+            updated_by,
+          ]);
+        }
       }
 
       return affectedRows;
@@ -3432,7 +3276,7 @@ WHERE ${filterCondition}`;
                           u.user_id = l.assigned_to
                       LEFT JOIN users AS ab ON
                           ab.user_id = l.user_id
-                      WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1`;
+                      WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1 AND l.assigned_to IS NULL AND l.assigned_count = 1`;
 
       let countLiveQuery = `SELECT
                         COUNT(*) AS total
@@ -3464,7 +3308,39 @@ WHERE ${filterCondition}`;
                           ab.user_id = l.user_id
                       WHERE l.consigned_id IS NOT NULL`;
 
+      let reassignedCountQuery = `SELECT COUNT(l.id) AS total
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                      WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1 AND l.assigned_to IS NULL AND l.assigned_count > 1`;
+
+      let awaitingCountQuery = `SELECT COUNT(l.id) AS total
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                      WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1 AND l.assigned_to IS NOT NULL`;
+
       const countQueryParams1 = [];
+      const reassignedCountQueryParams = [];
+      const awaitingCountQueryParams = [];
 
       if (name) {
         countLiveQuery += ` AND l.name LIKE ?`;
@@ -3473,6 +3349,10 @@ WHERE ${filterCondition}`;
         countQueryParams.push(`%${name}%`);
         countQuery1 += ` AND l.name LIKE ?`;
         countQueryParams1.push(`%${name}%`);
+        awaitingCountQuery += ` AND l.name LIKE ?`;
+        awaitingCountQueryParams.push(`%${name}%`);
+        reassignedCountQuery += ` AND l.name LIKE ?`;
+        reassignedCountQueryParams.push(`%${name}%`);
       }
 
       if (phone) {
@@ -3482,6 +3362,10 @@ WHERE ${filterCondition}`;
         countQueryParams.push(`%${phone}%`);
         countQuery1 += ` AND l.phone LIKE ?`;
         countQueryParams1.push(`%${phone}%`);
+        awaitingCountQuery += ` AND l.phone LIKE ?`;
+        awaitingCountQueryParams.push(`%${phone}%`);
+        reassignedCountQuery += ` AND l.phone LIKE ?`;
+        reassignedCountQueryParams.push(`%${phone}%`);
       }
 
       if (email) {
@@ -3491,6 +3375,10 @@ WHERE ${filterCondition}`;
         countQueryParams.push(`%${email}%`);
         countQuery1 += ` AND l.email LIKE ?`;
         countQueryParams1.push(`%${email}%`);
+        awaitingCountQuery += ` AND l.email LIKE ?`;
+        awaitingCountQueryParams.push(`%${email}%`);
+        reassignedCountQuery += ` AND l.email LIKE ?`;
+        reassignedCountQueryParams.push(`%${email}%`);
       }
 
       if (course) {
@@ -3500,6 +3388,10 @@ WHERE ${filterCondition}`;
         countQueryParams.push(`%${course}%`);
         countQuery1 += ` AND t.name LIKE ?`;
         countQueryParams1.push(`%${course}%`);
+        awaitingCountQuery += ` AND t.name LIKE ?`;
+        awaitingCountQueryParams.push(`%${course}%`);
+        reassignedCountQuery += ` AND t.name LIKE ?`;
+        reassignedCountQueryParams.push(`%${course}%`);
       }
 
       if (user_ids) {
@@ -3511,6 +3403,14 @@ WHERE ${filterCondition}`;
           countQueryParams.push(...user_ids, ...user_ids, ...user_ids);
           countQuery1 += ` AND (l.consigned_id IN (${placeholders}))`;
           countQueryParams1.push(...user_ids);
+          awaitingCountQuery += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+          awaitingCountQueryParams.push(...user_ids, ...user_ids, ...user_ids);
+          reassignedCountQuery += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+          reassignedCountQueryParams.push(
+            ...user_ids,
+            ...user_ids,
+            ...user_ids,
+          );
         }
       }
 
@@ -3521,6 +3421,10 @@ WHERE ${filterCondition}`;
         countQueryParams.push(start_date, end_date);
         countQuery1 += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
         countQueryParams1.push(start_date, end_date);
+        awaitingCountQuery += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        awaitingCountQueryParams.push(start_date, end_date);
+        reassignedCountQuery += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        reassignedCountQueryParams.push(start_date, end_date);
       }
 
       const finalCountQuery = `SELECT (${countLiveQuery}) + (${countQuery}) AS total`;
@@ -3531,6 +3435,18 @@ WHERE ${filterCondition}`;
 
       const [countResult1] = await pool.query(countQuery1, countQueryParams1);
       consigned_count = countResult1[0]?.total || 0;
+
+      const [reassignedCount] = await pool.query(
+        reassignedCountQuery,
+        reassignedCountQueryParams,
+      );
+      const reassigned_count = reassignedCount[0]?.total || 0;
+
+      const [awaitingCount] = await pool.query(
+        awaitingCountQuery,
+        awaitingCountQueryParams,
+      );
+      const awaiting_count = awaitingCount[0]?.total || 0;
 
       if (bucket === "Assigned") {
         let getLiveQuery = `SELECT
@@ -3614,7 +3530,7 @@ WHERE ${filterCondition}`;
                     ab.user_id = l.user_id
                 LEFT JOIN branches AS b ON 
                     b.id = l.assigned_branch_id
-                WHERE l.is_acknowledged = 0 AND l.is_reassigned = 1`;
+                WHERE l.is_acknowledged = 0 AND l.assigned_to IS NULL AND l.is_reassigned = 1 AND l.assigned_count = 1`;
 
         const params = [];
 
@@ -3733,9 +3649,37 @@ WHERE ${filterCondition}`;
                     u.user_id = l.assigned_to
                 LEFT JOIN users AS ab ON
                     ab.user_id = l.user_id
-                WHERE l.consigned_id IS NOT NULL`;
+                WHERE 1 = 1`;
 
         const params = [];
+        if (bucket === "Consigned") {
+          query += ` AND l.consigned_id IS NOT NULL`;
+          if (user_ids) {
+            if (Array.isArray(user_ids) && user_ids.length > 0) {
+              const placeholders = user_ids.map(() => "?").join(", ");
+              query += ` AND (l.consigned_id IN (${placeholders}))`;
+              params.push(...user_ids);
+            }
+          }
+        } else if (bucket === "Awaiting") {
+          query += ` AND l.is_acknowledged = 0 AND l.assigned_to IS NOT NULL AND l.is_reassigned = 1`;
+          if (user_ids) {
+            if (Array.isArray(user_ids) && user_ids.length > 0) {
+              const placeholders = user_ids.map(() => "?").join(", ");
+              query += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+              params.push(...user_ids, ...user_ids, ...user_ids);
+            }
+          }
+        } else if (bucket === "Reassigned") {
+          query += ` AND l.is_acknowledged = 0 AND l.assigned_to IS NULL AND l.is_reassigned = 1 AND l.assigned_count > 1`;
+          if (user_ids) {
+            if (Array.isArray(user_ids) && user_ids.length > 0) {
+              const placeholders = user_ids.map(() => "?").join(", ");
+              query += ` AND (l.assigned_manager IN (${placeholders}) OR l.branch_manager_id IN (${placeholders}) OR l.assigned_to IN (${placeholders}))`;
+              params.push(...user_ids, ...user_ids, ...user_ids);
+            }
+          }
+        }
 
         if (name) {
           query += ` AND l.name LIKE ?`;
@@ -3757,16 +3701,6 @@ WHERE ${filterCondition}`;
           params.push(`%${course}%`);
         }
 
-        if (user_ids) {
-          if (Array.isArray(user_ids) && user_ids.length > 0) {
-            const placeholders = user_ids.map(() => "?").join(", ");
-            query += ` AND (l.consigned_id IN (${placeholders}))`;
-
-            params.push(...user_ids);
-            countQueryParams.push(...user_ids);
-          }
-        }
-
         if (start_date && end_date) {
           query += ` AND l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           params.push(start_date, end_date);
@@ -3782,19 +3716,32 @@ WHERE ${filterCondition}`;
           created_date: item.created_date_ist,
         }));
 
+        let total_count;
+        if (bucket === "Assigned") {
+          total_count = assigned_count;
+        } else if (bucket === "Awaiting") {
+          total_count = awaiting_count;
+        } else if (bucket === "Reassigned") {
+          total_count = reassigned_count;
+        } else {
+          total_count = consigned_count;
+        }
+
         result = {
           data: formattedData,
           pagination: {
-            total: parseInt(consigned_count),
+            total: parseInt(total_count),
             page: pageNumber,
             limit: limitNumber,
-            totalPages: Math.ceil(consigned_count / limitNumber),
+            totalPages: Math.ceil(total_count / limitNumber),
           },
         };
       }
 
       return {
         assigned: assigned_count,
+        awaiting: awaiting_count,
+        reassigned: reassigned_count,
         consigned: consigned_count,
         data: result.data,
         pagination: result.pagination,
@@ -3843,15 +3790,18 @@ WHERE ${filterCondition}`;
 
       for (const lead_id of ids) {
         const [isExists] = await pool.query(
-          `SELECT id, assigned_to FROM lead_master WHERE id = ?`,
+          `SELECT id, assigned_to, assigned_count FROM lead_master WHERE id = ?`,
           [lead_id],
         );
 
         if (isExists.length <= 0) continue;
 
+        let assignedCount = isExists[0].assigned_count;
+        assignedCount++;
+
         if (is_branch_changed === null) {
-          let query = `UPDATE lead_master SET re_assigned_date = ?, is_reassigned = 1, assigned_to = ?`;
-          const params = [assign_date, assigned_to];
+          let query = `UPDATE lead_master SET re_assigned_date = ?, is_reassigned = 1, assigned_to = ?, assigned_count = ?`;
+          const params = [assign_date, assigned_to, assignedCount];
 
           if (next_follow_up_date) {
             query += `, next_follow_up_date = ?`;
@@ -3864,6 +3814,12 @@ WHERE ${filterCondition}`;
           const [result] = await pool.query(query, params);
 
           affectedRows += result.affectedRows;
+
+          await pool.query(
+            `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
+            VALUES(?,?,?,?)`,
+            [lead_id, `Re-Assigned to ${assigned_to}`, assign_date, updated_by],
+          );
 
           if (next_follow_up_date) {
             const [getFollowup] = await pool.query(
@@ -3910,36 +3866,30 @@ WHERE ${filterCondition}`;
 
           affectedRows += affectedRows;
         } else {
-          const [getLead] = await pool.query(
-            `SELECT id, user_id, consigned_id FROM lead_master WHERE id = ?`,
-            [lead_id],
-          );
-
-          let consignedId =
-            getLead[0].consigned_id != null
-              ? getLead[0].consigned_id
-              : getLead[0].user_id;
-
           if (is_branch_changed === 0) {
             const [result] = await pool.query(
-              `UPDATE lead_master SET consigned_id = ?, assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
-              [
-                consignedId,
-                assigned_to,
-                assign_date,
-                assigned_branch_id,
-                lead_id,
-              ],
+              `UPDATE lead_master SET assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
+              [assigned_to, assign_date, assigned_branch_id, lead_id],
             );
 
             affectedRows += result.affectedRows;
+
+            await pool.query(
+              `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
+            VALUES(?,?,?,?)`,
+              [
+                lead_id,
+                `Re-Assigned to new sales person - ${assigned_to}`,
+                assign_date,
+                updated_by,
+              ],
+            );
           } else {
             const [result] = await pool.query(
-              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, consigned_id = ?, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
+              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
               [
                 assigned_manager,
                 branch_manager_id,
-                consignedId,
                 assign_date,
                 assigned_branch_id,
                 lead_id,
@@ -3947,6 +3897,17 @@ WHERE ${filterCondition}`;
             );
 
             affectedRows += result.affectedRows;
+
+            await pool.query(
+              `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
+            VALUES(?,?,?,?)`,
+              [
+                lead_id,
+                `Lead changed to another branch and assigned to ${assigned_manager}`,
+                assign_date,
+                updated_by,
+              ],
+            );
           }
         }
       }
@@ -4615,11 +4576,46 @@ WHERE ${filterCondition}`;
 
   acknowledgeLead: async (lead_id, acknowledged_by, acknowledged_date) => {
     try {
+      const [isAcknowledged] = await pool.query(
+        `SELECT is_acknowledged FROM lead_master WHERE id = ?`,
+        [lead_id],
+      );
+
+      if (isAcknowledged[0].is_acknowledged) {
+        throw new Error("Lead is already acknowledged");
+      }
+
       const [result] = await pool.query(
         `UPDATE lead_master SET is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ? WHERE id = ?`,
         [acknowledged_by, acknowledged_date, lead_id],
       );
-      return result;
+
+      const [getLead] = await pool.query(
+        `SELECT assigned_to, user_id FROM lead_master WHERE id = ?`,
+        [lead_id],
+      );
+
+      await pool.query(`UPDATE lead_master SET consigned_id = ? WHERE id = ?`, [
+        getLead[0].user_id,
+        lead_id,
+      ]);
+
+      const [getUser] = await pool.query(
+        `SELECT user_name FROM users WHERE user_id = ?`,
+        [acknowledged_by],
+      );
+
+      await pool.query(
+        `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
+            VALUES(?,?,?,?)`,
+        [
+          lead_id,
+          `Lead acknowledged by sales person - ${getUser[0].user_name} - ${acknowledged_by}`,
+          acknowledged_date,
+          acknowledged_by,
+        ],
+      );
+      return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
