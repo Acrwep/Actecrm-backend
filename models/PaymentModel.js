@@ -128,7 +128,7 @@ const PaymentModel = {
 
       const [latestCustomer] = await connection.query(
         `SELECT student_id FROM customers WHERE student_id LIKE ? ORDER BY LENGTH(student_id) DESC, student_id DESC LIMIT 1 FOR UPDATE`,
-        [`${prefix}%`]
+        [`${prefix}%`],
       );
 
       let sequence = 1;
@@ -223,6 +223,11 @@ const PaymentModel = {
           [ra_id, lead_id],
         );
       }
+
+      await connection.query(
+        `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+        [lead_id, "Lead converted to customer", created_date, updated_by],
+      );
 
       const [getInvoiceDetails] = await connection.query(
         `SELECT pm.tax_type, pm.gst_percentage, pm.gst_amount, pm.total_amount, pt.convenience_fees, pt.invoice_number, pt.invoice_date, pt.amount AS paid_amount, pt.paid_date, (pm.total_amount - pt.amount) AS balance_amount, p.name AS payment_mode, pt.payment_screenshot FROM payment_master AS pm INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id INNER JOIN payment_mode AS p ON pt.paymode_id = p.id WHERE pt.id = ?`,

@@ -4192,17 +4192,17 @@ WHERE ${filterCondition}`;
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
 
-          getQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
-          countQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
-          bucketCountQuery += ` AND COALESCE(l.assigned_to, l.user_id) IN (${placeholders})`;
+          getQuery += ` AND l.assigned_to IN (${placeholders})`;
+          countQuery += ` AND l.assigned_to IN (${placeholders})`;
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders})`;
 
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
           bucketCountQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
-          countQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
-          bucketCountQuery += ` AND COALESCE(l.assigned_to, l.user_id) = ?`;
+          getQuery += ` AND l.assigned_to = ?`;
+          countQuery += ` AND l.assigned_to = ?`;
+          bucketCountQuery += ` AND l.assigned_to = ?`;
 
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
