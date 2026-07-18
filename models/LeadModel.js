@@ -4192,17 +4192,17 @@ WHERE ${filterCondition}`;
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
 
-          getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          countQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          countQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
 
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
           bucketCountQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND l.assigned_to = ? AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          countQuery += ` AND l.assigned_to = ? AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          bucketCountQuery += ` AND l.assigned_to = ? AND (IFNULLl(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          getQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          countQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          bucketCountQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
 
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
