@@ -1760,10 +1760,7 @@ const trainerPaymentModal = {
         isAcknowledged.length > 0 &&
         isAcknowledged[0].is_acknowledged === 1
       ) {
-        return {
-          status: false,
-          message: "Class has already been acknowledged.",
-        };
+        throw new Error("Class has already been acknowledged.");
       }
 
       await connection.query(
