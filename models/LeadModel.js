@@ -3873,7 +3873,7 @@ WHERE ${filterCondition}`;
                 assigned_to,
                 assign_date,
                 assigned_branch_id,
-                assigned_count,
+                assignedCount,
                 lead_id,
               ],
             );
