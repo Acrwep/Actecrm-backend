@@ -3868,8 +3868,14 @@ WHERE ${filterCondition}`;
         } else {
           if (is_branch_changed === 0) {
             const [result] = await pool.query(
-              `UPDATE lead_master SET assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
-              [assigned_to, assign_date, assigned_branch_id, lead_id],
+              `UPDATE lead_master SET assigned_to = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ?, assigned_count = ? WHERE id = ?`,
+              [
+                assigned_to,
+                assign_date,
+                assigned_branch_id,
+                assigned_count,
+                lead_id,
+              ],
             );
 
             affectedRows += result.affectedRows;
@@ -3886,12 +3892,13 @@ WHERE ${filterCondition}`;
             );
           } else {
             const [result] = await pool.query(
-              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ? WHERE id = ?`,
+              `UPDATE lead_master SET assigned_to = null, assigned_manager = ?, branch_manager_id = ?, is_acknowledged = 0, is_reassigned = 1, re_assigned_date = ?, assigned_branch_id = ?, assigned_count = ? WHERE id = ?`,
               [
                 assigned_manager,
                 branch_manager_id,
                 assign_date,
                 assigned_branch_id,
+                assignedCount,
                 lead_id,
               ],
             );
