@@ -3636,7 +3636,9 @@ WHERE ${filterCondition}`;
                     l.user_id AS assigned_by,
                     ab.user_name AS assigned_by_user,
                     l.domain_origin,
-                    0 AS lead_entry_type
+                    0 AS lead_entry_type,
+                    b.name AS assigned_branch_name,
+                    l.assigned_branch_id
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3649,6 +3651,8 @@ WHERE ${filterCondition}`;
                     u.user_id = l.assigned_to
                 LEFT JOIN users AS ab ON
                     ab.user_id = l.user_id
+                LEFT JOIN branches AS b ON
+                    b.id = l.assigned_branch_id
                 WHERE 1 = 1`;
 
         const params = [];
