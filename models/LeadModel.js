@@ -1549,11 +1549,11 @@ const LeadModel = {
         throw new Error("Error while updating lead");
       affectedRows += updateLead.affectedRows;
 
-      const trackQuery = `INSERT INTO lead_track(lead_id, action, track_date, updated_by) VALUES(?, ?, ?, ?)`;
+      const trackQuery = `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by) VALUES(?, ?, ?, ?)`;
 
       await pool.query(trackQuery, [
         lead_id,
-        `Lead updated`,
+        `Lead updated by ${updated_by}`,
         updated_date,
         updated_by,
       ]);
