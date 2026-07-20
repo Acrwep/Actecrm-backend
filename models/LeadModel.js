@@ -3790,7 +3790,7 @@ WHERE ${filterCondition}`;
 
       for (const lead_id of ids) {
         const [isExists] = await pool.query(
-          `SELECT id, assigned_to, assigned_count FROM lead_master WHERE id = ?`,
+          `SELECT id, assigned_to, IFNULL(assigned_count, 0) AS assigned_count FROM lead_master WHERE id = ?`,
           [lead_id],
         );
 
@@ -4007,7 +4007,8 @@ WHERE ${filterCondition}`;
                         ba.name AS preferred_batch_name,
                         l.counsel,
                         lsm.total_score AS lead_score,
-                        (SELECT COUNT(*) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1) AS completed_followup_count
+                        (SELECT COUNT(*) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1) AS completed_followup_count,
+                        l.assigned_branch_id
                     FROM
                         lead_master AS l
                     LEFT JOIN lead_score_master AS lsm ON lsm.lead_id = l.id
