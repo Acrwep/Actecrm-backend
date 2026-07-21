@@ -77,8 +77,30 @@ const addTrainer = async (request, response) => {
     signature_image,
     created_by,
     created_date,
+    certifications,
+    preferred_days,
+    trainer_type,
+    preferred_mode,
+    salary_type,
+    salary_expectation,
+    notice_period,
+    language_known,
+    trainer_status,
+    additional_notes,
   } = request.body;
   const formattedSkills = Array.isArray(skills) ? skills : [skills];
+  const formattedCertificates = Array.isArray(certifications)
+    ? certifications
+    : [certifications];
+  const formattedPreferredDays = Array.isArray(preferred_days)
+    ? preferred_days
+    : [preferred_days];
+  const formattedLanguageKnown = Array.isArray(language_known)
+    ? language_known
+    : [language_known];
+  const formattedPreferredMode = Array.isArray(preferred_mode)
+    ? preferred_mode
+    : [preferred_mode];
   try {
     const result = await TrainerModel.addTrainer(
       trainer_name,
@@ -104,6 +126,16 @@ const addTrainer = async (request, response) => {
       signature_image,
       created_by,
       created_date,
+      formattedCertificates,
+      formattedPreferredDays,
+      trainer_type,
+      formattedPreferredMode,
+      salary_type,
+      salary_expectation,
+      notice_period,
+      formattedLanguageKnown,
+      trainer_status,
+      additional_notes,
     );
     return response.status(200).send({
       message: "Trainer addedd successfully",
@@ -144,8 +176,30 @@ const updateTrainer = async (request, response) => {
     ifsc_code,
     signature_image,
     is_bank_updated,
+    certifications,
+    preferred_days,
+    trainer_type,
+    preferred_mode,
+    salary_type,
+    salary_expectation,
+    notice_period,
+    language_known,
+    trainer_status,
+    additional_notes,
   } = request.body;
   const formattedSkills = Array.isArray(skills) ? skills : [skills];
+  const formattedCertificates = Array.isArray(certifications)
+    ? certifications
+    : [certifications];
+  const formattedPreferredDays = Array.isArray(preferred_days)
+    ? preferred_days
+    : [preferred_days];
+  const formattedPreferredMode = Array.isArray(preferred_mode)
+    ? preferred_mode
+    : [preferred_mode];
+  const formattedLanguageKnown = Array.isArray(language_known)
+    ? language_known
+    : [language_known];
   try {
     const result = await TrainerModel.updateTrainer(
       trainer_name,
@@ -173,6 +227,16 @@ const updateTrainer = async (request, response) => {
       ifsc_code,
       signature_image,
       is_bank_updated,
+      formattedCertificates,
+      formattedPreferredDays,
+      trainer_type,
+      formattedPreferredMode,
+      salary_type,
+      salary_expectation,
+      notice_period,
+      formattedLanguageKnown,
+      trainer_status,
+      additional_notes,
     );
     return response.status(200).send({
       message: "Trainer updated successfully",

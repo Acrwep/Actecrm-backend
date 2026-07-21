@@ -98,6 +98,16 @@ const TrainerModel = {
     signature_image,
     created_by,
     created_date,
+    certifications,
+    preferred_days,
+    trainer_type,
+    preferred_mode,
+    salary_type,
+    salary_expectation,
+    notice_period,
+    language_known,
+    trainer_status,
+    additional_notes,
   ) => {
     try {
       // ✅ Check if email or mobile already exists
@@ -143,9 +153,19 @@ const TrainerModel = {
         profile_image,
         status,
         created_by,
-        created_date
+        created_date,
+        certifications,
+        preferred_days,
+        trainer_type,
+        preferred_mode,
+        salary_type,
+        salary_expectation,
+        notice_period,
+        language_known,
+        trainer_status,
+        additional_notes
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       const values = [
         trainer_name,
@@ -167,6 +187,16 @@ const TrainerModel = {
         "Verify Pending",
         created_by,
         created_date,
+        JSON.stringify(certifications),
+        JSON.stringify(preferred_days),
+        trainer_type,
+        JSON.stringify(preferred_mode),
+        salary_type,
+        salary_expectation,
+        notice_period,
+        JSON.stringify(language_known),
+        trainer_status,
+        additional_notes,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -228,6 +258,16 @@ const TrainerModel = {
     ifsc_code,
     signature_image,
     is_bank_updated,
+    certifications,
+    preferred_days,
+    trainer_type,
+    preferred_mode,
+    salary_type,
+    salary_expectation,
+    notice_period,
+    language_known,
+    trainer_status,
+    additional_notes,
   ) => {
     try {
       const [isIdExists] = await pool.query(
@@ -254,7 +294,17 @@ const TrainerModel = {
                                 skills = ?,
                                 location = ?,
                                 profile_image = ?,
-                                status = ?`;
+                                status = ?,
+                                certifications = ?,
+                                preferred_days = ?,
+                                trainer_type = ?,
+                                preferred_mode = ?,
+                                salary_type = ?,
+                                salary_expectation = ?,
+                                notice_period = ?,
+                                language_known = ?,
+                                trainer_status = ?,
+                                additional_notes = ?`;
       queryParams.push(
         trainer_name,
         mobile_phone_code,
@@ -272,6 +322,16 @@ const TrainerModel = {
         location,
         profile_image,
         status,
+        JSON.stringify(certifications),
+        JSON.stringify(preferred_days),
+        trainer_type,
+        JSON.stringify(preferred_mode),
+        salary_type,
+        salary_expectation,
+        notice_period,
+        JSON.stringify(language_known),
+        trainer_status,
+        additional_notes,
       );
       if (is_bank_updated) {
         updateQuery += `, is_bank_updated = ?`;
@@ -812,7 +872,17 @@ const TrainerModel = {
                           tb.signature_image,
                           t.created_by,
                           u.user_name AS hr_head,
-                          t.created_date
+                          t.created_date,
+                          t.certifications,
+                          t.preferred_days,
+                          t.trainer_type,
+                          t.preferred_mode,
+                          t.salary_type,
+                          t.salary_expectation,
+                          t.notice_period,
+                          t.language_known,
+                          t.trainer_status,
+                          t.additional_notes
                       FROM
                           trainer AS t
                       INNER JOIN technologies te ON
@@ -831,16 +901,39 @@ const TrainerModel = {
 
       const [trainers] = await pool.query(getQuery, [trainer_id]);
 
+      if (trainers.length <= 0) {
+        return {};
+      }
+
       const [getBanks] = await pool.query(
         `SELECT tb.id, tb.account_holder_name, tb.account_number, tb.bank_name, tb.branch_name, tb.ifsc_code, tb.signature_image FROM trainer_bank_accounts AS tb WHERE tb.trainer_id = ? AND tb.is_active = 1`,
         [trainer_id],
       );
 
-      const formattedSkills = await getSkillsWithDetails(trainers[0].skills);
+      let formattedSkills = [];
+      if (trainers.length > 0 && trainers[0].skills) {
+        formattedSkills = await getSkillsWithDetails(trainers[0].skills);
+      }
+      const formattedCertifications = trainers[0]?.certifications
+        ? JSON.parse(trainers[0].certifications)
+        : [];
+      const formattedPreferredDays = trainers[0]?.preferred_days
+        ? JSON.parse(trainers[0].preferred_days)
+        : [];
+      const formattedPreferredMode = trainers[0]?.preferred_mode
+        ? JSON.parse(trainers[0].preferred_mode)
+        : [];
+      const formattedLanguageKnown = trainers[0]?.language_known
+        ? JSON.parse(trainers[0].language_known)
+        : [];
 
       return {
         ...trainers[0],
         skills: formattedSkills,
+        certifications: formattedCertifications,
+        preferred_days: formattedPreferredDays,
+        preferred_mode: formattedPreferredMode,
+        language_known: formattedLanguageKnown,
         banks: getBanks,
       };
     } catch (error) {
