@@ -634,4 +634,6 @@ router.get(
   verifyToken,
   trainerPaymentController.getNonClaimBatches,
 );
+
+router.put("/verifyReview", verifyToken, CustomerController.verifyReview);
 module.exports = router;

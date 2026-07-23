@@ -863,7 +863,9 @@ const CustomerModel = {
                           pm.total_amount AS total_course_amount,
                           COALESCE(ps.total_paid, 0) AS paid_amount,
                           l.ra_id,
-                          ra.user_name as ra_name
+                          ra.user_name as ra_name,
+                          c.is_linkedin_verified,
+                          c.is_google_verified
                         FROM customers AS c
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
@@ -1411,7 +1413,9 @@ const CustomerModel = {
                       COALESCE(ps.total_paid, 0) AS paid_amount,
                       pm.total_amount AS total_course_amount,
                       l.ra_id,
-                      ra_user.user_name AS ra_name
+                      ra_user.user_name AS ra_name,
+                      c.is_linkedin_verified,
+                      c.is_google_verified
                     FROM
                         customers AS c
                     LEFT JOIN customer_status_history AS csh
@@ -1887,6 +1891,66 @@ const CustomerModel = {
         );
       }
       return isExists[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  verifyReview: async (
+    type,
+    is_verified,
+    verified_by,
+    verified_date,
+    customer_id,
+  ) => {
+    try {
+      let affectedRows = 0;
+      if (type === "Linkedin") {
+        const [result] = await pool.query(
+          `SELECT is_linkedin_verified FROM customers WHERE id = ?`,
+          [customer_id],
+        );
+        if (result[0].is_linkedin_verified === 1) {
+          throw new Error("Linkedin review is already verified");
+        }
+      } else if (type === "Google") {
+        const [result] = await pool.query(
+          `SELECT is_google_verified FROM customers WHERE id = ?`,
+          [customer_id],
+        );
+        if (result[0].is_google_verified === 1) {
+          throw new Error("Google review is already verified");
+        }
+      }
+
+      if (type === "Linkedin") {
+        const [result] = await pool.query(
+          `UPDATE customers SET is_linkedin_verified = ? WHERE id = ?`,
+          [is_verified, customer_id],
+        );
+        affectedRows += result.affectedRows;
+      } else if (type === "Google") {
+        const [result] = await pool.query(
+          `UPDATE customers SET is_google_verified = ? WHERE id = ?`,
+          [is_verified, customer_id],
+        );
+        affectedRows += result.affectedRows;
+      }
+
+      const [insertResult] = await pool.query(
+        `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+        [customer_id, `${type} verified`, verified_date, verified_by],
+      );
+      affectedRows += insertResult.affectedRows;
+
+      const [updatedStatus] = await pool.query(
+        `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+        [customer_id, `${type} Verified`, verified_date, verified_by],
+      );
+
+      affectedRows += updatedStatus.affectedRows;
+
+      return affectedRows > 0 ? true : false;
     } catch (error) {
       throw new Error(error.message);
     }

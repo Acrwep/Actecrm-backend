@@ -3640,7 +3640,8 @@ WHERE ${filterCondition}`;
                     0 AS lead_entry_type,
                     b.name AS assigned_branch_name,
                     l.assigned_branch_id,
-                    CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS converted
+                    CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS converted,
+                    c.id AS customer_id
                 FROM
                     lead_master AS l
                 LEFT JOIN customers AS c ON

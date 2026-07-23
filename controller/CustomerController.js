@@ -646,6 +646,29 @@ const verifyOTP = async (request, response) => {
   }
 };
 
+const verifyReview = async (request, response) => {
+  const { type, is_verified, verified_by, verified_date, customer_id } =
+    request.body;
+  try {
+    const result = await CustomerModel.verifyReview(
+      type,
+      is_verified,
+      verified_by,
+      verified_date,
+      customer_id,
+    );
+    return response.status(200).send({
+      message: "Review verified successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while verifying review",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -669,4 +692,5 @@ module.exports = {
   updateCertificate,
   otpSend,
   verifyOTP,
+  verifyReview,
 };
