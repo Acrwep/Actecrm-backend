@@ -581,7 +581,9 @@ const trainerPaymentModal = {
                 ra.user_name AS ra_user_name,
                 hu.user_id AS hr_user_id,
                 hu.user_name AS hr_user_name,
-                cm.name AS mode_of_training
+                cm.name AS mode_of_training,
+                c.is_linkedin_verified,
+                c.is_google_verified
             FROM
                 trainer_payment_trans AS tp
             LEFT JOIN trainer_mapping AS tm ON
