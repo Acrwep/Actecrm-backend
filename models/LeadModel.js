@@ -2379,10 +2379,11 @@ const LeadModel = {
                     OR l.phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                     OR l.email COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                     OR l.whatsapp COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
+                    OR c.student_id COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%')
                   )
                 `;
 
-        queryParams.push(filter, filter, filter, filter);
+        queryParams.push(filter, filter, filter, filter, filter);
       }
 
       const [result] = await pool.query(getQuery, queryParams);
@@ -3638,9 +3639,12 @@ WHERE ${filterCondition}`;
                     l.domain_origin,
                     0 AS lead_entry_type,
                     b.name AS assigned_branch_name,
-                    l.assigned_branch_id
+                    l.assigned_branch_id,
+                    CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS converted
                 FROM
                     lead_master AS l
+                LEFT JOIN customers AS c ON
+                    c.lead_id = l.id
                 LEFT JOIN technologies AS t ON
                     l.primary_course_id = t.id
                 LEFT JOIN lead_status AS ls ON
@@ -4086,6 +4090,12 @@ WHERE ${filterCondition}`;
 
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
+        // hub_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // chennai_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // bangalore_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
         // valid_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // validated_leads (2)
@@ -4120,6 +4130,9 @@ WHERE ${filterCondition}`;
 
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END), 0) as hub_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END), 0) as chennai_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END), 0) as bangalore_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
           IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
@@ -4344,6 +4357,9 @@ WHERE ${filterCondition}`;
         data: result,
         bucket_counts: {
           all: parseInt(bucketCountResult[0]?.all_leads || 0),
+          hub_leads: parseInt(bucketCountResult[0]?.hub_leads || 0),
+          chennai_leads: parseInt(bucketCountResult[0]?.chennai_leads || 0),
+          bangalore_leads: parseInt(bucketCountResult[0]?.bangalore_leads || 0),
           valid_leads: parseInt(bucketCountResult[0]?.valid_leads || 0),
           eligible_leads: parseInt(bucketCountResult[0]?.eligible_leads || 0),
           interested_leads: parseInt(
