@@ -1660,23 +1660,23 @@ const CustomerModel = {
             status === "Awaiting Finance" || status === "Payment Rejected"
               ? "c.payment_date"
               : "csh.updated_at";
-          getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          getCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          financeQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          paymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          rejectedPaymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
           const dateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
               ? "c.payment_date"
               : "c.created_date";
-          getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          getCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          financeQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          paymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-          rejectedPaymentQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+          getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
 
         queryParams.push(from_date, to_date);
@@ -1939,13 +1939,13 @@ const CustomerModel = {
 
       const [insertResult] = await pool.query(
         `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
-        [customer_id, `${type} verified`, verified_date, verified_by],
+        [customer_id, `${type} Review Verified`, verified_date, verified_by],
       );
       affectedRows += insertResult.affectedRows;
 
       const [updatedStatus] = await pool.query(
         `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
-        [customer_id, `${type} Verified`, verified_date, verified_by],
+        [customer_id, `${type} Review Verified`, verified_date, verified_by],
       );
 
       affectedRows += updatedStatus.affectedRows;
