@@ -792,6 +792,7 @@ const trainerPaymentModal = {
                 c.email AS customer_email,
                 t.name AS course_name,
                 c.phone AS customer_mobile,
+                c.student_id,
                 c.lead_id,
                 c.linkedin_review,
                 CASE WHEN (c.linkedin_review IS NOT NULL AND c.linkedin_review != '') THEN 1 ELSE 0 END AS is_linkedin,
