@@ -758,7 +758,8 @@ const trainerPaymentModal = {
           tm.updated_date,
           tp.paid_date,
           tp.transaction_id,
-          tp.status AS payment_status
+          tp.status AS payment_status,
+          tp.payment_mode
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON
