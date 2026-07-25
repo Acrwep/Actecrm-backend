@@ -237,6 +237,54 @@ const sendTrainerPaymentMail = async (req, res) => {
   }
 };
 
+const viewPayslip = async (req, res) => {
+  const {
+    trainer_name,
+    trainer_id,
+    course,
+    payment_date,
+    batch_code,
+    training_mode,
+    total_hours_taken,
+    payment_mode,
+    transaction_id,
+    payment_status,
+    commercial,
+    count_of_candidates,
+    account_number,
+    commercial_type,
+    students,
+  } = req.body;
+  try {
+    const result = await EmailModel.viewPayslip(
+      trainer_name,
+      trainer_id,
+      course,
+      payment_date,
+      batch_code,
+      training_mode,
+      total_hours_taken,
+      payment_mode,
+      transaction_id,
+      payment_status,
+      commercial,
+      count_of_candidates,
+      account_number,
+      commercial_type,
+      students,
+    );
+    res.status(200).send({
+      message: "Payslip data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while fetching payslip details",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   sendMail,
   sendCustomerMail,
@@ -247,4 +295,5 @@ module.exports = {
   viewInvoicePdf,
   sendLoginLink,
   sendTrainerPaymentMail,
+  viewPayslip,
 };

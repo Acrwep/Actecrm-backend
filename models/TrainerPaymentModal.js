@@ -723,6 +723,7 @@ const trainerPaymentModal = {
           tm.id,
           tm.bill_raisedate,
           tm.trainer_id,
+          t.trainer_id AS trainer_code,
           t.name AS trainer_name,
           t.mobile AS trainer_mobile,
           t.email AS trainer_email,
@@ -755,7 +756,9 @@ const trainerPaymentModal = {
           tm.batch_id,
           bm.batch_number,
           tm.updated_date,
-          tp.paid_date
+          tp.paid_date,
+          tp.transaction_id,
+          tp.status AS payment_status
       FROM
           trainer_payment_master AS tm
       INNER JOIN trainer AS t ON

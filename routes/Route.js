@@ -636,4 +636,5 @@ router.get(
 );
 
 router.put("/verifyReview", verifyToken, CustomerController.verifyReview);
+router.post("/viewPayslip", verifyToken, EmailController.viewPayslip);
 module.exports = router;
