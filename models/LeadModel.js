@@ -4023,7 +4023,7 @@ WHERE ${filterCondition}`;
                         ba.name AS preferred_batch_name,
                         l.counsel,
                         lsm.total_score AS lead_score,
-                        (SELECT COUNT(*) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1) AS completed_followup_count,
+                        IFNULL(max_lh.completed_followup_count, 0) AS completed_followup_count,
                         l.assigned_branch_id
                     FROM
                         lead_master AS l
@@ -4039,12 +4039,16 @@ WHERE ${filterCondition}`;
                     LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
                     LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN areas AS a ON a.id = l.district
-                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
-                    )
-                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
-                    )
+                    LEFT JOIN (
+                      SELECT lead_id, 
+                             MAX(id) AS max_id, 
+                             MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id,
+                             SUM(CASE WHEN is_updated = 1 THEN 1 ELSE 0 END) AS completed_followup_count
+                      FROM lead_follow_up_history 
+                      GROUP BY lead_id
+                    ) AS max_lh ON max_lh.lead_id = l.id
+                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
+                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
@@ -4065,12 +4069,13 @@ WHERE ${filterCondition}`;
                       pt.id = l.primary_course_id
                     LEFT JOIN customers AS c ON
                       c.lead_id = l.id
-                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
-                    )
-                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-                      SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
-                    )
+                    LEFT JOIN (
+                      SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
+                      FROM lead_follow_up_history 
+                      GROUP BY lead_id
+                    ) AS max_lh ON max_lh.lead_id = l.id
+                    LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
+                    LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
@@ -4151,12 +4156,13 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested
         FROM lead_master AS l
         LEFT JOIN customers AS c ON c.lead_id = l.id
-        LEFT JOIN lead_follow_up_history AS lh ON lh.id = (
-          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id
-        )
-        LEFT JOIN lead_follow_up_history AS luh ON luh.id = (
-          SELECT MAX(id) FROM lead_follow_up_history WHERE lead_id = l.id AND is_updated = 1
-        )
+        LEFT JOIN (
+          SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
+          FROM lead_follow_up_history 
+          GROUP BY lead_id
+        ) AS max_lh ON max_lh.lead_id = l.id
+        LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
+        LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
         LEFT JOIN communication_master AS cm ON
           luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON

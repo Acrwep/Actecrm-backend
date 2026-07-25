@@ -777,6 +777,7 @@ const CustomerModel = {
       const getQuery = `SELECT
                             c.id,
                             c.lead_id,
+                            c.student_id,
                             c.name,
                             c.email,
                             c.phonecode,
@@ -1377,6 +1378,7 @@ const CustomerModel = {
       let getQuery = `SELECT
                       c.id,
                       c.lead_id,
+                      c.student_id,
                       c.name,
                       c.email,
                       c.phonecode,

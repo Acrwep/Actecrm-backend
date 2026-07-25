@@ -470,7 +470,7 @@ const TrainerModel = {
       let getStatusQuery = `SELECT
                               COUNT(CASE WHEN (t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Verify Pending') THEN 1 END) AS total_count,
                               COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
-                              COUNT(CASE WHEN t.status IN('Verify Pending') THEN 1 END) AS verify_pending,
+                              COUNT(CASE WHEN t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS verify_pending,
                               COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified,
                               COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected
                             FROM
@@ -612,17 +612,15 @@ const TrainerModel = {
           countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
           queryParams.push(is_form_sent);
           countQueryParams.push(is_form_sent);
-        }
-
-        if (status) {
-          getQuery += ` AND t.status IN (?)`;
-          countQuery += ` AND t.status IN (?)`;
+        } else if (status) {
+          getQuery += ` AND t.status IN (?) AND t.is_form_sent = 1 AND t.is_bank_updated = 1`;
+          countQuery += ` AND t.status IN (?) AND t.is_form_sent = 1 AND t.is_bank_updated = 1`;
           queryParams.push(status);
           countQueryParams.push(status);
+        } else {
+          getQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
+          countQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
         }
-
-        getQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
-        countQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
       }
 
       if (bucket && bucket === "Verified") {
