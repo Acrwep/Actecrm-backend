@@ -2906,15 +2906,37 @@ WHERE ${filterCondition}`;
         [today],
       );
 
+      const [trashCount] = await pool.query(
+        `SELECT
+                COUNT(wl.id) AS total,
+                SUM(CASE WHEN wl.junk_by LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub,
+                SUM(CASE WHEN wl.junk_by LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai,
+                SUM(CASE WHEN wl.junk_by LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore
+              FROM website_leads AS wl
+              WHERE
+          wl.is_deleted = 0
+          AND wl.is_junk = 1
+          AND (wl.assigned_to IS NULL OR wl.assigned_to = '')`,
+      );
+
       let onlineCount = 0;
       let classroomCount = 0;
       let corporateCount = 0;
       let totalCount = 0;
+      let totalTrash = 0;
+      let hubCount = 0;
+      let chennaiCount = 0;
+      let bangaloreCount = 0;
 
       onlineCount = `${getAcquiredLeadCount[0].online_count} / ${getLeadCount[0].online_count}`;
       classroomCount = `${getAcquiredLeadCount[0].classroom_count} / ${getLeadCount[0].classroom_count}`;
       corporateCount = `${getAcquiredLeadCount[0].corporate_count} / ${getLeadCount[0].corporate_count}`;
       totalCount = `${getAcquiredLeadCount[0].total} / ${getLeadCount[0].total}`;
+
+      totalTrash = `${trashCount[0].total} / ${getLeadCount[0].total}`;
+      hubCount = `${trashCount[0].hub} / ${getLeadCount[0].hub}`;
+      chennaiCount = `${trashCount[0].chennai} / ${getLeadCount[0].chennai}`;
+      bangaloreCount = `${trashCount[0].bangalore} / ${getLeadCount[0].bangalore}`;
 
       return {
         data: formattedData,
@@ -2927,6 +2949,12 @@ WHERE ${filterCondition}`;
         bucket: {
           live_leads: parseInt(live_leads),
           trash_leads: parseInt(trash_leads),
+        },
+        trash_count: {
+          total: parseInt(totalTrash),
+          hub: parseInt(hubCount),
+          chennai: parseInt(chennaiCount),
+          bangalore: parseInt(bangaloreCount),
         },
         pagination: {
           total: parseInt(total),
@@ -4106,6 +4134,8 @@ WHERE ${filterCondition}`;
         bucketCountQueryParams.push(start_date, end_date);
         // validated_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
+        // need_screening (2)
+        bucketCountQueryParams.push(start_date, end_date);
         // junk_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // eligible_leads (2)
@@ -4141,11 +4171,12 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END), 0) as bangalore_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name = 'Data Incorrect' OR l.primary_course_id IS NULL OR l.lead_type_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as need_screening,
           IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
-          IFNULL(SUM(CASE WHEN (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
@@ -4177,6 +4208,12 @@ WHERE ${filterCondition}`;
             if (actionStr === "junk") {
               getQuery += ` AND ls.name = 'Dormant'`;
               countQuery += ` AND ls.name = 'Dormant'`;
+            } else if (actionStr === "need screening") {
+              getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name = 'Data Incorrect' OR l.primary_course_id IS NULL OR l.lead_type_id IS NULL)`;
+              countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name = 'Data Incorrect' OR l.primary_course_id IS NULL OR l.lead_type_id IS NULL)`;
+            } else if (actionStr === "validated") {
+              getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
+              countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
             } else {
               getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
               countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)`;
@@ -4188,8 +4225,8 @@ WHERE ${filterCondition}`;
         }
 
         if (bucket === "Eligible Leads") {
-          getQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
-          countQuery += ` AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          getQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
+          countQuery += ` AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect')) AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL`;
           if (lead_action) {
             const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
             if (actionStr === "communicated") {
@@ -4378,6 +4415,7 @@ WHERE ${filterCondition}`;
         valid_lead_actions: {
           validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
           junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
+          need_screening: parseInt(bucketCountResult[0]?.need_screening || 0),
         },
         eligible_lead_actions: {
           communicated: parseInt(
