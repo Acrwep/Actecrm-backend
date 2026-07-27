@@ -4414,8 +4414,8 @@ WHERE ${filterCondition}`;
         },
         valid_lead_actions: {
           validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
-          junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
           need_screening: parseInt(bucketCountResult[0]?.need_screening || 0),
+          junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
         },
         eligible_lead_actions: {
           communicated: parseInt(
