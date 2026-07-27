@@ -579,7 +579,7 @@ const CustomerModel = {
         const [studentResult] = await pool.query(
           `SELECT 
             tm.trainer_id,
-            SUM(CASE WHEN c.class_percentage < 100 THEN 1 ELSE 0 END) AS on_going_student,
+            SUM(CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN 1 ELSE 0 END) AS on_going_student,
             SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count
          FROM trainer_mapping tm
          INNER JOIN customers c ON tm.customer_id = c.id
