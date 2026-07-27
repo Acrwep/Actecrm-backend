@@ -1223,19 +1223,21 @@ const CustomerModel = {
             [customer.customer_id],
           );
 
-          const [getStudentCount] = await pool.query(
-            `SELECT SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS student_count 
+          if (getTrainer.length > 0) {
+            const [getStudentCount] = await pool.query(
+              `SELECT SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS student_count 
           FROM trainer_mapping AS tm 
           INNER JOIN customers AS c ON tm.customer_id = c.id 
           WHERE tm.trainer_id = ?`,
-            [getTrainer[0].trainer_id],
-          );
-
-          if (getStudentCount[0].student_count === 1) {
-            await pool.query(
-              `UPDATE trainer SET is_onboarding = 1 WHERE id = ?`,
               [getTrainer[0].trainer_id],
             );
+
+            if (getStudentCount[0].student_count === 1) {
+              await pool.query(
+                `UPDATE trainer SET is_onboarding = 1 WHERE id = ?`,
+                [getTrainer[0].trainer_id],
+              );
+            }
           }
         }
       }
