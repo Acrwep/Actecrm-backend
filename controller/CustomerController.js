@@ -669,6 +669,42 @@ const verifyReview = async (request, response) => {
   }
 };
 
+const updateCustomerTrainer = async (request, response) => {
+  const {
+    customer_id,
+    trainer_id,
+    commercial,
+    mode_of_class,
+    trainer_type,
+    proof_communication,
+    comments,
+    created_date,
+    updated_by,
+  } = request.body;
+  try {
+    const result = await CustomerModel.updateCustomerTrainer(
+      customer_id,
+      trainer_id,
+      commercial,
+      mode_of_class,
+      trainer_type,
+      proof_communication,
+      comments,
+      created_date,
+      updated_by,
+    );
+    return response.status(200).send({
+      message: "Trainer updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating trainer",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   updateCustomer,
   getCustomers,
@@ -693,4 +729,5 @@ module.exports = {
   otpSend,
   verifyOTP,
   verifyReview,
+  updateCustomerTrainer,
 };

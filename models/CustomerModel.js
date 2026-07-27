@@ -1961,6 +1961,76 @@ const CustomerModel = {
       throw new Error(error.message);
     }
   },
+
+  updateCustomerTrainer: async (
+    customer_id,
+    trainer_id,
+    commercial,
+    mode_of_class,
+    trainer_type,
+    proof_communication,
+    comments,
+    created_date,
+    updated_by,
+  ) => {
+    try {
+      const [isCusExists] = await pool.query(
+        `SELECT id FROM customers WHERE id = ?`,
+        [customer_id],
+      );
+      if (isCusExists.length <= 0) throw new Error("Invalid customer");
+
+      const [isTrainerExists] = await pool.query(
+        `SELECT id FROM trainer_mapping WHERE customer_id = ? AND is_rejected = 0`,
+        [customer_id],
+      );
+      let isUpdated = false;
+      if (isTrainerExists.length > 0) {
+        await pool.query(
+          `UPDATE trainer_mapping SET is_rejected = 1, rejected_date = ? WHERE id = ?`,
+          [created_date, isTrainerExists[0].id],
+        );
+
+        const insertQuery = `INSERT INTO trainer_mapping(
+                              customer_id,
+                              trainer_id,
+                              commercial,
+                              mode_of_class,
+                              trainer_type,
+                              proof_communication,
+                              comments,
+                              created_date,
+                              is_verified,
+                              verified_date
+                          )
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        const values = [
+          customer_id,
+          trainer_id,
+          commercial,
+          mode_of_class,
+          trainer_type,
+          proof_communication,
+          comments,
+          created_date,
+          1,
+          created_date,
+        ];
+
+        const [result] = await pool.query(insertQuery, values);
+
+        isUpdated = result.affectedRows > 0 ? true : false;
+
+        await pool.query(
+          `INSERT INTO customer_status_history(customer_id, status, updated_at, updated_by) VALUES(?, ?, ?, ?)`,
+          [customer_id, "Trainer Updated", created_date, updated_by],
+        );
+      }
+      return isUpdated;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = CustomerModel;
