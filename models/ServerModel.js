@@ -75,19 +75,19 @@ const ServerModel = {
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
-          getQuery += ` AND l.assigned_to IN (${placeholders})`;
-          paginationQuery += ` AND l.assigned_to IN (${placeholders})`;
-          statusQuery += ` AND l.assigned_to IN (${placeholders})`;
-          queryParams.push(...user_ids);
-          paginationParams.push(...user_ids);
-          statusParams.push(...user_ids);
+          getQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+          paginationQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+          statusQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+          queryParams.push(...user_ids, ...user_ids);
+          paginationParams.push(...user_ids, ...user_ids);
+          statusParams.push(...user_ids, ...user_ids);
         } else if (!Array.isArray(user_ids)) {
-          getQuery += ` AND l.assigned_to = ?`;
-          paginationQuery += ` AND l.assigned_to = ?`;
-          statusQuery += ` AND l.assigned_to = ?`;
-          queryParams.push(user_ids);
-          paginationParams.push(user_ids);
-          statusParams.push(user_ids);
+          getQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
+          paginationQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
+          statusQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
+          queryParams.push(user_ids, user_ids);
+          paginationParams.push(user_ids, user_ids);
+          statusParams.push(user_ids, user_ids);
         }
       }
 
