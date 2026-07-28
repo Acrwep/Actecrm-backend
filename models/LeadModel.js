@@ -4034,7 +4034,7 @@ WHERE ${filterCondition}`;
                         r.id AS region_id,
                         lh.id AS lead_history_id,
                         lh.lead_action_id,
-                        la.name AS lead_action_name,
+                        ula.name AS lead_action_name,
                         l.re_assigned_date,
                         l.is_reassigned,
                         l.assigned_manager,
@@ -4081,8 +4081,8 @@ WHERE ${filterCondition}`;
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
                       luh.contact_mode = cm1.id
-                    LEFT JOIN lead_action AS la ON
-                    	la.id = luh.lead_action_id
+                    LEFT JOIN lead_action AS ula ON
+                    	ula.id = luh.lead_action_id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
                     LEFT JOIN users AS bm ON bm.user_id = l.branch_manager_id
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
@@ -4104,6 +4104,7 @@ WHERE ${filterCondition}`;
                     ) AS max_lh ON max_lh.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
+                    LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
                     LEFT JOIN communication_master AS cm ON
                       luh.communication_status = cm.id
                     LEFT JOIN contact_mode AS cm1 ON
@@ -4146,21 +4147,35 @@ WHERE ${filterCondition}`;
         bucketCountQueryParams.push(start_date, end_date);
         // no_response_eligible_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
-        // interested_leads (4)
-        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // interested_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
         // joinings (2)
         bucketCountQueryParams.push(start_date, end_date);
-        // highly_interested (4)
+        // super_hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // warm (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // cold (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // dormant (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_interested (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // follow_up
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // interested (4)
+        // Sale Ready (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // sale_ready (4)
+        // Highly Interested (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // not_interested (4)
+        // Interested (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // exploring (4)
+        // Exploring (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // not_responding (4)
+        // Not Responding (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Not Interested (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
       }
 
@@ -4177,14 +4192,21 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND cm.name = 'Communicated' THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as interested_leads,
-          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as super_hot,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Hot' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as hot,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Warm' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as warm,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Cold' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as cold,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Dormant' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as dormant,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as interested_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Super Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as super_hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Warm' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as warm,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sale Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_interested_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads
         FROM lead_master AS l
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN (
@@ -4194,6 +4216,7 @@ WHERE ${filterCondition}`;
         ) AS max_lh ON max_lh.lead_id = l.id
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
         LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
+        LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
         LEFT JOIN communication_master AS cm ON
           luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON
@@ -4245,7 +4268,7 @@ WHERE ${filterCondition}`;
           }
         }
 
-        if (bucket === "Interested Leads") {
+        if (bucket === "Followup Leads") {
           getQuery += ` AND lh.is_updated = 0 AND c.id IS NULL`;
           countQuery += ` AND lh.is_updated = 0 AND c.id IS NULL`;
         }
@@ -4335,16 +4358,21 @@ WHERE ${filterCondition}`;
 
       if (lead_action) {
         const actionStr = lead_action.toLowerCase().replace(/_/g, " ");
-        if (bucket !== "Valid Leads" && bucket !== "Eligible Leads") {
+        if (bucket === "Interested Leads") {
           getQuery += ` AND LOWER(ls.name) = ?`;
           countQuery += ` AND LOWER(ls.name) = ?`;
+          queryParams.push(actionStr);
+          countQueryParams.push(actionStr);
+        } else if (bucket === "Followup Leads") {
+          getQuery += ` AND LOWER(ula.name) = ?`;
+          countQuery += ` AND LOWER(ula.name) = ?`;
           queryParams.push(actionStr);
           countQueryParams.push(actionStr);
         }
       }
 
       if (start_date && end_date) {
-        if (bucket === "Interested Leads") {
+        if (bucket === "Followup Leads") {
           getQuery += ` AND (
                       lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
                       OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
@@ -4356,8 +4384,6 @@ WHERE ${filterCondition}`;
           queryParams.push(start_date, end_date, start_date, end_date);
           countQueryParams.push(start_date, end_date, start_date, end_date);
         } else {
-          // getQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-          // countQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
           getQuery += ` AND l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           queryParams.push(start_date, end_date);
@@ -4381,7 +4407,9 @@ WHERE ${filterCondition}`;
       const offset = (pageNumber - 1) * limitNumber;
 
       if (bucket === "Interested Leads") {
-        getQuery += ` ORDER BY ls.sort_order ASC, la.sort_order ASC`;
+        getQuery += ` ORDER BY ls.sort_order ASC, ula.sort_order ASC`;
+      } else if (bucket === "Followup Leads") {
+        getQuery += ` ORDER BY luh.next_follow_up_date ASC`;
       } else {
         getQuery += ` ORDER BY l.created_date DESC `;
       }
@@ -4410,6 +4438,7 @@ WHERE ${filterCondition}`;
             bucketCountResult[0]?.interested_leads || 0,
           ),
           sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
+          followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
         },
         valid_lead_actions: {
@@ -4436,6 +4465,24 @@ WHERE ${filterCondition}`;
           cold: parseInt(bucketCountResult[0]?.cold || 0),
           dormant: parseInt(bucketCountResult[0]?.dormant || 0),
           not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
+        },
+        followup_actions: {
+          sale_ready_leads: parseInt(
+            bucketCountResult[0]?.sale_ready_leads || 0,
+          ),
+          highly_interested_leads: parseInt(
+            bucketCountResult[0]?.highly_interested_leads || 0,
+          ),
+          interested_leads: parseInt(
+            bucketCountResult[0]?.followup_interested_leads || 0,
+          ),
+          exploring_leads: parseInt(bucketCountResult[0]?.exploring_leads || 0),
+          not_responding_leads: parseInt(
+            bucketCountResult[0]?.not_responding_leads || 0,
+          ),
+          not_interested_leads: parseInt(
+            bucketCountResult[0]?.not_interested_leads || 0,
+          ),
         },
         pagination: {
           total: parseInt(total),
