@@ -1550,9 +1550,9 @@ const CustomerModel = {
                                 'Videos Given'
                             ) THEN 1 END) AS Others
                         FROM customers AS c
-                        INNER JOIN lead_master AS l ON
+                        LEFT JOIN lead_master AS l ON
                             c.lead_id = l.id
-                        INNER JOIN region AS r ON
+                        LEFT JOIN region AS r ON
                             r.id = c.region_id
                         LEFT JOIN payment_master AS pm ON
                             c.lead_id = pm.lead_id
@@ -1567,9 +1567,9 @@ const CustomerModel = {
                               customers AS c
                           LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
-                          INNER JOIN lead_master AS l ON
+                          LEFT JOIN lead_master AS l ON
                               c.lead_id = l.id
-                          INNER JOIN region AS r ON
+                          LEFT JOIN region AS r ON
                               r.id = c.region_id
                           LEFT JOIN payment_master AS pm ON
                               c.lead_id = pm.lead_id
@@ -1592,7 +1592,7 @@ const CustomerModel = {
                           FROM customers AS c
                           LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
-                          INNER JOIN lead_master AS l ON
+                          LEFT JOIN lead_master AS l ON
                               c.lead_id = l.id
                           INNER JOIN payment_master AS pm ON
                               pm.lead_id = c.lead_id
@@ -1607,7 +1607,7 @@ const CustomerModel = {
                                     customers AS c
                                 LEFT JOIN customer_status_history AS csh
                                     ON csh.id = c.latest_status_history_id
-                                INNER JOIN lead_master AS l ON
+                                LEFT JOIN lead_master AS l ON
                                     c.lead_id = l.id
                                 INNER JOIN payment_master AS pm ON
                                     pm.lead_id = c.lead_id
@@ -1662,10 +1662,7 @@ const CustomerModel = {
       // Add date range filter
       if (from_date && to_date) {
         if (date_type === "Updated") {
-          const dateColumn =
-            status === "Awaiting Finance" || status === "Payment Rejected"
-              ? "csh.updated_at"
-              : "c.payment_date";
+          const dateColumn = "csh.updated_at";
           getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
@@ -1673,16 +1670,18 @@ const CustomerModel = {
           paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
-          const dateColumn =
+          const defaultDateColumn = "c.created_date";
+          const paymentDateColumn = "c.payment_date";
+          const queryDateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
-              ? "c.created_date"
-              : "c.payment_date";
-          getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+              ? paymentDateColumn
+              : defaultDateColumn;
+          getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
 
         queryParams.push(from_date, to_date);
