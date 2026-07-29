@@ -1662,27 +1662,31 @@ const CustomerModel = {
       // Add date range filter
       if (from_date && to_date) {
         if (date_type === "Updated") {
-          const dateColumn =
+          const defaultDateColumn = "csh.updated_at";
+          const paymentDateColumn = "c.payment_date";
+          const queryDateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
-              ? "c.payment_date"
-              : "csh.updated_at";
-          getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+              ? paymentDateColumn
+              : defaultDateColumn;
+          getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
-          const dateColumn =
+          const defaultDateColumn = "c.created_date";
+          const paymentDateColumn = "c.payment_date";
+          const queryDateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
-              ? "c.payment_date"
-              : "c.created_date";
-          getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+              ? paymentDateColumn
+              : defaultDateColumn;
+          getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
 
         queryParams.push(from_date, to_date);
