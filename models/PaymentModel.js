@@ -1040,7 +1040,7 @@ const PaymentModel = {
 
       const [historyResult] = await pool.query(
         `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
-        [getCus[0].id, "Rejected", rejected_date, updated_by],
+        [getCus[0].id, "Payment Rejected", rejected_date, updated_by],
       );
 
       await pool.query(

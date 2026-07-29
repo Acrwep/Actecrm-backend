@@ -210,12 +210,13 @@ const partPayment = async (request, response) => {
 };
 
 const paymentReject = async (request, response) => {
-  const { payment_trans_id, rejected_date, reason } = request.body;
+  const { payment_trans_id, rejected_date, reason, updated_by } = request.body;
   try {
     const result = await PaymentModel.paymentReject(
       payment_trans_id,
       rejected_date,
       reason,
+      updated_by,
     );
     return response.status(201).send({
       messages: "Payment has been rejected",
