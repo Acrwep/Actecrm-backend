@@ -1666,14 +1666,14 @@ const CustomerModel = {
           const paymentDateColumn = "c.payment_date";
           const queryDateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
-              ? paymentDateColumn
-              : defaultDateColumn;
+              ? defaultDateColumn
+              : paymentDateColumn;
           getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
           const defaultDateColumn = "c.created_date";
           const paymentDateColumn = "c.payment_date";
