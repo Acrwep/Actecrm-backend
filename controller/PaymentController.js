@@ -45,6 +45,7 @@ const createPayment = async (request, response) => {
     state_code,
     gst_number,
     ra_id,
+    date_of_joining,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -74,6 +75,7 @@ const createPayment = async (request, response) => {
       state_code,
       gst_number,
       ra_id,
+      date_of_joining,
     );
     return response.status(201).send({
       messages: "Payment successfull",
