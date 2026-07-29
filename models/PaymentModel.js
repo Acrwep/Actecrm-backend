@@ -1000,13 +1000,28 @@ const PaymentModel = {
         getCustomer[0].id,
       ]);
 
+      const [historyResult] = await pool.query(
+        `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
+        [getCustomer[0].id, "Part Payment", created_date, collected_by],
+      );
+
+      await pool.query(
+        `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
+        [historyResult.insertId, getCustomer[0].id],
+      );
+
       return transInsert.affectedRows;
     } catch (error) {
       throw new Error(error.message);
     }
   },
 
-  paymentReject: async (payment_trans_id, rejected_date, reason) => {
+  paymentReject: async (
+    payment_trans_id,
+    rejected_date,
+    reason,
+    updated_by,
+  ) => {
     try {
       const [isIdExists] = await pool.query(
         `SELECT id FROM payment_trans WHERE id = ?`,
@@ -1016,6 +1031,21 @@ const PaymentModel = {
       const [result] = await pool.query(
         `UPDATE payment_trans SET payment_status = 'Rejected', rejected_date = ?, reason = ?, is_second_due = 0, is_last_pay_rejected = 1 WHERE id = ?`,
         [rejected_date, reason, payment_trans_id],
+      );
+
+      const [getCus] = await pool.query(
+        `SELECT c.id FROM payment_trans AS pt INNER JOIN payment_master AS pm ON pt.payment_master_id = pm.id INNER JOIN customers AS c ON c.lead_id = pm.lead_id WHERE pt.id = ? GROUP BY c.id`,
+        [payment_trans_id],
+      );
+
+      const [historyResult] = await pool.query(
+        `INSERT INTO customer_status_history (customer_id, status, updated_at, updated_by) VALUES (?, ?, ?, ?)`,
+        [getCus[0].id, "Rejected", rejected_date, updated_by],
+      );
+
+      await pool.query(
+        `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
+        [historyResult.insertId, getCus[0].id],
       );
       return result.affectedRows;
     } catch (error) {
