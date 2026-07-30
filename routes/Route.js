@@ -21,6 +21,7 @@ const BatchController = require("../controller/BatchController");
 const TicketController = require("../controller/TicketController");
 const upload = require("../validation/UploadMiddleware");
 const UploadController = require("../controller/UploadController");
+const AdmissionController = require("../controller/AdmissionController");
 
 router.post("/login", LoginController.login);
 
@@ -642,4 +643,6 @@ router.put(
   CustomerController.updateCustomerTrainer,
 );
 router.post("/viewPayslip", verifyToken, EmailController.viewPayslip);
+
+router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
 module.exports = router;
