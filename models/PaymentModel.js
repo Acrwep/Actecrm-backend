@@ -1125,7 +1125,7 @@ const PaymentModel = {
   ) => {
     try {
       const [isIdExists] = await pool.query(
-        `SELECT id, lead_id, IFNULL(discount_amount, 0) AS discount_amount FROM payment_master WHERE id = ?`,
+        `SELECT id, lead_id FROM payment_master WHERE id = ?`,
         [payment_master_id],
       );
       if (isIdExists.length <= 0) throw new Error("Invalid Id");
@@ -1134,11 +1134,6 @@ const PaymentModel = {
         `SELECT SUM(amount) AS paid_amount FROM payment_trans WHERE payment_master_id = ? AND payment_status NOT IN ('Rejected')`,
         [payment_master_id],
       );
-
-      let discountAmount = 0;
-      if (isIdExists[0].discount_amount > 0) {
-        discountAmount = isIdExists[0].discount_amount + discount_amount;
-      }
 
       if (parseFloat(total_amount) < parseFloat(paidAmount[0].paid_amount))
         throw new Error("Total amount cannot be less than paid amout!");
@@ -1156,7 +1151,7 @@ const PaymentModel = {
         tax_type,
         gst_percentage,
         gst_amount,
-        discountAmount,
+        discount_amount,
         total_amount,
         payment_master_id,
       ];
