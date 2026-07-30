@@ -16,6 +16,7 @@ const AdmissionModel = {
 
       // Get customers query
       let getQuery = `SELECT
+                        c.id AS customer_id,
                         COALESCE(c.date_of_joining, c.created_date) AS date_of_joining,
                         COALESCE(c.student_id, c.name) AS student_id,
                         t.id AS course_id,
