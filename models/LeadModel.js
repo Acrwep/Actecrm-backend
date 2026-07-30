@@ -4196,14 +4196,14 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
 
 
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as interested_leads,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Super Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as super_hot,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hot,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Warm' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as warm,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
-          IFNULL(SUM(CASE WHEN lh.id IS NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Super Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as super_hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Warm' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as warm,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sale Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
@@ -4278,8 +4278,8 @@ WHERE ${filterCondition}`;
         }
 
         if (bucket === "Interested Leads") {
-          getQuery += ` AND lh.id IS NULL`;
-          countQuery += ` AND lh.id IS NULL`;
+          getQuery += ` AND lh.id IS NOT NULL`;
+          countQuery += ` AND lh.id IS NOT NULL`;
         }
 
         if (bucket === "Joinings") {
