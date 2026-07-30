@@ -1158,12 +1158,14 @@ const PaymentModel = {
 
       const [result] = await pool.query(sql, values);
 
-      let course_fees = total_amount - gst_amount;
+      if (discount_amount <= 0) {
+        let course_fees = total_amount - gst_amount;
 
-      await pool.query(`UPDATE lead_master SET primary_fees = ? WHERE id = ?`, [
-        course_fees,
-        isIdExists[0].lead_id,
-      ]);
+        await pool.query(
+          `UPDATE lead_master SET primary_fees = ? WHERE id = ?`,
+          [course_fees, isIdExists[0].lead_id],
+        );
+      }
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
