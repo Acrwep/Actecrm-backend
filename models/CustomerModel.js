@@ -862,6 +862,7 @@ const CustomerModel = {
                           pt1.is_second_due AS is_second_due,
                           pt1.is_last_pay_rejected,
                           pm.total_amount AS total_course_amount,
+                          pm.discount_amount,
                           COALESCE(ps.total_paid, 0) AS paid_amount,
                           l.ra_id,
                           ra.user_name as ra_name,
