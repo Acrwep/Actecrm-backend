@@ -1119,6 +1119,7 @@ const PaymentModel = {
     tax_type,
     gst_percentage,
     gst_amount,
+    discount_amount,
     total_amount,
     payment_master_id,
   ) => {
@@ -1142,6 +1143,7 @@ const PaymentModel = {
                       tax_type = ?,
                       gst_percentage = ?,
                       gst_amount = ?,
+                      discount_amount = ?,
                       total_amount = ?
                   WHERE
                       id = ?`;
@@ -1149,6 +1151,7 @@ const PaymentModel = {
         tax_type,
         gst_percentage,
         gst_amount,
+        discount_amount,
         total_amount,
         payment_master_id,
       ];

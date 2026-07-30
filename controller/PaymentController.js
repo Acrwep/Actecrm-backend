@@ -271,6 +271,7 @@ const updatePaymentMaster = async (request, response) => {
     tax_type,
     gst_percentage,
     gst_amount,
+    discount_amount,
     total_amount,
     payment_master_id,
   } = request.body;
@@ -279,6 +280,7 @@ const updatePaymentMaster = async (request, response) => {
       tax_type,
       gst_percentage,
       gst_amount,
+      discount_amount,
       total_amount,
       payment_master_id,
     );

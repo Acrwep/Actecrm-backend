@@ -4411,9 +4411,7 @@ WHERE ${filterCondition}`;
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      if (bucket === "Interested Leads") {
-        getQuery += ` ORDER BY ls.sort_order ASC, ula.sort_order ASC`;
-      } else if (bucket === "Followup Leads") {
+      if (bucket === "Followup Leads") {
         getQuery += ` ORDER BY luh.next_follow_up_date ASC`;
       } else {
         getQuery += ` ORDER BY l.created_date DESC `;
