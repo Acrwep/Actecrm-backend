@@ -1416,6 +1416,7 @@ const CustomerModel = {
                       pt1.is_last_pay_rejected,
                       COALESCE(ps.total_paid, 0) AS paid_amount,
                       pm.total_amount AS total_course_amount,
+                      pm.discount_amount,
                       l.ra_id,
                       ra_user.user_name AS ra_name,
                       c.is_linkedin_verified,
