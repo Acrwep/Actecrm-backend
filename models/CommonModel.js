@@ -5,7 +5,7 @@ const CommonModel = {
   getPaymentHistory: async (lead_id) => {
     try {
       const [getPaymentMaster] = await pool.query(
-        `SELECT id, lead_id, tax_type, gst_percentage, gst_amount, total_amount, created_date FROM payment_master WHERE lead_id = ?`,
+        `SELECT id, lead_id, tax_type, gst_percentage, gst_amount, discount_amount, total_amount, created_date FROM payment_master WHERE lead_id = ?`,
         [lead_id],
       );
 
