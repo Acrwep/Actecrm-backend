@@ -1166,6 +1166,19 @@ const PaymentModel = {
           [course_fees, isIdExists[0].lead_id],
         );
       }
+
+      let balanceAmount = 0;
+      balanceAmount = total_amount - paidAmount[0].paid_amount;
+      if (balanceAmount === 0) {
+        const [latestTrans] = await pool.query(
+          `SELECT id FROM payment_trans WHERE payment_master_id = ? ORDER BY id DESC LIMIT 1`,
+          [payment_master_id],
+        );
+        await pool.query(
+          `UPDATE payment_trans SET next_due_date = ? WHERE id = ?`,
+          [null, latestTrans[0].id],
+        );
+      }
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
