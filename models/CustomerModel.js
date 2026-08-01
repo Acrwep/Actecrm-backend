@@ -33,6 +33,8 @@ const CustomerModel = {
     gst_number,
     lead_id,
     ra_id,
+    place_of_service,
+    place_of_branch,
   ) => {
     try {
       let affectedRows = 0;
@@ -71,7 +73,9 @@ const CustomerModel = {
                                 place_of_supply = ?,
                                 address = ?,
                                 state_code = ?,
-                                gst_number = ?`;
+                                gst_number = ?,
+                                place_of_service = ?,
+                                place_of_branch = ?`;
       queryParams.push(
         name,
         email,
@@ -99,6 +103,8 @@ const CustomerModel = {
         address,
         state_code,
         gst_number,
+        place_of_service,
+        place_of_branch,
       );
 
       if (is_customer_updated) {

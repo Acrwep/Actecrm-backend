@@ -4197,7 +4197,6 @@ WHERE ${filterCondition}`;
 
 
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as interested_leads,
-          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Super Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as super_hot,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hot,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Warm' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as warm,
@@ -4210,7 +4209,8 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_interested_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding_leads,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads,
+          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
         FROM lead_master AS l
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN (

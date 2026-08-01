@@ -1,7 +1,7 @@
 const AdmissionModel = require("../models/AdmissionModel");
 
 const getAdmissions = async (request, response) => {
-  const { from_date, to_date, search_filter, user_ids, page, limit } =
+  const { from_date, to_date, search_filter, user_ids, page, limit, bucket } =
     request.body;
   try {
     const result = await AdmissionModel.getAdmissions(
@@ -11,6 +11,7 @@ const getAdmissions = async (request, response) => {
       user_ids,
       page,
       limit,
+      bucket,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",

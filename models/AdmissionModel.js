@@ -8,6 +8,7 @@ const AdmissionModel = {
     user_ids,
     page,
     limit,
+    bucket,
   ) => {
     try {
       const queryParams = [];
@@ -62,6 +63,12 @@ const AdmissionModel = {
                         rt.id = latest_ra.latest_id
                     LEFT JOIN users AS ra ON
                         ra.user_id = rt.updated_by
+                    LEFT JOIN class_mode AS cm ON
+                        c.place_of_service = cm.id
+                    LEFT JOIN branches AS b ON
+                        c.place_of_branch = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
                     WHERE 1 = 1`;
 
       // Get pagination count query
@@ -75,12 +82,23 @@ const AdmissionModel = {
                             lm.id = c.lead_id
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
+                        LEFT JOIN class_mode AS cm ON
+                            c.place_of_service = cm.id
+                        LEFT JOIN branches AS b ON
+                            c.place_of_branch = b.id
+                        LEFT JOIN region AS r ON
+                            b.region_id = r.id
                         WHERE 1 = 1`;
 
       let regionQuery = `SELECT
-                            SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai_region,
-                            SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore_region,
-                            SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub_region
+                            SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
+                            SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
+                            SUM(CASE WHEN r.name = 'Chennai' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
+                            SUM(CASE WHEN r.name = 'Bangalore' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
+                            SUM(CASE WHEN r.name = 'Hub' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
+                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Hub' THEN 1 ELSE 0 END) AS hub_online
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON
@@ -91,7 +109,25 @@ const AdmissionModel = {
                         	r.id = lm.region_id
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
+                        LEFT JOIN class_mode AS cm ON
+                            c.place_of_service = cm.id
+                        LEFT JOIN branches AS b ON
+                            c.place_of_branch = b.id
+                        LEFT JOIN region AS r ON
+                            b.region_id = r.id
                         WHERE 1 = 1`;
+
+      if (bucket && bucket === "Online") {
+        getQuery += ` AND cm.name = 'Online'`;
+        countQuery += ` AND cm.name = 'Online'`;
+        regionQuery += ` AND cm.name = 'Online'`;
+      }
+
+      if (bucket && bucket === "Classroom") {
+        getQuery += ` AND cm.name = 'Classroom'`;
+        countQuery += ` AND cm.name = 'Classroom'`;
+        regionQuery += ` AND cm.name = 'Classroom'`;
+      }
 
       // Handle user_ids parameter for both queries
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
@@ -107,9 +143,9 @@ const AdmissionModel = {
 
       // Add date range filter
       if (from_date && to_date) {
-        getQuery += ` AND c.created_date >= ? AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
-        countQuery += ` AND c.created_date >= ? AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
-        regionQuery += ` AND c.created_date >= ? AND c.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        getQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        countQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        regionQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         queryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
         regionParams.push(from_date, to_date);
@@ -150,7 +186,7 @@ const AdmissionModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       // Add pagination to main query
-      getQuery += ` ORDER BY c.created_date DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       // Fetch all required data concurrently
