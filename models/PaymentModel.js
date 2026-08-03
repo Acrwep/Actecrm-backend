@@ -1195,6 +1195,7 @@ const PaymentModel = {
     search_filter,
     page = 1,
     limit = 10,
+    user_ids,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -1216,6 +1217,15 @@ const PaymentModel = {
         const searchStr = `%${search_filter}%`;
         queryParams.push(searchStr, searchStr, searchStr, searchStr);
         countParams.push(searchStr, searchStr, searchStr, searchStr);
+      }
+
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        const userFilter = ` AND l.assigned_to IN (${placeholders})`;
+        baseConditions += userFilter;
+
+        queryParams.push(...user_ids);
+        countParams.push(...user_ids);
       }
 
       const baseQuery = `

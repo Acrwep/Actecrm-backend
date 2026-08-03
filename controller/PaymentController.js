@@ -355,7 +355,8 @@ const pendingFeesListV1 = async (request, response) => {
 };
 
 const recievedList = async (request, response) => {
-  const { start_date, end_date, search_filter, page, limit } = request.body;
+  const { start_date, end_date, search_filter, page, limit, user_ids } =
+    request.body;
   try {
     const result = await PaymentModel.recievedList(
       start_date,
@@ -363,6 +364,7 @@ const recievedList = async (request, response) => {
       search_filter,
       page,
       limit,
+      user_ids,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
