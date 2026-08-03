@@ -93,28 +93,26 @@ const AdmissionModel = {
       let regionQuery = `SELECT
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
-                            SUM(CASE WHEN r.name = 'Chennai' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
-                            SUM(CASE WHEN r.name = 'Bangalore' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
-                            SUM(CASE WHEN r.name = 'Hub' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
-                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND r.name = 'Hub' THEN 1 ELSE 0 END) AS hub_online
+                            SUM(CASE WHEN pr.name = 'Chennai' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
+                            SUM(CASE WHEN pr.name = 'Bangalore' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
+                            SUM(CASE WHEN pr.name = 'Hub' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
+                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Hub' THEN 1 ELSE 0 END) AS hub_online
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON
                             t.id = c.enrolled_course
                         INNER JOIN lead_master AS lm ON
                             lm.id = c.lead_id
-                        INNER JOIN region AS r ON
-                        	r.id = lm.region_id
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
                         LEFT JOIN class_mode AS cm ON
                             c.place_of_service = cm.id
-                        LEFT JOIN branches AS b ON
-                            c.place_of_branch = b.id
-                        LEFT JOIN region AS r ON
-                            b.region_id = r.id
+                        LEFT JOIN branches AS pb ON
+                            c.place_of_branch = pb.id
+                        LEFT JOIN region AS pr ON
+                            pb.region_id = pr.id
                         WHERE 1 = 1`;
 
       if (bucket && bucket === "Online") {
