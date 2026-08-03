@@ -354,6 +354,28 @@ const pendingFeesListV1 = async (request, response) => {
   }
 };
 
+const recievedList = async (request, response) => {
+  const { start_date, end_date, search_filter, page, limit } = request.body;
+  try {
+    const result = await PaymentModel.recievedList(
+      start_date,
+      end_date,
+      search_filter,
+      page,
+      limit,
+    );
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -366,4 +388,5 @@ module.exports = {
   updatePaymentMaster,
   getPaymentHistory,
   pendingFeesListV1,
+  recievedList,
 };

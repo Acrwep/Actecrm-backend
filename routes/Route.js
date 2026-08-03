@@ -645,4 +645,5 @@ router.put(
 router.post("/viewPayslip", verifyToken, EmailController.viewPayslip);
 
 router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
+router.post("/recievedList", verifyToken, PaymentController.recievedList);
 module.exports = router;
