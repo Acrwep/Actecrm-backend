@@ -118,13 +118,13 @@ const AdmissionModel = {
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
         countQuery += ` AND cm.name = 'Online'`;
-        regionQuery += ` AND cm.name = 'Online'`;
+        // regionQuery += ` AND cm.name = 'Online'`;
       }
 
       if (bucket && bucket === "Classroom") {
         getQuery += ` AND cm.name = 'Classroom'`;
         countQuery += ` AND cm.name = 'Classroom'`;
-        regionQuery += ` AND cm.name = 'Classroom'`;
+        // regionQuery += ` AND cm.name = 'Classroom'`;
       }
 
       // Handle user_ids parameter for both queries
