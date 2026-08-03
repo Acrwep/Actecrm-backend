@@ -873,8 +873,16 @@ const CustomerModel = {
                           l.ra_id,
                           ra.user_name as ra_name,
                           c.is_linkedin_verified,
-                          c.is_google_verified
+                          c.is_google_verified,
+                          c.place_of_service,
+                          cm.name as place_of_service_name,
+                          c.place_of_branch,
+                          pb.name as place_of_branch_name
                         FROM customers AS c
+                        LEFT JOIN class_mode AS cm ON
+                          c.place_of_service = cm.id
+                        LEFT JOIN branches AS pb ON
+                          pb.id = c.place_of_branch
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
                         LEFT JOIN region AS r ON
