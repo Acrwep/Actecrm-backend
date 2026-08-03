@@ -694,10 +694,7 @@ const PaymentModel = {
   pendingFeesListV1: async (
     from_date,
     to_date,
-    name,
-    mobile,
-    email,
-    course,
+    search_filter,
     urgent_due,
     user_ids,
     page,
@@ -730,21 +727,16 @@ const PaymentModel = {
       }
 
       const searchConditions = [];
-      if (name) {
-        searchConditions.push(`c.name LIKE ?`);
-        queryParams.push(`%${name}%`);
-      }
-      if (email) {
-        searchConditions.push(`c.email LIKE ?`);
-        queryParams.push(`%${email}%`);
-      }
-      if (mobile) {
-        searchConditions.push(`c.phone LIKE ?`);
-        queryParams.push(`%${mobile}%`);
-      }
-      if (course) {
-        searchConditions.push(`t.name LIKE ?`);
-        queryParams.push(`%${course}%`);
+      if (search_filter) {
+        searchConditions.push(
+          `(c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR t.name LIKE ?)`,
+        );
+        queryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
       }
 
       const allConditions = [
@@ -1232,8 +1224,8 @@ const PaymentModel = {
           FROM payment_trans pt
           INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
           INNER JOIN customers c ON c.lead_id = pm.lead_id
-          INNER JOIN region r ON r.id = c.region_id
-          INNER JOIN branches b ON b.id = c.branch_id
+          INNER JOIN branches b ON b.id = c.place_of_branch
+          INNER JOIN region r ON r.id = b.region_id
           INNER JOIN payment_mode p ON p.id = pt.paymode_id
           INNER JOIN technologies t ON t.id = c.enrolled_course
           INNER JOIN lead_master l ON l.id = c.lead_id
@@ -1254,6 +1246,7 @@ const PaymentModel = {
                               x.region_name,
                               x.branch_name,
                               x.closed_by,
+                              x.customer_id,
                               x.cus_name,
                               x.cus_phone,
                               x.course_name,
@@ -1296,6 +1289,7 @@ const PaymentModel = {
                                   r.name AS region_name,
                                   b.name AS branch_name,
                                   u.user_name AS closed_by,
+                                  c.id AS customer_id,
                                   c.name AS cus_name,
                                   c.phone AS cus_phone,
                                   t.name AS course_name,

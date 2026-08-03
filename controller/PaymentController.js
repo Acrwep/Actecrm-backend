@@ -320,10 +320,7 @@ const pendingFeesListV1 = async (request, response) => {
   const {
     from_date,
     to_date,
-    name,
-    mobile,
-    email,
-    course,
+    search_filter,
     urgent_due,
     user_ids,
     page,
@@ -333,10 +330,7 @@ const pendingFeesListV1 = async (request, response) => {
     const result = await PaymentModel.pendingFeesListV1(
       from_date,
       to_date,
-      name,
-      mobile,
-      email,
-      course,
+      search_filter,
       urgent_due,
       user_ids,
       page,
