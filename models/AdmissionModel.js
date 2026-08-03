@@ -196,9 +196,14 @@ const AdmissionModel = {
 
       // Get total count
       const total = countResult[0]?.total || 0;
-      const chennaiRegion = regionResult[0]?.chennai_region || 0;
-      const bangaloreRegion = regionResult[0]?.bangalore_region || 0;
-      const hubRegion = regionResult[0]?.hub_region || 0;
+      const onlineMode = regionResult[0]?.online_mode || 0;
+      const classroomMode = regionResult[0]?.classroom_mode || 0;
+      const chennaiClassroom = regionResult[0]?.chennai_classroom || 0;
+      const bangaloreClassroom = regionResult[0]?.bangalore_classroom || 0;
+      const hubClassroom = regionResult[0]?.hub_classroom || 0;
+      const chennaiOnline = regionResult[0]?.chennai_online || 0;
+      const bangaloreOnline = regionResult[0]?.bangalore_online || 0;
+      const hubOnline = regionResult[0]?.hub_online || 0;
 
       // Return customer result
       return {
@@ -209,9 +214,14 @@ const AdmissionModel = {
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
         },
-        chennai_region: parseInt(chennaiRegion),
-        bangalore_region: parseInt(bangaloreRegion),
-        hub_region: parseInt(hubRegion),
+        online_mode: parseInt(onlineMode),
+        classroom_mode: parseInt(classroomMode),
+        chennai_classroom: parseInt(chennaiClassroom),
+        bangalore_classroom: parseInt(bangaloreClassroom),
+        hub_classroom: parseInt(hubClassroom),
+        chennai_online: parseInt(chennaiOnline),
+        bangalore_online: parseInt(bangaloreOnline),
+        hub_online: parseInt(hubOnline),
       };
     } catch (error) {
       throw new Error(error.message);
