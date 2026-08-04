@@ -1226,10 +1226,13 @@ const PaymentModel = {
         paymentParams.push(...user_ids);
       }
 
+      let isSecondDue = 0;
       if (payment_type === "NEW") {
         paymentCondition += ` AND pt.is_second_due = 0`;
+        isSecondDue = 0;
       } else if (payment_type === "REPAYMENT") {
         paymentCondition += ` AND pt.is_second_due = 1`;
+        isSecondDue = 1;
       }
 
       let baseQuery = `
@@ -1250,9 +1253,9 @@ const PaymentModel = {
       const paymentQuery = `SELECT COUNT(pt.id) AS total,
                             SUM(CASE WHEN pt.is_second_due = 0 THEN 1 ELSE 0 END) AS new_payment,
                             SUM(CASE WHEN pt.is_second_due = 1 THEN 1 ELSE 0 END) AS re_payment,
-                            SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
-                            SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
-                            SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
+                            SUM(CASE WHEN r.name = 'Chennai' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS chennai,
+                            SUM(CASE WHEN r.name = 'Bangalore' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS bangalore,
+                            SUM(CASE WHEN r.name = 'Hub' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
 
       baseQuery += `${paymentCondition}`;
       const [countResult] = await pool.query(countQuery, countParams);
