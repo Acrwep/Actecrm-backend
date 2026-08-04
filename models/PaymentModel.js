@@ -1369,19 +1369,19 @@ const PaymentModel = {
             ...item,
             fees_balance: feesBalance,
             balance_due: balance,
-            status_count: {
-              new_payment: paymentResult[0].new_payment || 0,
-              re_payment: paymentResult[0].re_payment || 0,
-              chennai: paymentResult[0].chennai || 0,
-              bangalore: paymentResult[0].bangalore || 0,
-              hub: paymentResult[0].hub || 0,
-            },
           };
         }),
       );
 
       return {
         data: formattedResult,
+        status_count: {
+          new_payment: paymentResult[0].new_payment || 0,
+          re_payment: paymentResult[0].re_payment || 0,
+          chennai: paymentResult[0].chennai || 0,
+          bangalore: paymentResult[0].bangalore || 0,
+          hub: paymentResult[0].hub || 0,
+        },
         pagination: {
           total: parseInt(total),
           page: pageNumber,
