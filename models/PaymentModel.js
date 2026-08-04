@@ -1188,6 +1188,7 @@ const PaymentModel = {
     page = 1,
     limit = 10,
     user_ids,
+    payment_type,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -1196,12 +1197,15 @@ const PaymentModel = {
 
       const queryParams = [];
       const countParams = [];
+      const paymentParams = [];
       let baseConditions = `pt.payment_status IN ('Rejected', 'Verify Pending')`;
+      let paymentCondition = ``;
 
       if (start_date && end_date) {
         baseConditions += ` AND pt.invoice_date >= ? AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)`;
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
+        paymentParams.push(start_date, end_date);
       }
 
       if (search_filter) {
@@ -1209,6 +1213,7 @@ const PaymentModel = {
         const searchStr = `%${search_filter}%`;
         queryParams.push(searchStr, searchStr, searchStr, searchStr);
         countParams.push(searchStr, searchStr, searchStr, searchStr);
+        paymentParams.push(searchStr, searchStr, searchStr, searchStr);
       }
 
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
@@ -1218,24 +1223,40 @@ const PaymentModel = {
 
         queryParams.push(...user_ids);
         countParams.push(...user_ids);
+        paymentParams.push(...user_ids);
       }
 
-      const baseQuery = `
+      if (payment_type === "NEW") {
+        paymentCondition += ` AND pt.is_second_due = 0`;
+      } else if (payment_type === "REPAYMENT") {
+        paymentCondition += ` AND pt.is_second_due = 1`;
+      }
+
+      let baseQuery = `
           FROM payment_trans pt
           INNER JOIN payment_master pm ON pm.id = pt.payment_master_id
           INNER JOIN customers c ON c.lead_id = pm.lead_id
-          INNER JOIN branches b ON b.id = c.place_of_branch
-          INNER JOIN region r ON r.id = b.region_id
-          INNER JOIN payment_mode p ON p.id = pt.paymode_id
-          INNER JOIN technologies t ON t.id = c.enrolled_course
           INNER JOIN lead_master l ON l.id = c.lead_id
           INNER JOIN users u ON u.user_id = l.assigned_to
+          LEFT JOIN branches b ON b.id = c.place_of_branch
+          LEFT JOIN region r ON r.id = b.region_id
+          LEFT JOIN payment_mode p ON p.id = pt.paymode_id
+          LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
           WHERE ${baseConditions}
       `;
 
-      const countQuery = `SELECT COUNT(pt.id) AS total ${baseQuery}`;
+      const countQuery = `SELECT COUNT(pt.id) AS total ${baseQuery}${paymentCondition}`;
+      const paymentQuery = `SELECT COUNT(pt.id) AS total,
+                            SUM(CASE WHEN pt.is_second_due = 0 THEN 1 ELSE 0 END) AS new_payment,
+                            SUM(CASE WHEN pt.is_second_due = 1 THEN 1 ELSE 0 END) AS re_payment,
+                            SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
+                            SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
+                            SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
+
+      baseQuery += `${paymentCondition}`;
       const [countResult] = await pool.query(countQuery, countParams);
+      const [paymentResult] = await pool.query(paymentQuery, paymentParams);
       const total = countResult[0].total;
 
       const getQuery = `SELECT
@@ -1348,6 +1369,13 @@ const PaymentModel = {
             ...item,
             fees_balance: feesBalance,
             balance_due: balance,
+            status_count: {
+              new_payment: paymentResult[0].new_payment || 0,
+              re_payment: paymentResult[0].re_payment || 0,
+              chennai: paymentResult[0].chennai || 0,
+              bangalore: paymentResult[0].bangalore || 0,
+              hub: paymentResult[0].hub || 0,
+            },
           };
         }),
       );
