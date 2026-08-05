@@ -1455,12 +1455,17 @@ const PaymentModel = {
                       INNER JOIN technologies AS t ON t.id = c.enrolled_course
                       INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
-                        SELECT SUM(pt.amount + pt.convenience_fees) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
-                          WHERE pt.payment_status <> 'Rejected'
-                          GROUP BY pt.payment_master_id
+                        SELECT payment_master_id,
+                        SUM(amount + convenience_fees) AS paid_amount,
+                        MIN(invoice_date) AS first_payment_date,
+                        MAX(invoice_date) AS last_payment_date
+                        FROM payment_trans
+                        WHERE payment_status <> 'Rejected'
+                        GROUP BY payment_master_id
                       ) AS t ON t.payment_master_id = pm.id
                       LEFT JOIN region AS r ON r.id = lm.region_id
                       LEFT JOIN branches AS b ON b.id = lm.branch_id
+                      LEFT JOIN users AS u ON u.id = lm.assigned_to
                       WHERE 1 = 1`;
 
       if (search_filter) {
@@ -1515,7 +1520,23 @@ const PaymentModel = {
                           b.name AS branch_name,
                           r.name AS region_name,
                           pm.id AS payment_master_id,
-                          lm.id AS lead_id
+                          lm.id AS lead_id,
+                          lm.assigned_to,
+                          u.user_name AS assigned_to_name,
+                          DATEDIFF(
+                            CASE
+                              WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
+                                THEN t.last_payment_date
+                              ELSE CURDATE()
+                            END,
+                            t.first_payment_date
+                          ) AS total_days_taken,
+                          t.first_payment_date,
+                          CASE
+                            WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
+                              THEN t.last_payment_date
+                            ELSE CURDATE()
+                          END AS end_date
                       ${baseCondition}`;
 
       getQuery += `ORDER BY c.date_of_joining DESC LIMIT ? OFFSET ?`;
