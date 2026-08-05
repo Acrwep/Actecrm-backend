@@ -1441,7 +1441,7 @@ const PaymentModel = {
                       INNER JOIN technologies AS t ON t.id = c.enrolled_course
                       INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
-                        SELECT SUM(pt.amount + pt.convenience_fees) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
+                        SELECT SUM(pt.amount) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
                           WHERE pt.payment_status <> 'Rejected'
                           GROUP BY pt.payment_master_id
                       ) AS t ON t.payment_master_id = pm.id
