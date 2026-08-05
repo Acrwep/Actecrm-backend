@@ -713,10 +713,7 @@ const PaymentModel = {
           const placeholders = user_ids.map(() => "?").join(", ");
           baseConditions.push(`lm.assigned_to IN (${placeholders})`);
           queryParams.push(...user_ids);
-        } else if (
-          typeof user_ids === "string" ||
-          typeof user_ids === "number"
-        ) {
+        } else {
           baseConditions.push(`lm.assigned_to = ?`);
           queryParams.push(user_ids);
         }
@@ -768,8 +765,10 @@ const PaymentModel = {
       allConditions.push("(pm.total_amount - ps.total_paid) > 0");
 
       if (from_date && to_date) {
-        allConditions.push(`pt_latest.next_due_date BETWEEN ? AND ?`);
-        queryParams.push(`${from_date} 00:00:00`, `${to_date} 23:59:59`);
+        allConditions.push(
+          `pt_latest.next_due_date >= ? AND pt_latest.next_due_date < DATE_ADD(?, INTERVAL 1 DAY)`,
+        );
+        queryParams.push(`${from_date}`, `${to_date}`);
       }
 
       const whereClause =
@@ -793,6 +792,18 @@ const PaymentModel = {
       const [countResult] = await pool.query(countQuery, queryParams);
       const total = countResult[0]?.total || 0;
       const overall_balance = countResult[0]?.overall_balance || 0;
+
+      // Bucket Query
+      const bucketQuery = `
+        SELECT 
+          SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
+          SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
+          SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub
+        ${baseFromSql}
+        LEFT JOIN region AS r ON r.id = lm.region_id
+        ${whereClause}
+      `;
+      const [bucketData] = await pool.query(bucketQuery, queryParams);
 
       // Data Query
       const getQuery = `
@@ -829,6 +840,11 @@ const PaymentModel = {
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
           overall_balance: parseFloat(overall_balance).toFixed(2),
+        },
+        bucketData: {
+          chennai: parseInt(bucketData[0]?.chennai || 0),
+          bangalore: parseInt(bucketData[0]?.bangalore || 0),
+          hub: parseInt(bucketData[0]?.hub || 0),
         },
       };
     } catch (error) {
@@ -1390,6 +1406,126 @@ const PaymentModel = {
           page: pageNumber,
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  feeHistory: async (
+    start_date,
+    end_date,
+    search_filter,
+    page,
+    limit,
+    bucket,
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const bucketParams = [];
+
+      const pageNumber = parseInt(page) || 1;
+      const limitNumber = parseInt(limit) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      let bucketQuery = `SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
+                        SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
+                        SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub
+                        FROM
+                          lead_master AS lm
+                      INNER JOIN customers AS c ON c.lead_id = lm.id
+                      INNER JOIN technologies AS t ON t.id = c.enrolled_course
+                      INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+                      LEFT JOIN (
+                        SELECT SUM(pt.amount + pt.convenience_fees) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
+                          WHERE pt.payment_status <> 'Rejected'
+                          GROUP BY pt.payment_master_id
+                      ) AS t ON t.payment_master_id = pm.id
+                      LEFT JOIN region AS r ON r.id = lm.region_id
+                      LEFT JOIN branches AS b ON b.id = lm.branch_id
+                      WHERE 1 = 1`;
+
+      let baseCondition = `FROM
+                          lead_master AS lm
+                      INNER JOIN customers AS c ON c.lead_id = lm.id
+                      INNER JOIN technologies AS t ON t.id = c.enrolled_course
+                      INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
+                      LEFT JOIN (
+                        SELECT SUM(pt.amount + pt.convenience_fees) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
+                          WHERE pt.payment_status <> 'Rejected'
+                          GROUP BY pt.payment_master_id
+                      ) AS t ON t.payment_master_id = pm.id
+                      LEFT JOIN region AS r ON r.id = lm.region_id
+                      LEFT JOIN branches AS b ON b.id = lm.branch_id
+                      WHERE 1 = 1`;
+
+      if (search_filter) {
+        baseCondition += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR t.name LIKE '%${search_filter}%')`;
+      }
+
+      if (start_date && end_date) {
+        baseCondition += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        bucketQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        bucketParams.push(start_date, end_date);
+      }
+
+      if (bucket) {
+        baseCondition += ` AND r.name = ?`;
+        queryParams.push(bucket);
+        countParams.push(bucket);
+      }
+
+      let countQuery = `SELECT COUNT(*) AS total ${baseCondition}`;
+      let getQuery = `SELECT
+                          c.id AS customer_id,
+                          c.name AS customer_name,
+                          c.phone AS customer_phone,
+                          c.email AS customer_email,
+                          t.name AS course_name,
+                          c.date_of_joining,
+                          lm.primary_fees,
+                          pm.gst_amount,
+                          pm.discount_amount,
+                          pm.total_amount,
+                          t.paid_amount,
+                          (pm.total_amount - t.paid_amount) AS balance_amount,
+                          b.name AS branch_name,
+                          r.name AS region_name,
+                          pm.id AS payment_master_id
+                      ${baseCondition}`;
+
+      getQuery += `ORDER BY c.date_of_joining DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [[countData], [result], [bucketData]] = await Promise.all([
+        pool.query(countQuery, countParams),
+        pool.query(getQuery, queryParams),
+        pool.query(bucketQuery, bucketParams),
+      ]);
+
+      const total = countData[0].total || 0;
+
+      const chennaiCount = bucketData[0]?.chennai || 0;
+      const bangaloreCount = bucketData[0]?.bangalore || 0;
+      const hubCount = bucketData[0]?.hub || 0;
+
+      return {
+        data: result,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+        bucketData: {
+          chennai: parseInt(chennaiCount),
+          bangalore: parseInt(bangaloreCount),
+          hub: parseInt(hubCount),
         },
       };
     } catch (error) {

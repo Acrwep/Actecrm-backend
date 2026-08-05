@@ -646,4 +646,5 @@ router.post("/viewPayslip", verifyToken, EmailController.viewPayslip);
 
 router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
 router.post("/recievedList", verifyToken, PaymentController.recievedList);
+router.post("/feeHistory", verifyToken, PaymentController.feeHistory);
 module.exports = router;

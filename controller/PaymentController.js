@@ -380,6 +380,30 @@ const recievedList = async (request, response) => {
   }
 };
 
+const feeHistory = async (request, response) => {
+  const { start_date, end_date, search_filter, page, limit, bucket } =
+    request.body;
+  try {
+    const result = await PaymentModel.feeHistory(
+      start_date,
+      end_date,
+      search_filter,
+      page,
+      limit,
+      bucket,
+    );
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      ...result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -393,4 +417,5 @@ module.exports = {
   getPaymentHistory,
   pendingFeesListV1,
   recievedList,
+  feeHistory,
 };
