@@ -1456,7 +1456,7 @@ const PaymentModel = {
                       INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
                         SELECT payment_master_id,
-                        SUM(amount + convenience_fees) AS paid_amount,
+                        SUM(amount) AS paid_amount,
                         MIN(invoice_date) AS first_payment_date,
                         MAX(invoice_date) AS last_payment_date
                         FROM payment_trans
