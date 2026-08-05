@@ -1420,6 +1420,7 @@ const PaymentModel = {
     page,
     limit,
     bucket,
+    user_ids,
   ) => {
     try {
       const queryParams = [];
@@ -1466,6 +1467,23 @@ const PaymentModel = {
         baseCondition += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR t.name LIKE '%${search_filter}%')`;
       }
 
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          baseCondition += ` AND lm.assigned_to IN (${placeholders})`;
+          bucketQuery += ` AND lm.assigned_to IN (${placeholders})`;
+          countParams.push(...user_ids);
+          bucketParams.push(...user_ids);
+          queryParams.push(...user_ids);
+        } else {
+          baseCondition += ` AND lm.assigned_to = ?`;
+          bucketQuery += ` AND lm.assigned_to = ?`;
+          countParams.push(user_ids);
+          bucketParams.push(user_ids);
+          queryParams.push(user_ids);
+        }
+      }
+
       if (start_date && end_date) {
         baseCondition += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         bucketQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
@@ -1496,7 +1514,8 @@ const PaymentModel = {
                           (pm.total_amount - t.paid_amount) AS balance_amount,
                           b.name AS branch_name,
                           r.name AS region_name,
-                          pm.id AS payment_master_id
+                          pm.id AS payment_master_id,
+                          lm.id AS lead_id
                       ${baseCondition}`;
 
       getQuery += `ORDER BY c.date_of_joining DESC LIMIT ? OFFSET ?`;

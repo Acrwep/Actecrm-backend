@@ -381,7 +381,7 @@ const recievedList = async (request, response) => {
 };
 
 const feeHistory = async (request, response) => {
-  const { start_date, end_date, search_filter, page, limit, bucket } =
+  const { start_date, end_date, search_filter, page, limit, bucket, user_ids } =
     request.body;
   try {
     const result = await PaymentModel.feeHistory(
@@ -391,6 +391,7 @@ const feeHistory = async (request, response) => {
       page,
       limit,
       bucket,
+      user_ids,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
