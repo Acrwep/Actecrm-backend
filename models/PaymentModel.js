@@ -1465,7 +1465,7 @@ const PaymentModel = {
                       ) AS t ON t.payment_master_id = pm.id
                       LEFT JOIN region AS r ON r.id = lm.region_id
                       LEFT JOIN branches AS b ON b.id = lm.branch_id
-                      LEFT JOIN users AS u ON u.id = lm.assigned_to
+                      LEFT JOIN users AS u ON u.user_id = lm.assigned_to
                       WHERE 1 = 1`;
 
       if (search_filter) {
