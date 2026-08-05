@@ -1362,10 +1362,10 @@ const PaymentModel = {
                                       ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26')
                                   END AS current_month
                               ${baseQuery}
-                              ORDER BY CAST(pt.created_date AS DATE), pt.id
+                              ORDER BY CAST(pt.created_date AS DATE) DESC, pt.id DESC
                               LIMIT ? OFFSET ?
                           ) x
-                          ORDER BY x.entry_date, x.trans_id;`;
+                          ORDER BY x.entry_date DESC, x.trans_id DESC;`;
 
       queryParams.push(limitNumber, offset);
 
