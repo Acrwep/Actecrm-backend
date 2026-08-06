@@ -91,12 +91,12 @@ const AdmissionModel = {
       let regionQuery = `SELECT
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
-                            SUM(CASE WHEN lm.assigned_to LIKE 'CHN%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
-                            SUM(CASE WHEN lm.assigned_to LIKE 'BNG%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
-                            SUM(CASE WHEN lm.assigned_to LIKE 'HUB%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'CHN%' THEN 1 ELSE 0 END) AS chennai_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'BNG%' THEN 1 ELSE 0 END) AS bangalore_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'HUB%' THEN 1 ELSE 0 END) AS hub_online
+                            SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub_online
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON
@@ -112,13 +112,11 @@ const AdmissionModel = {
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
         countQuery += ` AND cm.name = 'Online'`;
-        // regionQuery += ` AND cm.name = 'Online'`;
       }
 
       if (bucket && bucket === "Classroom") {
         getQuery += ` AND cm.name = 'Classroom'`;
         countQuery += ` AND cm.name = 'Classroom'`;
-        // regionQuery += ` AND cm.name = 'Classroom'`;
       }
 
       // Handle user_ids parameter for both queries
