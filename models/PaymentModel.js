@@ -772,9 +772,9 @@ const PaymentModel = {
       }
 
       const whereClause =
-        allConditions.length > 0 ? `WHERE ${allConditions.join(" AND ")}` : "";
+        allConditions.length > 0 ? ` WHERE ${allConditions.join(" AND ")}` : "";
 
-      const baseFromSql = `
+      const baseFromSql = ` 
         FROM customers AS c
         INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
         INNER JOIN lead_master AS lm ON c.lead_id = lm.id
@@ -796,11 +796,10 @@ const PaymentModel = {
       // Bucket Query
       const bucketQuery = `
         SELECT 
-          SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
-          SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
-          SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub
+          SUM(CASE WHEN lm.assigned_to LIKE 'CHN%' THEN 1 ELSE 0 END) AS chennai,
+          SUM(CASE WHEN lm.assigned_to LIKE 'BNG%' THEN 1 ELSE 0 END) AS bangalore,
+          SUM(CASE WHEN lm.assigned_to LIKE 'HUB%' THEN 1 ELSE 0 END) AS hub
         ${baseFromSql}
-        LEFT JOIN region AS r ON r.id = lm.region_id
         ${whereClause}
       `;
       const [bucketData] = await pool.query(bucketQuery, queryParams);
@@ -808,7 +807,7 @@ const PaymentModel = {
       // Data Query
       const getQuery = `
         SELECT
-          c.id, c.lead_id, c.name, c.email, c.phonecode, c.phone, c.date_of_joining,
+          c.id, c.lead_id, c.student_id, c.name, c.email, c.phonecode, c.phone, c.date_of_joining,
           c.enrolled_course, t.name AS course_name, c.status, c.created_date,
           lm.assigned_to AS lead_assigned_to_id, c.is_customer_updated, 
           au.user_name AS lead_assigned_to_name,
@@ -1242,13 +1241,14 @@ const PaymentModel = {
         paymentParams.push(...user_ids);
       }
 
-      let isSecondDue = 0;
+      const monthCondition = `(CASE WHEN DAY(c.created_date) >= 26 THEN DATE_FORMAT(c.created_date, '%Y-%m-26') ELSE DATE_FORMAT(DATE_SUB(c.created_date, INTERVAL 1 MONTH), '%Y-%m-26') END) >= (CASE WHEN DAY(pt.invoice_date) >= 26 THEN DATE_FORMAT(pt.invoice_date, '%Y-%m-26') ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26') END)`;
+
+      let isSecondDueCondition = `pt.is_second_due = 0 AND ${monthCondition}`;
       if (payment_type === "NEW") {
-        paymentCondition += ` AND pt.is_second_due = 0`;
-        isSecondDue = 0;
+        paymentCondition += ` AND pt.is_second_due = 0 AND ${monthCondition}`;
       } else if (payment_type === "REPAYMENT") {
-        paymentCondition += ` AND pt.is_second_due = 1`;
-        isSecondDue = 1;
+        paymentCondition += ` AND (pt.is_second_due = 1 OR (pt.is_second_due = 0 AND NOT ${monthCondition}))`;
+        isSecondDueCondition = `(pt.is_second_due = 1 OR (pt.is_second_due = 0 AND NOT ${monthCondition}))`;
       }
 
       let baseQuery = `
@@ -1267,11 +1267,11 @@ const PaymentModel = {
 
       const countQuery = `SELECT COUNT(pt.id) AS total ${baseQuery}${paymentCondition}`;
       const paymentQuery = `SELECT COUNT(pt.id) AS total,
-                            SUM(CASE WHEN pt.is_second_due = 0 THEN 1 ELSE 0 END) AS new_payment,
-                            SUM(CASE WHEN pt.is_second_due = 1 THEN 1 ELSE 0 END) AS re_payment,
-                            SUM(CASE WHEN r.name = 'Chennai' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS chennai,
-                            SUM(CASE WHEN r.name = 'Bangalore' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS bangalore,
-                            SUM(CASE WHEN r.name = 'Hub' AND pt.is_second_due = ${isSecondDue} THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
+                            SUM(CASE WHEN pt.is_second_due = 0 AND ${monthCondition} THEN 1 ELSE 0 END) AS new_payment,
+                            SUM(CASE WHEN pt.is_second_due = 1 OR (pt.is_second_due = 0 AND NOT ${monthCondition}) THEN 1 ELSE 0 END) AS re_payment,
+                            SUM(CASE WHEN l.assigned_to LIKE 'CHN%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS chennai,
+                            SUM(CASE WHEN l.assigned_to LIKE 'BNG%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS bangalore,
+                            SUM(CASE WHEN l.assigned_to LIKE 'HUB%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
 
       baseQuery += `${paymentCondition}`;
       const [countResult] = await pool.query(countQuery, countParams);
@@ -1290,6 +1290,7 @@ const PaymentModel = {
                               x.cus_name,
                               x.cus_phone,
                               x.course_name,
+                              x.student_id,
                               x.place_of_payment,
                               x.course_fees,
                               x.gst_amount,
@@ -1299,24 +1300,21 @@ const PaymentModel = {
                               x.collected_fees,
                               x.transacted_to,
                               x.collected_by,
+                              x.collected_user_id,
                               x.payment_status,
                               x.verified_date,
                               x.is_second_due,
                               x.cus_reg_date,
                               CASE
-                                  WHEN x.paid_month = x.current_month
-                                      AND x.cus_month = x.current_month
+                                  WHEN x.cus_month >= x.current_month
                                       AND x.is_second_due = 0
                                   THEN 'New'
-                                  WHEN x.paid_month = x.current_month
-                                      AND x.cus_month = x.current_month
+                                  WHEN x.cus_month >= x.current_month
                                       AND x.is_second_due = 1
                                   THEN 'CMJ'
-                                  WHEN x.paid_month = x.current_month
-                                      AND x.cus_month = DATE_SUB(x.current_month, INTERVAL 1 MONTH)
+                                  WHEN x.cus_month = DATE_SUB(x.current_month, INTERVAL 1 MONTH)
                                   THEN 'LMJ'
-                                  WHEN x.paid_month = x.current_month
-                                      AND x.cus_month = DATE_SUB(x.current_month, INTERVAL 2 MONTH)
+                                  WHEN x.cus_month <= DATE_SUB(x.current_month, INTERVAL 2 MONTH)
                                   THEN 'PMJ'
                                   ELSE 'Other'
                               END AS collection_type
@@ -1330,6 +1328,7 @@ const PaymentModel = {
                                   b.name AS branch_name,
                                   u.user_name AS closed_by,
                                   c.id AS customer_id,
+                                  c.student_id,
                                   c.name AS cus_name,
                                   c.phone AS cus_phone,
                                   t.name AS course_name,
@@ -1342,6 +1341,7 @@ const PaymentModel = {
                                   (pt.amount + pt.convenience_fees) AS collected_fees,
                                   p.name AS transacted_to,
                                   cu.user_name AS collected_by,
+                                  cu.user_id AS collected_user_id,
                                   pt.payment_status,
                                   pt.verified_date,
                                   pt.is_second_due,
@@ -1432,9 +1432,9 @@ const PaymentModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       let bucketQuery = `SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN r.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai,
-                        SUM(CASE WHEN r.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore,
-                        SUM(CASE WHEN r.name = 'Hub' THEN 1 ELSE 0 END) AS hub
+                        SUM(CASE WHEN lm.assigned_to LIKE 'CHN%' THEN 1 ELSE 0 END) AS chennai,
+                        SUM(CASE WHEN lm.assigned_to LIKE 'BNG%' THEN 1 ELSE 0 END) AS bangalore,
+                        SUM(CASE WHEN lm.assigned_to LIKE 'HUB%' THEN 1 ELSE 0 END) AS hub
                         FROM
                           lead_master AS lm
                       INNER JOIN customers AS c ON c.lead_id = lm.id
@@ -1509,6 +1509,7 @@ const PaymentModel = {
                           c.name AS customer_name,
                           c.phone AS customer_phone,
                           c.email AS customer_email,
+                          c.student_id,
                           t.name AS course_name,
                           c.date_of_joining,
                           lm.primary_fees,

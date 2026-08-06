@@ -17,7 +17,7 @@ const AdmissionModel = {
 
       // Get customers query
       let getQuery = `SELECT
-                        ROW_NUMBER() OVER (ORDER BY c.created_date DESC) AS row_num,
+                        ROW_NUMBER() OVER (ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC) AS row_num,
                         c.id AS customer_id,
                         COALESCE(c.date_of_joining, c.created_date) AS date_of_joining,
                         COALESCE(c.student_id, c.name) AS student_id,
@@ -86,19 +86,17 @@ const AdmissionModel = {
                             c.place_of_service = cm.id
                         LEFT JOIN branches AS b ON
                             c.place_of_branch = b.id
-                        LEFT JOIN region AS r ON
-                            b.region_id = r.id
                         WHERE 1 = 1`;
 
       let regionQuery = `SELECT
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
-                            SUM(CASE WHEN pr.name = 'Chennai' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
-                            SUM(CASE WHEN pr.name = 'Bangalore' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
-                            SUM(CASE WHEN pr.name = 'Hub' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
-                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Chennai' THEN 1 ELSE 0 END) AS chennai_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Bangalore' THEN 1 ELSE 0 END) AS bangalore_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND pr.name = 'Hub' THEN 1 ELSE 0 END) AS hub_online
+                            SUM(CASE WHEN lm.assigned_to LIKE 'CHN%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
+                            SUM(CASE WHEN lm.assigned_to LIKE 'BNG%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
+                            SUM(CASE WHEN lm.assigned_to LIKE 'HUB%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'CHN%' THEN 1 ELSE 0 END) AS chennai_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'BNG%' THEN 1 ELSE 0 END) AS bangalore_online,
+                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE 'HUB%' THEN 1 ELSE 0 END) AS hub_online
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON
@@ -109,10 +107,6 @@ const AdmissionModel = {
                             su.user_id = lm.assigned_to
                         LEFT JOIN class_mode AS cm ON
                             c.place_of_service = cm.id
-                        LEFT JOIN branches AS pb ON
-                            c.place_of_branch = pb.id
-                        LEFT JOIN region AS pr ON
-                            pb.region_id = pr.id
                         WHERE 1 = 1`;
 
       if (bucket && bucket === "Online") {
