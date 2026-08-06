@@ -88,15 +88,14 @@ const AdmissionModel = {
                             c.place_of_branch = b.id
                         WHERE 1 = 1`;
 
+      let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
+
       let regionQuery = `SELECT
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS chennai_classroom,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS bangalore_classroom,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' AND cm.name = 'Classroom' THEN 1 ELSE 0 END) AS hub_classroom,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore_online,
-                            SUM(CASE WHEN cm.name = 'Online' AND lm.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub_online
+                            SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON
@@ -190,12 +189,9 @@ const AdmissionModel = {
       const total = countResult[0]?.total || 0;
       const onlineMode = regionResult[0]?.online_mode || 0;
       const classroomMode = regionResult[0]?.classroom_mode || 0;
-      const chennaiClassroom = regionResult[0]?.chennai_classroom || 0;
-      const bangaloreClassroom = regionResult[0]?.bangalore_classroom || 0;
-      const hubClassroom = regionResult[0]?.hub_classroom || 0;
-      const chennaiOnline = regionResult[0]?.chennai_online || 0;
-      const bangaloreOnline = regionResult[0]?.bangalore_online || 0;
-      const hubOnline = regionResult[0]?.hub_online || 0;
+      const chennai = regionResult[0]?.chennai_region || 0;
+      const bangalore = regionResult[0]?.bangalore_region || 0;
+      const hub = regionResult[0]?.hub_region || 0;
 
       // Return customer result
       return {
@@ -208,12 +204,9 @@ const AdmissionModel = {
         },
         online_mode: parseInt(onlineMode),
         classroom_mode: parseInt(classroomMode),
-        chennai_classroom: parseInt(chennaiClassroom),
-        bangalore_classroom: parseInt(bangaloreClassroom),
-        hub_classroom: parseInt(hubClassroom),
-        chennai_online: parseInt(chennaiOnline),
-        bangalore_online: parseInt(bangaloreOnline),
-        hub_online: parseInt(hubOnline),
+        chennai_region: parseInt(chennai),
+        bangalore_region: parseInt(bangalore),
+        hub_region: parseInt(hub),
       };
     } catch (error) {
       throw new Error(error.message);
