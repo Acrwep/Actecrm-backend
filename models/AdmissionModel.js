@@ -17,7 +17,7 @@ const AdmissionModel = {
 
       // Get customers query
       let getQuery = `SELECT
-                        ROW_NUMBER() OVER (ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC) AS row_num,
+                        ROW_NUMBER() OVER (ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC) AS row_num,
                         c.id AS customer_id,
                         COALESCE(c.date_of_joining, c.created_date) AS date_of_joining,
                         COALESCE(c.student_id, c.name) AS student_id,
@@ -178,7 +178,7 @@ const AdmissionModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       // Add pagination to main query
-      getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       // Fetch all required data concurrently
