@@ -699,6 +699,8 @@ const PaymentModel = {
     user_ids,
     page,
     limit,
+    region_id,
+    branch_id,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -734,6 +736,16 @@ const PaymentModel = {
           `%${search_filter}%`,
           `%${search_filter}%`,
         );
+      }
+
+      if (region_id) {
+        baseConditions.push(`r.id = ?`);
+        queryParams.push(region_id);
+      }
+
+      if (branch_id) {
+        baseConditions.push(`b.id = ?`);
+        queryParams.push(branch_id);
       }
 
       const allConditions = [
@@ -785,6 +797,11 @@ const PaymentModel = {
           GROUP BY payment_master_id
         ) AS latest ON latest.payment_master_id = pm.id
         INNER JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
+        LEFT JOIN users AS au ON au.user_id = lm.assigned_to
+        LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
+        LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
+        LEFT JOIN branches AS b ON b.id = au.branch_id
+        LEFT JOIN region AS r ON r.id = b.region_id
       `;
 
       // Count Query
@@ -820,9 +837,6 @@ const PaymentModel = {
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
           IFNULL(pt_latest.is_last_pay_rejected, 0) AS is_last_pay_rejected
         ${baseFromSql}
-        LEFT JOIN users AS au ON au.user_id = lm.assigned_to
-        LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
-        LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
         ${whereClause}
         ORDER BY pt_latest.next_due_date ASC
         LIMIT ? OFFSET ?
@@ -1204,6 +1218,8 @@ const PaymentModel = {
     limit = 10,
     user_ids,
     payment_type,
+    region_id,
+    branch_id,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -1241,6 +1257,20 @@ const PaymentModel = {
         paymentParams.push(...user_ids);
       }
 
+      if (region_id) {
+        baseConditions += ` AND r.id = ?`;
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        paymentParams.push(region_id);
+      }
+
+      if (branch_id) {
+        baseConditions += ` AND b.id = ?`;
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        paymentParams.push(branch_id);
+      }
+
       const monthCondition = `(CASE WHEN DAY(c.created_date) >= 26 THEN DATE_FORMAT(c.created_date, '%Y-%m-26') ELSE DATE_FORMAT(DATE_SUB(c.created_date, INTERVAL 1 MONTH), '%Y-%m-26') END) >= (CASE WHEN DAY(pt.invoice_date) >= 26 THEN DATE_FORMAT(pt.invoice_date, '%Y-%m-26') ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26') END)`;
 
       let isSecondDueCondition = `pt.is_second_due = 0 AND ${monthCondition}`;
@@ -1257,8 +1287,8 @@ const PaymentModel = {
           INNER JOIN customers c ON c.lead_id = pm.lead_id
           INNER JOIN lead_master l ON l.id = c.lead_id
           INNER JOIN users u ON u.user_id = l.assigned_to
-          LEFT JOIN region r ON r.id = l.region_id
-          LEFT JOIN branches b ON b.id = l.branch_id
+          LEFT JOIN branches b ON b.id = u.branch_id
+          LEFT JOIN region r ON r.id = b.region_id
           LEFT JOIN payment_mode p ON p.id = pt.paymode_id
           LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
@@ -1421,6 +1451,8 @@ const PaymentModel = {
     limit,
     bucket,
     user_ids,
+    region_id,
+    branch_id,
   ) => {
     try {
       const queryParams = [];
@@ -1445,8 +1477,9 @@ const PaymentModel = {
                           WHERE pt.payment_status <> 'Rejected'
                           GROUP BY pt.payment_master_id
                       ) AS t ON t.payment_master_id = pm.id
-                      LEFT JOIN region AS r ON r.id = lm.region_id
-                      LEFT JOIN branches AS b ON b.id = lm.branch_id
+                      LEFT JOIN users AS su ON su.user_id = lm.assigned_to
+                      LEFT JOIN branches AS b ON b.id = su.branch_id
+                      LEFT JOIN region AS r ON r.id = b.region_id
                       WHERE 1 = 1`;
 
       let baseCondition = `FROM
@@ -1463,13 +1496,29 @@ const PaymentModel = {
                         WHERE payment_status <> 'Rejected'
                         GROUP BY payment_master_id
                       ) AS t ON t.payment_master_id = pm.id
-                      LEFT JOIN region AS r ON r.id = lm.region_id
-                      LEFT JOIN branches AS b ON b.id = lm.branch_id
-                      LEFT JOIN users AS u ON u.user_id = lm.assigned_to
+                      LEFT JOIN users AS su ON su.user_id = lm.assigned_to
+                      LEFT JOIN branches AS b ON b.id = su.branch_id
+                      LEFT JOIN region AS r ON r.id = b.region_id
                       WHERE 1 = 1`;
 
       if (search_filter) {
         baseCondition += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR t.name LIKE '%${search_filter}%')`;
+      }
+
+      if (region_id) {
+        baseCondition += ` AND r.id = ?`;
+        bucketQuery += ` AND r.id = ?`;
+        countParams.push(region_id);
+        bucketParams.push(region_id);
+        queryParams.push(region_id);
+      }
+
+      if (branch_id) {
+        baseCondition += ` AND b.id = ?`;
+        bucketQuery += ` AND b.id = ?`;
+        countParams.push(branch_id);
+        bucketParams.push(branch_id);
+        queryParams.push(branch_id);
       }
 
       if (user_ids) {

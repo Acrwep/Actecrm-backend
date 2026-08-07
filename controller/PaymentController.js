@@ -325,6 +325,8 @@ const pendingFeesListV1 = async (request, response) => {
     user_ids,
     page,
     limit,
+    region_id,
+    branch_id,
   } = request.body;
   try {
     const result = await PaymentModel.pendingFeesListV1(
@@ -335,6 +337,8 @@ const pendingFeesListV1 = async (request, response) => {
       user_ids,
       page,
       limit,
+      region_id,
+      branch_id,
     );
     return response.status(200).send({
       messages: "Fees pending data successfull",
@@ -357,6 +361,8 @@ const recievedList = async (request, response) => {
     limit,
     user_ids,
     payment_type,
+    region_id,
+    branch_id,
   } = request.body;
   try {
     const result = await PaymentModel.recievedList(
@@ -367,6 +373,8 @@ const recievedList = async (request, response) => {
       limit,
       user_ids,
       payment_type,
+      region_id,
+      branch_id,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
@@ -381,8 +389,17 @@ const recievedList = async (request, response) => {
 };
 
 const feeHistory = async (request, response) => {
-  const { start_date, end_date, search_filter, page, limit, bucket, user_ids } =
-    request.body;
+  const {
+    start_date,
+    end_date,
+    search_filter,
+    page,
+    limit,
+    bucket,
+    user_ids,
+    region_id,
+    branch_id,
+  } = request.body;
   try {
     const result = await PaymentModel.feeHistory(
       start_date,
@@ -392,6 +409,8 @@ const feeHistory = async (request, response) => {
       limit,
       bucket,
       user_ids,
+      region_id,
+      branch_id,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
