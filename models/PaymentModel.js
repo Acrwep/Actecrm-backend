@@ -840,6 +840,9 @@ const PaymentModel = {
           c.class_percentage,
           pm.id AS payment_master_id, pm.total_amount AS course_fees,
           ps.total_paid AS paid_amount,
+          b.name AS branch_name,
+          r.name AS region_name,
+          cm.name AS place_of_service,
           (pm.total_amount - ps.total_paid) AS balance_amount,
           IFNULL(pt_latest.next_due_date, '') AS next_due_date,
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
@@ -860,7 +863,7 @@ const PaymentModel = {
                           END AS end_date
         ${baseFromSql}
         ${whereClause}
-        ORDER BY pt_latest.next_due_date ASC`;
+        ORDER BY pt_latest.next_due_date DESC`;
 
       if (page && limit) {
         getQuery += ` LIMIT ? OFFSET ?`;
@@ -1330,7 +1333,7 @@ const PaymentModel = {
           WHERE ${baseConditions}
       `;
 
-      const countQuery = `SELECT COUNT(pt.id) AS total ${baseQuery}${paymentCondition}`;
+      const countQuery = `SELECT COUNT(pt.id) AS total, SUM(pt.amount) as total_paid_amount ${baseQuery}${paymentCondition}`;
       const paymentQuery = `SELECT COUNT(pt.id) AS total,
                             SUM(CASE WHEN pt.is_second_due = 0 AND ${monthCondition} THEN 1 ELSE 0 END) AS new_payment,
                             SUM(CASE WHEN pt.is_second_due = 1 OR (pt.is_second_due = 0 AND NOT ${monthCondition}) THEN 1 ELSE 0 END) AS re_payment,
@@ -1342,6 +1345,7 @@ const PaymentModel = {
       const [countResult] = await pool.query(countQuery, countParams);
       const [paymentResult] = await pool.query(paymentQuery, paymentParams);
       const total = countResult[0].total;
+      const total_paid_amount = countResult[0].total_paid_amount || 0;
 
       let getQuery = `SELECT
                               x.trans_id,
@@ -1482,6 +1486,11 @@ const PaymentModel = {
         }),
       );
 
+      const page_total_paid_amount = formattedResult.reduce(
+        (sum, item) => sum + Number(item.paid_amount || 0),
+        0,
+      );
+
       return {
         data: formattedResult,
         status_count: {
@@ -1491,6 +1500,8 @@ const PaymentModel = {
           bangalore: paymentResult[0].bangalore || 0,
           hub: paymentResult[0].hub || 0,
         },
+        total_paid_amount: total_paid_amount,
+        page_total_paid_amount: page_total_paid_amount,
         pagination: {
           total: parseInt(total),
           page: page ? pageNumber : null,
@@ -1615,7 +1626,7 @@ const PaymentModel = {
         countParams.push(bucket);
       }
 
-      let countQuery = `SELECT COUNT(*) AS total ${baseCondition}`;
+      let countQuery = `SELECT COUNT(*) AS total, SUM(pm.total_amount - t.paid_amount) AS total_balance ${baseCondition}`;
       let getQuery = `SELECT
                           c.id AS customer_id,
                           c.name AS customer_name,
@@ -1668,6 +1679,7 @@ const PaymentModel = {
       ]);
 
       const total = countData[0].total || 0;
+      const totalBalance = countData[0].total_balance || 0;
 
       const chennaiCount = bucketData[0]?.chennai || 0;
       const bangaloreCount = bucketData[0]?.bangalore || 0;
@@ -1680,6 +1692,7 @@ const PaymentModel = {
           page: page ? parseInt(page) : null,
           limit: limit ? parseInt(limit) : null,
           totalPages: page && limit ? Math.ceil(total / limitNumber) : null,
+          totalBalance: parseInt(totalBalance),
         },
         bucketData: {
           chennai: parseInt(chennaiCount),
