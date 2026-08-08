@@ -791,12 +791,20 @@ const PaymentModel = {
         INNER JOIN payment_master AS pm ON pm.lead_id = c.lead_id
         INNER JOIN lead_master AS lm ON c.lead_id = lm.id
         LEFT JOIN technologies AS t ON c.enrolled_course = t.id
-        INNER JOIN (${summarySubquery}) AS ps ON ps.payment_master_id = pm.id
-        INNER JOIN(
-          SELECT MAX(id) AS latest_trans_id, payment_master_id FROM payment_trans
-          GROUP BY payment_master_id
-        ) AS latest ON latest.payment_master_id = pm.id
-        INNER JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
+        LEFT JOIN (${summarySubquery}) AS ps ON ps.payment_master_id = pm.id
+        LEFT JOIN (
+                        SELECT payment_master_id,
+                        MAX(id) AS latest_trans_id,
+                        SUM(amount) AS paid_amount,
+                        MIN(invoice_date) AS first_payment_date,
+                        MAX(invoice_date) AS last_payment_date,
+                        COUNT(id) AS installment_count
+                        FROM payment_trans
+                        WHERE payment_status <> 'Rejected'
+                        GROUP BY payment_master_id
+                      ) AS latest ON latest.payment_master_id = pm.id
+        LEFT JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
+        LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
         LEFT JOIN users AS au ON au.user_id = lm.assigned_to
         LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
         LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
@@ -822,7 +830,7 @@ const PaymentModel = {
       const [bucketData] = await pool.query(bucketQuery, queryParams);
 
       // Data Query
-      const getQuery = `
+      let getQuery = `
         SELECT
           c.id, c.lead_id, c.student_id, c.name, c.email, c.phonecode, c.phone, c.date_of_joining,
           c.enrolled_course, t.name AS course_name, c.status, c.created_date,
@@ -835,23 +843,39 @@ const PaymentModel = {
           (pm.total_amount - ps.total_paid) AS balance_amount,
           IFNULL(pt_latest.next_due_date, '') AS next_due_date,
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
-          IFNULL(pt_latest.is_last_pay_rejected, 0) AS is_last_pay_rejected
+          IFNULL(pt_latest.is_last_pay_rejected, 0) AS is_last_pay_rejected,
+          DATEDIFF(
+                            CASE
+                              WHEN IFNULL(latest.paid_amount, 0) >= pm.total_amount
+                                THEN latest.last_payment_date
+                              ELSE CURDATE()
+                            END,
+                            latest.first_payment_date
+                          ) AS total_days_taken,
+                          latest.first_payment_date,
+                          CASE
+                            WHEN IFNULL(latest.paid_amount, 0) >= pm.total_amount
+                              THEN latest.last_payment_date
+                            ELSE CURDATE()
+                          END AS end_date
         ${baseFromSql}
         ${whereClause}
-        ORDER BY pt_latest.next_due_date ASC
-        LIMIT ? OFFSET ?
-      `;
+        ORDER BY pt_latest.next_due_date ASC`;
 
-      const dataParams = [...queryParams, limitNumber, offset];
-      const [result] = await pool.query(getQuery, dataParams);
+      if (page && limit) {
+        getQuery += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
+
+      const [result] = await pool.query(getQuery, queryParams);
 
       return {
         data: result,
         pagination: {
           total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
+          page: page ? pageNumber : null,
+          limit: limit ? limitNumber : null,
+          totalPages: page && limit ? Math.ceil(total / limitNumber) : null,
           overall_balance: parseFloat(overall_balance).toFixed(2),
         },
         bucketData: {
@@ -1287,6 +1311,15 @@ const PaymentModel = {
           INNER JOIN customers c ON c.lead_id = pm.lead_id
           INNER JOIN lead_master l ON l.id = c.lead_id
           INNER JOIN users u ON u.user_id = l.assigned_to
+          LEFT JOIN (
+                        SELECT payment_master_id,
+                        SUM(amount) AS paid_amount,
+                        MIN(invoice_date) AS first_payment_date,
+                        MAX(invoice_date) AS last_payment_date
+                        FROM payment_trans
+                        WHERE payment_status <> 'Rejected'
+                        GROUP BY payment_master_id
+                      ) AS t ON t.payment_master_id = pm.id
           LEFT JOIN branches b ON b.id = u.branch_id
           LEFT JOIN region r ON r.id = b.region_id
           LEFT JOIN payment_mode p ON p.id = pt.paymode_id
@@ -1310,7 +1343,7 @@ const PaymentModel = {
       const [paymentResult] = await pool.query(paymentQuery, paymentParams);
       const total = countResult[0].total;
 
-      const getQuery = `SELECT
+      let getQuery = `SELECT
                               x.trans_id,
                               x.master_id,
                               x.entry_date,
@@ -1341,6 +1374,8 @@ const PaymentModel = {
                               x.verified_date,
                               x.is_second_due,
                               x.cus_reg_date,
+                              x.total_days_taken,
+                              x.end_date,
                               CASE
                                   WHEN x.cus_month >= x.current_month
                                       AND x.is_second_due = 0
@@ -1399,14 +1434,30 @@ const PaymentModel = {
                                       WHEN DAY(pt.invoice_date) >= 26
                                       THEN DATE_FORMAT(pt.invoice_date, '%Y-%m-26')
                                       ELSE DATE_FORMAT(DATE_SUB(pt.invoice_date, INTERVAL 1 MONTH), '%Y-%m-26')
-                                  END AS current_month
+                                  END AS current_month,
+                                  DATEDIFF(
+                                    CASE
+                                      WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
+                                      THEN t.last_payment_date
+                                      ELSE CURDATE()
+                                    END,
+                                    t.first_payment_date
+                                  ) AS total_days_taken,
+                                  t.first_payment_date,
+                                  CASE
+                                    WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
+                                    THEN t.last_payment_date
+                                    ELSE CURDATE()
+                                  END AS end_date
                               ${baseQuery}
-                              ORDER BY CAST(pt.created_date AS DATE) DESC, pt.id DESC
-                              LIMIT ? OFFSET ?
-                          ) x
-                          ORDER BY x.entry_date DESC, x.trans_id DESC;`;
+                              ORDER BY CAST(pt.created_date AS DATE) DESC, pt.id DESC`;
 
-      queryParams.push(limitNumber, offset);
+      if (page && limit) {
+        getQuery += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
+
+      getQuery += ` ) x ORDER BY x.entry_date DESC, x.trans_id DESC`;
 
       const [result] = await pool.query(getQuery, queryParams);
 
@@ -1442,9 +1493,9 @@ const PaymentModel = {
         },
         pagination: {
           total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
+          page: page ? pageNumber : null,
+          limit: limit ? limitNumber : null,
+          totalPages: page && limit ? Math.ceil(total / limitNumber) : null,
         },
       };
     } catch (error) {
@@ -1479,6 +1530,7 @@ const PaymentModel = {
                         FROM
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
+                      LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
@@ -1494,13 +1546,15 @@ const PaymentModel = {
       let baseCondition = `FROM
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
+                      LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
                         SELECT payment_master_id,
                         SUM(amount) AS paid_amount,
                         MIN(invoice_date) AS first_payment_date,
-                        MAX(invoice_date) AS last_payment_date
+                        MAX(invoice_date) AS last_payment_date,
+                        COUNT(id) AS installment_count
                         FROM payment_trans
                         WHERE payment_status <> 'Rejected'
                         GROUP BY payment_master_id
@@ -1578,6 +1632,7 @@ const PaymentModel = {
                           (pm.total_amount - t.paid_amount) AS balance_amount,
                           b.name AS branch_name,
                           r.name AS region_name,
+                          cm.name AS place_of_service,
                           pm.id AS payment_master_id,
                           lm.id AS lead_id,
                           lm.assigned_to,
@@ -1595,7 +1650,8 @@ const PaymentModel = {
                             WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
                               THEN t.last_payment_date
                             ELSE CURDATE()
-                          END AS end_date
+                          END AS end_date,
+                          t.installment_count
                       ${baseCondition}`;
 
       getQuery += `ORDER BY c.date_of_joining DESC`;

@@ -1686,7 +1686,8 @@ const CustomerModel = {
           paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
-          const defaultDateColumn = "c.created_date";
+          const defaultDateColumn =
+            "COALESCE(c.date_of_joining, c.created_date)";
           const paymentDateColumn = "c.payment_date";
           const queryDateColumn =
             status === "Awaiting Finance" || status === "Payment Rejected"
@@ -1771,7 +1772,7 @@ const CustomerModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       // Add pagination to main query
-      getQuery += ` ORDER BY c.created_date DESC LIMIT ? OFFSET ?`;
+      getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
       // Fetch all required data concurrently
