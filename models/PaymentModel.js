@@ -1214,8 +1214,8 @@ const PaymentModel = {
     start_date,
     end_date,
     search_filter,
-    page = 1,
-    limit = 10,
+    page,
+    limit,
     user_ids,
     payment_type,
     region_id,
@@ -1290,6 +1290,8 @@ const PaymentModel = {
           LEFT JOIN branches b ON b.id = u.branch_id
           LEFT JOIN region r ON r.id = b.region_id
           LEFT JOIN payment_mode p ON p.id = pt.paymode_id
+          LEFT JOIN banks AS bnk ON bnk.id = pt.bank_id
+          LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
           LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
           WHERE ${baseConditions}
@@ -1316,19 +1318,23 @@ const PaymentModel = {
                               x.region_name,
                               x.branch_name,
                               x.closed_by,
+                              x.closed_by_id,
                               x.customer_id,
                               x.cus_name,
                               x.cus_phone,
                               x.course_name,
                               x.student_id,
                               x.place_of_payment,
+                              x.place_of_service,
                               x.course_fees,
                               x.gst_amount,
                               x.total_course_fees,
                               x.paid_amount,
+                              (x.total_course_fees - x.paid_amount) AS balance_amount,
                               x.convenience_fees,
                               x.collected_fees,
                               x.transacted_to,
+                              x.bank_name,
                               x.collected_by,
                               x.collected_user_id,
                               x.payment_status,
@@ -1357,12 +1363,14 @@ const PaymentModel = {
                                   r.name AS region_name,
                                   b.name AS branch_name,
                                   u.user_name AS closed_by,
+                                  u.user_id AS closed_by_id,
                                   c.id AS customer_id,
                                   c.student_id,
                                   c.name AS cus_name,
                                   c.phone AS cus_phone,
                                   t.name AS course_name,
                                   IFNULL(pt.place_of_payment, '') AS place_of_payment,
+                                  cm.name AS place_of_service,
                                   l.primary_fees AS course_fees,
                                   pm.gst_amount,
                                   pm.total_amount AS total_course_fees,
@@ -1370,6 +1378,7 @@ const PaymentModel = {
                                   IFNULL(pt.convenience_fees, 0) AS convenience_fees,
                                   (pt.amount + pt.convenience_fees) AS collected_fees,
                                   p.name AS transacted_to,
+                                  bnk.bank_name,
                                   cu.user_name AS collected_by,
                                   cu.user_id AS collected_user_id,
                                   pt.payment_status,
@@ -1589,8 +1598,12 @@ const PaymentModel = {
                           END AS end_date
                       ${baseCondition}`;
 
-      getQuery += `ORDER BY c.date_of_joining DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
+      getQuery += `ORDER BY c.date_of_joining DESC`;
+
+      if (page && limit) {
+        getQuery += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       const [[countData], [result], [bucketData]] = await Promise.all([
         pool.query(countQuery, countParams),
@@ -1608,9 +1621,9 @@ const PaymentModel = {
         data: result,
         pagination: {
           total: parseInt(total),
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
+          page: page ? parseInt(page) : null,
+          limit: limit ? parseInt(limit) : null,
+          totalPages: page && limit ? Math.ceil(total / limitNumber) : null,
         },
         bucketData: {
           chennai: parseInt(chennaiCount),
