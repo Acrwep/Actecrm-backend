@@ -1572,7 +1572,7 @@ const PaymentModel = {
                           pm.id AS payment_master_id,
                           lm.id AS lead_id,
                           lm.assigned_to,
-                          u.user_name AS assigned_to_name,
+                          su.user_name AS assigned_to_name,
                           DATEDIFF(
                             CASE
                               WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount
