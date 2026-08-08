@@ -1704,6 +1704,23 @@ const PaymentModel = {
       throw new Error(error.message);
     }
   },
+
+  getBanks: async (region_id) => {
+    try {
+      const queryParams = [];
+      let getQuery = `SELECT id, bank_name, region_id FROM banks WHERE is_active = 1`;
+      if (region_id) {
+        getQuery += ` AND region_id = ?`;
+        queryParams.push(region_id);
+      }
+      getQuery += ` ORDER BY bank_name`;
+
+      const [rows] = await pool.query(getQuery, queryParams);
+      return rows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function generateInvoiceNumber(date = new Date(), timeZone) {

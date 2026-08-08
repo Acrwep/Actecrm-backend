@@ -424,6 +424,22 @@ const feeHistory = async (request, response) => {
   }
 };
 
+const getBanks = async (request, response) => {
+  const { region_id } = request.query;
+  try {
+    const result = await PaymentModel.getBanks(region_id);
+    return response.status(200).send({
+      messages: "Banks fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching banks",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -438,4 +454,5 @@ module.exports = {
   pendingFeesListV1,
   recievedList,
   feeHistory,
+  getBanks,
 };
