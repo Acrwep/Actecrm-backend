@@ -173,7 +173,7 @@ const PaymentModel = {
         state_code,
         gst_number,
         created_date,
-        date_of_joining,
+        invoice_date,
         place_of_service,
         place_of_branch,
       ];
@@ -1330,7 +1330,7 @@ const PaymentModel = {
           LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
           LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
-          WHERE ${baseConditions}
+          WHERE c.status <> 'Form Pending' AND  ${baseConditions}
       `;
 
       const countQuery = `SELECT COUNT(pt.id) AS total, SUM(pt.amount) as total_paid_amount ${baseQuery}${paymentCondition}`;
@@ -1705,13 +1705,18 @@ const PaymentModel = {
     }
   },
 
-  getBanks: async (region_id) => {
+  getBanks: async (region_id, payment_mode) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT id, bank_name, region_id FROM banks WHERE is_active = 1`;
       if (region_id) {
         getQuery += ` AND region_id = ?`;
         queryParams.push(region_id);
+      }
+
+      if (payment_mode) {
+        getQuery += ` AND payment_mode = ?`;
+        queryParams.push(payment_mode);
       }
       getQuery += ` ORDER BY bank_name`;
 

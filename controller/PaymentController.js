@@ -425,9 +425,9 @@ const feeHistory = async (request, response) => {
 };
 
 const getBanks = async (request, response) => {
-  const { region_id } = request.query;
+  const { region_id, payment_mode } = request.query;
   try {
-    const result = await PaymentModel.getBanks(region_id);
+    const result = await PaymentModel.getBanks(region_id, payment_mode);
     return response.status(200).send({
       messages: "Banks fetched successfully",
       data: result,

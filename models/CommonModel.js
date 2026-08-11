@@ -2,31 +2,215 @@ const pool = require("../config/dbconfig");
 const fs = require("fs");
 
 const CommonModel = {
+  // getPaymentHistory: async (lead_id) => {
+  //   try {
+  //     const [getPaymentMaster] = await pool.query(
+  //       `SELECT
+  //           pm.id,
+  //           pm.lead_id,
+  //           pm.tax_type,
+  //           lm.primary_fees,
+  //           pm.gst_percentage,
+  //           pm.gst_amount,
+  //           pm.discount_amount,
+  //           pm.total_amount,
+  //           t.paid_amount,
+  //           (pm.total_amount - t.paid_amount) AS balance_amount,
+  //           pm.created_date
+  //       FROM payment_master AS pm
+  //       INNER JOIN lead_master AS lm ON pm.lead_id = lm.id
+  //       LEFT JOIN (
+  //         SELECT SUM(pt.amount) AS paid_amount, pt.payment_master_id FROM payment_trans AS pt
+  //           WHERE pt.payment_status <> 'Rejected'
+  //           GROUP BY pt.payment_master_id
+  //       ) AS t ON t.payment_master_id = pm.id
+  //       WHERE pm.lead_id = ?`,
+  //       [lead_id],
+  //     );
+
+  //     const [getPaymentTrans] = await pool.query(
+  //       `SELECT
+  //           pt.id,
+  //           pt.payment_master_id,
+  //           pt.invoice_number,
+  //           pt.invoice_date,
+  //           ROUND(pt.amount - (pt.amount * 18 / 118), 2) AS fees,
+  //           ROUND((pt.amount * 18 / 118), 2) AS gst_amount,
+  //           pt.amount,
+  //           pt.convenience_fees,
+  //           (pt.amount + pt.convenience_fees) AS paid_amount,
+  //           pt.paymode_id,
+  //           pm.name AS payment_mode,
+  //           pt.bank_id,
+  //           b.bank_name,
+  //           pt.payment_screenshot,
+  //           pt.payment_status,
+  //           pt.paid_date,
+  //           pt.verified_date,
+  //           pt.next_due_date,
+  //           pt.is_second_due,
+  //           pt.created_date,
+  //           pt.reason,
+  //           pt.place_of_payment
+  //       FROM payment_trans AS pt
+  //       LEFT JOIN payment_mode AS pm ON pt.paymode_id = pm.id
+  //       LEFT JOIN banks AS b ON pt.bank_id = b.id
+  //       WHERE pt.payment_master_id = ?
+  //       ORDER BY pt.id ASC`,
+  //       [getPaymentMaster[0].id],
+  //     );
+
+  //     // Calculate running balance
+  //     let runningBalance = getPaymentMaster[0].total_amount;
+  //     const formattedResult = getPaymentTrans.map((item) => {
+  //       runningBalance -= item.amount;
+  //       return {
+  //         ...item,
+  //         balance_amount: parseFloat(runningBalance).toFixed(2),
+  //       };
+  //     });
+
+  //     return {
+  //       ...getPaymentMaster[0],
+  //       payment_trans: formattedResult.reverse(), // Reverse for latest first
+  //     };
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
+
   getPaymentHistory: async (lead_id) => {
     try {
+      // Get payment master and paid amount only for this lead
       const [getPaymentMaster] = await pool.query(
-        `SELECT id, lead_id, tax_type, gst_percentage, gst_amount, discount_amount, total_amount, created_date FROM payment_master WHERE lead_id = ?`,
+        `
+            SELECT
+                pm.id,
+                pm.lead_id,
+                pm.tax_type,
+                lm.primary_fees,
+                pm.gst_percentage,
+                pm.gst_amount,
+                pm.discount_amount,
+                pm.total_amount,
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN pt.payment_status <> 'Rejected'
+                            THEN pt.amount
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS paid_amount,
+                (
+                    pm.total_amount -
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN pt.payment_status <> 'Rejected'
+                                THEN pt.amount
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    )
+                ) AS balance_amount,
+                pm.created_date
+            FROM payment_master AS pm
+            INNER JOIN lead_master AS lm
+                ON lm.id = pm.lead_id
+            LEFT JOIN payment_trans AS pt
+                ON pt.payment_master_id = pm.id
+            WHERE pm.lead_id = ?
+            GROUP BY
+                pm.id,
+                pm.lead_id,
+                pm.tax_type,
+                lm.primary_fees,
+                pm.gst_percentage,
+                pm.gst_amount,
+                pm.discount_amount,
+                pm.total_amount,
+                pm.created_date
+
+            LIMIT 1
+            `,
         [lead_id],
       );
 
+      // No payment master found
+      if (getPaymentMaster.length === 0) {
+        return null;
+      }
+
+      const paymentMaster = getPaymentMaster[0];
+
+      // Get transactions
       const [getPaymentTrans] = await pool.query(
-        `SELECT pt.id, pt.payment_master_id, pt.invoice_number, pt.invoice_date, pt.amount, pt.convenience_fees, (pt.amount + pt.convenience_fees) AS paid_amount, pt.paymode_id, pm.name AS payment_mode, pt.payment_screenshot, pt.payment_status, pt.paid_date, pt.verified_date, pt.next_due_date, pt.is_second_due, pt.created_date, pt.reason, pt.place_of_payment FROM payment_trans AS pt INNER JOIN payment_mode AS pm ON pt.paymode_id = pm.id WHERE pt.payment_master_id = ? ORDER BY pt.id ASC`,
-        [getPaymentMaster[0].id],
+        `
+            SELECT
+                pt.id,
+                pt.payment_master_id,
+                pt.invoice_number,
+                pt.invoice_date,
+                ROUND(
+                    pt.amount - (pt.amount * 18 / 118),
+                    2
+                ) AS fees,
+                ROUND(
+                    (pt.amount * 18 / 118),
+                    2
+                ) AS gst_amount,
+                pt.amount,
+                pt.convenience_fees,
+                (
+                    pt.amount + pt.convenience_fees
+                ) AS paid_amount,
+                pt.paymode_id,
+                pm.name AS payment_mode,
+                pt.bank_id,
+                b.bank_name,
+                pt.payment_screenshot,
+                pt.payment_status,
+                pt.paid_date,
+                pt.verified_date,
+                pt.next_due_date,
+                pt.is_second_due,
+                pt.created_date,
+                pt.reason,
+                pt.place_of_payment
+            FROM payment_trans AS pt
+            LEFT JOIN payment_mode AS pm
+                ON pm.id = pt.paymode_id
+            LEFT JOIN banks AS b
+                ON b.id = pt.bank_id
+            WHERE pt.payment_master_id = ?
+            ORDER BY pt.id ASC
+            `,
+        [paymentMaster.id],
       );
 
       // Calculate running balance
-      let runningBalance = getPaymentMaster[0].total_amount;
+      let runningBalance = Number(paymentMaster.total_amount);
+
       const formattedResult = getPaymentTrans.map((item) => {
-        runningBalance -= item.amount;
+        // Only subtract non-rejected payments
+        if (item.payment_status !== "Rejected") {
+          runningBalance -= Number(item.amount);
+        }
+
         return {
           ...item,
-          balance_amount: parseFloat(runningBalance).toFixed(2),
+          balance_amount: runningBalance.toFixed(2),
         };
       });
 
       return {
-        ...getPaymentMaster[0],
-        payment_trans: formattedResult.reverse(), // Reverse for latest first
+        ...paymentMaster,
+        paid_amount: Number(paymentMaster.paid_amount),
+        balance_amount: Number(paymentMaster.balance_amount),
+        payment_trans: formattedResult.reverse(),
       };
     } catch (error) {
       throw new Error(error.message);
