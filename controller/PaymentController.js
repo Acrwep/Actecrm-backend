@@ -52,6 +52,7 @@ const createPayment = async (request, response) => {
     contact_person,
     company_name,
     contact_number,
+    gst_address,
     location,
   } = request.body;
   try {
@@ -89,6 +90,7 @@ const createPayment = async (request, response) => {
       contact_person,
       company_name,
       contact_number,
+      gst_address,
       location,
     );
     return response.status(201).send({

@@ -47,6 +47,7 @@ const PaymentModel = {
     contact_person,
     company_name,
     contact_number,
+    gst_address,
     location,
   ) => {
     const connection = await pool.getConnection();
@@ -79,7 +80,7 @@ const PaymentModel = {
         contact_number,
         location,
         gst_number,
-        address,
+        gst_address,
         created_date,
       ];
 
