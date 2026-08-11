@@ -1745,7 +1745,7 @@ const PaymentModel = {
   getBanks: async (region_id, payment_mode) => {
     try {
       const queryParams = [];
-      let getQuery = `SELECT id, bank_name, region_id FROM banks WHERE is_active = 1`;
+      let getQuery = `SELECT id, bank_name, region_id, is_convenience, payment_mode FROM banks WHERE is_active = 1`;
       if (region_id) {
         getQuery += ` AND region_id = ?`;
         queryParams.push(region_id);
