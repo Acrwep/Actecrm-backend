@@ -22,6 +22,7 @@ const PaymentModel = {
     total_amount,
     convenience_fees,
     paymode_id,
+    bank_id,
     paid_amount,
     payment_screenshot,
     payment_status,
@@ -43,6 +44,10 @@ const PaymentModel = {
     date_of_joining,
     place_of_service,
     place_of_branch,
+    contact_person,
+    company_name,
+    contact_number,
+    location,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -54,15 +59,27 @@ const PaymentModel = {
                               gst_percentage,
                               gst_amount,
                               total_amount,
+                              contact_person,
+                              company_name,
+                              contact_number,
+                              location,
+                              gst_number,
+                              address,
                               created_date
                           )
-                          VALUES(?, ?, ?, ?, ?, ?)`;
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const masterValues = [
         lead_id,
         tax_type,
         gst_percentage,
         gst_amount,
         total_amount,
+        contact_person,
+        company_name,
+        contact_number,
+        location,
+        gst_number,
+        address,
         created_date,
       ];
 
@@ -87,6 +104,7 @@ const PaymentModel = {
                                       amount,
                                       convenience_fees,
                                       paymode_id,
+                                      bank_id,
                                       payment_screenshot,
                                       payment_status,
                                       next_due_date,
@@ -95,7 +113,7 @@ const PaymentModel = {
                                       collected_by,
                                       place_of_payment
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         masterInsert.insertId,
         invoiceNo,
@@ -103,6 +121,7 @@ const PaymentModel = {
         paid_amount,
         convenience_fees,
         paymode_id,
+        bank_id,
         payment_screenshot,
         payment_status,
         next_due_date,
@@ -173,7 +192,7 @@ const PaymentModel = {
         state_code,
         gst_number,
         created_date,
-        invoice_date,
+        date_of_joining,
         place_of_service,
         place_of_branch,
       ];
@@ -1174,6 +1193,12 @@ const PaymentModel = {
     discount_amount,
     total_amount,
     payment_master_id,
+    contact_person,
+    company_name,
+    contact_number,
+    location,
+    gst_number,
+    address,
   ) => {
     try {
       const [isIdExists] = await pool.query(
@@ -1196,7 +1221,13 @@ const PaymentModel = {
                       gst_percentage = ?,
                       gst_amount = ?,
                       discount_amount = ?,
-                      total_amount = ?
+                      total_amount = ?,
+                      contact_person = ?,
+                      company_name = ?,
+                      contact_number = ?,
+                      location = ?,
+                      gst_number = ?,
+                      address = ?
                   WHERE
                       id = ?`;
       const values = [
@@ -1205,6 +1236,12 @@ const PaymentModel = {
         gst_amount,
         discount_amount,
         total_amount,
+        contact_person,
+        company_name,
+        contact_number,
+        location,
+        gst_number,
+        address,
         payment_master_id,
       ];
 

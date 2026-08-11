@@ -27,6 +27,7 @@ const createPayment = async (request, response) => {
     total_amount,
     convenience_fees,
     paymode_id,
+    bank_id,
     paid_amount,
     payment_screenshot,
     payment_status,
@@ -48,6 +49,10 @@ const createPayment = async (request, response) => {
     date_of_joining,
     place_of_service,
     place_of_branch,
+    contact_person,
+    company_name,
+    contact_number,
+    location,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -59,6 +64,7 @@ const createPayment = async (request, response) => {
       total_amount,
       convenience_fees,
       paymode_id,
+      bank_id,
       paid_amount,
       payment_screenshot,
       payment_status,
@@ -80,6 +86,10 @@ const createPayment = async (request, response) => {
       date_of_joining,
       place_of_service,
       place_of_branch,
+      contact_person,
+      company_name,
+      contact_number,
+      location,
     );
     return response.status(201).send({
       messages: "Payment successfull",
@@ -278,6 +288,12 @@ const updatePaymentMaster = async (request, response) => {
     discount_amount,
     total_amount,
     payment_master_id,
+    contact_person,
+    company_name,
+    contact_number,
+    location,
+    gst_number,
+    address,
   } = request.body;
   try {
     const result = await PaymentModel.updatePaymentMaster(
@@ -287,6 +303,12 @@ const updatePaymentMaster = async (request, response) => {
       discount_amount,
       total_amount,
       payment_master_id,
+      contact_person,
+      company_name,
+      contact_number,
+      location,
+      gst_number,
+      address,
     );
     return response.status(200).send({
       messages: "Payment updated successfully",
