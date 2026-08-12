@@ -826,6 +826,7 @@ const PaymentModel = {
                       ) AS latest ON latest.payment_master_id = pm.id
         LEFT JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
         LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
+        LEFT JOIN branches AS ps ON ps.id = c.place_of_service
         LEFT JOIN users AS au ON au.user_id = lm.assigned_to
         LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
         LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
@@ -864,6 +865,7 @@ const PaymentModel = {
           b.name AS branch_name,
           r.name AS region_name,
           cm.name AS mode_of_class,
+          ps.name AS place_of_service_name,
           (pm.total_amount - ps.total_paid) AS balance_amount,
           IFNULL(pt_latest.next_due_date, '') AS next_due_date,
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
@@ -1375,6 +1377,7 @@ const PaymentModel = {
           LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
           LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
+          LEFT JOIN branches AS ps ON ps.id = c.place_of_service
           WHERE c.status <> 'Form Pending' AND  ${baseConditions}
       `;
 
@@ -1408,6 +1411,8 @@ const PaymentModel = {
                               x.student_id,
                               x.place_of_payment,
                               x.mode_of_class,
+                              x.place_of_service,
+                              x.place_of_service_name,
                               x.course_fees,
                               x.gst_amount,
                               x.total_course_fees,
@@ -1455,6 +1460,8 @@ const PaymentModel = {
                                   t.name AS course_name,
                                   IFNULL(pt.place_of_payment, '') AS place_of_payment,
                                   cm.name AS mode_of_class,
+                                  c.place_of_service,
+                                  ps.name AS place_of_service_name,
                                   l.primary_fees AS course_fees,
                                   pm.gst_amount,
                                   pm.total_amount AS total_course_fees,
@@ -1587,6 +1594,7 @@ const PaymentModel = {
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
                       LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
+                      LEFT JOIN branches AS ps ON ps.id = c.place_of_service
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
@@ -1603,6 +1611,7 @@ const PaymentModel = {
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
                       LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
+                      LEFT JOIN branches AS ps ON ps.id = c.place_of_service
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
@@ -1689,6 +1698,7 @@ const PaymentModel = {
                           b.name AS branch_name,
                           r.name AS region_name,
                           cm.name AS mode_of_class,
+                          ps.name AS place_of_service_name,
                           pm.id AS payment_master_id,
                           lm.id AS lead_id,
                           lm.assigned_to,
