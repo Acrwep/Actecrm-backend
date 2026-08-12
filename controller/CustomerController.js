@@ -36,8 +36,9 @@ const updateCustomer = async (request, response) => {
     gst_number,
     lead_id,
     ra_id,
+    mode_of_class,
     place_of_service,
-    place_of_branch,
+    pincode,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -71,8 +72,9 @@ const updateCustomer = async (request, response) => {
       gst_number,
       lead_id,
       ra_id,
+      mode_of_class,
       place_of_service,
-      place_of_branch,
+      pincode,
     );
     return response.status(200).send({
       message: "Customer updated successfully",

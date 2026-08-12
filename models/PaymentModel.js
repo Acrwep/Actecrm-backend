@@ -42,8 +42,8 @@ const PaymentModel = {
     gst_number,
     ra_id,
     date_of_joining,
+    mode_of_class,
     place_of_service,
-    place_of_branch,
     contact_person,
     company_name,
     contact_number,
@@ -166,7 +166,7 @@ const PaymentModel = {
 
       const studentId = `${prefix}${String(sequence).padStart(3, "0")}`;
 
-      const customerQuery = `INSERT INTO customers (lead_id, student_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date, date_of_joining, place_of_service, place_of_branch) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, student_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date, date_of_joining, mode_of_class, place_of_service) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         studentId,
@@ -194,8 +194,8 @@ const PaymentModel = {
         gst_number,
         created_date,
         date_of_joining,
+        mode_of_class,
         place_of_service,
-        place_of_branch,
       ];
 
       const [insertCustomer] = await connection.query(
@@ -824,7 +824,7 @@ const PaymentModel = {
                         GROUP BY payment_master_id
                       ) AS latest ON latest.payment_master_id = pm.id
         LEFT JOIN (${nextDueSubquery}) AS pt_latest ON pt_latest.id = latest.latest_trans_id
-        LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
+        LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
         LEFT JOIN users AS au ON au.user_id = lm.assigned_to
         LEFT JOIN trainer_mapping AS tm ON tm.customer_id = c.id AND tm.is_rejected = 0
         LEFT JOIN trainer AS tr ON tr.id = tm.trainer_id
@@ -862,7 +862,7 @@ const PaymentModel = {
           ps.total_paid AS paid_amount,
           b.name AS branch_name,
           r.name AS region_name,
-          cm.name AS place_of_service,
+          cm.name AS mode_of_class,
           (pm.total_amount - ps.total_paid) AS balance_amount,
           IFNULL(pt_latest.next_due_date, '') AS next_due_date,
           IFNULL(pt_latest.is_second_due, 0) AS is_second_due,
@@ -1365,7 +1365,7 @@ const PaymentModel = {
           LEFT JOIN region r ON r.id = b.region_id
           LEFT JOIN payment_mode p ON p.id = pt.paymode_id
           LEFT JOIN banks AS bnk ON bnk.id = pt.bank_id
-          LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
+          LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
           LEFT JOIN technologies t ON t.id = c.enrolled_course
           LEFT JOIN users cu ON pt.collected_by = cu.id
           WHERE c.status <> 'Form Pending' AND  ${baseConditions}
@@ -1400,7 +1400,7 @@ const PaymentModel = {
                               x.course_name,
                               x.student_id,
                               x.place_of_payment,
-                              x.place_of_service,
+                              x.mode_of_class,
                               x.course_fees,
                               x.gst_amount,
                               x.total_course_fees,
@@ -1447,7 +1447,7 @@ const PaymentModel = {
                                   c.phone AS cus_phone,
                                   t.name AS course_name,
                                   IFNULL(pt.place_of_payment, '') AS place_of_payment,
-                                  cm.name AS place_of_service,
+                                  cm.name AS mode_of_class,
                                   l.primary_fees AS course_fees,
                                   pm.gst_amount,
                                   pm.total_amount AS total_course_fees,
@@ -1579,7 +1579,7 @@ const PaymentModel = {
                         FROM
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
-                      LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
+                      LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
@@ -1595,7 +1595,7 @@ const PaymentModel = {
       let baseCondition = `FROM
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id
-                      LEFT JOIN class_mode AS cm ON cm.id = c.place_of_service
+                      LEFT JOIN class_mode AS cm ON cm.id = c.mode_of_class
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
@@ -1681,7 +1681,7 @@ const PaymentModel = {
                           (pm.total_amount - t.paid_amount) AS balance_amount,
                           b.name AS branch_name,
                           r.name AS region_name,
-                          cm.name AS place_of_service,
+                          cm.name AS mode_of_class,
                           pm.id AS payment_master_id,
                           lm.id AS lead_id,
                           lm.assigned_to,

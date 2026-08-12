@@ -64,9 +64,9 @@ const AdmissionModel = {
                     LEFT JOIN users AS ra ON
                         ra.user_id = rt.updated_by
                     LEFT JOIN class_mode AS cm ON
-                        c.place_of_service = cm.id
+                        c.mode_of_class = cm.id
                     LEFT JOIN branches AS b ON
-                        c.place_of_branch = b.id
+                        c.place_of_service = b.id
                     LEFT JOIN region AS r ON
                         b.region_id = r.id
                     WHERE 1 = 1`;
@@ -83,9 +83,9 @@ const AdmissionModel = {
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
                         LEFT JOIN class_mode AS cm ON
-                            c.place_of_service = cm.id
+                            c.mode_of_class = cm.id
                         LEFT JOIN branches AS b ON
-                            c.place_of_branch = b.id
+                            c.place_of_service = b.id
                         WHERE 1 = 1`;
 
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
@@ -105,7 +105,7 @@ const AdmissionModel = {
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
                         LEFT JOIN class_mode AS cm ON
-                            c.place_of_service = cm.id
+                            c.mode_of_class = cm.id
                         WHERE 1 = 1`;
 
       if (bucket && bucket === "Online") {

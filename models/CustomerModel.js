@@ -33,8 +33,9 @@ const CustomerModel = {
     gst_number,
     lead_id,
     ra_id,
+    mode_of_class,
     place_of_service,
-    place_of_branch,
+    pincode,
   ) => {
     try {
       let affectedRows = 0;
@@ -74,8 +75,9 @@ const CustomerModel = {
                                 address = ?,
                                 state_code = ?,
                                 gst_number = ?,
+                                mode_of_class = ?,
                                 place_of_service = ?,
-                                place_of_branch = ?`;
+                                pincode = ?`;
       queryParams.push(
         name,
         email,
@@ -103,8 +105,9 @@ const CustomerModel = {
         address,
         state_code,
         gst_number,
+        mode_of_class,
         place_of_service,
-        place_of_branch,
+        pincode,
       );
 
       if (is_customer_updated) {
@@ -874,15 +877,15 @@ const CustomerModel = {
                           ra.user_name as ra_name,
                           c.is_linkedin_verified,
                           c.is_google_verified,
+                          c.mode_of_class,
+                          cm.name as mode_of_class_name,
                           c.place_of_service,
-                          cm.name as place_of_service_name,
-                          c.place_of_branch,
-                          pb.name as place_of_branch_name
+                          pb.name as place_of_service_name
                         FROM customers AS c
                         LEFT JOIN class_mode AS cm ON
-                          c.place_of_service = cm.id
+                          c.mode_of_class = cm.id
                         LEFT JOIN branches AS pb ON
-                          pb.id = c.place_of_branch
+                          pb.id = c.place_of_service
                         LEFT JOIN technologies AS t ON
                             c.enrolled_course = t.id
                         LEFT JOIN region AS r ON
