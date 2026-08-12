@@ -4754,6 +4754,69 @@ WHERE ${filterCondition}`;
       throw new Error(error.message);
     }
   },
+
+  dormantToInterested: async (
+    lead_id,
+    next_follow_up_date,
+    updated_by,
+    updated_date,
+  ) => {
+    try {
+      const [isLeadExists] = await pool.query(
+        `SELECT
+            lm.id,
+            ls.name
+        FROM lead_master AS lm
+        INNER JOIN lead_status AS ls ON
+            ls.id = lm.lead_status_id
+        WHERE lm.id = ?`,
+        [lead_id],
+      );
+
+      if (!isLeadExists || isLeadExists.length === 0) {
+        throw new Error("Lead not found");
+      }
+
+      if (isLeadExists[0].name !== "Dormant") {
+        throw new Error("Lead is not in dormant state");
+      }
+
+      const [isHot] = await pool.query(
+        `SELECT id FROM lead_status WHERE name = ?`,
+        ["Hot"],
+      );
+
+      const [result] = await pool.query(
+        `UPDATE lead_master SET lead_status_id = ?, next_follow_up_date = ? WHERE id = ?`,
+        [isHot[0].id, next_follow_up_date, lead_id],
+      );
+
+      await pool.query(
+        `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
+            VALUES(?,?,?,?)`,
+        [
+          lead_id,
+          `Lead converted from dormant to hot - ${updated_by} - ${updated_date}`,
+          updated_date,
+          updated_by,
+        ],
+      );
+
+      await pool.query(
+        `UPDATE lead_follow_up_history SET is_updated = 1 WHERE lead_id = ?`,
+        [lead_id],
+      );
+
+      await pool.query(
+        `INSERT INTO lead_follow_up_history(lead_id, next_follow_up_date) VALUES(?, ?)`,
+        [lead_id, next_follow_up_date],
+      );
+
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function formatToBackendIST(date) {

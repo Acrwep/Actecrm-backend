@@ -648,5 +648,9 @@ router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
 router.post("/recievedList", verifyToken, PaymentController.recievedList);
 router.post("/feeHistory", verifyToken, PaymentController.feeHistory);
 router.get("/getBanks", verifyToken, PaymentController.getBanks);
-
+router.post(
+  "/dormantToInterested",
+  verifyToken,
+  LeadController.dormantToInterested,
+);
 module.exports = router;

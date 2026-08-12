@@ -1230,6 +1230,28 @@ const acknowledgeLead = async (request, response) => {
   }
 };
 
+const dormantToInterested = async (request, response) => {
+  const { lead_id, next_follow_up_date, updated_by, updated_date } =
+    request.body;
+  try {
+    const result = await LeadModel.dormantToInterested(
+      lead_id,
+      next_follow_up_date,
+      updated_by,
+      updated_date,
+    );
+    return response.status(200).send({
+      message: "Lead converted from dormant to interested successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while converting lead from dormant to interested",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1274,4 +1296,5 @@ module.exports = {
   getClassMode,
   getLeadById,
   acknowledgeLead,
+  dormantToInterested,
 };
