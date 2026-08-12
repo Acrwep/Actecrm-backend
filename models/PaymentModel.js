@@ -1,5 +1,6 @@
 const pool = require("../config/dbconfig");
 const CommonModel = require("../models/CommonModel");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const PaymentModel = {
   getPaymentModes: async () => {
@@ -841,9 +842,9 @@ const PaymentModel = {
       // Bucket Query
       const bucketQuery = `
         SELECT 
-          SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai,
-          SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore,
-          SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub
+          SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai,
+          SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' THEN 1 ELSE 0 END) AS bangalore,
+          SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub
         ${baseFromSql}
         ${whereClause}
       `;
@@ -1133,6 +1134,7 @@ const PaymentModel = {
     amount,
     convenience_fees,
     paymode_id,
+    bank_id,
     payment_screenshot,
     paid_date,
     next_due_date,
@@ -1156,6 +1158,7 @@ const PaymentModel = {
                       amount = ?,
                       convenience_fees = ?,
                       paymode_id = ?,
+                      bank_id = ?,
                       payment_screenshot = ?,
                       payment_status = "Verify Pending",
                       paid_date = ?,
@@ -1175,6 +1178,7 @@ const PaymentModel = {
         amount,
         convenience_fees,
         paymode_id,
+        bank_id,
         payment_screenshot,
         paid_date,
         next_due_date,
@@ -1378,9 +1382,9 @@ const PaymentModel = {
       const paymentQuery = `SELECT COUNT(pt.id) AS total,
                             SUM(CASE WHEN pt.is_second_due = 0 AND ${monthCondition} THEN 1 ELSE 0 END) AS new_payment,
                             SUM(CASE WHEN pt.is_second_due = 1 OR (pt.is_second_due = 0 AND NOT ${monthCondition}) THEN 1 ELSE 0 END) AS re_payment,
-                            SUM(CASE WHEN l.assigned_to LIKE '%CHN%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS chennai,
-                            SUM(CASE WHEN l.assigned_to LIKE '%BNG%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS bangalore,
-                            SUM(CASE WHEN l.assigned_to LIKE '%HUB%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS chennai,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS bangalore,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' AND ${isSecondDueCondition} THEN 1 ELSE 0 END) AS hub ${baseQuery}`;
 
       baseQuery += `${paymentCondition}`;
       const [countResult] = await pool.query(countQuery, countParams);
@@ -1576,9 +1580,9 @@ const PaymentModel = {
       const offset = (pageNumber - 1) * limitNumber;
 
       let bucketQuery = `SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai,
-                        SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore,
-                        SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub
+                        SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai,
+                        SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' THEN 1 ELSE 0 END) AS bangalore,
+                        SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub
                         FROM
                           lead_master AS lm
                       LEFT JOIN customers AS c ON c.lead_id = lm.id

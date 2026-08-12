@@ -1,5 +1,6 @@
 const pool = require("../config/dbconfig");
 const moment = require("moment");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const LeadModel = {
   getLeadType: async () => {
@@ -2798,7 +2799,7 @@ WHERE ${filterCondition}`;
         prefix = match ? match[0] : "";
       }
 
-      // if (prefix === "CHN") {
+      // if (prefix === CONSTANT_STATUS.CHENNAI) {
       //   return {
       //     data: [],
       //     lead_count: {
@@ -2834,37 +2835,43 @@ WHERE ${filterCondition}`;
       //                       OR LOWER(course) LIKE '%sap mm%'
       //                     )`;
 
-      // if (prefix === "HUB") {
+      // if (prefix === CONSTANT_STATUS.ONLINE) {
       //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
 
       //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
       // }
 
-      // if (prefix === "BNG" || prefix === "CHN") {
+      // if (prefix === CONSTANT_STATUS.BANGALORE || prefix === CONSTANT_STATUS.CHENNAI) {
       //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
       //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
       // }
 
-      if (prefix === "HUB") {
+      if (prefix === CONSTANT_STATUS.ONLINE) {
         getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
 
         countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
         bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
       }
 
-      if (prefix === "BNG" || prefix === "CHN") {
+      if (
+        prefix === CONSTANT_STATUS.BANGALORE ||
+        prefix === CONSTANT_STATUS.CHENNAI
+      ) {
         getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
         countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
         bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
       }
 
-      if (prefix !== "" && prefix === "HUB") {
+      if (prefix !== "" && prefix === CONSTANT_STATUS.ONLINE) {
         getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
         countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
         bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
       }
 
-      if (prefix === "BNG" || prefix === "CHN") {
+      if (
+        prefix === CONSTANT_STATUS.BANGALORE ||
+        prefix === CONSTANT_STATUS.CHENNAI
+      ) {
         getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
         countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
         bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
@@ -2909,9 +2916,9 @@ WHERE ${filterCondition}`;
       const [trashCount] = await pool.query(
         `SELECT
                 COUNT(wl.id) AS total,
-                SUM(CASE WHEN wl.junk_by LIKE '%HUB%' THEN 1 ELSE 0 END) AS hub,
-                SUM(CASE WHEN wl.junk_by LIKE '%CHN%' THEN 1 ELSE 0 END) AS chennai,
-                SUM(CASE WHEN wl.junk_by LIKE '%BNG%' THEN 1 ELSE 0 END) AS bangalore
+                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub,
+                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai,
+                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.BANGALORE}%' THEN 1 ELSE 0 END) AS bangalore
               FROM website_leads AS wl
               WHERE
           wl.is_deleted = 0
@@ -4181,9 +4188,9 @@ WHERE ${filterCondition}`;
 
       let bucketCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
-          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%HUB%' THEN 1 ELSE 0 END), 0) as hub_leads,
-          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%CHN%' THEN 1 ELSE 0 END), 0) as chennai_leads,
-          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%BNG%' THEN 1 ELSE 0 END), 0) as bangalore_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END), 0) as hub_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END), 0) as chennai_leads,
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' THEN 1 ELSE 0 END), 0) as bangalore_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name = 'Data Incorrect' OR l.primary_course_id IS NULL OR l.lead_type_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as need_screening,

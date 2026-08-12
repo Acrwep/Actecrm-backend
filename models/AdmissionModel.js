@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const AdmissionModel = {
   getAdmissions: async (
@@ -93,9 +94,9 @@ const AdmissionModel = {
       let regionQuery = `SELECT
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%CHN%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%BNG%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
-                            SUM(CASE WHEN lm.assigned_to LIKE '%HUB%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region
+                            SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region
                         FROM
                             customers AS c
                         INNER JOIN technologies AS t ON

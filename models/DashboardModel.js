@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const DashboardModel = {
   getScoreBoard: async (user_ids, start_date, end_date, region_id) => {
@@ -30,11 +31,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -96,11 +97,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -257,11 +258,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -382,11 +383,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -561,11 +562,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -1508,11 +1509,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -1932,11 +1933,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
@@ -2028,11 +2029,11 @@ const DashboardModel = {
 
         if (regionName.length > 0) {
           if (regionName[0].name === "Chennai") {
-            region = "CHN";
+            region = `${CONSTANT_STATUS.CHENNAI}`;
           } else if (regionName[0].name === "Bangalore") {
-            region = "BNG";
+            region = `${CONSTANT_STATUS.BANGALORE}`;
           } else if (regionName[0].name === "Hub") {
-            region = "HUB";
+            region = `${CONSTANT_STATUS.ONLINE}`;
           } else {
             region = "";
           }
