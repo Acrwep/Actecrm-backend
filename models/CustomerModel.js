@@ -818,6 +818,7 @@ const CustomerModel = {
                           c.is_customer_updated,
                           c.class_start_date,
                           c.created_date,
+                          c.pincode,
                           l.user_id AS lead_by_id,
                           u.user_name AS lead_by,
                           l.assigned_to AS lead_assigned_to_id,
