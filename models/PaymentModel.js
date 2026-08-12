@@ -996,6 +996,7 @@ const PaymentModel = {
     paid_amount,
     convenience_fees,
     paymode_id,
+    bank_id,
     payment_screenshot,
     payment_status,
     next_due_date,
@@ -1034,6 +1035,7 @@ const PaymentModel = {
                                       amount,
                                       convenience_fees,
                                       paymode_id,
+                                      bank_id,
                                       payment_screenshot,
                                       payment_status,
                                       next_due_date,
@@ -1043,7 +1045,7 @@ const PaymentModel = {
                                       collected_by,
                                       place_of_payment
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`;
       const transValues = [
         payment_master_id,
         invoiceNo,
@@ -1051,6 +1053,7 @@ const PaymentModel = {
         paid_amount,
         convenience_fees,
         paymode_id,
+        bank_id,
         payment_screenshot,
         payment_status,
         next_due_date,
