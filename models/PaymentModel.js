@@ -1048,7 +1048,7 @@ const PaymentModel = {
                                       collected_by,
                                       place_of_payment
                                   )
-                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`;
+                                  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const transValues = [
         payment_master_id,
         invoiceNo,
@@ -1062,6 +1062,7 @@ const PaymentModel = {
         next_due_date,
         created_date,
         paid_date,
+        1,
         getUserId[0].id,
         place_of_payment,
       ];
