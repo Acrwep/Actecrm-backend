@@ -608,12 +608,12 @@ const websiteLead = async (request, response) => {
 
       // Default Values for Google Ads Leads
       comments = "Google Ads Lead";
-      training = "Classroom Training";
+      training = "Online Training";
       domain_origin = "Google Ads";
       corporate_training = "";
       is_google_add = 1;
     }
-    training = training || "Classroom Training";
+    training = training || "Online Training";
     comments = comments || "";
     domain_origin = domain_origin || "acte.in";
     corporate_training = corporate_training || "";

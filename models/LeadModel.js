@@ -4777,8 +4777,11 @@ WHERE ${filterCondition}`;
         throw new Error("Lead not found");
       }
 
-      if (isLeadExists[0].name !== "Dormant") {
-        throw new Error("Lead is not in dormant state");
+      if (
+        isLeadExists[0].name !== "Dormant" &&
+        isLeadExists[0].name !== "Not Interested"
+      ) {
+        throw new Error("Lead is not in Dormant or Not Interested state");
       }
 
       const [isHot] = await pool.query(
@@ -4796,7 +4799,7 @@ WHERE ${filterCondition}`;
             VALUES(?,?,?,?)`,
         [
           lead_id,
-          `Lead converted from dormant to hot - ${updated_by} - ${updated_date}`,
+          `Lead converted from ${isLeadExists[0].name} to hot - ${updated_by} - ${updated_date}`,
           updated_date,
           updated_by,
         ],
@@ -4806,6 +4809,11 @@ WHERE ${filterCondition}`;
         `UPDATE lead_follow_up_history SET is_updated = 1 WHERE lead_id = ?`,
         [lead_id],
       );
+
+      // const [isInterested] = await pool.query(
+      //   `SELECT id FROM lead_action WHERE name = ?`,
+      //   ["Interested"],
+      // );
 
       await pool.query(
         `INSERT INTO lead_follow_up_history(lead_id, next_follow_up_date) VALUES(?, ?)`,
