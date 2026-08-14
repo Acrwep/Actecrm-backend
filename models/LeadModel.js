@@ -4176,7 +4176,7 @@ WHERE ${filterCondition}`;
         bucketCountQueryParams.push(start_date, end_date);
         // follow_up
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
-        // Sale Ready (4)
+        // Sales Ready (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // Highly Interested (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
@@ -4215,7 +4215,7 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
-          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sale Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sale_ready_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sales Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sales_ready_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_interested_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring_leads,
@@ -4485,8 +4485,8 @@ WHERE ${filterCondition}`;
           not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
         },
         followup_actions: {
-          sale_ready_leads: parseInt(
-            bucketCountResult[0]?.sale_ready_leads || 0,
+          sales_ready_leads: parseInt(
+            bucketCountResult[0]?.sales_ready_leads || 0,
           ),
           highly_interested_leads: parseInt(
             bucketCountResult[0]?.highly_interested_leads || 0,
