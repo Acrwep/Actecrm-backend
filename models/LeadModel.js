@@ -4031,6 +4031,7 @@ WHERE ${filterCondition}`;
                         l.expected_join_date,
                         l.branch_id,
                         b.name AS branch_name,
+                        braan.name as 'place_of_sale_name',
                         l.batch_track_id,
                         bt.name AS batch_track,
                         l.comments,
@@ -4064,6 +4065,7 @@ WHERE ${filterCondition}`;
                         lead_master AS l
                     LEFT JOIN lead_score_master AS lsm ON lsm.lead_id = l.id
                     LEFT JOIN users AS u ON u.user_id = l.user_id
+                  
                     LEFT JOIN users AS au ON au.user_id = l.assigned_to
                     LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
                     LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
@@ -4096,6 +4098,8 @@ WHERE ${filterCondition}`;
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
                     LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
+                     LEFT JOIN users AS useer ON useer.user_id = l.assigned_to
+                     LEFT JOIN branches AS braan ON braan.id = useer.branch_id
                     WHERE 1 = 1`;
 
       const countQueryParams = [];

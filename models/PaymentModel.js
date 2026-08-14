@@ -1285,7 +1285,7 @@ const PaymentModel = {
     }
   },
 
-  recievedList: async (
+  recievedList1: async (
     start_date,
     end_date,
     search_filter,
@@ -1567,6 +1567,871 @@ const PaymentModel = {
     }
   },
 
+  recievedList: async (
+    start_date,
+    end_date,
+    search_filter,
+    page,
+    limit,
+    user_ids,
+    payment_type,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      // =========================================================
+      // PARAMETERS
+      // =========================================================
+
+      const queryParams = [];
+      const countParams = [];
+      const paymentParams = [];
+
+      // =========================================================
+      // PAYMENT TYPE
+      // =========================================================
+
+      const normalizedPaymentType = payment_type?.toUpperCase();
+
+      // =========================================================
+      // COMMON CONDITIONS
+      //
+      // These conditions are used by BOTH:
+      // 1. data
+      // 2. status_count
+      //
+      // payment_type is NOT added here.
+      // =========================================================
+
+      let commonConditions = ``;
+
+      // =========================================================
+      // DATA PAYMENT STATUS CONDITION
+      //
+      // This condition is ONLY for data/count/data total.
+      // =========================================================
+
+      let dataPaymentStatusCondition = ``;
+
+      if (normalizedPaymentType === "REJECTED") {
+        dataPaymentStatusCondition = `
+        AND pt.payment_status = 'Rejected'
+      `;
+      } else {
+        // NEW / REPAYMENT
+        // Existing behavior:
+        // only Verify Pending records
+        dataPaymentStatusCondition = `
+        AND pt.payment_status = 'Verify Pending'
+      `;
+      }
+
+      // =========================================================
+      // DATE FILTER
+      // =========================================================
+
+      if (start_date && end_date) {
+        commonConditions += `
+        AND pt.invoice_date >= ?
+        AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        paymentParams.push(start_date, end_date);
+      }
+
+      // =========================================================
+      // SEARCH FILTER
+      // =========================================================
+
+      if (search_filter) {
+        commonConditions += `
+        AND (
+          c.name LIKE ?
+          OR c.phone LIKE ?
+          OR tech.name LIKE ?
+          OR c.email LIKE ?
+        )
+      `;
+
+        const searchStr = `%${search_filter}%`;
+
+        queryParams.push(searchStr, searchStr, searchStr, searchStr);
+
+        countParams.push(searchStr, searchStr, searchStr, searchStr);
+
+        paymentParams.push(searchStr, searchStr, searchStr, searchStr);
+      }
+
+      // =========================================================
+      // USER FILTER
+      // =========================================================
+
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+
+        const userFilter = `
+        AND l.assigned_to IN (${placeholders})
+      `;
+
+        commonConditions += userFilter;
+
+        queryParams.push(...user_ids);
+        countParams.push(...user_ids);
+        paymentParams.push(...user_ids);
+      }
+
+      // =========================================================
+      // REGION FILTER
+      // =========================================================
+
+      if (region_id) {
+        commonConditions += `
+        AND r.id = ?
+      `;
+
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        paymentParams.push(region_id);
+      }
+
+      // =========================================================
+      // BRANCH FILTER
+      // =========================================================
+
+      if (branch_id) {
+        commonConditions += `
+        AND b.id = ?
+      `;
+
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        paymentParams.push(branch_id);
+      }
+
+      // =========================================================
+      // MONTH CONDITION
+      // =========================================================
+
+      const monthCondition = `
+      (
+        CASE
+          WHEN DAY(c.created_date) >= 26
+          THEN DATE_FORMAT(
+            c.created_date,
+            '%Y-%m-26'
+          )
+          ELSE DATE_FORMAT(
+            DATE_SUB(
+              c.created_date,
+              INTERVAL 1 MONTH
+            ),
+            '%Y-%m-26'
+          )
+        END
+      )
+      >=
+      (
+        CASE
+          WHEN DAY(pt.invoice_date) >= 26
+          THEN DATE_FORMAT(
+            pt.invoice_date,
+            '%Y-%m-26'
+          )
+          ELSE DATE_FORMAT(
+            DATE_SUB(
+              pt.invoice_date,
+              INTERVAL 1 MONTH
+            ),
+            '%Y-%m-26'
+          )
+        END
+      )
+    `;
+
+      // =========================================================
+      // DATA PAYMENT TYPE CONDITION
+      //
+      // THIS IS THE IMPORTANT PART
+      //
+      // payment_type affects ONLY DATA.
+      // =========================================================
+
+      let dataPaymentCondition = ``;
+
+      if (normalizedPaymentType === "NEW") {
+        dataPaymentCondition += `
+        AND pt.is_second_due = 0
+        AND ${monthCondition}
+      `;
+      } else if (normalizedPaymentType === "REPAYMENT") {
+        dataPaymentCondition += `
+        AND (
+          pt.is_second_due = 1
+          OR (
+            pt.is_second_due = 0
+            AND NOT (${monthCondition})
+          )
+        )
+      `;
+      } else if (normalizedPaymentType === "REJECTED") {
+        // REJECT DOES NOT use:
+        // is_second_due
+        // monthCondition
+        //
+        // It only uses:
+        // pt.payment_status = 'Rejected'
+        //
+        // That condition is already added above.
+        dataPaymentCondition += ``;
+      }
+
+      // =========================================================
+      // LOCATION COUNT CONDITION
+      // =========================================================
+
+      let locationPaymentCondition = ``;
+
+      if (normalizedPaymentType === "NEW") {
+        locationPaymentCondition = `
+    pt.payment_status = 'Verify Pending'
+    AND pt.is_second_due = 0
+    AND ${monthCondition}
+  `;
+      } else if (normalizedPaymentType === "REPAYMENT") {
+        locationPaymentCondition = `
+    pt.payment_status = 'Verify Pending'
+    AND (
+      pt.is_second_due = 1
+      OR (
+        pt.is_second_due = 0
+        AND NOT (${monthCondition})
+      )
+    )
+  `;
+      } else if (normalizedPaymentType === "REJECTED") {
+        locationPaymentCondition = `
+    pt.payment_status = 'Rejected'
+  `;
+      }
+      // =========================================================
+      // BASE QUERY
+      //
+      // Used for DATA and DATA COUNT
+      // =========================================================
+
+      const dataBaseQuery = `
+      FROM payment_trans pt
+
+      INNER JOIN payment_master pm
+        ON pm.id = pt.payment_master_id
+
+      INNER JOIN customers c
+        ON c.lead_id = pm.lead_id
+
+      INNER JOIN lead_master l
+        ON l.id = c.lead_id
+
+      INNER JOIN users u
+        ON u.user_id = l.assigned_to
+
+      LEFT JOIN (
+        SELECT
+          payment_master_id,
+          SUM(amount) AS paid_amount,
+          MIN(invoice_date) AS first_payment_date,
+          MAX(invoice_date) AS last_payment_date
+        FROM payment_trans
+        WHERE payment_status <> 'Rejected'
+        GROUP BY payment_master_id
+      ) AS pay
+        ON pay.payment_master_id = pm.id
+
+      LEFT JOIN branches b
+        ON b.id = u.branch_id
+
+      LEFT JOIN region r
+        ON r.id = b.region_id
+
+      LEFT JOIN payment_mode p
+        ON p.id = pt.paymode_id
+
+      LEFT JOIN banks AS bnk
+        ON bnk.id = pt.bank_id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = c.mode_of_class
+
+      LEFT JOIN technologies AS tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN users cu
+        ON pt.collected_by = cu.id
+
+      LEFT JOIN branches AS ps
+        ON ps.id = c.place_of_service
+
+      WHERE c.status <> 'Form Pending'
+
+      ${dataPaymentStatusCondition}
+
+      ${commonConditions}
+
+      ${dataPaymentCondition}
+    `;
+
+      // =========================================================
+      // STATUS COUNT BASE QUERY
+      //
+      // IMPORTANT:
+      //
+      // NO payment_type condition here.
+      //
+      // It contains BOTH:
+      // Rejected
+      // Verify Pending
+      //
+      // Therefore status_count is independent.
+      // =========================================================
+
+      const statusBaseQuery = `
+      FROM payment_trans pt
+
+      INNER JOIN payment_master pm
+        ON pm.id = pt.payment_master_id
+
+      INNER JOIN customers c
+        ON c.lead_id = pm.lead_id
+
+      INNER JOIN lead_master l
+        ON l.id = c.lead_id
+
+      INNER JOIN users u
+        ON u.user_id = l.assigned_to
+
+      LEFT JOIN (
+        SELECT
+          payment_master_id,
+          SUM(amount) AS paid_amount,
+          MIN(invoice_date) AS first_payment_date,
+          MAX(invoice_date) AS last_payment_date
+        FROM payment_trans
+        WHERE payment_status <> 'Rejected'
+        GROUP BY payment_master_id
+      ) AS pay
+        ON pay.payment_master_id = pm.id
+
+      LEFT JOIN branches b
+        ON b.id = u.branch_id
+
+      LEFT JOIN region r
+        ON r.id = b.region_id
+
+      LEFT JOIN payment_mode p
+        ON p.id = pt.paymode_id
+
+      LEFT JOIN banks AS bnk
+        ON bnk.id = pt.bank_id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = c.mode_of_class
+
+      LEFT JOIN technologies AS tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN users cu
+        ON pt.collected_by = cu.id
+
+      LEFT JOIN branches AS ps
+        ON ps.id = c.place_of_service
+
+      WHERE c.status <> 'Form Pending'
+
+      AND pt.payment_status IN (
+        'Rejected',
+        'Verify Pending'
+      )
+
+      ${commonConditions}
+    `;
+
+      // =========================================================
+      // COUNT QUERY
+      //
+      // payment_type DOES affect this.
+      // =========================================================
+
+      const countQuery = `
+      SELECT
+        COUNT(pt.id) AS total,
+        SUM(pt.amount) AS total_paid_amount
+
+      ${dataBaseQuery}
+    `;
+
+      // =========================================================
+      // STATUS COUNT QUERY
+      //
+      // payment_type DOES NOT affect this.
+      // =========================================================
+
+      const paymentQuery = `
+    SELECT
+
+        COUNT(pt.id) AS total,
+
+        SUM(
+            CASE
+                WHEN pt.payment_status = 'Verify Pending'
+                AND pt.is_second_due = 0
+                AND ${monthCondition}
+                THEN 1
+                ELSE 0
+            END
+        ) AS new_payment,
+
+        SUM(
+            CASE
+                WHEN pt.payment_status = 'Verify Pending'
+                AND (
+                    pt.is_second_due = 1
+                    OR (
+                        pt.is_second_due = 0
+                        AND NOT (${monthCondition})
+                    )
+                )
+                THEN 1
+                ELSE 0
+            END
+        ) AS re_payment,
+
+        SUM(
+            CASE
+                WHEN pt.payment_status = 'Rejected'
+                THEN 1
+                ELSE 0
+            END
+        ) AS rejects,
+
+        SUM(
+    CASE
+        WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+        AND (${locationPaymentCondition})
+        THEN 1
+        ELSE 0
+    END
+) AS chennai,
+SUM(
+    CASE
+        WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+        AND (${locationPaymentCondition})
+        THEN 1
+        ELSE 0
+    END
+) AS bangalore,
+
+      SUM(
+    CASE
+        WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+        AND (${locationPaymentCondition})
+        THEN 1
+        ELSE 0
+    END
+) AS hub
+
+    ${statusBaseQuery}
+    `;
+
+      // =========================================================
+      // EXECUTE COUNT QUERY
+      // =========================================================
+
+      const [countResult] = await pool.query(countQuery, countParams);
+
+      // =========================================================
+      // EXECUTE STATUS COUNT QUERY
+      // =========================================================
+
+      const [paymentResult] = await pool.query(paymentQuery, paymentParams);
+
+      const total = countResult[0].total;
+
+      const total_paid_amount = countResult[0].total_paid_amount || 0;
+
+      // =========================================================
+      // MAIN DATA QUERY
+      // =========================================================
+
+      let getQuery = `
+      SELECT
+
+        x.trans_id,
+        x.master_id,
+        x.entry_date,
+        x.paid_date,
+        x.region_name,
+        x.branch_name,
+        x.closed_by,
+        x.closed_by_id,
+        x.customer_id,
+        x.cus_name,
+        x.cus_phone,
+        x.course_name,
+        x.student_id,
+        x.place_of_payment,
+        x.mode_of_class,
+        x.place_of_service,
+        x.place_of_service_name,
+        x.course_fees,
+        x.gst_amount,
+        x.total_course_fees,
+        x.paid_amount,
+
+        (
+          x.total_course_fees - x.paid_amount
+        ) AS balance_amount,
+
+        x.convenience_fees,
+        x.collected_fees,
+        x.transacted_to,
+        x.bank_name,
+        x.collected_by,
+        x.collected_user_id,
+        x.payment_status,
+        x.verified_date,
+        x.is_second_due,
+        x.cus_reg_date,
+        x.total_days_taken,
+        x.end_date,
+
+        CASE
+
+          WHEN x.cus_month >= x.current_month
+            AND x.is_second_due = 0
+          THEN 'New'
+
+          WHEN x.cus_month >= x.current_month
+            AND x.is_second_due = 1
+          THEN 'CMJ'
+
+          WHEN x.cus_month =
+            DATE_SUB(
+              x.current_month,
+              INTERVAL 1 MONTH
+            )
+          THEN 'LMJ'
+
+          WHEN x.cus_month <=
+            DATE_SUB(
+              x.current_month,
+              INTERVAL 2 MONTH
+            )
+          THEN 'PMJ'
+
+          ELSE 'Other'
+
+        END AS collection_type
+
+      FROM (
+
+        SELECT
+
+          pt.id AS trans_id,
+
+          pt.payment_master_id AS master_id,
+
+          CAST(
+            pt.created_date AS DATE
+          ) AS entry_date,
+
+          pt.invoice_date AS paid_date,
+
+          r.name AS region_name,
+
+          b.name AS branch_name,
+
+          u.user_name AS closed_by,
+
+          u.user_id AS closed_by_id,
+
+          c.id AS customer_id,
+
+          c.student_id,
+
+          c.name AS cus_name,
+
+          c.phone AS cus_phone,
+
+          tech.name AS course_name,
+
+          IFNULL(
+            pt.place_of_payment,
+            ''
+          ) AS place_of_payment,
+
+          cm.name AS mode_of_class,
+
+          c.place_of_service,
+
+          ps.name AS place_of_service_name,
+
+          l.primary_fees AS course_fees,
+
+          pm.gst_amount,
+
+          pm.total_amount AS total_course_fees,
+
+          IFNULL(
+            pt.amount,
+            0
+          ) AS paid_amount,
+
+          IFNULL(
+            pt.convenience_fees,
+            0
+          ) AS convenience_fees,
+
+          (
+            pt.amount + pt.convenience_fees
+          ) AS collected_fees,
+
+          p.name AS transacted_to,
+
+          bnk.bank_name,
+
+          cu.user_name AS collected_by,
+
+          cu.user_id AS collected_user_id,
+
+          pt.payment_status,
+
+          pt.verified_date,
+
+          pt.is_second_due,
+
+          CAST(
+            c.created_date AS DATE
+          ) AS cus_reg_date,
+
+          CASE
+            WHEN DAY(pt.invoice_date) >= 26
+            THEN DATE_FORMAT(
+              pt.invoice_date,
+              '%Y-%m-26'
+            )
+            ELSE DATE_FORMAT(
+              DATE_SUB(
+                pt.invoice_date,
+                INTERVAL 1 MONTH
+              ),
+              '%Y-%m-26'
+            )
+          END AS paid_month,
+
+          CASE
+            WHEN DAY(c.created_date) >= 26
+            THEN DATE_FORMAT(
+              c.created_date,
+              '%Y-%m-26'
+            )
+            ELSE DATE_FORMAT(
+              DATE_SUB(
+                c.created_date,
+                INTERVAL 1 MONTH
+              ),
+              '%Y-%m-26'
+            )
+          END AS cus_month,
+
+          CASE
+            WHEN DAY(pt.invoice_date) >= 26
+            THEN DATE_FORMAT(
+              pt.invoice_date,
+              '%Y-%m-26'
+            )
+            ELSE DATE_FORMAT(
+              DATE_SUB(
+                pt.invoice_date,
+                INTERVAL 1 MONTH
+              ),
+              '%Y-%m-26'
+            )
+          END AS current_month,
+
+          DATEDIFF(
+
+            CASE
+              WHEN IFNULL(
+                pay.paid_amount,
+                0
+              ) >= pm.total_amount
+
+              THEN pay.last_payment_date
+
+              ELSE CURDATE()
+
+            END,
+
+            pay.first_payment_date
+
+          ) AS total_days_taken,
+
+          pay.first_payment_date,
+
+          CASE
+
+            WHEN IFNULL(
+              pay.paid_amount,
+              0
+            ) >= pm.total_amount
+
+            THEN pay.last_payment_date
+
+            ELSE CURDATE()
+
+          END AS end_date
+
+        ${dataBaseQuery}
+
+        ORDER BY
+          CAST(
+            pt.created_date AS DATE
+          ) DESC,
+          pt.id DESC
+      `;
+
+      // =========================================================
+      // PAGINATION
+      // =========================================================
+
+      if (page && limit) {
+        getQuery += `
+        LIMIT ?
+        OFFSET ?
+      `;
+
+        queryParams.push(limitNumber, offset);
+      }
+
+      getQuery += `
+        ) x
+
+      ORDER BY
+        x.entry_date DESC,
+        x.trans_id DESC
+    `;
+
+      // =========================================================
+      // GET DATA
+      // =========================================================
+
+      const [result] = await pool.query(getQuery, queryParams);
+
+      // =========================================================
+      // CALCULATE BALANCE
+      // =========================================================
+
+      const formattedResult = await Promise.all(
+        result.map(async (item) => {
+          let feesBalance = 0;
+          let balance = 0;
+
+          const [paidAmount] = await pool.query(
+            `
+            SELECT
+              IFNULL(
+                SUM(amount),
+                0
+              ) AS paid_amount
+
+            FROM payment_trans
+
+            WHERE payment_master_id = ?
+
+            AND id < ?
+
+            AND payment_status <> 'Rejected'
+          `,
+            [item.master_id, item.trans_id],
+          );
+
+          feesBalance =
+            Number(item.total_course_fees) - Number(paidAmount[0].paid_amount);
+
+          balance = feesBalance - Number(item.paid_amount);
+
+          return {
+            ...item,
+
+            fees_balance: feesBalance,
+
+            balance_due: balance,
+          };
+        }),
+      );
+
+      // =========================================================
+      // PAGE TOTAL PAID AMOUNT
+      // =========================================================
+
+      const page_total_paid_amount = formattedResult.reduce(
+        (sum, item) => sum + Number(item.paid_amount || 0),
+        0,
+      );
+
+      // =========================================================
+      // FINAL RESPONSE
+      // =========================================================
+
+      return {
+        data: formattedResult,
+
+        // =======================================================
+        // STATUS COUNT IS COMPLETELY INDEPENDENT
+        // FROM payment_type
+        // =======================================================
+
+        status_count: {
+          new_payment: paymentResult[0].new_payment || 0,
+
+          re_payment: paymentResult[0].re_payment || 0,
+
+          rejected: paymentResult[0].rejects || 0,
+
+          chennai: paymentResult[0].chennai || 0,
+
+          bangalore: paymentResult[0].bangalore || 0,
+
+          hub: paymentResult[0].hub || 0,
+        },
+
+        // =======================================================
+        // THESE ARE BASED ON payment_type
+        // =======================================================
+
+        total_paid_amount: total_paid_amount,
+
+        page_total_paid_amount: page_total_paid_amount,
+
+        pagination: {
+          total: parseInt(total),
+
+          page: page ? pageNumber : null,
+
+          limit: limit ? limitNumber : null,
+
+          totalPages: page && limit ? Math.ceil(total / limitNumber) : null,
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
   feeHistory: async (
     start_date,
     end_date,
