@@ -4672,7 +4672,7 @@ WHERE ${filterCondition}`;
                     LEFT JOIN users AS bm ON bm.user_id = l.branch_manager_id
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
-                    LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
+                    LEFT JOIN batch_track AS ba ON ba.id = l.preferred_batch
                     WHERE l.id = ?`;
 
       const [result] = await pool.query(getQuery, [lead_id]);
