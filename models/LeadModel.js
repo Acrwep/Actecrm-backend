@@ -4188,6 +4188,8 @@ WHERE ${filterCondition}`;
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // Not Interested (4)
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // open_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
       }
 
       let bucketCountQuery = `SELECT 
@@ -4214,6 +4216,7 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sales Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sales_ready_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
@@ -4296,6 +4299,11 @@ WHERE ${filterCondition}`;
         if (bucket === "Joinings") {
           getQuery += ` AND c.id IS NOT NULL`;
           countQuery += ` AND c.id IS NOT NULL`;
+        }
+
+        if (bucket === "Open Leads") {
+          getQuery += ` AND DATEDIFF(NOW(), l.created_date) > 45`;
+          countQuery += ` AND DATEDIFF(NOW(), l.created_date) > 45`;
         }
       }
 
@@ -4458,6 +4466,7 @@ WHERE ${filterCondition}`;
           sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
           followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
+          open_leads: parseInt(bucketCountResult[0]?.open_leads || 0),
         },
         valid_lead_actions: {
           validated: parseInt(bucketCountResult[0]?.validated_leads || 0),

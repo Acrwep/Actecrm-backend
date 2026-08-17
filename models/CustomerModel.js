@@ -45,6 +45,12 @@ const CustomerModel = {
       );
       if (isCusExists.length <= 0) throw new Error("Invalid customer");
 
+      const [isCus] = await pool.query(
+        `SELECT id FROM customers WHERE (email = ? OR phone = ?) AND enrolled_course = ? AND id != ?`,
+        [email, phone, enrolled_course, id],
+      );
+      if (isCus.length > 0) throw new Error("Customer already exists");
+
       const queryParams = [];
       let updateQuery = `UPDATE
                                 customers
