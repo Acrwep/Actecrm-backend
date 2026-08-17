@@ -4764,6 +4764,12 @@ WHERE ${filterCondition}`;
     next_follow_up_date,
     updated_by,
     updated_date,
+    lead_action_id,
+    comments,
+    communication_status,
+    contact_mode,
+    interest_rate,
+    response_status,
   ) => {
     try {
       const [isLeadExists] = await pool.query(
@@ -4799,32 +4805,108 @@ WHERE ${filterCondition}`;
       );
 
       await pool.query(
-        `INSERT INTO lead_track(lead_id, lead_status, status_date, updated_by)
-            VALUES(?,?,?,?)`,
+        `INSERT INTO lead_track(
+          lead_id,
+          lead_status,
+          status_date,
+          updated_by
+       )
+       VALUES (?, ?, ?, ?)`,
         [
           lead_id,
-          `Lead converted from ${isLeadExists[0].name} to hot - ${updated_by} - ${updated_date}`,
+          `Lead converted from ${isLeadExists[0].name} to Hot - ${updated_by} - ${updated_date}`,
           updated_date,
           updated_by,
         ],
       );
 
       await pool.query(
-        `UPDATE lead_follow_up_history SET is_updated = 1 WHERE lead_id = ?`,
-        [lead_id],
+        `INSERT INTO lead_follow_up_history(
+            lead_id,
+            lead_action_id,
+            comments,
+            updated_by,
+            updated_date,
+            is_updated,
+            communication_status,
+            contact_mode,
+            interest_rate,
+            response_status
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          lead_id,
+          lead_action_id,
+          comments,
+          updated_by,
+          updated_date,
+          1,
+          communication_status,
+          contact_mode,
+          interest_rate,
+          response_status,
+        ],
       );
-
-      // const [isInterested] = await pool.query(
-      //   `SELECT id FROM lead_action WHERE name = ?`,
-      //   ["Interested"],
-      // );
 
       await pool.query(
-        `INSERT INTO lead_follow_up_history(lead_id, next_follow_up_date) VALUES(?, ?)`,
-        [lead_id, next_follow_up_date],
+        `INSERT INTO lead_track(
+          lead_id,
+          lead_status,
+          status_date,
+          updated_by
+       )
+       VALUES (?, ?, ?, ?)`,
+        [lead_id, `Initial follow up completed`, updated_date, updated_by],
       );
 
-      return result.affectedRows;
+      await pool.query(
+        `INSERT INTO lead_follow_up_history(
+          lead_id,
+          next_follow_up_date,
+          is_updated
+       )
+       VALUES (?, ?, ?)`,
+        [lead_id, next_follow_up_date, 0],
+      );
+
+      // 9. Insert next follow-up tracking
+      await pool.query(
+        `INSERT INTO lead_track(
+          lead_id,
+          lead_status,
+          status_date,
+          updated_by
+       )
+       VALUES (?, ?, ?, ?)`,
+        [
+          lead_id,
+          `Next follow scheduled on ${next_follow_up_date}`,
+          updated_date,
+          updated_by,
+        ],
+      );
+
+      // await pool.query(
+      //   `UPDATE lead_follow_up_history SET is_updated = 1 WHERE lead_id = ?`,
+      //   [lead_id],
+      // );
+
+      // // const [isInterested] = await pool.query(
+      // //   `SELECT id FROM lead_action WHERE name = ?`,
+      // //   ["Interested"],
+      // // );
+
+      // await pool.query(
+      //   `INSERT INTO lead_follow_up_history(lead_id, next_follow_up_date) VALUES(?, ?)`,
+      //   [lead_id, next_follow_up_date],
+      // );
+
+      // await pool.query(
+      //   `INSERT INTO lead_follow_up_history(lead_id, next_follow_up_date) VALUES(?, ?)`,
+      //   [lead_id, next_follow_up_date],
+      // );
+
+      return result;
     } catch (error) {
       throw new Error(error.message);
     }

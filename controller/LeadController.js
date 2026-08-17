@@ -1231,14 +1231,30 @@ const acknowledgeLead = async (request, response) => {
 };
 
 const dormantToInterested = async (request, response) => {
-  const { lead_id, next_follow_up_date, updated_by, updated_date } =
-    request.body;
+  const {
+    lead_id,
+    next_follow_up_date,
+    updated_by,
+    updated_date,
+    lead_action_id,
+    comments,
+    communication_status,
+    contact_mode,
+    interest_rate,
+    response_status,
+  } = request.body;
   try {
     const result = await LeadModel.dormantToInterested(
       lead_id,
       next_follow_up_date,
       updated_by,
       updated_date,
+      lead_action_id,
+      comments,
+      communication_status,
+      contact_mode,
+      interest_rate,
+      response_status,
     );
     return response.status(200).send({
       message: "Lead converted from dormant to interested successfully",
