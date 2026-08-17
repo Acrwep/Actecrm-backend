@@ -4097,7 +4097,7 @@ WHERE ${filterCondition}`;
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
-                    LEFT JOIN batches AS ba ON ba.id = l.preferred_batch
+                    LEFT JOIN batch_track AS ba ON ba.id = l.preferred_batch
                      LEFT JOIN users AS useer ON useer.user_id = l.assigned_to
                      LEFT JOIN branches AS braan ON braan.id = useer.branch_id
                     WHERE 1 = 1`;
