@@ -4216,7 +4216,7 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
-          IFNULL(SUM(CASE WHEN DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads,
+          IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sales Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sales_ready_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
@@ -4302,8 +4302,8 @@ WHERE ${filterCondition}`;
         }
 
         if (bucket === "Open Leads") {
-          getQuery += ` AND DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND c.id IS NULL`;
-          countQuery += ` AND DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND c.id IS NULL`;
+          getQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL`;
+          countQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL`;
         }
       }
 
