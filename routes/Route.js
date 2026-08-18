@@ -653,4 +653,5 @@ router.post(
   verifyToken,
   LeadController.dormantToInterested,
 );
+router.post("/leadSelfAssign", verifyToken, LeadController.leadSelfAssign);
 module.exports = router;

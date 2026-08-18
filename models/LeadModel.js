@@ -4920,6 +4920,78 @@ WHERE ${filterCondition}`;
       throw new Error(error.message);
     }
   },
+
+  leadSelfAssign: async (
+    lead_id,
+    updated_date,
+    updated_by,
+    assigned_to,
+    next_follow_up_date,
+  ) => {
+    try {
+      const [getLead] = await pool.query(
+        `SELECT id, assigned_count, DATE(re_assigned_date) AS re_assigned_date, CURRENT_DATE() AS today FROM lead_master WHERE id = ?`,
+        [lead_id],
+      );
+
+      if (!getLead || getLead.length === 0) {
+        throw new Error("Lead not found");
+      }
+
+      if (getLead[0].re_assigned_date === getLead[0].today) {
+        throw new Error("Lead is already assigned");
+      }
+
+      const newAssignedCount = getLead[0].assigned_count + 1;
+
+      await pool.query(
+        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ? WHERE id = ?`,
+        [
+          assigned_to,
+          newAssignedCount,
+          updated_date,
+          next_follow_up_date,
+          assigned_to,
+          updated_date,
+          lead_id,
+        ],
+      );
+
+      await pool.query(
+        `INSERT INTO lead_track(
+          lead_id,
+          lead_status,
+          status_date,
+          updated_by
+       )
+       VALUES (?, ?, ?, ?)`,
+        [
+          lead_id,
+          `Lead self assigned to ${assigned_to}`,
+          updated_date,
+          updated_by,
+        ],
+      );
+
+      const [latestFollowup] = await pool.query(
+        `SELECT lf.id, la.name as lead_action FROM lead_follow_up_history AS lf LEFT JOIN lead_action AS la ON la.id = lf.lead_action_id WHERE lf.lead_id = ? ORDER BY lf.id DESC LIMIT 1`,
+        [lead_id],
+      );
+
+      if (latestFollowup && latestFollowup.length > 0) {
+        if (latestFollowup[0].lead_action != "Not Interested") {
+          await pool.query(
+            `UPDATE lead_follow_up_history SET next_follow_up_date = ? WHERE id = ?`,
+            [next_follow_up_date, latestFollowup[0].id],
+          );
+        }
+      }
+
+      return true;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 function formatToBackendIST(date) {

@@ -1268,6 +1268,34 @@ const dormantToInterested = async (request, response) => {
   }
 };
 
+const leadSelfAssign = async (request, response) => {
+  const {
+    lead_id,
+    updated_date,
+    updated_by,
+    assigned_to,
+    next_follow_up_date,
+  } = request.body;
+  try {
+    const result = await LeadModel.leadSelfAssign(
+      lead_id,
+      updated_date,
+      updated_by,
+      assigned_to,
+      next_follow_up_date,
+    );
+    return response.status(200).send({
+      message: "Lead updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating lead",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getLeadType,
   getStatus,
@@ -1313,4 +1341,5 @@ module.exports = {
   getLeadById,
   acknowledgeLead,
   dormantToInterested,
+  leadSelfAssign,
 };
