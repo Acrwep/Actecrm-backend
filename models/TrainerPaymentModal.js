@@ -721,6 +721,7 @@ getPayments: async (
   end_date,
   status,
   trainer_id,
+  training_mode,
   page,
   limit,
   type,
@@ -992,7 +993,7 @@ getPayments: async (
       SELECT
         COUNT(tm.id) AS total
 
-      FROM trainer_payment_master AS tm
+    FROM trainer_payment_master AS tm
 
       INNER JOIN trainer AS t
         ON t.id = tm.trainer_id
@@ -1002,6 +1003,96 @@ getPayments: async (
 
       LEFT JOIN users AS cu
         ON cu.user_id = tm.created_by
+
+      LEFT JOIN batch_master AS bm
+        ON bm.id = tm.batch_id
+
+      LEFT JOIN trainer_payment AS tp
+        ON tp.payment_master_id = tm.id
+
+      /* =================================================
+         THIS IS THE IMPORTANT CHANGE
+
+         Previously:
+         getQuery
+              +
+         separate studentsData query
+
+         Now:
+         trainer_payment_trans is directly joined here.
+         ================================================= */
+
+      LEFT JOIN trainer_payment_trans AS tpt
+        ON tpt.payment_master_id = tm.id
+
+      LEFT JOIN trainer_mapping AS tmap
+        ON tmap.id = tpt.trainer_mapping_id
+
+      LEFT JOIN customers AS c
+        ON c.id = tmap.customer_id
+
+      LEFT JOIN lead_master AS l
+        ON l.id = c.lead_id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = l.preferred_mode
+
+      LEFT JOIN technologies AS tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      /* Student payment summary */
+
+      LEFT JOIN (
+        SELECT
+          pt.payment_master_id,
+          SUM(pt.amount) AS paid_amount
+        FROM payment_trans AS pt
+        WHERE pt.payment_status IN (
+          'Verified',
+          'Verify Pending'
+        )
+        GROUP BY pt.payment_master_id
+      ) AS ps
+        ON ps.payment_master_id = pm.id
+
+      /* Latest Trainer Assigned */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Trainer Assigned'
+        GROUP BY ct.customer_id
+      ) AS latest_hr
+        ON latest_hr.customer_id = c.id
+
+      LEFT JOIN customer_track AS ht
+        ON ht.id = latest_hr.latest_id
+
+      LEFT JOIN users AS hu
+        ON hu.user_id = ht.updated_by
+
+      /* Latest Student Verified */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Student Verified'
+        GROUP BY ct.customer_id
+      ) AS latest_ra
+        ON latest_ra.customer_id = c.id
+
+      LEFT JOIN customer_track AS rt
+        ON rt.id = latest_ra.latest_id
+
+      LEFT JOIN users AS ra
+        ON ra.user_id = rt.updated_by
 
       WHERE 1 = 1
     `;
@@ -1013,12 +1104,12 @@ getPayments: async (
     let statusCountQuery = `
       SELECT
 
-        COUNT(*) AS total,
+        COUNT(tm.id) AS total,
 
         IFNULL(
           SUM(
             CASE
-              WHEN status IN ('Link Sent', 'Rejected')
+              WHEN tm.status IN ('Link Sent', 'Rejected')
               THEN 1
               ELSE 0
             END
@@ -1029,7 +1120,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status IN ('Requested', 'Rejected')
+              WHEN tm.status IN ('Requested', 'Rejected')
               THEN 1
               ELSE 0
             END
@@ -1040,7 +1131,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status = 'Awaiting Approval'
+              WHEN tm.status = 'Awaiting Approval'
               THEN 1
               ELSE 0
             END
@@ -1051,7 +1142,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status = 'Awaiting Finance'
+              WHEN tm.status = 'Awaiting Finance'
               THEN 1
               ELSE 0
             END
@@ -1062,7 +1153,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status = 'Completed'
+              WHEN tm.status = 'Completed'
               THEN 1
               ELSE 0
             END
@@ -1073,7 +1164,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status IN (
+              WHEN tm.status IN (
                 'Payment Rejected',
                 'Approval Rejected'
               )
@@ -1087,7 +1178,7 @@ getPayments: async (
         IFNULL(
           SUM(
             CASE
-              WHEN status = 'Paid'
+              WHEN tm.status = 'Paid'
               THEN 1
               ELSE 0
             END
@@ -1095,7 +1186,106 @@ getPayments: async (
           0
         ) AS paid
 
-      FROM trainer_payment_master
+      FROM trainer_payment_master tm
+      INNER JOIN trainer AS t
+        ON t.id = tm.trainer_id
+
+      LEFT JOIN users AS vu
+        ON vu.user_id = tm.verified_by
+
+      LEFT JOIN users AS cu
+        ON cu.user_id = tm.created_by
+
+      LEFT JOIN batch_master AS bm
+        ON bm.id = tm.batch_id
+
+      LEFT JOIN trainer_payment AS tp
+        ON tp.payment_master_id = tm.id
+
+      /* =================================================
+         THIS IS THE IMPORTANT CHANGE
+
+         Previously:
+         getQuery
+              +
+         separate studentsData query
+
+         Now:
+         trainer_payment_trans is directly joined here.
+         ================================================= */
+
+      LEFT JOIN trainer_payment_trans AS tpt
+        ON tpt.payment_master_id = tm.id
+
+      LEFT JOIN trainer_mapping AS tmap
+        ON tmap.id = tpt.trainer_mapping_id
+
+      LEFT JOIN customers AS c
+        ON c.id = tmap.customer_id
+
+      LEFT JOIN lead_master AS l
+        ON l.id = c.lead_id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = l.preferred_mode
+
+      LEFT JOIN technologies AS tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      /* Student payment summary */
+
+      LEFT JOIN (
+        SELECT
+          pt.payment_master_id,
+          SUM(pt.amount) AS paid_amount
+        FROM payment_trans AS pt
+        WHERE pt.payment_status IN (
+          'Verified',
+          'Verify Pending'
+        )
+        GROUP BY pt.payment_master_id
+      ) AS ps
+        ON ps.payment_master_id = pm.id
+
+      /* Latest Trainer Assigned */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Trainer Assigned'
+        GROUP BY ct.customer_id
+      ) AS latest_hr
+        ON latest_hr.customer_id = c.id
+
+      LEFT JOIN customer_track AS ht
+        ON ht.id = latest_hr.latest_id
+
+      LEFT JOIN users AS hu
+        ON hu.user_id = ht.updated_by
+
+      /* Latest Student Verified */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Student Verified'
+        GROUP BY ct.customer_id
+      ) AS latest_ra
+        ON latest_ra.customer_id = c.id
+
+      LEFT JOIN customer_track AS rt
+        ON rt.id = latest_ra.latest_id
+
+      LEFT JOIN users AS ra
+        ON ra.user_id = rt.updated_by
+
 
       WHERE 1 = 1
     `;
@@ -1199,6 +1389,25 @@ getPayments: async (
       countParams.push(trainer_id);
       statusParams.push(trainer_id);
     }
+
+   if (training_mode) {
+
+  getQuery += `
+    AND tpt.training_mode = ?
+  `;
+
+  countQuery += `
+    AND tpt.training_mode = ?
+  `;
+
+  statusCountQuery += `
+    AND tpt.training_mode = ?
+  `;
+
+  queryParams.push(training_mode);
+  countParams.push(training_mode);
+  statusParams.push(training_mode);
+}
 
     // =========================================================
     // PAGINATION
