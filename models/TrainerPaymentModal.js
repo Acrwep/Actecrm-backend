@@ -396,7 +396,7 @@ const trainerPaymentModal = {
     }
   },
 
-  getPayments: async (
+  getPayments1: async (
     start_date,
     end_date,
     status,
@@ -716,6 +716,554 @@ const trainerPaymentModal = {
       throw new Error(error.message);
     }
   },
+getPayments: async (
+  start_date,
+  end_date,
+  status,
+  trainer_id,
+  page,
+  limit,
+  type,
+) => {
+  try {
+    const queryParams = [];
+    const countParams = [];
+    const statusParams = [];
+
+    // =========================================================
+    // MAIN QUERY
+    // getQuery + studentsData are now ONE SINGLE QUERY
+    // =========================================================
+
+    let getQuery = `
+      SELECT
+
+        /* =========================
+           TRAINER PAYMENT MASTER
+        ========================= */
+
+        tm.id,
+        tm.bill_raisedate,
+        tm.trainer_id,
+
+        t.name AS trainer_name,
+        t.mobile AS trainer_mobile,
+        t.email AS trainer_email,
+
+        tm.request_amount,
+        tm.paid_amount,
+        tm.balance_amount,
+
+        CASE
+          WHEN tm.fully_paid_date IS NULL
+            THEN DATEDIFF(CURRENT_DATE, tm.bill_raisedate)
+          ELSE DATEDIFF(tm.fully_paid_date, tm.bill_raisedate)
+        END AS days_taken_topay,
+
+        tm.deadline_date,
+        tm.status,
+        tm.is_verified,
+        tm.verified_by,
+
+        vu.user_name AS verified_user,
+
+        tm.verified_date,
+        tm.fully_paid_date,
+        tm.created_by,
+
+        cu.user_name AS created_user,
+
+        tm.created_date,
+        tm.bank_id,
+        tm.commercial_type,
+        tm.feedback,
+        tm.batch_id,
+
+        bm.batch_number,
+
+        tm.updated_date,
+
+        tp.paid_date,
+
+        /* =========================
+           STUDENT DETAILS
+        ========================= */
+
+        tpt.id AS payment_trans_id,
+        tpt.payment_master_id,
+        tpt.trainer_mapping_id,
+
+        tmap.customer_id,
+
+        c.name AS customer_name,
+        c.email AS customer_email,
+        c.phone AS customer_phone,
+
+        tech.name AS course_name,
+
+        c.lead_id,
+
+        c.linkedin_review,
+
+        CASE
+          WHEN c.linkedin_review IS NOT NULL
+            AND c.linkedin_review != ''
+          THEN 1
+          ELSE 0
+        END AS is_linkedin,
+
+        c.google_review,
+
+        CASE
+          WHEN c.google_review IS NOT NULL
+            AND c.google_review != ''
+          THEN 1
+          ELSE 0
+        END AS is_google,
+
+        c.class_percentage,
+
+        CASE
+          WHEN c.class_percentage = 100
+          THEN 1
+          ELSE 0
+        END AS is_class_percentage,
+
+        c.is_acknowledged,
+        c.acknowledged_date,
+
+        tpt.place_of_supply,
+        tpt.place_of_sale,
+        tpt.commercial,
+        tpt.commercial_percentage,
+
+        tpt.attendance_status,
+        tpt.attendance_sheetlink,
+        tpt.attendance_screenshot,
+        tpt.screenshot,
+
+        COALESCE(pm.total_amount, 0) AS total_amount,
+
+        COALESCE(ps.paid_amount, 0) AS student_paid_amount,
+
+        (
+          COALESCE(pm.total_amount, 0)
+          - COALESCE(ps.paid_amount, 0)
+        ) AS student_balance_amount,
+
+        CASE
+          WHEN (
+            COALESCE(pm.total_amount, 0)
+            - COALESCE(ps.paid_amount, 0)
+          ) > 0
+          THEN 0
+          ELSE 1
+        END AS is_payment_cleared,
+
+        tpt.duration_in_hours,
+        tpt.training_mode,
+        tpt.branch_id,
+        tpt.study_material,
+        tpt.assessment,
+        tpt.placement_guidance,
+        tpt.hr_rating,
+        tpt.coordinator_rating,
+
+        ra.user_id AS ra_user_id,
+        ra.user_name AS ra_user_name,
+
+        hu.user_id AS hr_user_id,
+        hu.user_name AS hr_user_name,
+
+        cm.name AS mode_of_training,
+
+        c.is_linkedin_verified,
+        c.is_google_verified
+
+      FROM trainer_payment_master AS tm
+
+      INNER JOIN trainer AS t
+        ON t.id = tm.trainer_id
+
+      LEFT JOIN users AS vu
+        ON vu.user_id = tm.verified_by
+
+      LEFT JOIN users AS cu
+        ON cu.user_id = tm.created_by
+
+      LEFT JOIN batch_master AS bm
+        ON bm.id = tm.batch_id
+
+      LEFT JOIN trainer_payment AS tp
+        ON tp.payment_master_id = tm.id
+
+      /* =================================================
+         THIS IS THE IMPORTANT CHANGE
+
+         Previously:
+         getQuery
+              +
+         separate studentsData query
+
+         Now:
+         trainer_payment_trans is directly joined here.
+         ================================================= */
+
+      LEFT JOIN trainer_payment_trans AS tpt
+        ON tpt.payment_master_id = tm.id
+
+      LEFT JOIN trainer_mapping AS tmap
+        ON tmap.id = tpt.trainer_mapping_id
+
+      LEFT JOIN customers AS c
+        ON c.id = tmap.customer_id
+
+      LEFT JOIN lead_master AS l
+        ON l.id = c.lead_id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = l.preferred_mode
+
+      LEFT JOIN technologies AS tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      /* Student payment summary */
+
+      LEFT JOIN (
+        SELECT
+          pt.payment_master_id,
+          SUM(pt.amount) AS paid_amount
+        FROM payment_trans AS pt
+        WHERE pt.payment_status IN (
+          'Verified',
+          'Verify Pending'
+        )
+        GROUP BY pt.payment_master_id
+      ) AS ps
+        ON ps.payment_master_id = pm.id
+
+      /* Latest Trainer Assigned */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Trainer Assigned'
+        GROUP BY ct.customer_id
+      ) AS latest_hr
+        ON latest_hr.customer_id = c.id
+
+      LEFT JOIN customer_track AS ht
+        ON ht.id = latest_hr.latest_id
+
+      LEFT JOIN users AS hu
+        ON hu.user_id = ht.updated_by
+
+      /* Latest Student Verified */
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+        FROM customer_track AS ct
+        WHERE ct.status = 'Student Verified'
+        GROUP BY ct.customer_id
+      ) AS latest_ra
+        ON latest_ra.customer_id = c.id
+
+      LEFT JOIN customer_track AS rt
+        ON rt.id = latest_ra.latest_id
+
+      LEFT JOIN users AS ra
+        ON ra.user_id = rt.updated_by
+
+      WHERE 1 = 1
+    `;
+
+    // =========================================================
+    // COUNT QUERY
+    // =========================================================
+
+    let countQuery = `
+      SELECT
+        COUNT(tm.id) AS total
+
+      FROM trainer_payment_master AS tm
+
+      INNER JOIN trainer AS t
+        ON t.id = tm.trainer_id
+
+      LEFT JOIN users AS vu
+        ON vu.user_id = tm.verified_by
+
+      LEFT JOIN users AS cu
+        ON cu.user_id = tm.created_by
+
+      WHERE 1 = 1
+    `;
+
+    // =========================================================
+    // STATUS COUNT QUERY
+    // =========================================================
+
+    let statusCountQuery = `
+      SELECT
+
+        COUNT(*) AS total,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status IN ('Link Sent', 'Rejected')
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS link_sent,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status IN ('Requested', 'Rejected')
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS requested,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status = 'Awaiting Approval'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS awaiting_approval,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status = 'Awaiting Finance'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS awaiting_finance,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status = 'Completed'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS completed,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status IN (
+                'Payment Rejected',
+                'Approval Rejected'
+              )
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS payment_rejected,
+
+        IFNULL(
+          SUM(
+            CASE
+              WHEN status = 'Paid'
+              THEN 1
+              ELSE 0
+            END
+          ),
+          0
+        ) AS paid
+
+      FROM trainer_payment_master
+
+      WHERE 1 = 1
+    `;
+
+    // =========================================================
+    // DATE FILTER
+    // =========================================================
+
+    if (start_date && end_date) {
+
+      if (type === "Deadline") {
+
+        getQuery += `
+          AND tm.deadline_date BETWEEN ? AND ?
+        `;
+
+        countQuery += `
+          AND tm.deadline_date BETWEEN ? AND ?
+        `;
+
+        statusCountQuery += `
+          AND deadline_date BETWEEN ? AND ?
+        `;
+
+      } else {
+
+        getQuery += `
+          AND tm.bill_raisedate BETWEEN ? AND ?
+        `;
+
+        countQuery += `
+          AND tm.bill_raisedate BETWEEN ? AND ?
+        `;
+
+        statusCountQuery += `
+          AND bill_raisedate BETWEEN ? AND ?
+        `;
+      }
+
+      queryParams.push(start_date, end_date);
+      countParams.push(start_date, end_date);
+      statusParams.push(start_date, end_date);
+    }
+
+    // =========================================================
+    // STATUS FILTER
+    // =========================================================
+
+    if (status) {
+
+      if (status === "Payment Rejected") {
+
+        getQuery += `
+          AND tm.status IN (
+            'Payment Rejected',
+            'Approval Rejected'
+          )
+        `;
+
+        countQuery += `
+          AND tm.status IN (
+            'Payment Rejected',
+            'Approval Rejected'
+          )
+        `;
+
+      } else {
+
+        getQuery += `
+          AND tm.status = ?
+        `;
+
+        countQuery += `
+          AND tm.status = ?
+        `;
+
+        queryParams.push(status);
+        countParams.push(status);
+      }
+    }
+
+    // =========================================================
+    // TRAINER FILTER
+    // =========================================================
+
+    if (trainer_id) {
+
+      getQuery += `
+        AND tm.trainer_id = ?
+      `;
+
+      countQuery += `
+        AND tm.trainer_id = ?
+      `;
+
+      statusCountQuery += `
+        AND trainer_id = ?
+      `;
+
+      queryParams.push(trainer_id);
+      countParams.push(trainer_id);
+      statusParams.push(trainer_id);
+    }
+
+    // =========================================================
+    // PAGINATION
+    // =========================================================
+
+    const pageNumber = parseInt(page, 10) || 1;
+    const limitNumber = parseInt(limit, 10) || 10;
+
+    const offset = (pageNumber - 1) * limitNumber;
+
+    getQuery += `
+      ORDER BY
+        tm.bill_raisedate DESC,
+        tm.id DESC
+
+      LIMIT ? OFFSET ?
+    `;
+
+    queryParams.push(limitNumber, offset);
+
+    // =========================================================
+    // EXECUTE
+    // =========================================================
+
+    const [
+      [countResult],
+      [statusResult],
+      [result],
+    ] = await Promise.all([
+      pool.query(countQuery, countParams),
+      pool.query(statusCountQuery, statusParams),
+      pool.query(getQuery, queryParams),
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    // =========================================================
+    // IMPORTANT
+    //
+    // NO:
+    // ids
+    // students Map
+    // studentsData query
+    // students array
+    //
+    // result itself already contains student information.
+    // =========================================================
+
+    return {
+      data: result,
+
+      statusCount: statusResult[0],
+
+      pagination: {
+        total: parseInt(total),
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    };
+
+  } catch (error) {
+    throw new Error(error.message);
+  }
+},
 
   getPaymentById: async (payment_id) => {
     try {
