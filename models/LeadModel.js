@@ -3996,6 +3996,7 @@ WHERE ${filterCondition}`;
     lead_action,
     sub_source_id,
     domain,
+    region,
   ) => {
     try {
       const queryParams = [];
@@ -4307,12 +4308,25 @@ WHERE ${filterCondition}`;
         }
       }
 
+      if (region === CONSTANT_STATUS.ONLINE) {
+        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.ONLINE}'`;
+        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.ONLINE}'`;
+      } else if (region === CONSTANT_STATUS.CHENNAI) {
+        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.CHENNAI}'`;
+        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.CHENNAI}'`;
+      } else if (region === CONSTANT_STATUS.BANGALORE) {
+        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.BANGALORE}'`;
+        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.BANGALORE}'`;
+      }
+
       // Handle user_ids parameter for both queries
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
 
-          getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          if (bucket != "Open Leads") {
+            getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          }
           countQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
 
