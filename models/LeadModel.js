@@ -4309,14 +4309,14 @@ WHERE ${filterCondition}`;
       }
 
       if (region === CONSTANT_STATUS.ONLINE) {
-        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.ONLINE}'`;
-        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.ONLINE}'`;
+        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'`;
+        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'`;
       } else if (region === CONSTANT_STATUS.CHENNAI) {
-        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.CHENNAI}'`;
-        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.CHENNAI}'`;
+        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'`;
+        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'`;
       } else if (region === CONSTANT_STATUS.BANGALORE) {
-        getQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.BANGALORE}'`;
-        countQuery += ` AND l.assigned_to LIKE '${CONSTANT_STATUS.BANGALORE}'`;
+        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'`;
+        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'`;
       }
 
       // Handle user_ids parameter for both queries
