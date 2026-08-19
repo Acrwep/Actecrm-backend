@@ -1087,16 +1087,13 @@ const leadReEntry = async (request, response) => {
 
 const getLeadsV1 = async (request, response) => {
   const {
-    name,
-    email,
-    phone,
+    search_filter,
     start_date,
     end_date,
     lead_status_id,
     user_ids,
     page,
     limit,
-    course,
     lead_type,
     bucket,
     lead_action,
@@ -1107,16 +1104,13 @@ const getLeadsV1 = async (request, response) => {
   } = request.body;
   try {
     const leads = await LeadModel.getLeadsV1(
-      name,
-      email,
-      phone,
+      search_filter,
       start_date,
       end_date,
       lead_status_id,
       user_ids,
       page,
       limit,
-      course,
       lead_type,
       bucket,
       lead_action,

@@ -3981,16 +3981,13 @@ WHERE ${filterCondition}`;
   },
 
   getLeadsV1: async (
-    name,
-    email,
-    phone,
+    search_filter,
     start_date,
     end_date,
     lead_status_id,
     user_ids,
     page,
     limit,
-    course,
     lead_type,
     bucket,
     lead_action,
@@ -4362,32 +4359,19 @@ WHERE ${filterCondition}`;
         }
       }
 
-      if (name) {
-        getQuery += ` AND l.name LIKE ?`;
-        countQuery += ` AND l.name LIKE ?`;
-        queryParams.push(`%${name}%`);
-        countQueryParams.push(`%${name}%`);
-      }
-
-      if (email) {
-        getQuery += ` AND l.email LIKE ?`;
-        countQuery += ` AND l.email LIKE ?`;
-        queryParams.push(`%${email}%`);
-        countQueryParams.push(`%${email}%`);
-      }
-
-      if (phone) {
-        getQuery += ` AND l.phone LIKE ?`;
-        countQuery += ` AND l.phone LIKE ?`;
-        queryParams.push(`%${phone}%`);
-        countQueryParams.push(`%${phone}%`);
-      }
-
-      if (course) {
-        getQuery += ` AND pt.name LIKE ?`;
-        countQuery += ` AND pt.name LIKE ?`;
-        queryParams.push(`%${course}%`);
-        countQueryParams.push(`%${course}%`);
+      if (search_filter) {
+        getQuery += ` AND (
+          l.name LIKE '%${search_filter}%' OR 
+          l.phone LIKE '%${search_filter}%' OR 
+          l.email LIKE '%${search_filter}%' OR 
+          pt.name LIKE '%${search_filter}%'
+        )`;
+        countQuery += ` AND (
+          l.name LIKE '%${search_filter}%' OR 
+          l.phone LIKE '%${search_filter}%' OR 
+          l.email LIKE '%${search_filter}%' OR 
+          pt.name LIKE '%${search_filter}%'
+        )`;
       }
 
       if (lead_type) {
