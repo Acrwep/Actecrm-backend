@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const { CONSTANT_STATUS } = require("../constants/constant");
 const EmailModel = require("./EmailModel");
 
 const trainerPaymentModal = {
@@ -722,6 +723,10 @@ getPayments: async (
   status,
   trainer_id,
   training_mode,
+  commercial_type,
+  region_id,
+  search_filter,
+  branch_id,
   page,
   limit,
   type,
@@ -738,19 +743,19 @@ getPayments: async (
 
     let getQuery = `
       SELECT
-
+                    
         /* =========================
            TRAINER PAYMENT MASTER
         ========================= */
 
         tm.id,
         tm.bill_raisedate,
-        tm.trainer_id,
+        tm.trainer_id,          
 
         t.name AS trainer_name,
         t.mobile AS trainer_mobile,
         t.email AS trainer_email,
-
+                                      
         tm.request_amount,
         tm.paid_amount,
         tm.balance_amount,
@@ -799,6 +804,7 @@ getPayments: async (
         c.name AS customer_name,
         c.email AS customer_email,
         c.phone AS customer_phone,
+        c.whatsapp as customer_whatsapp,
 
         tech.name AS course_name,
 
@@ -863,7 +869,7 @@ getPayments: async (
 
         tpt.duration_in_hours,
         tpt.training_mode,
-        tpt.branch_id,
+        c.branch_id,
         tpt.study_material,
         tpt.assessment,
         tpt.placement_guidance,
@@ -1184,7 +1190,88 @@ getPayments: async (
             END
           ),
           0
-        ) AS paid
+        ) AS paid,
+
+        IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.CHENNAI}'
+      THEN 1
+      ELSE 0
+    END
+  ),
+  0
+) AS chennai_region,
+
+IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.BANGALORE}'
+      THEN 1
+      ELSE 0
+    END
+  ),
+  0
+) AS bangalore_region,
+
+IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.ONLINE}'
+      THEN 1
+      ELSE 0
+    END
+  ),
+  0
+) AS hub_region,
+
+IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.CHENNAI}'
+      THEN
+        CASE
+          WHEN tm.status = 'Paid'
+          THEN COALESCE(ps.paid_amount, 0)
+          ELSE COALESCE(tm.request_amount, 0)
+        END
+      ELSE 0
+    END
+  ),
+  0
+) AS chennai_region_amount,
+
+IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.BANGALORE}'
+      THEN
+        CASE
+          WHEN tm.status = 'Paid'
+          THEN COALESCE(ps.paid_amount, 0)
+          ELSE COALESCE(tm.request_amount, 0)
+        END
+      ELSE 0
+    END
+  ),
+  0
+) AS bangalore_region_amount,
+
+IFNULL(
+  SUM(
+    CASE
+      WHEN re.name = '${CONSTANT_STATUS.ONLINE}'
+      THEN
+        CASE
+          WHEN tm.status = 'Paid'
+          THEN COALESCE(ps.paid_amount, 0)
+          ELSE COALESCE(tm.request_amount, 0)
+        END
+      ELSE 0
+    END
+  ),
+  0
+) AS hub_region_amount
 
       FROM trainer_payment_master tm
       INNER JOIN trainer AS t
@@ -1225,6 +1312,11 @@ getPayments: async (
 
       LEFT JOIN lead_master AS l
         ON l.id = c.lead_id
+  LEFT JOIN branches AS br
+  ON br.id = l.branch_id
+
+LEFT JOIN region AS re
+  ON re.id = br.region_id
 
       LEFT JOIN class_mode AS cm
         ON cm.id = l.preferred_mode
@@ -1382,7 +1474,7 @@ getPayments: async (
       `;
 
       statusCountQuery += `
-        AND trainer_id = ?
+        AND tm.trainer_id = ?
       `;
 
       queryParams.push(trainer_id);
@@ -1409,6 +1501,186 @@ getPayments: async (
   statusParams.push(training_mode);
 }
 
+ if (commercial_type) {
+
+  getQuery += `
+    AND tm.commercial_type = ?
+  `;
+
+  countQuery += `
+    AND tm.commercial_type = ?
+  `;
+
+  statusCountQuery += `
+    AND tm.commercial_type = ?
+  `;
+
+  queryParams.push(commercial_type);
+  countParams.push(commercial_type);
+  statusParams.push(commercial_type);
+}
+
+if (search_filter) {
+  const searchStr = `%${search_filter}%`;
+
+  // =========================================================
+  // MAIN QUERY
+  // =========================================================
+  getQuery += `
+    AND (
+      c.name LIKE ?
+      OR c.phone LIKE ?
+      OR tech.name LIKE ?
+      OR c.email LIKE ?
+      or c.whatsapp LIKE ?
+    )
+  `;
+
+  queryParams.push(
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr
+  );
+
+  // =========================================================
+  // COUNT QUERY
+  // =========================================================
+  countQuery += `
+    AND (
+      c.name LIKE ?
+      OR c.phone LIKE ?
+      OR tech.name LIKE ?
+      OR c.email LIKE ?
+      or c.whatsapp LIKE ?
+    )
+  `;
+
+  countParams.push(
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr
+  );
+
+  // =========================================================
+  // STATUS QUERY
+  // Only use this if statusQuery contains these conditions
+  // =========================================================
+  statusCountQuery += `
+    AND (
+      c.name LIKE ?
+      OR c.phone LIKE ?
+      OR tech.name LIKE ?
+      OR c.email LIKE ?
+      or c.whatsapp LIKE ?
+    )
+  `;
+
+  statusParams.push(
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr,
+    searchStr
+  );
+}
+if (region_id) {
+
+  getQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM region AS re
+      INNER JOIN branches AS b
+        ON b.region_id = re.id
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      INNER JOIN users AS u
+        ON u.user_id = l2.assigned_to
+      WHERE l2.id = c.lead_id
+        AND re.id = ?
+        AND l2.assigned_to = u.user_id
+    )
+  `;
+
+  countQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM region AS re
+      INNER JOIN branches AS b
+        ON b.region_id = re.id
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      INNER JOIN users AS u
+        ON u.user_id = l2.assigned_to
+      WHERE l2.id = c.lead_id
+        AND re.id = ?
+        AND l2.assigned_to = u.user_id
+    )
+  `;
+
+  statusCountQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM region AS re
+      INNER JOIN branches AS b
+        ON b.region_id = re.id
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      INNER JOIN users AS u
+        ON u.user_id = l2.assigned_to
+      WHERE l2.id = c.lead_id
+        AND re.id = ?
+        AND l2.assigned_to = u.user_id
+    )
+  `;
+
+  queryParams.push(region_id);
+  countParams.push(region_id);
+  statusParams.push(region_id);
+}
+if (branch_id) {
+
+  getQuery += `
+   
+    AND EXISTS (
+      SELECT 1
+      FROM branches AS b
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      WHERE l2.id = c.lead_id
+        AND b.id = ?
+    )
+  `;
+
+  countQuery += `
+    AND EXISTS (
+       SELECT 1
+      FROM branches AS b
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      WHERE l2.id = c.lead_id
+        AND b.id = ?
+    )
+  `;
+
+  statusCountQuery += `
+    AND EXISTS (
+       SELECT 1
+      FROM branches AS b
+      INNER JOIN lead_master AS l2
+        ON l2.branch_id = b.id
+      WHERE l2.id = c.lead_id
+        AND b.id = ?
+    )
+  `;
+
+  queryParams.push(branch_id);
+  countParams.push(branch_id);
+  statusParams.push(branch_id);
+}
     // =========================================================
     // PAGINATION
     // =========================================================

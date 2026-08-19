@@ -95,7 +95,9 @@ const requestPaymentV1 = async (req, res) => {
 };
 
 const getPayments = async (req, res) => {
-  const { start_date, end_date, status, trainer_id, training_mode, page, limit, type } =
+  const { start_date, end_date, status, trainer_id, training_mode, commercial_type,
+  region_id,
+  search_filter, branch_id, page, limit, type } =
     req.body;
   try {
     const result = await trainerPaymentModal.getPayments(
@@ -104,6 +106,10 @@ const getPayments = async (req, res) => {
       status,
       trainer_id,
       training_mode,
+      commercial_type,
+      region_id,
+      search_filter,
+      branch_id,
       page,
       limit,
       type,
