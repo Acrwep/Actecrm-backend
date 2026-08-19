@@ -4326,6 +4326,8 @@ WHERE ${filterCondition}`;
 
           if (bucket != "Open Leads") {
             getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          } else if (!bucket) {
+            getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           }
           countQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
