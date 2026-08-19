@@ -4927,6 +4927,9 @@ WHERE ${filterCondition}`;
     updated_by,
     assigned_to,
     next_follow_up_date,
+    assigned_manager,
+    branch_manager_id,
+    assigned_branch_id,
   ) => {
     try {
       const [getLead] = await pool.query(
@@ -4945,7 +4948,7 @@ WHERE ${filterCondition}`;
       const newAssignedCount = getLead[0].assigned_count + 1;
 
       await pool.query(
-        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ? WHERE id = ?`,
+        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ? WHERE id = ?`,
         [
           assigned_to,
           newAssignedCount,
@@ -4953,6 +4956,9 @@ WHERE ${filterCondition}`;
           next_follow_up_date,
           assigned_to,
           updated_date,
+          assigned_manager,
+          branch_manager_id,
+          assigned_branch_id,
           lead_id,
         ],
       );

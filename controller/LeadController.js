@@ -1275,6 +1275,9 @@ const leadSelfAssign = async (request, response) => {
     updated_by,
     assigned_to,
     next_follow_up_date,
+    assigned_manager,
+    branch_manager_id,
+    assigned_branch_id,
   } = request.body;
   try {
     const result = await LeadModel.leadSelfAssign(
@@ -1283,6 +1286,9 @@ const leadSelfAssign = async (request, response) => {
       updated_by,
       assigned_to,
       next_follow_up_date,
+      assigned_manager,
+      branch_manager_id,
+      assigned_branch_id,
     );
     return response.status(200).send({
       message: "Lead updated successfully",
