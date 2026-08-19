@@ -1103,6 +1103,7 @@ const getLeadsV1 = async (request, response) => {
     sub_source_id,
     domain,
     region,
+    branch,
   } = request.body;
   try {
     const leads = await LeadModel.getLeadsV1(
@@ -1122,6 +1123,7 @@ const getLeadsV1 = async (request, response) => {
       sub_source_id,
       domain,
       region,
+      branch,
     );
     return response.status(200).send({
       message: "Leads fetched successfully",

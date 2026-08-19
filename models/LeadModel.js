@@ -3997,6 +3997,7 @@ WHERE ${filterCondition}`;
     sub_source_id,
     domain,
     region,
+    branch,
   ) => {
     try {
       const queryParams = [];
@@ -4032,7 +4033,7 @@ WHERE ${filterCondition}`;
                         l.expected_join_date,
                         l.branch_id,
                         b.name AS branch_name,
-                        braan.name as 'place_of_sale_name',
+                        aub.name as 'place_of_sale_name',
                         l.batch_track_id,
                         bt.name AS batch_track,
                         l.comments,
@@ -4062,12 +4063,12 @@ WHERE ${filterCondition}`;
                         lsm.total_score AS lead_score,
                         IFNULL(max_lh.completed_followup_count, 0) AS completed_followup_count,
                         l.assigned_branch_id
-                    FROM
-                        lead_master AS l
+                    FROM lead_master AS l
                     LEFT JOIN lead_score_master AS lsm ON lsm.lead_id = l.id
                     LEFT JOIN users AS u ON u.user_id = l.user_id
-                  
                     LEFT JOIN users AS au ON au.user_id = l.assigned_to
+                    LEFT JOIN branches AS aub ON aub.id = au.branch_id
+                    LEFT JOIN region AS aur ON aur.id = aub.region_id
                     LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
                     LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
                     LEFT JOIN lead_type AS lt ON lt.id = l.lead_type_id
@@ -4087,42 +4088,35 @@ WHERE ${filterCondition}`;
                     ) AS max_lh ON max_lh.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
-                    LEFT JOIN communication_master AS cm ON
-                      luh.communication_status = cm.id
-                    LEFT JOIN contact_mode AS cm1 ON
-                      luh.contact_mode = cm1.id
-                    LEFT JOIN lead_action AS ula ON
-                    	ula.id = luh.lead_action_id
+                    LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
+                    LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
+                    LEFT JOIN lead_action AS ula ON luh.lead_action_id = ula.id
                     LEFT JOIN users AS m ON m.user_id = l.assigned_manager
                     LEFT JOIN users AS bm ON bm.user_id = l.branch_manager_id
                     LEFT JOIN lead_sub_category AS lss ON lss.id = l.lead_sub_source
                     LEFT JOIN users AS rn ON rn.user_id = l.referral_name
                     LEFT JOIN class_mode AS cmo ON cmo.id = l.preferred_mode
                     LEFT JOIN batch_track AS ba ON ba.id = l.preferred_batch
-                     LEFT JOIN users AS useer ON useer.user_id = l.assigned_to
-                     LEFT JOIN branches AS braan ON braan.id = useer.branch_id
                     WHERE 1 = 1`;
 
       const countQueryParams = [];
       let countQuery = `SELECT COUNT(*) as total FROM lead_master AS l
-                    LEFT JOIN technologies AS pt ON
-                      pt.id = l.primary_course_id
-                    LEFT JOIN customers AS c ON
-                      c.lead_id = l.id
+                    LEFT JOIN users AS au ON au.user_id = l.assigned_to
+                    LEFT JOIN branches AS aub ON aub.id = au.branch_id
+                    LEFT JOIN region AS aur ON aur.id = aub.region_id
+                    LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+                    LEFT JOIN customers AS c ON c.lead_id = l.id
                     LEFT JOIN (
                       SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
-                      FROM lead_follow_up_history 
+                      FROM lead_follow_up_history
                       GROUP BY lead_id
                     ) AS max_lh ON max_lh.lead_id = l.id
                     LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
                     LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
                     LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
-                    LEFT JOIN communication_master AS cm ON
-                      luh.communication_status = cm.id
-                    LEFT JOIN contact_mode AS cm1 ON
-                      luh.contact_mode = cm1.id
-                    LEFT JOIN lead_status AS ls ON
-                      ls.id = l.lead_status_id
+                    LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
+                    LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
+                    LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
                     WHERE 1 = 1`;
 
       const bucketCountQueryParams = [];
@@ -4227,6 +4221,9 @@ WHERE ${filterCondition}`;
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
         FROM lead_master AS l
+        LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN (
           SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
@@ -4236,10 +4233,22 @@ WHERE ${filterCondition}`;
         LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
         LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
         LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
-        LEFT JOIN communication_master AS cm ON
-          luh.communication_status = cm.id
-        LEFT JOIN contact_mode AS cm1 ON
-          luh.contact_mode = cm1.id
+        LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
+        LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        WHERE 1 = 1`;
+
+      const openLeadsCountQueryParams = [];
+      if (start_date && end_date) {
+        openLeadsCountQueryParams.push(start_date, end_date);
+      }
+      let openLeadsCountQuery = `SELECT 
+          IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads
+        FROM lead_master AS l
+        LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+        LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         WHERE 1 = 1`;
 
@@ -4308,15 +4317,26 @@ WHERE ${filterCondition}`;
         }
       }
 
-      if (region === CONSTANT_STATUS.ONLINE) {
-        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'`;
-        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'`;
-      } else if (region === CONSTANT_STATUS.CHENNAI) {
-        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'`;
-        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'`;
-      } else if (region === CONSTANT_STATUS.BANGALORE) {
-        getQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'`;
-        countQuery += ` AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'`;
+      if (region) {
+        getQuery += ` AND aur.id = ?`;
+        countQuery += ` AND aur.id = ?`;
+        bucketCountQuery += ` AND aur.id = ?`;
+        openLeadsCountQuery += ` AND aur.id = ?`;
+        queryParams.push(region);
+        countQueryParams.push(region);
+        bucketCountQueryParams.push(region);
+        openLeadsCountQueryParams.push(region);
+      }
+
+      if (branch) {
+        getQuery += ` AND aub.id = ?`;
+        countQuery += ` AND aub.id = ?`;
+        bucketCountQuery += ` AND aub.id = ?`;
+        openLeadsCountQuery += ` AND aub.id = ?`;
+        queryParams.push(branch);
+        countQueryParams.push(branch);
+        bucketCountQueryParams.push(branch);
+        openLeadsCountQueryParams.push(branch);
       }
 
       // Handle user_ids parameter for both queries
@@ -4324,24 +4344,20 @@ WHERE ${filterCondition}`;
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
 
-          if (bucket != "Open Leads") {
-            getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          } else if (!bucket) {
-            getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          }
+          getQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           countQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-
           queryParams.push(...user_ids);
           countQueryParams.push(...user_ids);
+
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           bucketCountQueryParams.push(...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           countQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-          bucketCountQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
-
           queryParams.push(user_ids);
           countQueryParams.push(user_ids);
+
+          bucketCountQuery += ` AND l.assigned_to = ? AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           bucketCountQueryParams.push(user_ids);
         }
       }
@@ -4443,6 +4459,9 @@ WHERE ${filterCondition}`;
           start_date,
           end_date,
         );
+
+        openLeadsCountQuery += ` AND ${dateFilterAll}`;
+        openLeadsCountQueryParams.push(start_date, end_date);
       }
 
       // Apply pagination to main query
@@ -4459,10 +4478,16 @@ WHERE ${filterCondition}`;
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [[countResult], [result], [bucketCountResult]] = await Promise.all([
+      const [
+        [countResult],
+        [result],
+        [bucketCountResult],
+        [openLeadsCountResult],
+      ] = await Promise.all([
         pool.query(countQuery, countQueryParams),
         pool.query(getQuery, queryParams),
         pool.query(bucketCountQuery, bucketCountQueryParams),
+        pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
       ]);
 
       const total = countResult[0]?.total || 0;
@@ -4482,7 +4507,7 @@ WHERE ${filterCondition}`;
           sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
           followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
-          open_leads: parseInt(bucketCountResult[0]?.open_leads || 0),
+          open_leads: parseInt(openLeadsCountResult[0]?.open_leads || 0),
         },
         valid_lead_actions: {
           validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
