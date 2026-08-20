@@ -4790,6 +4790,20 @@ WHERE ${filterCondition}`;
           `UPDATE lead_master SET consigned_id = ? WHERE id = ?`,
           [getLead[0].user_id, lead_id],
         );
+      } else {
+        const [latestFollowup] = await pool.query(
+          `SELECT lf.id, la.name as lead_action FROM lead_follow_up_history AS lf LEFT JOIN lead_action AS la ON la.id = lf.lead_action_id WHERE lf.lead_id = ? ORDER BY lf.id DESC LIMIT 1`,
+          [lead_id],
+        );
+
+        if (latestFollowup && latestFollowup.length > 0) {
+          if (latestFollowup[0].lead_action != "Not Interested") {
+            await pool.query(
+              `UPDATE lead_follow_up_history SET next_follow_up_date = CURRENT_DATE() WHERE id = ?`,
+              [latestFollowup[0].id],
+            );
+          }
+        }
       }
 
       const [getUser] = await pool.query(
@@ -4992,8 +5006,12 @@ WHERE ${filterCondition}`;
 
       const newAssignedCount = getLead[0].assigned_count + 1;
 
+      const [leadStatus] = await pool.query(
+        `SELECT id, name FROM lead_status WHERE name = 'Hot'`,
+      );
+
       await pool.query(
-        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 0, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ?, is_self_assigned = 1 WHERE id = ?`,
+        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 0, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ?, is_self_assigned = 1, lead_status_id = ? WHERE id = ?`,
         [
           assigned_to,
           newAssignedCount,
@@ -5004,6 +5022,7 @@ WHERE ${filterCondition}`;
           assigned_manager,
           branch_manager_id,
           assigned_branch_id,
+          leadStatus[0].id,
           lead_id,
         ],
       );
@@ -5023,20 +5042,6 @@ WHERE ${filterCondition}`;
           updated_by,
         ],
       );
-
-      const [latestFollowup] = await pool.query(
-        `SELECT lf.id, la.name as lead_action FROM lead_follow_up_history AS lf LEFT JOIN lead_action AS la ON la.id = lf.lead_action_id WHERE lf.lead_id = ? ORDER BY lf.id DESC LIMIT 1`,
-        [lead_id],
-      );
-
-      if (latestFollowup && latestFollowup.length > 0) {
-        if (latestFollowup[0].lead_action != "Not Interested") {
-          await pool.query(
-            `UPDATE lead_follow_up_history SET next_follow_up_date = ? WHERE id = ?`,
-            [next_follow_up_date, latestFollowup[0].id],
-          );
-        }
-      }
 
       return true;
     } catch (error) {
