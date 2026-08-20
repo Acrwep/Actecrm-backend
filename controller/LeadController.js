@@ -1209,12 +1209,14 @@ const getLeadById = async (request, response) => {
 };
 
 const acknowledgeLead = async (request, response) => {
-  const { lead_id, acknowledged_by, acknowledged_date } = request.body;
+  const { lead_id, acknowledged_by, acknowledged_date, is_self_assigned } =
+    request.body;
   try {
     const result = await LeadModel.acknowledgeLead(
       lead_id,
       acknowledged_by,
       acknowledged_date,
+      is_self_assigned,
     );
     return response.status(200).send({
       message: "Lead acknowledged successfully",

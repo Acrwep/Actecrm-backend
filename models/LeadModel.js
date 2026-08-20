@@ -3510,7 +3510,8 @@ WHERE ${filterCondition}`;
                         1 AS lead_entry_type,
                         1 AS is_acknowledged,
                         '' AS assigned_branch_name,
-                        0 AS assigned_branch_id
+                        0 AS assigned_branch_id,
+                        0 AS is_self_assigned
                     FROM
                         website_leads AS l
                     LEFT JOIN users AS u ON
@@ -3551,7 +3552,8 @@ WHERE ${filterCondition}`;
                     0 AS lead_entry_type,
                     l.is_acknowledged,
                     b.name AS assigned_branch_name,
-                    l.assigned_branch_id
+                    l.assigned_branch_id,
+                    l.is_self_assigned
                 FROM
                     lead_master AS l
                 LEFT JOIN technologies AS t ON
@@ -3676,7 +3678,8 @@ WHERE ${filterCondition}`;
                     b.name AS assigned_branch_name,
                     l.assigned_branch_id,
                     CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS converted,
-                    c.id AS customer_id
+                    c.id AS customer_id,
+                    l.is_self_assigned
                 FROM
                     lead_master AS l
                 LEFT JOIN customers AS c ON
@@ -4196,8 +4199,11 @@ WHERE ${filterCondition}`;
 
 
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
+
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
+
           IFNULL(SUM(CASE WHEN (ls.name = 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          
           IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
 
 
@@ -4753,7 +4759,12 @@ WHERE ${filterCondition}`;
     }
   },
 
-  acknowledgeLead: async (lead_id, acknowledged_by, acknowledged_date) => {
+  acknowledgeLead: async (
+    lead_id,
+    acknowledged_by,
+    acknowledged_date,
+    is_self_assigned,
+  ) => {
     try {
       const [isAcknowledged] = await pool.query(
         `SELECT is_acknowledged FROM lead_master WHERE id = ?`,
@@ -4769,15 +4780,17 @@ WHERE ${filterCondition}`;
         [acknowledged_by, acknowledged_date, lead_id],
       );
 
-      const [getLead] = await pool.query(
-        `SELECT assigned_to, user_id FROM lead_master WHERE id = ?`,
-        [lead_id],
-      );
+      if (!is_self_assigned) {
+        const [getLead] = await pool.query(
+          `SELECT user_id FROM lead_master WHERE id = ?`,
+          [lead_id],
+        );
 
-      await pool.query(`UPDATE lead_master SET consigned_id = ? WHERE id = ?`, [
-        getLead[0].user_id,
-        lead_id,
-      ]);
+        await pool.query(
+          `UPDATE lead_master SET consigned_id = ? WHERE id = ?`,
+          [getLead[0].user_id, lead_id],
+        );
+      }
 
       const [getUser] = await pool.query(
         `SELECT user_name FROM users WHERE user_id = ?`,
@@ -4980,14 +4993,14 @@ WHERE ${filterCondition}`;
       const newAssignedCount = getLead[0].assigned_count + 1;
 
       await pool.query(
-        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ? WHERE id = ?`,
+        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 0, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ?, is_self_assigned = 1 WHERE id = ?`,
         [
           assigned_to,
           newAssignedCount,
           updated_date,
           next_follow_up_date,
-          assigned_to,
-          updated_date,
+          null,
+          null,
           assigned_manager,
           branch_manager_id,
           assigned_branch_id,
