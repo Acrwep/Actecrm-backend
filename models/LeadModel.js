@@ -4315,8 +4315,8 @@ WHERE ${filterCondition}`;
         }
 
         if (bucket === "Open Leads") {
-          getQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL`;
-          countQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL`;
+          getQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND l.is_self_assigned = 0`;
+          countQuery += ` AND ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND l.is_self_assigned = 0`;
         }
       }
 
@@ -4776,7 +4776,7 @@ WHERE ${filterCondition}`;
       }
 
       const [result] = await pool.query(
-        `UPDATE lead_master SET is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ? WHERE id = ?`,
+        `UPDATE lead_master SET is_acknowledged = 1, acknowledged_by = ?, acknowledged_date = ?, is_self_assigned = 0 WHERE id = ?`,
         [acknowledged_by, acknowledged_date, lead_id],
       );
 
@@ -5006,12 +5006,12 @@ WHERE ${filterCondition}`;
 
       const newAssignedCount = getLead[0].assigned_count + 1;
 
-      const [leadStatus] = await pool.query(
-        `SELECT id, name FROM lead_status WHERE name = 'Hot'`,
-      );
+      // const [leadStatus] = await pool.query(
+      //   `SELECT id, name FROM lead_status WHERE name = 'Hot'`,
+      // );
 
       await pool.query(
-        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 0, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ?, is_self_assigned = 1, lead_status_id = ? WHERE id = ?`,
+        `UPDATE lead_master SET assigned_to = ?, assigned_count = ?, is_reassigned = 1, re_assigned_date = ?, next_follow_up_date = ?, is_acknowledged = 0, acknowledged_by = ?, acknowledged_date = ?, assigned_manager = ?, branch_manager_id = ?, assigned_branch_id = ?, is_self_assigned = 1 WHERE id = ?`,
         [
           assigned_to,
           newAssignedCount,
@@ -5022,7 +5022,7 @@ WHERE ${filterCondition}`;
           assigned_manager,
           branch_manager_id,
           assigned_branch_id,
-          leadStatus[0].id,
+          // leadStatus[0].id,
           lead_id,
         ],
       );
