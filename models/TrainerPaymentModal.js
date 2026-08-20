@@ -944,7 +944,7 @@ const trainerPaymentModal = {
       if (trainer_id) {
         getQuery += ` AND tpm.trainer_id = ?`;
         countQuery += ` AND tpm.trainer_id = ?`;
-        statusCountQuery += ` AND trainer_id = ?`;
+        statusCountQuery += ` AND tpm.trainer_id = ?`;
         queryParams.push(trainer_id);
         countParams.push(trainer_id);
         statusParams.push(trainer_id);
