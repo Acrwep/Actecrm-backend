@@ -717,31 +717,337 @@ const trainerPaymentModal = {
       throw new Error(error.message);
     }
   },
-getPayments: async (
-  start_date,
-  end_date,
-  status,
-  trainer_id,
-  training_mode,
-  commercial_type,
-  region_id,
-  search_filter,
-  branch_id,
-  page,
-  limit,
-  type,
-) => {
-  try {
-    const queryParams = [];
-    const countParams = [];
-    const statusParams = [];
 
-    // =========================================================
-    // MAIN QUERY
-    // getQuery + studentsData are now ONE SINGLE QUERY
-    // =========================================================
+  getPaymentsV1: async (
+    start_date,
+    end_date,
+    status,
+    trainer_id,
+    training_mode,
+    commercial_type,
+    region_id,
+    search_filter,
+    branch_id,
+    page,
+    limit,
+    type,
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const statusParams = [];
+      let getQuery = `SELECT
+                        tpm.id,
+                        tpm.bill_raisedate,
+                        tpm.trainer_id,
+                        t.name AS trainer_name,
+                        t.mobile AS trainer_mobile,
+                        t.email AS trainer_email,
+                        tpm.request_amount,
+                        tpm.paid_amount,
+                        tpm.balance_amount,
+                        CASE
+                          WHEN tpm.fully_paid_date IS NULL THEN DATEDIFF (CURRENT_DATE, tpm.bill_raisedate)
+                          ELSE DATEDIFF (tpm.fully_paid_date, tpm.bill_raisedate)
+                        END AS days_taken_topay,
+                        tpm.deadline_date,
+                        tpm.status,
+                        tpm.is_verified,
+                        tpm.verified_by,
+                        vu.user_name AS verified_user,
+                        tpm.verified_date,
+                        tpm.fully_paid_date,
+                        tpm.created_by,
+                        cu.user_name AS created_user,
+                        tpm.created_date,
+                        tpm.bank_id,
+                        tpm.commercial_type,
+                        tpm.feedback,
+                        tpm.batch_id,
+                        bm.batch_number,
+                        tpm.updated_date,
+                        tp.paid_date,
+                        tpt.duration_in_hours,
+                        tpt.training_mode,
+                        tpt.branch_id,
+                        tpt.study_material,
+                        tpt.assessment,
+                        tpt.placement_guidance,
+                        tpt.hr_rating,
+                        tpt.coordinator_rating,
+                        tpt.place_of_supply,
+                        tpt.place_of_sale,
+                        tpt.commercial,
+                        tpt.commercial_percentage,
+                        tpt.attendance_status,
+                        tpt.attendance_sheetlink,
+                        tpt.attendance_screenshot,
+                        tpt.screenshot,
+                        tpt.id AS payment_trans_id,
+                        tpt.payment_master_id,
+                        tpt.trainer_mapping_id,
+                        tm.customer_id,
+                        c.is_linkedin_verified,
+                        c.is_google_verified,
+                        c.name AS customer_name,
+                        c.email AS customer_email,
+                        c.phone AS customer_phone,
+                        c.lead_id,
+                        c.linkedin_review,
+                        CASE
+                          WHEN (
+                            c.linkedin_review IS NOT NULL
+                            AND c.linkedin_review != ''
+                          ) THEN 1
+                          ELSE 0
+                        END AS is_linkedin,
+                        c.google_review,
+                        CASE
+                          WHEN (
+                            c.google_review IS NOT NULL
+                            AND c.google_review != ''
+                          ) THEN 1
+                          ELSE 0
+                        END AS is_google,
+                        c.class_percentage,
+                        CASE
+                          WHEN c.class_percentage = 100 THEN 1
+                          ELSE 0
+                        END AS is_class_percentage,
+                        c.is_acknowledged,
+                        c.acknowledged_date,
+                        tech.name AS course_name,
+                        cm.name AS mode_of_training,
+                        COALESCE(pm.total_amount, 0) AS std_total_amount,
+                        COALESCE(ps.paid_amount, 0) AS std_paid_amount,
+                        (
+                          COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)
+                        ) AS std_balance_amount,
+                        CASE
+                          WHEN (
+                            COALESCE(pm.total_amount, 0) - COALESCE(ps.paid_amount, 0)
+                          ) > 0 THEN 0
+                          ELSE 1
+                        END AS is_payment_cleared,
+                        ra.user_id AS ra_user_id,
+                        ra.user_name AS ra_user_name,
+                        hu.user_id AS hr_user_id,
+                        hu.user_name AS hr_user_name
+                      FROM
+                        trainer_payment_trans AS tpt
+                        LEFT JOIN trainer_payment_master AS tpm ON tpm.id = tpt.payment_master_id
+                        LEFT JOIN trainer_mapping AS tm ON tm.id = tpt.trainer_mapping_id
+                        LEFT JOIN customers AS c ON c.id = tm.customer_id
+                        LEFT JOIN technologies AS tech ON tech.id = c.enrolled_course
+                        LEFT JOIN lead_master AS l ON l.id = c.lead_id
+                        LEFT JOIN class_mode AS cm ON cm.id = l.preferred_mode
+                        LEFT JOIN users AS se ON se.user_id = l.assigned_to
+                        LEFT JOIN branches AS sb ON sb.id = se.branch_id
+                        LEFT JOIN region AS sr ON sr.id = sb.region_id
+                        LEFT JOIN payment_master AS pm ON pm.lead_id = l.id
+                        LEFT JOIN (
+                          SELECT
+                            pt.payment_master_id,
+                            SUM(pt.amount) AS paid_amount
+                          FROM payment_trans AS pt
+                          WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+                          GROUP BY pt.payment_master_id
+                        ) AS ps ON ps.payment_master_id = pm.id
+                        LEFT JOIN (
+                          SELECT ct.customer_id, MAX(ct.id) AS latest_id
+                          FROM customer_track AS ct
+                          WHERE ct.status = 'Trainer Assigned'
+                          GROUP BY ct.customer_id
+                        ) AS latest_hr ON latest_hr.customer_id = c.id
+                        LEFT JOIN customer_track AS ht ON ht.id = latest_hr.latest_id
+                        LEFT JOIN users AS hu ON hu.user_id = ht.updated_by
+                        LEFT JOIN (
+                          SELECT ct.customer_id, MAX(ct.id) AS latest_id
+                          FROM customer_track AS ct
+                          WHERE ct.status = 'Student Verified'
+                          GROUP BY ct.customer_id
+                        ) AS latest_ra ON latest_ra.customer_id = c.id
+                        LEFT JOIN customer_track AS rt ON rt.id = latest_ra.latest_id
+                        LEFT JOIN users AS ra ON ra.user_id = rt.updated_by
+                        LEFT JOIN trainer AS t ON t.id = tm.trainer_id
+                        LEFT JOIN users AS vu ON vu.user_id = tpm.verified_by
+                        LEFT JOIN users AS cu ON cu.user_id = tpm.created_by
+                        LEFT JOIN batch_master AS bm ON bm.id = tpm.batch_id
+                        LEFT JOIN trainer_payment AS tp ON tp.payment_master_id = tpm.id
+                      WHERE 1 = 1`;
 
-    let getQuery = `
+      let countQuery = `SELECT
+                          COUNT(tpt.id) AS total
+                        FROM
+                          trainer_payment_trans AS tpt
+                          LEFT JOIN trainer_payment_master AS tpm ON tpm.id = tpt.payment_master_id
+                          LEFT JOIN trainer_mapping AS tm ON tm.id = tpt.trainer_mapping_id
+                          LEFT JOIN customers AS c ON c.id = tm.customer_id
+                          LEFT JOIN technologies AS tech ON tech.id = c.enrolled_course
+                          LEFT JOIN lead_master AS l ON l.id = c.lead_id
+                          LEFT JOIN class_mode AS cm ON cm.id = l.preferred_mode
+                          LEFT JOIN users AS se ON se.user_id = l.assigned_to
+                          LEFT JOIN branches AS sb ON sb.id = se.branch_id
+                          LEFT JOIN region AS sr ON sr.id = sb.region_id
+                        WHERE 1 = 1`;
+
+      let statusCountQuery = `
+      SELECT
+        COUNT(*) AS total,
+              IFNULL(SUM(CASE WHEN tpm.status IN('Link Sent', 'Rejected') THEN 1 ELSE 0 END), 0) AS link_sent,
+              IFNULL(SUM(CASE WHEN tpm.status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
+              IFNULL(SUM(CASE WHEN tpm.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval,
+              IFNULL(SUM(CASE WHEN tpm.status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
+              IFNULL(SUM(CASE WHEN tpm.status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed,
+              IFNULL(SUM(CASE WHEN tpm.status IN ('Payment Rejected', 'Approval Rejected') THEN 1 ELSE 0 END), 0) AS payment_rejected,
+              IFNULL(SUM(CASE WHEN tpm.status = 'Paid' THEN 1 ELSE 0 END), 0) AS paid
+      FROM
+        trainer_payment_trans AS tpt
+        LEFT JOIN trainer_payment_master AS tpm ON tpm.id = tpt.payment_master_id
+        LEFT JOIN trainer_mapping AS tm ON tm.id = tpt.trainer_mapping_id
+        LEFT JOIN customers AS c ON c.id = tm.customer_id
+        LEFT JOIN technologies AS tech ON tech.id = c.enrolled_course
+        LEFT JOIN lead_master AS l ON l.id = c.lead_id
+        LEFT JOIN class_mode AS cm ON cm.id = l.preferred_mode
+        LEFT JOIN users AS se ON se.user_id = l.assigned_to
+        LEFT JOIN branches AS sb ON sb.id = se.branch_id
+        LEFT JOIN region AS sr ON sr.id = sb.region_id
+      WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        if (type === "Deadline") {
+          getQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          statusCountQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+        } else {
+          getQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
+          statusCountQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
+        }
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
+      }
+
+      if (status) {
+        if (status === "Payment Rejected") {
+          getQuery += ` AND tpm.status IN ('Payment Rejected', 'Approval Rejected')`;
+          countQuery += ` AND tpm.status IN ('Payment Rejected', 'Approval Rejected')`;
+        } else {
+          getQuery += ` AND tpm.status = ?`;
+          countQuery += ` AND tpm.status = ?`;
+          queryParams.push(status);
+          countParams.push(status);
+        }
+      }
+
+      if (trainer_id) {
+        getQuery += ` AND tpm.trainer_id = ?`;
+        countQuery += ` AND tpm.trainer_id = ?`;
+        statusCountQuery += ` AND trainer_id = ?`;
+        queryParams.push(trainer_id);
+        countParams.push(trainer_id);
+        statusParams.push(trainer_id);
+      }
+
+      if (training_mode) {
+        getQuery += ` AND tpt.training_mode = ?`;
+        countQuery += ` AND tpt.training_mode = ?`;
+        statusCountQuery += ` AND tpt.training_mode = ?`;
+        queryParams.push(training_mode);
+        countParams.push(training_mode);
+        statusParams.push(training_mode);
+      }
+
+      if (commercial_type) {
+        getQuery += ` AND tpm.commercial_type = ?`;
+        countQuery += ` AND tpm.commercial_type = ?`;
+        statusCountQuery += ` AND tpm.commercial_type = ?`;
+        queryParams.push(commercial_type);
+        countParams.push(commercial_type);
+        statusParams.push(commercial_type);
+      }
+
+      if (region_id) {
+        getQuery += ` AND sr.id = ?`;
+        countQuery += ` AND sr.id = ?`;
+        statusCountQuery += ` AND sr.id = ?`;
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        statusParams.push(region_id);
+      }
+
+      if (search_filter) {
+        getQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        countQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        statusCountQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+      }
+
+      if (branch_id) {
+        getQuery += ` AND sb.branch_id = ?`;
+        countQuery += ` AND sb.branch_id = ?`;
+        statusCountQuery += ` AND sb.branch_id = ?`;
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        statusParams.push(branch_id);
+      }
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      getQuery += ` ORDER BY tpm.bill_raisedate DESC, id DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      const [[countResult], [statusResult], [result]] = await Promise.all([
+        pool.query(countQuery, countParams),
+        pool.query(statusCountQuery, statusParams),
+        pool.query(getQuery, queryParams),
+      ]);
+
+      const total = countResult[0]?.total || 0;
+
+      return {
+        data: result,
+        statusCount: statusResult[0],
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  getPayments: async (
+    start_date,
+    end_date,
+    status,
+    trainer_id,
+    training_mode,
+    commercial_type,
+    region_id,
+    search_filter,
+    branch_id,
+    page,
+    limit,
+    type,
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const statusParams = [];
+
+      // =========================================================
+      // MAIN QUERY
+      // getQuery + studentsData are now ONE SINGLE QUERY
+      // =========================================================
+
+      let getQuery = `
       SELECT
                     
         /* =========================
@@ -991,11 +1297,11 @@ getPayments: async (
       WHERE 1 = 1
     `;
 
-    // =========================================================
-    // COUNT QUERY
-    // =========================================================
+      // =========================================================
+      // COUNT QUERY
+      // =========================================================
 
-    let countQuery = `
+      let countQuery = `
       SELECT
         COUNT(tm.id) AS total
 
@@ -1103,11 +1409,11 @@ getPayments: async (
       WHERE 1 = 1
     `;
 
-    // =========================================================
-    // STATUS COUNT QUERY
-    // =========================================================
+      // =========================================================
+      // STATUS COUNT QUERY
+      // =========================================================
 
-    let statusCountQuery = `
+      let statusCountQuery = `
       SELECT
 
         COUNT(tm.id) AS total,
@@ -1382,151 +1688,140 @@ LEFT JOIN region AS re
       WHERE 1 = 1
     `;
 
-    // =========================================================
-    // DATE FILTER
-    // =========================================================
+      // =========================================================
+      // DATE FILTER
+      // =========================================================
 
-    if (start_date && end_date) {
-
-      if (type === "Deadline") {
-
-        getQuery += `
+      if (start_date && end_date) {
+        if (type === "Deadline") {
+          getQuery += `
           AND tm.deadline_date BETWEEN ? AND ?
         `;
 
-        countQuery += `
+          countQuery += `
           AND tm.deadline_date BETWEEN ? AND ?
         `;
 
-        statusCountQuery += `
+          statusCountQuery += `
           AND deadline_date BETWEEN ? AND ?
         `;
-
-      } else {
-
-        getQuery += `
+        } else {
+          getQuery += `
           AND tm.bill_raisedate BETWEEN ? AND ?
         `;
 
-        countQuery += `
+          countQuery += `
           AND tm.bill_raisedate BETWEEN ? AND ?
         `;
 
-        statusCountQuery += `
+          statusCountQuery += `
           AND bill_raisedate BETWEEN ? AND ?
         `;
+        }
+
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
       }
 
-      queryParams.push(start_date, end_date);
-      countParams.push(start_date, end_date);
-      statusParams.push(start_date, end_date);
-    }
+      // =========================================================
+      // STATUS FILTER
+      // =========================================================
 
-    // =========================================================
-    // STATUS FILTER
-    // =========================================================
-
-    if (status) {
-
-      if (status === "Payment Rejected") {
-
-        getQuery += `
+      if (status) {
+        if (status === "Payment Rejected") {
+          getQuery += `
           AND tm.status IN (
             'Payment Rejected',
             'Approval Rejected'
           )
         `;
 
-        countQuery += `
+          countQuery += `
           AND tm.status IN (
             'Payment Rejected',
             'Approval Rejected'
           )
         `;
-
-      } else {
-
-        getQuery += `
+        } else {
+          getQuery += `
           AND tm.status = ?
         `;
+
+          countQuery += `
+          AND tm.status = ?
+        `;
+
+          queryParams.push(status);
+          countParams.push(status);
+        }
+      }
+
+      // =========================================================
+      // TRAINER FILTER
+      // =========================================================
+
+      if (trainer_id) {
+        getQuery += `
+        AND tm.trainer_id = ?
+      `;
 
         countQuery += `
-          AND tm.status = ?
-        `;
+        AND tm.trainer_id = ?
+      `;
 
-        queryParams.push(status);
-        countParams.push(status);
+        statusCountQuery += `
+        AND tm.trainer_id = ?
+      `;
+
+        queryParams.push(trainer_id);
+        countParams.push(trainer_id);
+        statusParams.push(trainer_id);
       }
-    }
 
-    // =========================================================
-    // TRAINER FILTER
-    // =========================================================
-
-    if (trainer_id) {
-
-      getQuery += `
-        AND tm.trainer_id = ?
-      `;
-
-      countQuery += `
-        AND tm.trainer_id = ?
-      `;
-
-      statusCountQuery += `
-        AND tm.trainer_id = ?
-      `;
-
-      queryParams.push(trainer_id);
-      countParams.push(trainer_id);
-      statusParams.push(trainer_id);
-    }
-
-   if (training_mode) {
-
-  getQuery += `
+      if (training_mode) {
+        getQuery += `
     AND tpt.training_mode = ?
   `;
 
-  countQuery += `
+        countQuery += `
     AND tpt.training_mode = ?
   `;
 
-  statusCountQuery += `
+        statusCountQuery += `
     AND tpt.training_mode = ?
   `;
 
-  queryParams.push(training_mode);
-  countParams.push(training_mode);
-  statusParams.push(training_mode);
-}
+        queryParams.push(training_mode);
+        countParams.push(training_mode);
+        statusParams.push(training_mode);
+      }
 
- if (commercial_type) {
-
-  getQuery += `
+      if (commercial_type) {
+        getQuery += `
     AND tm.commercial_type = ?
   `;
 
-  countQuery += `
+        countQuery += `
     AND tm.commercial_type = ?
   `;
 
-  statusCountQuery += `
+        statusCountQuery += `
     AND tm.commercial_type = ?
   `;
 
-  queryParams.push(commercial_type);
-  countParams.push(commercial_type);
-  statusParams.push(commercial_type);
-}
+        queryParams.push(commercial_type);
+        countParams.push(commercial_type);
+        statusParams.push(commercial_type);
+      }
 
-if (search_filter) {
-  const searchStr = `%${search_filter}%`;
+      if (search_filter) {
+        const searchStr = `%${search_filter}%`;
 
-  // =========================================================
-  // MAIN QUERY
-  // =========================================================
-  getQuery += `
+        // =========================================================
+        // MAIN QUERY
+        // =========================================================
+        getQuery += `
     AND (
       c.name LIKE ?
       OR c.phone LIKE ?
@@ -1536,18 +1831,12 @@ if (search_filter) {
     )
   `;
 
-  queryParams.push(
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr
-  );
+        queryParams.push(searchStr, searchStr, searchStr, searchStr, searchStr);
 
-  // =========================================================
-  // COUNT QUERY
-  // =========================================================
-  countQuery += `
+        // =========================================================
+        // COUNT QUERY
+        // =========================================================
+        countQuery += `
     AND (
       c.name LIKE ?
       OR c.phone LIKE ?
@@ -1557,19 +1846,13 @@ if (search_filter) {
     )
   `;
 
-  countParams.push(
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr
-  );
+        countParams.push(searchStr, searchStr, searchStr, searchStr, searchStr);
 
-  // =========================================================
-  // STATUS QUERY
-  // Only use this if statusQuery contains these conditions
-  // =========================================================
-  statusCountQuery += `
+        // =========================================================
+        // STATUS QUERY
+        // Only use this if statusQuery contains these conditions
+        // =========================================================
+        statusCountQuery += `
     AND (
       c.name LIKE ?
       OR c.phone LIKE ?
@@ -1579,17 +1862,16 @@ if (search_filter) {
     )
   `;
 
-  statusParams.push(
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr,
-    searchStr
-  );
-}
-if (region_id) {
-
-  getQuery += `
+        statusParams.push(
+          searchStr,
+          searchStr,
+          searchStr,
+          searchStr,
+          searchStr,
+        );
+      }
+      if (region_id) {
+        getQuery += `
     AND EXISTS (
       SELECT 1
       FROM region AS re
@@ -1605,7 +1887,7 @@ if (region_id) {
     )
   `;
 
-  countQuery += `
+        countQuery += `
     AND EXISTS (
       SELECT 1
       FROM region AS re
@@ -1621,7 +1903,7 @@ if (region_id) {
     )
   `;
 
-  statusCountQuery += `
+        statusCountQuery += `
     AND EXISTS (
       SELECT 1
       FROM region AS re
@@ -1637,13 +1919,12 @@ if (region_id) {
     )
   `;
 
-  queryParams.push(region_id);
-  countParams.push(region_id);
-  statusParams.push(region_id);
-}
-if (branch_id) {
-
-  getQuery += `
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        statusParams.push(region_id);
+      }
+      if (branch_id) {
+        getQuery += `
    
     AND EXISTS (
       SELECT 1
@@ -1655,7 +1936,7 @@ if (branch_id) {
     )
   `;
 
-  countQuery += `
+        countQuery += `
     AND EXISTS (
        SELECT 1
       FROM branches AS b
@@ -1666,7 +1947,7 @@ if (branch_id) {
     )
   `;
 
-  statusCountQuery += `
+        statusCountQuery += `
     AND EXISTS (
        SELECT 1
       FROM branches AS b
@@ -1677,20 +1958,20 @@ if (branch_id) {
     )
   `;
 
-  queryParams.push(branch_id);
-  countParams.push(branch_id);
-  statusParams.push(branch_id);
-}
-    // =========================================================
-    // PAGINATION
-    // =========================================================
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        statusParams.push(branch_id);
+      }
+      // =========================================================
+      // PAGINATION
+      // =========================================================
 
-    const pageNumber = parseInt(page, 10) || 1;
-    const limitNumber = parseInt(limit, 10) || 10;
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
 
-    const offset = (pageNumber - 1) * limitNumber;
+      const offset = (pageNumber - 1) * limitNumber;
 
-    getQuery += `
+      getQuery += `
       ORDER BY
         tm.bill_raisedate DESC,
         tm.id DESC
@@ -1698,53 +1979,48 @@ if (branch_id) {
       LIMIT ? OFFSET ?
     `;
 
-    queryParams.push(limitNumber, offset);
+      queryParams.push(limitNumber, offset);
 
-    // =========================================================
-    // EXECUTE
-    // =========================================================
+      // =========================================================
+      // EXECUTE
+      // =========================================================
 
-    const [
-      [countResult],
-      [statusResult],
-      [result],
-    ] = await Promise.all([
-      pool.query(countQuery, countParams),
-      pool.query(statusCountQuery, statusParams),
-      pool.query(getQuery, queryParams),
-    ]);
+      const [[countResult], [statusResult], [result]] = await Promise.all([
+        pool.query(countQuery, countParams),
+        pool.query(statusCountQuery, statusParams),
+        pool.query(getQuery, queryParams),
+      ]);
 
-    const total = countResult[0]?.total || 0;
+      const total = countResult[0]?.total || 0;
 
-    // =========================================================
-    // IMPORTANT
-    //
-    // NO:
-    // ids
-    // students Map
-    // studentsData query
-    // students array
-    //
-    // result itself already contains student information.
-    // =========================================================
+      // =========================================================
+      // IMPORTANT
+      //
+      // NO:
+      // ids
+      // students Map
+      // studentsData query
+      // students array
+      //
+      // result itself already contains student information.
+      // =========================================================
 
-    return {
-      data: result,
+      return {
+        data: result,
 
-      statusCount: statusResult[0],
+        statusCount: statusResult[0],
 
-      pagination: {
-        total: parseInt(total),
-        page: pageNumber,
-        limit: limitNumber,
-        totalPages: Math.ceil(total / limitNumber),
-      },
-    };
-
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   getPaymentById: async (payment_id) => {
     try {
