@@ -2,7 +2,15 @@ const pool = require("../config/dbconfig");
 const moment = require("moment");
 const { CONSTANT_STATUS } = require("../constants/constant");
 
+const leadBucketCountsCache = new Map();
+const openLeadsCountsCache = new Map();
+
 const LeadModel = {
+  clearLeadCache: () => {
+    leadBucketCountsCache.clear();
+    openLeadsCountsCache.clear();
+  },
+
   getLeadType: async () => {
     try {
       const [result] = await pool.query(
@@ -4475,17 +4483,39 @@ WHERE ${filterCondition}`;
       getQuery += ` LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [
-        [countResult],
-        [result],
-        [bucketCountResult],
-        [openLeadsCountResult],
-      ] = await Promise.all([
-        pool.query(countQuery, countQueryParams),
-        pool.query(getQuery, queryParams),
-        pool.query(bucketCountQuery, bucketCountQueryParams),
-        pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
-      ]);
+      let bucketCountResult;
+      let openLeadsCountResult;
+      let countResult;
+      let result;
+
+      const cacheKey = JSON.stringify({ start_date, end_date, region, branch, user_ids });
+
+      if (leadBucketCountsCache.has(cacheKey) && openLeadsCountsCache.has(cacheKey)) {
+        bucketCountResult = leadBucketCountsCache.get(cacheKey);
+        openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
+
+        const [countRes, queryRes] = await Promise.all([
+          pool.query(countQuery, countQueryParams),
+          pool.query(getQuery, queryParams),
+        ]);
+        countResult = countRes[0];
+        result = queryRes[0];
+      } else {
+        const [countRes, queryRes, bucketRes, openRes] = await Promise.all([
+          pool.query(countQuery, countQueryParams),
+          pool.query(getQuery, queryParams),
+          pool.query(bucketCountQuery, bucketCountQueryParams),
+          pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
+        ]);
+        
+        countResult = countRes[0];
+        result = queryRes[0];
+        bucketCountResult = bucketRes[0];
+        openLeadsCountResult = openRes[0];
+
+        leadBucketCountsCache.set(cacheKey, bucketCountResult);
+        openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
+      }
 
       const total = countResult[0]?.total || 0;
 
@@ -5221,6 +5251,24 @@ async function getJoiningScore(expected_join_date, lead_id) {
   }
 
   return joining;
+}
+
+const LeadModelMethodsToPatch = [
+  'insertLead', 'updateFollowUp', 'updateLead', 'assignLead', 'websiteLead', 
+  'updateQuality', 'updateQualityFollowup', 'updateJunkValue', 'moveToTrash', 
+  'assignLiveLead', 'manualAssign', 'updateLeadStatus', 'leadReEntry', 
+  'acknowledgeLead', 'dormantToInterested', 'leadSelfAssign'
+];
+
+for (const method of LeadModelMethodsToPatch) {
+  if (typeof LeadModel[method] === 'function') {
+    const original = LeadModel[method];
+    LeadModel[method] = async function(...args) {
+      const res = await original.apply(this, args);
+      LeadModel.clearLeadCache();
+      return res;
+    };
+  }
 }
 
 module.exports = LeadModel;

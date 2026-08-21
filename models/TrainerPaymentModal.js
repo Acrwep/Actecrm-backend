@@ -978,15 +978,15 @@ const trainerPaymentModal = {
       }
 
       if (search_filter) {
-        getQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
-        countQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
-        statusCountQuery += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        getQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        countQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        statusCountQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
       }
 
       if (branch_id) {
-        getQuery += ` AND sb.branch_id = ?`;
-        countQuery += ` AND sb.branch_id = ?`;
-        statusCountQuery += ` AND sb.branch_id = ?`;
+        getQuery += ` AND sb.id = ?`;
+        countQuery += ` AND sb.id = ?`;
+        statusCountQuery += ` AND sb.id = ?`;
         queryParams.push(branch_id);
         countParams.push(branch_id);
         statusParams.push(branch_id);

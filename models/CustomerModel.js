@@ -539,8 +539,8 @@ const CustomerModel = {
 
       // Add mobile number filter
       if (mobile) {
-        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
-        countQuery += ` AND c.phone LIKE '%${mobile}%'`;
+        getQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
+        countQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
       }
 
       // Add course filter
@@ -1766,8 +1766,8 @@ const CustomerModel = {
 
       // Add mobile number filter
       if (mobile) {
-        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
-        countQuery += ` AND c.phone LIKE '%${mobile}%'`;
+        getQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
+        countQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
       }
 
       // Add course filter
