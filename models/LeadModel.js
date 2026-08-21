@@ -2015,6 +2015,86 @@ const LeadModel = {
     }
   },
 
+  websiteLeadForClassroom: async (
+    name,
+    phone,
+    email,
+    course,
+    comments,
+    location,
+    training,
+    domain_origin,
+    corporate_training,
+    is_google_add,
+  ) => {
+    try {
+      const [isExists] = await pool.query(
+        `SELECT EXISTS(SELECT 1 FROM website_leads WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
+        [email, phone],
+      );
+
+      const webLead = isExists[0].lead_exists > 0 ? "Existing" : "New";
+
+      const [isLeadExists] = await pool.query(
+        `SELECT EXISTS(SELECT 1 FROM lead_master WHERE (email = ? OR phone COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', ?, '%'))) AS lead_exists`,
+        [email, phone],
+      );
+
+      const leadMaster = isLeadExists[0].lead_exists > 0 ? "Existing" : "New";
+
+      const leadType =
+        webLead === "Existing" || leadMaster === "Existing"
+          ? "Existing"
+          : "New";
+
+      let trainingMode;
+
+      if (training.includes("Online")) {
+        trainingMode = "Online Training";
+      } else if (training.includes("Corporate")) {
+        trainingMode = "Corporate Training";
+      } else {
+        trainingMode = "Classroom Training";
+      }
+
+      const insertQuery = `INSERT INTO website_leads(
+                              name,
+                              phone,
+                              email,
+                              course,
+                              comments,
+                              location,
+                              training,
+                              corporate_training,
+                              status,
+                              domain_origin,
+                              lead_type,
+                              is_google_add
+                          )
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+      const values = [
+        name,
+        phone,
+        email,
+        course,
+        comments,
+        location,
+        trainingMode,
+        corporate_training,
+        "Pending",
+        domain_origin,
+        leadType,
+        is_google_add,
+      ];
+
+      const [result] = await pool.query(insertQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getAllBranches: async () => {
     try {
       const getQuery = `SELECT id, name, region_id FROM branches WHERE name <> 'Online' AND is_active = 1
@@ -4488,9 +4568,18 @@ WHERE ${filterCondition}`;
       let countResult;
       let result;
 
-      const cacheKey = JSON.stringify({ start_date, end_date, region, branch, user_ids });
+      const cacheKey = JSON.stringify({
+        start_date,
+        end_date,
+        region,
+        branch,
+        user_ids,
+      });
 
-      if (leadBucketCountsCache.has(cacheKey) && openLeadsCountsCache.has(cacheKey)) {
+      if (
+        leadBucketCountsCache.has(cacheKey) &&
+        openLeadsCountsCache.has(cacheKey)
+      ) {
         bucketCountResult = leadBucketCountsCache.get(cacheKey);
         openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
 
@@ -4507,7 +4596,7 @@ WHERE ${filterCondition}`;
           pool.query(bucketCountQuery, bucketCountQueryParams),
           pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
         ]);
-        
+
         countResult = countRes[0];
         result = queryRes[0];
         bucketCountResult = bucketRes[0];
@@ -5254,16 +5343,29 @@ async function getJoiningScore(expected_join_date, lead_id) {
 }
 
 const LeadModelMethodsToPatch = [
-  'insertLead', 'updateFollowUp', 'updateLead', 'assignLead', 'websiteLead', 
-  'updateQuality', 'updateQualityFollowup', 'updateJunkValue', 'moveToTrash', 
-  'assignLiveLead', 'manualAssign', 'updateLeadStatus', 'leadReEntry', 
-  'acknowledgeLead', 'dormantToInterested', 'leadSelfAssign'
+  "insertLead",
+  "updateFollowUp",
+  "updateLead",
+  "assignLead",
+  "websiteLead",
+  "websiteLeadForClassroom",
+  "updateQuality",
+  "updateQualityFollowup",
+  "updateJunkValue",
+  "moveToTrash",
+  "assignLiveLead",
+  "manualAssign",
+  "updateLeadStatus",
+  "leadReEntry",
+  "acknowledgeLead",
+  "dormantToInterested",
+  "leadSelfAssign",
 ];
 
 for (const method of LeadModelMethodsToPatch) {
-  if (typeof LeadModel[method] === 'function') {
+  if (typeof LeadModel[method] === "function") {
     const original = LeadModel[method];
-    LeadModel[method] = async function(...args) {
+    LeadModel[method] = async function (...args) {
       const res = await original.apply(this, args);
       LeadModel.clearLeadCache();
       return res;

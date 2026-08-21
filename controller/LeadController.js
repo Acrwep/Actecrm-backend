@@ -647,6 +647,88 @@ const websiteLead = async (request, response) => {
   }
 };
 
+const websiteLeadForClassroom = async (request, response) => {
+  let {
+    name,
+    phone,
+    email,
+    course,
+    comments,
+    location,
+    training,
+    domain_origin,
+    corporate_training,
+  } = request.body;
+  try {
+    let is_google_add = 0;
+    if (request.body.user_column_data) {
+      const fields = request.body.user_column_data;
+
+      fields.forEach((field) => {
+        switch (field.column_id) {
+          case "FULL_NAME":
+            name = field.string_value;
+            break;
+
+          case "EMAIL":
+            email = field.string_value;
+            break;
+
+          case "PHONE_NUMBER":
+            phone = field.string_value;
+            break;
+
+          case "CITY":
+            location = field.string_value;
+            break;
+
+          case "which_course_are_you_interested_in?":
+            course = field.string_value;
+            break;
+        }
+      });
+
+      // Default Values for Google Ads Leads
+      comments = "Google Ads Lead";
+      training = "Classroom Training";
+      domain_origin = "Google Ads";
+      corporate_training = "";
+      is_google_add = 1;
+    }
+    training = training || "Classroom Training";
+    comments = comments || "";
+    domain_origin = domain_origin || "acte.in";
+    corporate_training = corporate_training || "";
+    is_google_add = is_google_add || 0;
+    const result = await LeadModel.websiteLeadForClassroom(
+      name,
+      phone,
+      email,
+      course,
+      comments,
+      location,
+      training,
+      domain_origin,
+      corporate_training,
+      is_google_add,
+    );
+
+    // Fetch updated lead count and emit to sockets
+    const updatedCount = await LeadModel.getWebsiteLeadCount();
+    SocketService.emitLeadUpdate({ lead_count: updatedCount });
+
+    return response.status(200).send({
+      message: "Lead added successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while adding lead",
+      details: error.message,
+    });
+  }
+};
+
 const getAllBranches = async (request, response) => {
   try {
     const result = await LeadModel.getAllBranches();
@@ -1323,6 +1405,7 @@ module.exports = {
   getLeadCountByUser,
   getFollowupCountByUser,
   websiteLead,
+  websiteLeadForClassroom,
   getAllBranches,
   downloadLeads,
   downloadLeadFollowUps,

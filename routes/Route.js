@@ -63,6 +63,7 @@ router.post("/getLeadCount", verifyToken, LeadController.getLeadCount);
 router.get("/getRegion", LeadController.getRegion);
 router.get("/getLeadAction", LeadController.getLeadAction);
 router.post("/websiteLead", LeadController.websiteLead);
+router.post("/websiteLeadForClassroom", LeadController.websiteLeadForClassroom);
 router.get("/getAllBranches", LeadController.getAllBranches);
 router.post("/getWebsiteLead", LeadController.getWebsiteLead);
 router.put("/updateJunkValue", verifyToken, LeadController.updateJunkValue);
