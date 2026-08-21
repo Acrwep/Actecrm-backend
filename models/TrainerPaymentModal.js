@@ -737,7 +737,7 @@ const trainerPaymentModal = {
       const countParams = [];
       const statusParams = [];
       let getQuery = `SELECT
-                        tpm.id,
+                        tpt.id,
                         tpm.bill_raisedate,
                         tpm.trainer_id,
                         t.name AS trainer_name,
@@ -817,6 +817,8 @@ const trainerPaymentModal = {
                         c.is_acknowledged,
                         c.acknowledged_date,
                         tech.name AS course_name,
+                        c.place_of_service AS std_place_of_service,
+                        psb.name AS std_place_of_service_name,
                         cm.name AS mode_of_training,
                         COALESCE(pm.total_amount, 0) AS std_total_amount,
                         COALESCE(ps.paid_amount, 0) AS std_paid_amount,
@@ -832,7 +834,15 @@ const trainerPaymentModal = {
                         ra.user_id AS ra_user_id,
                         ra.user_name AS ra_user_name,
                         hu.user_id AS hr_user_id,
-                        hu.user_name AS hr_user_name
+                        hu.user_name AS hr_user_name,
+
+                        l.assigned_to AS lead_assigned_to_id,
+                        se.user_name AS lead_assigned_to_name,
+
+                        -- Place of sale based on assigned user's branch
+                        sb.name AS std_place_of_sale_name,
+                        sr.name AS std_region_name
+
                       FROM
                         trainer_payment_trans AS tpt
                         LEFT JOIN trainer_payment_master AS tpm ON tpm.id = tpt.payment_master_id
@@ -874,6 +884,8 @@ const trainerPaymentModal = {
                         LEFT JOIN users AS cu ON cu.user_id = tpm.created_by
                         LEFT JOIN batch_master AS bm ON bm.id = tpm.batch_id
                         LEFT JOIN trainer_payment AS tp ON tp.payment_master_id = tpm.id
+                        LEFT JOIN branches AS psb
+                        ON psb.id = c.place_of_service
                       WHERE 1 = 1`;
 
       let countQuery = `SELECT
@@ -2024,6 +2036,15 @@ LEFT JOIN region AS re
 
   getPaymentById: async (payment_id) => {
     try {
+      // First get the master ID from the specific student's payment transaction
+      const [transRecord] = await pool.query(
+        `SELECT payment_master_id FROM trainer_payment_trans WHERE id = ?`,
+        [payment_id],
+      );
+
+      if (transRecord.length === 0) return null;
+      const payment_master_id = transRecord[0].payment_master_id;
+
       let getQuery = `SELECT
           tm.id,
           tm.bill_raisedate,
@@ -2081,7 +2102,7 @@ LEFT JOIN region AS re
         tp.payment_master_id = tm.id
       WHERE tm.id = ?`;
 
-      const [result] = await pool.query(getQuery, [payment_id]);
+      const [result] = await pool.query(getQuery, [payment_master_id]);
 
       let students = new Map();
       let payments = new Map();
@@ -2153,12 +2174,12 @@ LEFT JOIN region AS re
                 tm.trainer_id = tr.id
             LEFT JOIN users AS hu ON
                 hu.user_id = tr.created_by
-            LEFT JOIN(
+            LEFT JOIN (
             	SELECT pt.payment_master_id, SUM(pt.amount) AS paid_amount FROM payment_trans AS pt
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                 GROUP BY pt.payment_master_id
             ) AS ps ON ps.payment_master_id = pm.id
-            WHERE tp.payment_master_id = ?`,
+            WHERE tp.id = ?`,
         [payment_id],
       );
 
@@ -2189,7 +2210,7 @@ LEFT JOIN region AS re
           LEFT JOIN users AS u ON
               tp.paid_by = u.user_id
           WHERE tp.payment_master_id = ?`,
-        [payment_id],
+        [payment_master_id],
       );
 
       paymentsData.forEach((p) => {
@@ -2215,7 +2236,7 @@ LEFT JOIN region AS re
             INNER JOIN customers AS c ON
                 c.id = tm.customer_id
             WHERE tpm.id = ? GROUP BY tpm.id`,
-        [payment_id],
+        [payment_master_id],
       );
 
       scoreCardData.forEach((s) => {
