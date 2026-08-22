@@ -255,6 +255,7 @@ const TrainerModel = {
     account_number,
     bank_name,
     branch_name,
+    account_type,
     ifsc_code,
     signature_image,
     is_bank_updated,
@@ -352,6 +353,7 @@ const TrainerModel = {
             account_number = ?,
             bank_name = ?,
             branch_name = ?,
+            account_type = ?,
             ifsc_code = ?,
             signature_image = ?
         WHERE
@@ -361,6 +363,7 @@ const TrainerModel = {
           account_number,
           bank_name,
           branch_name,
+          account_type,
           ifsc_code,
           signature_image,
           trainer_bank_id,
@@ -866,6 +869,7 @@ const TrainerModel = {
                           tb.account_number,
                           tb.bank_name,
                           tb.branch_name,
+                          tb.account_type,
                           tb.ifsc_code,
                           tb.signature_image,
                           t.created_by,

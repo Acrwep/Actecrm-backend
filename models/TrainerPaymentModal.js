@@ -136,21 +136,6 @@ const trainerPaymentModal = {
           created_date
       )
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const masterValues = [
-        bill_raisedate,
-        trainer_id,
-        request_amount,
-        request_amount,
-        days_taken_topay,
-        deadline_date,
-        "Requested",
-        created_by,
-        created_date,
-      ];
-
-      const [insertMaster] = await pool.query(masterQuery, masterValues);
-
-      affectedRows += insertMaster.affectedRows;
 
       const transQuery = `INSERT INTO trainer_payment_trans(
           payment_master_id,
@@ -167,6 +152,24 @@ const trainerPaymentModal = {
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       for (const student of students) {
+        const studentAmount =
+          student.commercial || request_amount / students.length;
+
+        const masterValues = [
+          bill_raisedate,
+          trainer_id,
+          studentAmount,
+          studentAmount,
+          days_taken_topay,
+          deadline_date,
+          "Requested",
+          created_by,
+          created_date,
+        ];
+
+        const [insertMaster] = await pool.query(masterQuery, masterValues);
+        affectedRows += insertMaster.affectedRows;
+
         const transValues = [
           insertMaster.insertId,
           student.trainer_mapping_id,
@@ -181,7 +184,6 @@ const trainerPaymentModal = {
         ];
 
         const [insertTrans] = await pool.query(transQuery, transValues);
-
         affectedRows += insertTrans.affectedRows;
       }
 
@@ -267,25 +269,9 @@ const trainerPaymentModal = {
           feedback
       )
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      const masterValues = [
-        created_date,
-        trainer_id,
-        request_amount,
-        request_amount,
-        commercial_type,
-        batch_id,
-        bank_id,
-        "Link Sent",
-        created_by,
-        created_date,
-        feedback,
-      ];
-
-      const [insertMaster] = await connection.query(masterQuery, masterValues);
-
-      affectedRows += insertMaster.affectedRows;
 
       let emailTasks = [];
+      let lastInsertId = null;
 
       const transQuery = `INSERT INTO trainer_payment_trans(
           payment_master_id,
@@ -308,10 +294,34 @@ const trainerPaymentModal = {
       VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
       for (const student of students) {
+        const perStudentAmount =
+          commercial_type !== "Pay Per Head" ? commercial : student.commercial;
+
+        const masterValues = [
+          created_date,
+          trainer_id,
+          perStudentAmount,
+          perStudentAmount,
+          commercial_type,
+          batch_id,
+          bank_id,
+          "Link Sent",
+          created_by,
+          created_date,
+          feedback,
+        ];
+
+        const [insertMaster] = await connection.query(
+          masterQuery,
+          masterValues,
+        );
+        affectedRows += insertMaster.affectedRows;
+        lastInsertId = insertMaster.insertId;
+
         const transValues = [
           insertMaster.insertId,
           student.trainer_mapping_id,
-          commercial_type !== "Pay Per Head" ? commercial : student.commercial,
+          perStudentAmount,
           student.commercial_percentage,
           student.attendance_status,
           student.attendance_sheetlink,
@@ -387,7 +397,7 @@ const trainerPaymentModal = {
 
       return {
         trainer_id: trainer_id,
-        payment_master_id: insertMaster.insertId,
+        payment_master_id: lastInsertId,
       };
     } catch (error) {
       await connection.rollback();
@@ -756,6 +766,7 @@ const trainerPaymentModal = {
                         tpm.verified_by,
                         vu.user_name AS verified_user,
                         tpm.verified_date,
+                        tpm.approved_date,
                         tpm.fully_paid_date,
                         tpm.created_by,
                         cu.user_name AS created_user,
@@ -765,6 +776,14 @@ const trainerPaymentModal = {
                         tpm.feedback,
                         tpm.batch_id,
                         bm.batch_number,
+                        CASE
+                        WHEN tpm.commercial_type = 'Batch' THEN (
+                        SELECT COUNT(DISTINCT bt.customer_id)
+                        FROM batch_trans bt
+                        WHERE bt.batch_master_id = tpm.batch_id
+                        )
+                        ELSE 0
+                        END AS batch_student_count,
                         tpm.updated_date,
                         tp.paid_date,
                         tpt.duration_in_hours,
@@ -926,15 +945,38 @@ const trainerPaymentModal = {
         LEFT JOIN region AS sr ON sr.id = sb.region_id
       WHERE 1 = 1`;
 
+      let regionCountQuery = `
+      SELECT
+        IFNULL(SUM(CASE WHEN sr.name = 'Hub' THEN 1 ELSE 0 END), 0) AS hub_count,
+        IFNULL(SUM(CASE WHEN sr.name = 'Hub' THEN tpt.commercial ELSE 0 END), 0) AS hub_amount,
+        IFNULL(SUM(CASE WHEN sr.name = 'Chennai' THEN 1 ELSE 0 END), 0) AS chn_count,
+        IFNULL(SUM(CASE WHEN sr.name = 'Chennai' THEN tpt.commercial ELSE 0 END), 0) AS chn_amount,
+        IFNULL(SUM(CASE WHEN sr.name = 'Bangalore' THEN 1 ELSE 0 END), 0) AS blr_count,
+        IFNULL(SUM(CASE WHEN sr.name = 'Bangalore' THEN tpt.commercial ELSE 0 END), 0) AS blr_amount
+      FROM
+        trainer_payment_trans AS tpt
+        LEFT JOIN trainer_payment_master AS tpm ON tpm.id = tpt.payment_master_id
+        LEFT JOIN trainer_mapping AS tm ON tm.id = tpt.trainer_mapping_id
+        LEFT JOIN customers AS c ON c.id = tm.customer_id
+        LEFT JOIN technologies AS tech ON tech.id = c.enrolled_course
+        LEFT JOIN lead_master AS l ON l.id = c.lead_id
+        LEFT JOIN class_mode AS cm ON cm.id = l.preferred_mode
+        LEFT JOIN users AS se ON se.user_id = l.assigned_to
+        LEFT JOIN branches AS sb ON sb.id = se.branch_id
+        LEFT JOIN region AS sr ON sr.id = sb.region_id
+      WHERE 1 = 1`;
+
       if (start_date && end_date) {
         if (type === "Deadline") {
           getQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
           statusCountQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+          regionCountQuery += ` AND tpm.deadline_date >= ? AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
           getQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
           statusCountQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
+          regionCountQuery += ` AND tpm.bill_raisedate >= ? AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
@@ -945,9 +987,11 @@ const trainerPaymentModal = {
         if (status === "Payment Rejected") {
           getQuery += ` AND tpm.status IN ('Payment Rejected', 'Approval Rejected')`;
           countQuery += ` AND tpm.status IN ('Payment Rejected', 'Approval Rejected')`;
+          regionCountQuery += ` AND tpm.status IN ('Payment Rejected', 'Approval Rejected')`;
         } else {
           getQuery += ` AND tpm.status = ?`;
           countQuery += ` AND tpm.status = ?`;
+          regionCountQuery += ` AND tpm.status = ?`;
           queryParams.push(status);
           countParams.push(status);
         }
@@ -957,6 +1001,7 @@ const trainerPaymentModal = {
         getQuery += ` AND tpm.trainer_id = ?`;
         countQuery += ` AND tpm.trainer_id = ?`;
         statusCountQuery += ` AND tpm.trainer_id = ?`;
+        regionCountQuery += ` AND tpm.trainer_id = ?`;
         queryParams.push(trainer_id);
         countParams.push(trainer_id);
         statusParams.push(trainer_id);
@@ -966,6 +1011,7 @@ const trainerPaymentModal = {
         getQuery += ` AND tpt.training_mode = ?`;
         countQuery += ` AND tpt.training_mode = ?`;
         statusCountQuery += ` AND tpt.training_mode = ?`;
+        regionCountQuery += ` AND tpt.training_mode = ?`;
         queryParams.push(training_mode);
         countParams.push(training_mode);
         statusParams.push(training_mode);
@@ -975,6 +1021,7 @@ const trainerPaymentModal = {
         getQuery += ` AND tpm.commercial_type = ?`;
         countQuery += ` AND tpm.commercial_type = ?`;
         statusCountQuery += ` AND tpm.commercial_type = ?`;
+        regionCountQuery += ` AND tpm.commercial_type = ?`;
         queryParams.push(commercial_type);
         countParams.push(commercial_type);
         statusParams.push(commercial_type);
@@ -984,6 +1031,7 @@ const trainerPaymentModal = {
         getQuery += ` AND sr.id = ?`;
         countQuery += ` AND sr.id = ?`;
         statusCountQuery += ` AND sr.id = ?`;
+        regionCountQuery += ` AND sr.id = ?`;
         queryParams.push(region_id);
         countParams.push(region_id);
         statusParams.push(region_id);
@@ -993,12 +1041,14 @@ const trainerPaymentModal = {
         getQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
         countQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
         statusCountQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
+        regionCountQuery += ` AND (c.student_id LIKE '%${search_filter}%' OR c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR tech.name LIKE '%${search_filter}%')`;
       }
 
       if (branch_id) {
         getQuery += ` AND sb.id = ?`;
         countQuery += ` AND sb.id = ?`;
         statusCountQuery += ` AND sb.id = ?`;
+        regionCountQuery += ` AND sb.id = ?`;
         queryParams.push(branch_id);
         countParams.push(branch_id);
         statusParams.push(branch_id);
@@ -1012,17 +1062,20 @@ const trainerPaymentModal = {
       getQuery += ` ORDER BY tpm.bill_raisedate DESC, id DESC LIMIT ? OFFSET ?`;
       queryParams.push(limitNumber, offset);
 
-      const [[countResult], [statusResult], [result]] = await Promise.all([
-        pool.query(countQuery, countParams),
-        pool.query(statusCountQuery, statusParams),
-        pool.query(getQuery, queryParams),
-      ]);
+      const [[countResult], [statusResult], [regionResult], [result]] =
+        await Promise.all([
+          pool.query(countQuery, countParams),
+          pool.query(statusCountQuery, statusParams),
+          pool.query(regionCountQuery, countParams),
+          pool.query(getQuery, queryParams),
+        ]);
 
       const total = countResult[0]?.total || 0;
 
       return {
         data: result,
         statusCount: statusResult[0],
+        regionCount: regionResult[0],
         pagination: {
           total: parseInt(total),
           page: pageNumber,
@@ -2036,14 +2089,16 @@ LEFT JOIN region AS re
 
   getPaymentById: async (payment_id) => {
     try {
+      let payment_master_id = payment_id;
       // First get the master ID from the specific student's payment transaction
       const [transRecord] = await pool.query(
         `SELECT payment_master_id FROM trainer_payment_trans WHERE id = ?`,
         [payment_id],
       );
 
-      if (transRecord.length === 0) return null;
-      const payment_master_id = transRecord[0].payment_master_id;
+      if (transRecord.length > 0) {
+        payment_master_id = transRecord[0].payment_master_id;
+      }
 
       let getQuery = `SELECT
           tm.id,
@@ -2179,16 +2234,17 @@ LEFT JOIN region AS re
                 WHERE pt.payment_status IN ('Verified', 'Verify Pending')
                 GROUP BY pt.payment_master_id
             ) AS ps ON ps.payment_master_id = pm.id
-            WHERE tp.id = ?`,
-        [payment_id],
+            WHERE tp.payment_master_id = ?`,
+        [payment_master_id],
       );
 
       studentsData.forEach((s) => {
         const { payment_master_id, ...rest } = s;
-        if (!students.has(payment_master_id)) {
-          students.set(payment_master_id, []);
+        const key = String(payment_master_id);
+        if (!students.has(key)) {
+          students.set(key, []);
         }
-        students.get(payment_master_id).push(rest);
+        students.get(key).push(rest);
       });
 
       const [paymentsData] = await pool.query(
@@ -2215,10 +2271,11 @@ LEFT JOIN region AS re
 
       paymentsData.forEach((p) => {
         const { payment_master_id, ...rest } = p;
-        if (!payments.has(payment_master_id)) {
-          payments.set(payment_master_id, []);
+        const key = String(payment_master_id);
+        if (!payments.has(key)) {
+          payments.set(key, []);
         }
-        payments.get(payment_master_id).push(rest);
+        payments.get(key).push(rest);
       });
 
       const [scoreCardData] = await pool.query(
@@ -2241,16 +2298,18 @@ LEFT JOIN region AS re
 
       scoreCardData.forEach((s) => {
         const { payment_master_id, ...rest } = s;
-        scoreCard.set(payment_master_id, rest);
+        scoreCard.set(String(payment_master_id), rest);
       });
 
       if (result.length === 0) return null;
 
+      const masterKey = String(result[0].id);
+
       return {
         ...result[0],
-        students: students.get(result[0].id) || [],
-        payments: payments.get(result[0].id) || [],
-        scoreCard: scoreCard.get(result[0].id) || null,
+        students: students.get(masterKey) || [],
+        payments: payments.get(masterKey) || [],
+        scoreCard: scoreCard.get(masterKey) || null,
       };
     } catch (error) {
       throw new Error(error.message);
@@ -2604,6 +2663,14 @@ LEFT JOIN region AS re
         `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
         [status, trainer_payment_id],
       );
+
+      if (status === "Awaiting Finance") {
+        await conn.query(
+          `UPDATE trainer_payment_master SET approved_date = ? WHERE id = ?`,
+          [updated_date, trainer_payment_id],
+        );
+      }
+
       await conn.commit();
       return { status: true, message: "Payment approved successfully" };
     } catch (error) {
@@ -3059,6 +3126,7 @@ LEFT JOIN region AS re
             account_number,
             account_holder_name,
             bank_name,
+            account_type,
             ifsc_code,
             branch_name,
             signature_image
