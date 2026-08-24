@@ -261,6 +261,7 @@ const trainerPaymentModal = {
           request_amount,
           balance_amount,
           commercial_type,
+          batch_amount,
           batch_id,
           bank_id,
           status,
@@ -303,6 +304,7 @@ const trainerPaymentModal = {
           perStudentAmount,
           perStudentAmount,
           commercial_type,
+          commercial_type !== "Pay Per Head" ? request_amount : 0,
           batch_id,
           bank_id,
           "Link Sent",
@@ -754,6 +756,7 @@ const trainerPaymentModal = {
                         t.mobile AS trainer_mobile,
                         t.email AS trainer_email,
                         tpm.request_amount,
+                        tpm.batch_amount,
                         tpm.paid_amount,
                         tpm.balance_amount,
                         CASE
