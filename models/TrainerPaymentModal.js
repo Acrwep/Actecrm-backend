@@ -2374,6 +2374,7 @@ LEFT JOIN region AS re
           tba.bank_name,
           tba.ifsc_code,
           tba.branch_name,
+          tba.account_type,
           tm.batch_id,
           bm.batch_number,
           tm.updated_date,
@@ -3217,6 +3218,7 @@ LEFT JOIN region AS re
     bank_name,
     ifsc_code,
     branch_name,
+    account_type,
     feedback,
     students,
     updated_date,
@@ -3254,9 +3256,10 @@ LEFT JOIN region AS re
               bank_name,
               ifsc_code,
               branch_name,
+              account_type,
               created_date
           )
-          VALUES(?, ?, ?, ?, ?, ?, ?)`,
+          VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             trainer_id,
             account_number,
@@ -3264,6 +3267,7 @@ LEFT JOIN region AS re
             bank_name,
             ifsc_code,
             branch_name,
+            account_type,
             updated_date,
           ],
         );

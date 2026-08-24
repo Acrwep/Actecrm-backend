@@ -139,7 +139,7 @@ const getPayments = async (req, res) => {
 const getPaymentById = async (req, res) => {
   const { payment_id, payment_trans_id } = req.query;
   try {
-    // If frontend passes payment_trans_id explicitly, use it. 
+    // If frontend passes payment_trans_id explicitly, use it.
     // Otherwise fallback to payment_id (which might be tpt.id if we update getPaymentsV1)
     const idToUse = payment_trans_id || payment_id;
     const result = await trainerPaymentModal.getPaymentById(idToUse);
@@ -345,6 +345,7 @@ const requestForUnpaid = async (req, res) => {
     bank_name,
     ifsc_code,
     branch_name,
+    account_type,
     feedback,
     students,
     updated_date,
@@ -358,6 +359,7 @@ const requestForUnpaid = async (req, res) => {
       bank_name,
       ifsc_code,
       branch_name,
+      account_type,
       feedback,
       students,
       updated_date,
