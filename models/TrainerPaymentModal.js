@@ -206,16 +206,36 @@ const trainerPaymentModal = {
     batch_id,
   ) => {
     const connection = await pool.getConnection();
+
     try {
       await connection.beginTransaction();
 
       let affectedRows = 0;
+      let lastInsertId = null;
+      const emailTasks = [];
 
-      if (!students || students.length <= 0)
+      //validation
+      if (!students || students.length <= 0) {
         throw new Error("Students cannot be empty");
+      }
 
+      if (!trainer_id) {
+        throw new Error("Trainer ID is required");
+      }
+
+      if (!commercial_type) {
+        throw new Error("Commercial type is required");
+      }
+
+      if (!request_amount || Number(request_amount) <= 0) {
+        throw new Error("Request amount must be greater than 0");
+      }
+
+      // PAY PER HEAD VALIDATION
       if (commercial_type === "Pay Per Head") {
-        const trainerMappingIds = students.map((s) => s.trainer_mapping_id);
+        const trainerMappingIds = students
+          .map((student) => student.trainer_mapping_id)
+          .filter(Boolean);
 
         if (trainerMappingIds.length === 0) {
           throw new Error("No students selected.");
@@ -223,23 +243,29 @@ const trainerPaymentModal = {
 
         // Get customer IDs from trainer_mapping
         const [customers] = await connection.query(
-          `SELECT customer_id
+          `
+          SELECT customer_id
           FROM trainer_mapping
-          WHERE id IN (?)`,
+          WHERE id IN (?)
+        `,
           [trainerMappingIds],
         );
 
-        const customerIds = customers.map((c) => c.customer_id);
+        const customerIds = customers
+          .map((customer) => customer.customer_id)
+          .filter(Boolean);
 
         if (customerIds.length === 0) {
           throw new Error("No customers found.");
         }
 
-        // Check whether any customer belongs to a batch
+        // Check whether any customer is already assigned to a batch
         const [batchCustomers] = await connection.query(
-          `SELECT customer_id
-           FROM batch_trans
-           WHERE customer_id IN (?)`,
+          `
+          SELECT DISTINCT customer_id
+          FROM batch_trans
+          WHERE customer_id IN (?)
+        `,
           [customerIds],
         );
 
@@ -250,61 +276,94 @@ const trainerPaymentModal = {
         }
       }
 
+      // COMMERCIAL CALCULATION
       let commercial = 0;
+      /*
+       * For Batch:
+       *
+       * request_amount = total batch payment
+       *
+       * Example:
+       * request_amount = 30000
+       * students = 3
+       *
+       * commercial = 30000 / 3
+       *            = 10000
+       *
+       * Each transaction will contain 10000.
+       */
+
       if (commercial_type !== "Pay Per Head") {
-        commercial = request_amount / students.length;
+        commercial = Number(request_amount) / Number(students.length);
       }
 
-      const masterQuery = `INSERT INTO trainer_payment_master(
-          bill_raisedate,
-          trainer_id,
-          request_amount,
-          balance_amount,
-          commercial_type,
-          batch_amount,
-          batch_id,
-          bank_id,
-          status,
-          created_by,
-          created_date,
-          feedback
+      // MASTER QUERY
+      const masterQuery = `
+      INSERT INTO trainer_payment_master (
+        bill_raisedate,
+        trainer_id,
+        request_amount,
+        balance_amount,
+        commercial_type,
+        batch_amount,
+        batch_id,
+        bank_id,
+        status,
+        created_by,
+        created_date,
+        feedback
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-      let emailTasks = [];
-      let lastInsertId = null;
-
-      const transQuery = `INSERT INTO trainer_payment_trans(
-          payment_master_id,
-          trainer_mapping_id,
-          commercial,
-          commercial_percentage,
-          attendance_status,
-          attendance_sheetlink,
-          attendance_screenshot,
-          screenshot,
-          duration_in_hours,
-          training_mode,
-          branch_id,
-          study_material,
-          assessment,
-          placement_guidance,
-          hr_rating,
-          coordinator_rating
+      // TRANSACTION QUERY
+      const transQuery = `
+      INSERT INTO trainer_payment_trans (
+        payment_master_id,
+        trainer_mapping_id,
+        commercial,
+        commercial_percentage,
+        attendance_status,
+        attendance_sheetlink,
+        attendance_screenshot,
+        screenshot,
+        duration_in_hours,
+        training_mode,
+        branch_id,
+        study_material,
+        assessment,
+        placement_guidance,
+        hr_rating,
+        coordinator_rating
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-      for (const student of students) {
-        const perStudentAmount =
-          commercial_type !== "Pay Per Head" ? commercial : student.commercial;
+      // INSERT PAYMENT RECORDS
+      /*
+       * Current behavior:
+       *
+       * Pay Per Head:
+       *   1 master + 1 transaction per student
+       *
+       * Batch:
+       *   1 master + 1 transaction per student
+       *
+       * If you want Batch to create only ONE master record,
+       * the loop needs to be separated. The code below follows
+       * the structure of your current implementation.
+       */
 
+      if (commercial_type === "Batch") {
+        // BATCH
+        // ONE MASTER RECORD FOR ENTIRE BATCH
         const masterValues = [
           created_date,
           trainer_id,
-          perStudentAmount,
-          perStudentAmount,
+          request_amount,
+          request_amount,
           commercial_type,
-          commercial_type !== "Pay Per Head" ? request_amount : 0,
+          request_amount,
           batch_id,
           bank_id,
           "Link Sent",
@@ -317,78 +376,253 @@ const trainerPaymentModal = {
           masterQuery,
           masterValues,
         );
+
         affectedRows += insertMaster.affectedRows;
         lastInsertId = insertMaster.insertId;
 
-        const transValues = [
-          insertMaster.insertId,
-          student.trainer_mapping_id,
-          perStudentAmount,
-          student.commercial_percentage,
-          student.attendance_status,
-          student.attendance_sheetlink,
-          student.attendance_screenshot,
-          student.screenshot,
-          student.duration_in_hours,
-          student.training_mode,
-          student.branch_id,
-          student.study_material,
-          student.assessment,
-          student.placement_guidance,
-          student.hr_rating,
-          student.coordinator_rating,
-        ];
+        // Insert transaction for every student
+        for (const student of students) {
+          const perStudentAmount =
+            Number(request_amount) / Number(students.length);
 
-        const [insertTrans] = await connection.query(transQuery, transValues);
+          const transValues = [
+            insertMaster.insertId,
+            student.trainer_mapping_id,
+            perStudentAmount,
+            student.commercial_percentage,
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.screenshot,
+            student.duration_in_hours,
+            student.training_mode,
+            student.branch_id,
+            student.study_material,
+            student.assessment,
+            student.placement_guidance,
+            student.hr_rating,
+            student.coordinator_rating,
+          ];
 
-        affectedRows += insertTrans.affectedRows;
+          const [insertTrans] = await connection.query(transQuery, transValues);
 
-        // Fetch customer details to send acknowledgement email
-        const [customerDetails] = await connection.query(
-          `SELECT c.id AS customer_id, c.email FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.id = ?`,
-          [student.trainer_mapping_id],
-        );
+          affectedRows += insertTrans.affectedRows;
 
-        await connection.query(
-          `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
-          [
-            customerDetails[0].customer_id,
-            "Trainer Payment Claim Form Sent",
+          // Fetch customer details
+          const [customerDetails] = await connection.query(
+            `
+            SELECT
+              c.id AS customer_id,
+              c.email
+            FROM trainer_mapping AS tm
+            INNER JOIN customers AS c
+              ON tm.customer_id = c.id
+            WHERE tm.id = ?
+          `,
+            [student.trainer_mapping_id],
+          );
+
+          // Customer tracking + email
+          if (customerDetails.length > 0) {
+            const customerId = customerDetails[0].customer_id;
+
+            const customerEmail = customerDetails[0].email;
+
+            // Trainer Payment Claim Form Sent
+            await connection.query(
+              `
+              INSERT INTO customer_track (
+                customer_id,
+                status,
+                status_date,
+                updated_by
+              )
+              VALUES (?, ?, ?, ?)
+            `,
+              [
+                customerId,
+                "Trainer Payment Claim Form Sent",
+                created_date,
+                created_by,
+              ],
+            );
+
+            // Class Completion Acknowledgement Sent
+            await connection.query(
+              `
+              INSERT INTO customer_track (
+                customer_id,
+                status,
+                status_date,
+                updated_by
+              )
+              VALUES (?, ?, ?, ?)
+            `,
+              [
+                customerId,
+                "Class Completion Acknowledgement Sent",
+                created_date,
+                created_by,
+              ],
+            );
+
+            // Store email task.
+            // Email will be sent only after COMMIT.
+            if (customerEmail) {
+              emailTasks.push({
+                email: customerEmail,
+                customer_id: customerId,
+              });
+            }
+          }
+        }
+      } else {
+        // PAY PER HEAD
+        // ONE MASTER + ONE TRANSACTION PER STUDENT
+
+        for (const student of students) {
+          const perStudentAmount = Number(student.commercial) || 0;
+
+          if (perStudentAmount <= 0) {
+            throw new Error(
+              `Invalid commercial amount for trainer mapping ID: ${student.trainer_mapping_id}`,
+            );
+          }
+
+          // Master
+          const masterValues = [
             created_date,
+            trainer_id,
+            perStudentAmount,
+            perStudentAmount,
+            commercial_type,
+            0,
+            batch_id,
+            bank_id,
+            "Link Sent",
             created_by,
-          ],
-        );
-
-        await connection.query(
-          `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
-          [
-            customerDetails[0].customer_id,
-            "Class Completion Acknowledgement Sent",
             created_date,
-            created_by,
-          ],
-        );
+            feedback,
+          ];
 
-        if (customerDetails.length > 0) {
-          emailTasks.push({
-            email: customerDetails[0].email,
-            customer_id: customerDetails[0].customer_id,
-          });
+          const [insertMaster] = await connection.query(
+            masterQuery,
+            masterValues,
+          );
+
+          affectedRows += insertMaster.affectedRows;
+          lastInsertId = insertMaster.insertId;
+
+          // Transaction
+          const transValues = [
+            insertMaster.insertId,
+            student.trainer_mapping_id,
+            perStudentAmount,
+            student.commercial_percentage,
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.screenshot,
+            student.duration_in_hours,
+            student.training_mode,
+            student.branch_id,
+            student.study_material,
+            student.assessment,
+            student.placement_guidance,
+            student.hr_rating,
+            student.coordinator_rating,
+          ];
+
+          const [insertTrans] = await connection.query(transQuery, transValues);
+
+          affectedRows += insertTrans.affectedRows;
+
+          // Fetch customer details
+          const [customerDetails] = await connection.query(
+            `
+            SELECT
+              c.id AS customer_id,
+              c.email
+            FROM trainer_mapping AS tm
+            INNER JOIN customers AS c
+              ON tm.customer_id = c.id
+            WHERE tm.id = ?
+          `,
+            [student.trainer_mapping_id],
+          );
+
+          // Customer tracking + email
+          if (customerDetails.length > 0) {
+            const customerId = customerDetails[0].customer_id;
+
+            const customerEmail = customerDetails[0].email;
+
+            // Trainer Payment Claim Form Sent
+            await connection.query(
+              `
+              INSERT INTO customer_track (
+                customer_id,
+                status,
+                status_date,
+                updated_by
+              )
+              VALUES (?, ?, ?, ?)
+            `,
+              [
+                customerId,
+                "Trainer Payment Claim Form Sent",
+                created_date,
+                created_by,
+              ],
+            );
+
+            // Class Completion Acknowledgement Sent
+            await connection.query(
+              `
+              INSERT INTO customer_track (
+                customer_id,
+                status,
+                status_date,
+                updated_by
+              )
+              VALUES (?, ?, ?, ?)
+            `,
+              [
+                customerId,
+                "Class Completion Acknowledgement Sent",
+                created_date,
+                created_by,
+              ],
+            );
+
+            // Store email task
+            if (customerEmail) {
+              emailTasks.push({
+                email: customerEmail,
+                customer_id: customerId,
+              });
+            }
+          }
         }
       }
 
       await connection.commit();
-
-      // Send emails after successful commit
+      // send email
       for (const task of emailTasks) {
         try {
-          if (task.email) {
-            await EmailModel.sendStudentAcknowledgementMail(
-              task.email,
-              email_link,
-              task.customer_id,
-            );
+          if (!task.email) {
+            continue;
           }
+
+          await EmailModel.sendStudentAcknowledgementMail(
+            task.email,
+            email_link,
+            task.customer_id,
+          );
+
+          console.log(
+            `Student acknowledgement email sent successfully to customer ${task.customer_id}`,
+          );
         } catch (emailError) {
           console.error(
             `Error sending student acknowledgement email to customer ${task.customer_id}:`,
@@ -400,9 +634,12 @@ const trainerPaymentModal = {
       return {
         trainer_id: trainer_id,
         payment_master_id: lastInsertId,
+        affectedRows: affectedRows,
       };
     } catch (error) {
       await connection.rollback();
+      console.error("requestPaymentV1 Error:", error.message);
+
       throw new Error(error.message);
     } finally {
       connection.release();
