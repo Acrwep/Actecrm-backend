@@ -1182,6 +1182,7 @@ const getLeadsV1 = async (request, response) => {
     sub_source_id,
     domain,
     region,
+    preferred_mode,
     branch,
   } = request.body;
   try {
@@ -1199,6 +1200,7 @@ const getLeadsV1 = async (request, response) => {
       sub_source_id,
       domain,
       region,
+      preferred_mode,
       branch,
     );
     return response.status(200).send({

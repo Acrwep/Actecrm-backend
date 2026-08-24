@@ -4085,6 +4085,7 @@ WHERE ${filterCondition}`;
     sub_source_id,
     domain,
     region,
+    preferred_mode,
     branch,
   ) => {
     try {
@@ -4327,6 +4328,7 @@ WHERE ${filterCondition}`;
         LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
         LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         WHERE 1 = 1`;
 
       const openLeadsCountQueryParams = [];
@@ -4341,6 +4343,7 @@ WHERE ${filterCondition}`;
         LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         WHERE 1 = 1`;
 
       if (bucket) {
@@ -4418,6 +4421,16 @@ WHERE ${filterCondition}`;
         bucketCountQueryParams.push(region);
         openLeadsCountQueryParams.push(region);
       }
+      if (preferred_mode) {
+        getQuery += ` AND l.preferred_mode = ?`;
+        countQuery += ` AND l.preferred_mode = ?`;
+        bucketCountQuery += ` AND l.preferred_mode = ?`;
+        openLeadsCountQuery += ` AND l.preferred_mode = ?`;
+        queryParams.push(preferred_mode);
+        countQueryParams.push(preferred_mode);
+        bucketCountQueryParams.push(preferred_mode);
+        openLeadsCountQueryParams.push(preferred_mode);
+      }
 
       if (branch) {
         getQuery += ` AND aub.id = ?`;
@@ -4461,25 +4474,55 @@ WHERE ${filterCondition}`;
       }
 
       if (search_filter) {
-        getQuery += ` AND (
-          l.name LIKE '%${search_filter}%' OR 
-          l.phone LIKE '%${search_filter}%' OR 
-          l.email LIKE '%${search_filter}%' OR 
-          pt.name LIKE '%${search_filter}%'
-        )`;
-        countQuery += ` AND (
-          l.name LIKE '%${search_filter}%' OR 
-          l.phone LIKE '%${search_filter}%' OR 
-          l.email LIKE '%${search_filter}%' OR 
-          pt.name LIKE '%${search_filter}%'
-        )`;
+        const searchCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR pt.name LIKE ?
+        )
+    `;
+
+        getQuery += searchCondition;
+        countQuery += searchCondition;
+        bucketCountQuery += searchCondition;
+        openLeadsCountQuery += searchCondition;
+
+        const searchValue = `%${search_filter}%`;
+
+        queryParams.push(searchValue, searchValue, searchValue, searchValue);
+
+        countQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        bucketCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        openLeadsCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
       }
 
       if (lead_type) {
         getQuery += ` AND l.lead_type_id = ?`;
         countQuery += ` AND l.lead_type_id = ?`;
+        bucketCountQuery += ` AND l.lead_type_id = ?`;
+        openLeadsCountQuery += ` AND l.lead_type_id = ?`;
         queryParams.push(lead_type);
         countQueryParams.push(lead_type);
+        bucketCountQueryParams.push(lead_type);
+        openLeadsCountQueryParams.push(lead_type);
       }
 
       if (domain) {
@@ -4490,15 +4533,23 @@ WHERE ${filterCondition}`;
       if (sub_source_id) {
         getQuery += ` AND l.lead_sub_source = ?`;
         countQuery += ` AND l.lead_sub_source = ?`;
+        bucketCountQuery += ` AND l.lead_sub_source = ?`;
+        openLeadsCountQuery += ` AND l.lead_sub_source = ?`;
         queryParams.push(sub_source_id);
         countQueryParams.push(sub_source_id);
+        bucketCountQueryParams.push(sub_source_id);
+        openLeadsCountQueryParams.push(sub_source_id);
       }
 
       if (lead_status_id) {
         getQuery += ` AND l.lead_status_id = ?`;
         countQuery += ` AND l.lead_status_id = ?`;
+        bucketCountQuery += ` AND l.lead_status_id = ?`;
+        openLeadsCountQuery += ` AND l.lead_status_id = ?`;
         queryParams.push(lead_status_id);
         countQueryParams.push(lead_status_id);
+        bucketCountQueryParams.push(lead_status_id);
+        openLeadsCountQueryParams.push(lead_status_id);
       }
 
       if (lead_action) {
@@ -4572,8 +4623,13 @@ WHERE ${filterCondition}`;
         start_date,
         end_date,
         region,
+        preferred_mode,
         branch,
         user_ids,
+        lead_status_id,
+        lead_type,
+        sub_source_id,
+        search_filter,
       });
 
       if (
