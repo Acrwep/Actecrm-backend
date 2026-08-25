@@ -443,6 +443,12 @@ router.put(
 
 router.post("/getPayments", verifyToken, trainerPaymentController.getPayments);
 
+router.post(
+  "/getTrainerPaymentBankSheet",
+  verifyToken,
+  trainerPaymentController.getTrainerPaymentBankSheet,
+);
+
 router.put(
   "/financeJuniorApprove",
   verifyToken,

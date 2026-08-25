@@ -220,6 +220,24 @@ const approveTrainerPaymentTransaction = async (req, res) => {
   }
 };
 
+const getTrainerPaymentBankSheet = async (req, res) => {
+  try {
+    const { payment_master_id } = req.body;
+
+    const result =
+      await trainerPaymentModal.getTrainerPaymentBankSheet(payment_master_id);
+    return res.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).send({
+      message: "Error while Send Bank Sheet",
+      details: err.message,
+    });
+  }
+};
+
 // Finance Head - Reject Payment
 const rejectTrainerPaymentApproval = async (req, res) => {
   try {
@@ -482,4 +500,5 @@ module.exports = {
   acknowledgeClassCompletion,
   moveToPaid,
   getNonClaimBatches,
+  getTrainerPaymentBankSheet,
 };

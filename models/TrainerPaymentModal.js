@@ -3323,6 +3323,48 @@ LEFT JOIN region AS re
       throw new Error(error.message);
     }
   },
+  getTrainerPaymentBankSheet: async (payment_master_id) => {
+    try {
+      const placeholders = payment_master_id.map(() => "?").join(",");
+      const [result] = await pool.query(
+        `  SELECT
+    'NFT' AS payment_type,
+    tra.id AS cust_ref_number,
+    '409014082505' AS source_account_number,
+    tra.name AS source_narration,
+    tba.account_number AS destination_account_number,
+    'INR' AS currency,
+    COALESCE(SUM(tpt.commercial),0) AS amount,
+    'From Acte' AS destination_narration,
+    tba.bank_name AS destination_bank,
+    tba.ifsc_code AS destination_bank_ifsc_code,
+    tba.account_holder_name AS beneficiary_name,
+    tba.account_type AS beneficiary_account_type
+FROM trainer_payment_master tpm
+LEFT JOIN trainer_payment_trans tpt
+    ON tpt.payment_master_id = tpm.id
+LEFT JOIN trainer_bank_accounts tba
+    ON tba.id = tpm.bank_id
+LEFT JOIN trainer tra
+    ON tra.id = tpm.trainer_id
+WHERE tpm.id IN (${placeholders})
+  AND tpm.status = 'Paid'
+GROUP BY
+    tra.id,
+    tra.name,
+    tba.account_number,
+    tba.bank_name,
+    tba.ifsc_code,
+    tba.account_holder_name,
+    tba.account_type `,
+
+        payment_master_id,
+      );
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   getPaymentById: async (payment_id, payment_trans_id) => {
     try {
@@ -4270,7 +4312,7 @@ LEFT JOIN region AS re
 
       if (isBankExists.length > 0) {
         const bankAccount = isBankExists[0];
-
+        console.log(bankAccount, "bankAccount");
         if (!bankAccount.account_type && account_type) {
           await connection.query(
             `UPDATE trainer_bank_accounts
@@ -4281,7 +4323,7 @@ LEFT JOIN region AS re
         }
         await connection.query(
           `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
-          [bankAccount[0].id, payment_master_id],
+          [bankAccount.id, payment_master_id],
         );
       } else {
         await connection.query(
