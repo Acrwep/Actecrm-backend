@@ -4269,9 +4269,19 @@ LEFT JOIN region AS re
       );
 
       if (isBankExists.length > 0) {
+        const bankAccount = isBankExists[0];
+
+        if (!bankAccount.account_type && account_type) {
+          await connection.query(
+            `UPDATE trainer_bank_accounts
+             SET account_type = ?
+             WHERE id = ?`,
+            [account_type, bankAccount.id],
+          );
+        }
         await connection.query(
           `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
-          [isBankExists[0].id, payment_master_id],
+          [bankAccount[0].id, payment_master_id],
         );
       } else {
         await connection.query(
