@@ -139,10 +139,7 @@ const getPayments = async (req, res) => {
 const getPaymentById = async (req, res) => {
   const { payment_id, payment_trans_id } = req.query;
   try {
-    // If frontend passes payment_trans_id explicitly, use it.
-    // Otherwise fallback to payment_id (which might be tpt.id if we update getPaymentsV1)
-    const idToUse = payment_trans_id || payment_id;
-    const result = await trainerPaymentModal.getPaymentById(idToUse);
+    const result = await trainerPaymentModal.getPaymentById(payment_id, payment_trans_id);
     return res.status(200).send({
       message: "Data fetched successfully",
       data: result,

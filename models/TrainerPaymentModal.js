@@ -3273,17 +3273,19 @@ LEFT JOIN region AS re
     }
   },
 
-  getPaymentById: async (payment_id) => {
+  getPaymentById: async (payment_id, payment_trans_id) => {
     try {
       let payment_master_id = payment_id;
-      // First get the master ID from the specific student's payment transaction
-      const [transRecord] = await pool.query(
-        `SELECT payment_master_id FROM trainer_payment_trans WHERE id = ?`,
-        [payment_id],
-      );
+      // If frontend passes payment_trans_id explicitly, use it to find the master
+      if (payment_trans_id) {
+        const [transRecord] = await pool.query(
+          `SELECT payment_master_id FROM trainer_payment_trans WHERE id = ?`,
+          [payment_trans_id],
+        );
 
-      if (transRecord.length > 0) {
-        payment_master_id = transRecord[0].payment_master_id;
+        if (transRecord.length > 0) {
+          payment_master_id = transRecord[0].payment_master_id;
+        }
       }
 
       let getQuery = `SELECT
