@@ -1489,34 +1489,10 @@ const trainerPaymentModal = {
 
         COUNT(
           DISTINCT CASE
-            WHEN tpm.status = 'Awaiting Approval'
-            THEN tpm.id
-          END
-        ) AS awaiting_approval,
-
-        COUNT(
-          DISTINCT CASE
             WHEN tpm.status = 'Awaiting Finance'
             THEN tpm.id
           END
         ) AS awaiting_finance,
-
-        COUNT(
-          DISTINCT CASE
-            WHEN tpm.status = 'Completed'
-            THEN tpm.id
-          END
-        ) AS completed,
-
-        COUNT(
-          DISTINCT CASE
-            WHEN tpm.status IN (
-              'Payment Rejected',
-              'Approval Rejected'
-            )
-            THEN tpm.id
-          END
-        ) AS payment_rejected,
 
         COUNT(
           DISTINCT CASE
@@ -2319,10 +2295,7 @@ const trainerPaymentModal = {
           total: 0,
           link_sent: 0,
           requested: 0,
-          awaiting_approval: 0,
           awaiting_finance: 0,
-          completed: 0,
-          payment_rejected: 0,
           paid: 0,
         },
 
