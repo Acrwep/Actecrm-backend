@@ -139,7 +139,10 @@ const getPayments = async (req, res) => {
 const getPaymentById = async (req, res) => {
   const { payment_id, payment_trans_id } = req.query;
   try {
-    const result = await trainerPaymentModal.getPaymentById(payment_id, payment_trans_id);
+    const result = await trainerPaymentModal.getPaymentById(
+      payment_id,
+      payment_trans_id,
+    );
     return res.status(200).send({
       message: "Data fetched successfully",
       data: result,
@@ -175,13 +178,15 @@ const financeJuniorApprove = async (req, res) => {
 
 // Finance Head - Approve Transaction
 const updateTrainerPaymentStatus = async (req, res) => {
-  const { status, trainer_payment_id, updated_by, updated_date } = req.body;
+  const { status, trainer_payment_id, updated_by, updated_date, Revert } =
+    req.body;
   try {
     const result = await trainerPaymentModal.updateTrainerPaymentStatus(
       status,
       trainer_payment_id,
       updated_by,
       updated_date,
+      Revert,
     );
     return res.status(200).send({
       message: "Status Changed",

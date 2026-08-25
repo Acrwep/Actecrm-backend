@@ -3854,6 +3854,7 @@ LEFT JOIN region AS re
     trainer_payment_id,
     updated_by,
     updated_date,
+    Revert,
   ) => {
     const conn = await pool.getConnection();
 
@@ -3917,25 +3918,51 @@ LEFT JOIN region AS re
         [trainer_payment_id],
       );
 
-      if (getCus.length > 0) {
-        for (const customer of getCus) {
+      if (Revert === 1) {
+        if (getCus.length > 0) {
+          for (const customer of getCus) {
+            await conn.query(
+              `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+              [
+                customer.id,
+                "Reverted Trainer Payment Approval",
+                updated_date,
+                updated_by,
+              ],
+            );
+          }
+        }
+
+        await conn.query(
+          `UPDATE trainer_payment_master SET status = ?,approved_date = null  WHERE id = ?`,
+          [status, trainer_payment_id],
+        );
+      } else {
+        if (getCus.length > 0) {
+          for (const customer of getCus) {
+            await conn.query(
+              `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+              [
+                customer.id,
+                "Trainer Payment Approved",
+                updated_date,
+                updated_by,
+              ],
+            );
+          }
+        }
+
+        await conn.query(
+          `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
+          [status, trainer_payment_id],
+        );
+
+        if (status === "Awaiting Finance") {
           await conn.query(
-            `INSERT INTO customer_track(customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
-            [customer.id, "Trainer Payment Approved", updated_date, updated_by],
+            `UPDATE trainer_payment_master SET approved_date = ? WHERE id = ?`,
+            [updated_date, trainer_payment_id],
           );
         }
-      }
-
-      await conn.query(
-        `UPDATE trainer_payment_master SET status = ? WHERE id = ?`,
-        [status, trainer_payment_id],
-      );
-
-      if (status === "Awaiting Finance") {
-        await conn.query(
-          `UPDATE trainer_payment_master SET approved_date = ? WHERE id = ?`,
-          [updated_date, trainer_payment_id],
-        );
       }
 
       await conn.commit();
