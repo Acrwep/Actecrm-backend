@@ -967,7 +967,7 @@ const trainerPaymentModal = {
     }
   },
 
-  getPaymentsV1: async (
+  getPaymentsV11: async (
     start_date,
     end_date,
     status,
@@ -1327,7 +1327,953 @@ const trainerPaymentModal = {
       throw new Error(error.message);
     }
   },
+  getPaymentsV1: async (
+    start_date,
+    end_date,
+    status,
+    trainer_id,
+    training_mode,
+    commercial_type,
+    region_id,
+    search_filter,
+    branch_id,
+    page,
+    limit,
+    type,
+  ) => {
+    try {
+      // =========================================================
+      // PAGINATION
+      // =========================================================
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
 
+      // =========================================================
+      // PARAM ARRAYS
+      // =========================================================
+      const queryParams = [];
+      const countParams = [];
+      const statusParams = [];
+      const regionParams = [];
+
+      // =========================================================
+      // MAIN QUERY
+      //
+      // IMPORTANT:
+      // This query returns ONLY ONE ROW per trainer_payment_master.id
+      //
+      // Students are NOT joined here.
+      // Students are fetched separately below.
+      // =========================================================
+      let getQuery = `
+      SELECT
+        tpm.id,
+        tpm.bill_raisedate,
+        tpm.trainer_id,
+
+        t.name AS trainer_name,
+        t.mobile AS trainer_mobile,
+        t.email AS trainer_email,
+
+        tpm.request_amount,
+        tpm.batch_amount,
+        tpm.paid_amount,
+        tpm.balance_amount,
+
+        CASE
+          WHEN tpm.fully_paid_date IS NULL
+          THEN DATEDIFF(
+            CURRENT_DATE,
+            tpm.bill_raisedate
+          )
+          ELSE DATEDIFF(
+            tpm.fully_paid_date,
+            tpm.bill_raisedate
+          )
+        END AS days_taken_topay,
+
+        tpm.deadline_date,
+        tpm.status,
+        tpm.is_verified,
+        tpm.verified_by,
+
+        vu.user_name AS verified_user,
+
+        tpm.verified_date,
+        tpm.approved_date,
+        tpm.fully_paid_date,
+
+        tpm.created_by,
+        cu.user_name AS created_user,
+
+        tpm.created_date,
+        tpm.bank_id,
+        tpm.commercial_type,
+        tpm.feedback,
+        tpm.batch_id,
+
+        bm.batch_number,
+
+        CASE
+          WHEN tpm.commercial_type = 'Batch'
+          THEN (
+            SELECT COUNT(DISTINCT bt.customer_id)
+            FROM batch_trans bt
+            WHERE bt.batch_master_id = tpm.batch_id
+          )
+          ELSE 0
+        END AS batch_student_count,
+
+        tpm.updated_date,
+
+        (
+          SELECT MAX(tp2.paid_date)
+          FROM trainer_payment tp2
+          WHERE tp2.payment_master_id = tpm.id
+        ) AS paid_date
+
+      FROM trainer_payment_master tpm
+
+      LEFT JOIN trainer t
+        ON t.id = tpm.trainer_id
+
+      LEFT JOIN users vu
+        ON vu.user_id = tpm.verified_by
+
+      LEFT JOIN users cu
+        ON cu.user_id = tpm.created_by
+
+      LEFT JOIN batch_master bm
+        ON bm.id = tpm.batch_id
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // COUNT QUERY
+      //
+      // ONE MASTER = ONE COUNT
+      // =========================================================
+      let countQuery = `
+      SELECT
+        COUNT(DISTINCT tpm.id) AS total
+
+      FROM trainer_payment_master tpm
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // STATUS COUNT QUERY
+      // =========================================================
+      let statusCountQuery = `
+      SELECT
+
+        COUNT(DISTINCT tpm.id) AS total,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status IN ('Link Sent', 'Rejected')
+            THEN tpm.id
+          END
+        ) AS link_sent,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status IN ('Requested', 'Rejected')
+            THEN tpm.id
+          END
+        ) AS requested,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status = 'Awaiting Approval'
+            THEN tpm.id
+          END
+        ) AS awaiting_approval,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status = 'Awaiting Finance'
+            THEN tpm.id
+          END
+        ) AS awaiting_finance,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status = 'Completed'
+            THEN tpm.id
+          END
+        ) AS completed,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status IN (
+              'Payment Rejected',
+              'Approval Rejected'
+            )
+            THEN tpm.id
+          END
+        ) AS payment_rejected,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN tpm.status = 'Paid'
+            THEN tpm.id
+          END
+        ) AS paid
+
+      FROM trainer_payment_master tpm
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // REGION COUNT QUERY
+      // =========================================================
+      let regionCountQuery = `
+      SELECT
+
+        COUNT(
+          DISTINCT CASE
+            WHEN sr.name = 'Hub'
+            THEN tpm.id
+          END
+        ) AS hub_count,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN sr.name = 'Hub'
+              THEN tpt.commercial
+              ELSE 0
+            END
+          ),
+          0
+        ) AS hub_amount,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN sr.name = 'Chennai'
+            THEN tpm.id
+          END
+        ) AS chn_count,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN sr.name = 'Chennai'
+              THEN tpt.commercial
+              ELSE 0
+            END
+          ),
+          0
+        ) AS chn_amount,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN sr.name = 'Bangalore'
+            THEN tpm.id
+          END
+        ) AS blr_count,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN sr.name = 'Bangalore'
+              THEN tpt.commercial
+              ELSE 0
+            END
+          ),
+          0
+        ) AS blr_amount
+
+      FROM trainer_payment_master tpm
+
+      LEFT JOIN trainer_payment_trans tpt
+        ON tpt.payment_master_id = tpm.id
+
+      LEFT JOIN trainer_mapping tm
+        ON tm.id = tpt.trainer_mapping_id
+
+      LEFT JOIN customers c
+        ON c.id = tm.customer_id
+
+      LEFT JOIN lead_master l
+        ON l.id = c.lead_id
+
+      LEFT JOIN users se
+        ON se.user_id = l.assigned_to
+
+      LEFT JOIN branches sb
+        ON sb.id = se.branch_id
+
+      LEFT JOIN region sr
+        ON sr.id = sb.region_id
+
+      LEFT JOIN technologies tech
+        ON tech.id = c.enrolled_course
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // DATE FILTER
+      // =========================================================
+      if (start_date && end_date) {
+        let condition;
+
+        if (type === "Deadline") {
+          condition = `
+          AND tpm.deadline_date >= ?
+          AND tpm.deadline_date < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+        } else {
+          condition = `
+          AND tpm.bill_raisedate >= ?
+          AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+        }
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
+        regionParams.push(start_date, end_date);
+      }
+
+      // =========================================================
+      // STATUS FILTER
+      // =========================================================
+      if (status) {
+        let condition;
+
+        if (status === "Payment Rejected") {
+          condition = `
+          AND tpm.status IN (
+            'Payment Rejected',
+            'Approval Rejected'
+          )
+        `;
+
+          getQuery += condition;
+          countQuery += condition;
+          statusCountQuery += condition;
+          regionCountQuery += condition;
+        } else {
+          condition = `
+          AND tpm.status = ?
+        `;
+
+          getQuery += condition;
+          countQuery += condition;
+          statusCountQuery += condition;
+          regionCountQuery += condition;
+
+          queryParams.push(status);
+          countParams.push(status);
+          statusParams.push(status);
+          regionParams.push(status);
+        }
+      }
+
+      // =========================================================
+      // TRAINER FILTER
+      // =========================================================
+      if (trainer_id) {
+        const condition = `
+        AND tpm.trainer_id = ?
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(trainer_id);
+        countParams.push(trainer_id);
+        statusParams.push(trainer_id);
+        regionParams.push(trainer_id);
+      }
+
+      // =========================================================
+      // TRAINING MODE FILTER
+      //
+      // EXISTS means:
+      // If ANY student under this payment_master_id has
+      // the requested training_mode, that master is returned.
+      //
+      // But students query below still returns ALL students.
+      // =========================================================
+      if (training_mode) {
+        const condition = `
+        AND EXISTS (
+          SELECT 1
+          FROM trainer_payment_trans ftpt
+          WHERE ftpt.payment_master_id = tpm.id
+          AND ftpt.training_mode = ?
+        )
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(training_mode);
+        countParams.push(training_mode);
+        statusParams.push(training_mode);
+        regionParams.push(training_mode);
+      }
+
+      // =========================================================
+      // COMMERCIAL TYPE
+      // =========================================================
+      if (commercial_type) {
+        const condition = `
+        AND tpm.commercial_type = ?
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(commercial_type);
+        countParams.push(commercial_type);
+        statusParams.push(commercial_type);
+        regionParams.push(commercial_type);
+      }
+
+      // =========================================================
+      // REGION FILTER
+      // =========================================================
+      if (region_id) {
+        const condition = `
+        AND EXISTS (
+          SELECT 1
+
+          FROM trainer_payment_trans rtpt
+
+          LEFT JOIN trainer_mapping rtm
+            ON rtm.id = rtpt.trainer_mapping_id
+
+          LEFT JOIN customers rc
+            ON rc.id = rtm.customer_id
+
+          LEFT JOIN lead_master rl
+            ON rl.id = rc.lead_id
+
+          LEFT JOIN users rse
+            ON rse.user_id = rl.assigned_to
+
+          LEFT JOIN branches rsb
+            ON rsb.id = rse.branch_id
+
+          LEFT JOIN region rsr
+            ON rsr.id = rsb.region_id
+
+          WHERE rtpt.payment_master_id = tpm.id
+          AND rsr.id = ?
+        )
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        statusParams.push(region_id);
+        regionParams.push(region_id);
+      }
+
+      // =========================================================
+      // SEARCH FILTER
+      // =========================================================
+      if (search_filter) {
+        const searchValue = `%${search_filter}%`;
+
+        const condition = `
+        AND EXISTS (
+          SELECT 1
+
+          FROM trainer_payment_trans spt
+
+          LEFT JOIN trainer_mapping stm2
+            ON stm2.id = spt.trainer_mapping_id
+
+          LEFT JOIN customers sc2
+            ON sc2.id = stm2.customer_id
+
+          LEFT JOIN technologies stech2
+            ON stech2.id = sc2.enrolled_course
+
+          WHERE spt.payment_master_id = tpm.id
+
+          AND (
+            sc2.student_id LIKE ?
+            OR sc2.name LIKE ?
+            OR sc2.phone LIKE ?
+            OR sc2.email LIKE ?
+            OR stech2.name LIKE ?
+          )
+        )
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        countParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        statusParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        regionParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+      }
+
+      // =========================================================
+      // BRANCH FILTER
+      // =========================================================
+      if (branch_id) {
+        const condition = `
+        AND EXISTS (
+          SELECT 1
+
+          FROM trainer_payment_trans btpt
+
+          LEFT JOIN trainer_mapping btm
+            ON btm.id = btpt.trainer_mapping_id
+
+          LEFT JOIN customers bc
+            ON bc.id = btm.customer_id
+
+          LEFT JOIN lead_master bl
+            ON bl.id = bc.lead_id
+
+          LEFT JOIN users bse
+            ON bse.user_id = bl.assigned_to
+
+          LEFT JOIN branches bbranch
+            ON bbranch.id = bse.branch_id
+
+          WHERE btpt.payment_master_id = tpm.id
+          AND bbranch.id = ?
+        )
+      `;
+
+        getQuery += condition;
+        countQuery += condition;
+        statusCountQuery += condition;
+        regionCountQuery += condition;
+
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        statusParams.push(branch_id);
+        regionParams.push(branch_id);
+      }
+
+      // =========================================================
+      // MASTER PAGINATION
+      // =========================================================
+      getQuery += `
+      ORDER BY
+        tpm.bill_raisedate DESC,
+        tpm.id DESC
+      LIMIT ? OFFSET ?
+    `;
+
+      queryParams.push(limitNumber, offset);
+
+      // =========================================================
+      // EXECUTE MASTER + COUNTS
+      // =========================================================
+      const [[countResult], [statusResult], [regionResult], [masterRows]] =
+        await Promise.all([
+          pool.query(countQuery, countParams),
+          pool.query(statusCountQuery, statusParams),
+          pool.query(regionCountQuery, regionParams),
+          pool.query(getQuery, queryParams),
+        ]);
+
+      // =========================================================
+      // IF NO MASTER DATA
+      // =========================================================
+      if (!masterRows || masterRows.length === 0) {
+        return {
+          data: [],
+          statusCount: statusResult[0] || {},
+          regionCount: regionResult[0] || {},
+          pagination: {
+            total: parseInt(countResult[0]?.total || 0, 10),
+            page: pageNumber,
+            limit: limitNumber,
+            totalPages: Math.ceil(
+              parseInt(countResult[0]?.total || 0, 10) / limitNumber,
+            ),
+          },
+        };
+      }
+
+      // =========================================================
+      // GET PAYMENT MASTER IDS
+      // =========================================================
+      const paymentMasterIds = masterRows.map((row) => row.id);
+
+      // =========================================================
+      // CREATE ? PLACEHOLDERS
+      // =========================================================
+      const placeholders = paymentMasterIds.map(() => "?").join(",");
+
+      // =========================================================
+      // STUDENT QUERY
+      //
+      // IMPORTANT:
+      // This query gets ALL students belonging to the
+      // payment_master_id values returned above.
+      //
+      // NO JSON_ARRAYAGG.
+      // =========================================================
+      const studentsQuery = `
+      SELECT
+
+        tpt.id AS payment_trans_id,
+
+        tpt.payment_master_id,
+
+        tpt.trainer_mapping_id,
+
+        tpt.duration_in_hours,
+        tpt.training_mode,
+        tpt.branch_id,
+
+        tpt.study_material,
+        tpt.assessment,
+        tpt.placement_guidance,
+
+        tpt.hr_rating,
+        tpt.coordinator_rating,
+
+        tpt.place_of_supply,
+        tpt.place_of_sale,
+
+        tpt.commercial,
+        tpt.commercial_percentage,
+
+        tpt.attendance_status,
+        tpt.attendance_sheetlink,
+        tpt.attendance_screenshot,
+        tpt.screenshot,
+
+        tm.customer_id,
+
+        c.student_id,
+
+        c.is_linkedin_verified,
+        c.is_google_verified,
+
+        c.name AS customer_name,
+        c.email AS customer_email,
+        c.phone AS customer_phone,
+
+        c.lead_id,
+
+        c.linkedin_review,
+
+        CASE
+          WHEN (
+            c.linkedin_review IS NOT NULL
+            AND c.linkedin_review != ''
+          )
+          THEN 1
+          ELSE 0
+        END AS is_linkedin,
+
+        c.google_review,
+
+        CASE
+          WHEN (
+            c.google_review IS NOT NULL
+            AND c.google_review != ''
+          )
+          THEN 1
+          ELSE 0
+        END AS is_google,
+
+        c.class_percentage,
+
+        CASE
+          WHEN c.class_percentage = 100
+          THEN 1
+          ELSE 0
+        END AS is_class_percentage,
+
+        c.is_acknowledged,
+        c.acknowledged_date,
+
+        tech.name AS course_name,
+
+        c.place_of_service AS std_place_of_service,
+
+        psb.name AS std_place_of_service_name,
+
+        cm.name AS mode_of_training,
+
+        COALESCE(pm.total_amount, 0)
+          AS std_total_amount,
+
+        COALESCE(ps.paid_amount, 0)
+          AS std_paid_amount,
+
+        (
+          COALESCE(pm.total_amount, 0)
+          -
+          COALESCE(ps.paid_amount, 0)
+        ) AS std_balance_amount,
+
+        CASE
+          WHEN (
+            COALESCE(pm.total_amount, 0)
+            -
+            COALESCE(ps.paid_amount, 0)
+          ) > 0
+          THEN 0
+          ELSE 1
+        END AS is_payment_cleared,
+
+        ra.user_id AS ra_user_id,
+        ra.user_name AS ra_user_name,
+
+        hu.user_id AS hr_user_id,
+        hu.user_name AS hr_user_name,
+
+        l.assigned_to AS lead_assigned_to_id,
+
+        se.user_name AS lead_assigned_to_name,
+
+        sb.name AS std_place_of_sale_name,
+
+        sr.name AS std_region_name
+
+      FROM trainer_payment_trans tpt
+
+      LEFT JOIN trainer_mapping tm
+        ON tm.id = tpt.trainer_mapping_id
+
+      LEFT JOIN customers c
+        ON c.id = tm.customer_id
+
+      LEFT JOIN technologies tech
+        ON tech.id = c.enrolled_course
+
+      LEFT JOIN lead_master l
+        ON l.id = c.lead_id
+
+      LEFT JOIN class_mode cm
+        ON cm.id = l.preferred_mode
+
+      LEFT JOIN users se
+        ON se.user_id = l.assigned_to
+
+      LEFT JOIN branches sb
+        ON sb.id = se.branch_id
+
+      LEFT JOIN region sr
+        ON sr.id = sb.region_id
+
+      LEFT JOIN payment_master pm
+        ON pm.lead_id = l.id
+
+      LEFT JOIN (
+        SELECT
+          pt.payment_master_id,
+          SUM(pt.amount) AS paid_amount
+
+        FROM payment_trans pt
+
+        WHERE pt.payment_status IN (
+          'Verified',
+          'Verify Pending'
+        )
+
+        GROUP BY pt.payment_master_id
+      ) ps
+        ON ps.payment_master_id = pm.id
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+
+        FROM customer_track ct
+
+        WHERE ct.status = 'Trainer Assigned'
+
+        GROUP BY ct.customer_id
+      ) latest_hr
+        ON latest_hr.customer_id = c.id
+
+      LEFT JOIN customer_track ht
+        ON ht.id = latest_hr.latest_id
+
+      LEFT JOIN users hu
+        ON hu.user_id = ht.updated_by
+
+      LEFT JOIN (
+        SELECT
+          ct.customer_id,
+          MAX(ct.id) AS latest_id
+
+        FROM customer_track ct
+
+        WHERE ct.status = 'Student Verified'
+
+        GROUP BY ct.customer_id
+      ) latest_ra
+        ON latest_ra.customer_id = c.id
+
+      LEFT JOIN customer_track rt
+        ON rt.id = latest_ra.latest_id
+
+      LEFT JOIN users ra
+        ON ra.user_id = rt.updated_by
+
+      LEFT JOIN branches psb
+        ON psb.id = c.place_of_service
+
+      WHERE tpt.payment_master_id IN (${placeholders})
+
+      ORDER BY
+        tpt.payment_master_id DESC,
+        tpt.id ASC
+    `;
+
+      // =========================================================
+      // FETCH ALL STUDENTS
+      // =========================================================
+      const [studentRows] = await pool.query(studentsQuery, paymentMasterIds);
+
+      // =========================================================
+      // GROUP STUDENTS BY payment_master_id
+      //
+      // THIS IS THE MAIN PART
+      //
+      // Example:
+      //
+      // payment_master_id 7
+      //    student A
+      //    student B
+      //
+      // becomes:
+      //
+      // {
+      //    id: 7,
+      //    students: [
+      //       student A,
+      //       student B
+      //    ]
+      // }
+      // =========================================================
+      const studentsMap = {};
+
+      for (const student of studentRows) {
+        const masterId = student.payment_master_id;
+
+        if (!studentsMap[masterId]) {
+          studentsMap[masterId] = [];
+        }
+
+        studentsMap[masterId].push(student);
+      }
+
+      // =========================================================
+      // ATTACH students[] TO EACH MASTER
+      // =========================================================
+      const finalData = masterRows.map((master) => {
+        return {
+          ...master,
+
+          students: studentsMap[master.id] || [],
+        };
+      });
+
+      // =========================================================
+      // TOTAL
+      // =========================================================
+      const total = parseInt(countResult[0]?.total || 0, 10);
+
+      // =========================================================
+      // FINAL RESPONSE
+      // =========================================================
+      return {
+        data: finalData,
+
+        statusCount: statusResult[0] || {
+          total: 0,
+          link_sent: 0,
+          requested: 0,
+          awaiting_approval: 0,
+          awaiting_finance: 0,
+          completed: 0,
+          payment_rejected: 0,
+          paid: 0,
+        },
+
+        regionCount: regionResult[0] || {
+          hub_count: 0,
+          hub_amount: 0,
+          chn_count: 0,
+          chn_amount: 0,
+          blr_count: 0,
+          blr_amount: 0,
+        },
+
+        pagination: {
+          total,
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      console.error("getPaymentsV1 ERROR:", error);
+
+      throw new Error(`Error while fetching data: ${error.message}`);
+    }
+  },
   getPayments: async (
     start_date,
     end_date,
