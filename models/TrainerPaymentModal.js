@@ -1165,12 +1165,9 @@ const trainerPaymentModal = {
       let statusCountQuery = `
       SELECT
         COUNT(*) AS total,
-              IFNULL(SUM(CASE WHEN tpm.status IN('Link Sent', 'Rejected') THEN 1 ELSE 0 END), 0) AS link_sent,
-              IFNULL(SUM(CASE WHEN tpm.status IN('Requested', 'Rejected') THEN 1 ELSE 0 END), 0) AS requested,
-              IFNULL(SUM(CASE WHEN tpm.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval,
+              IFNULL(SUM(CASE WHEN tpm.status IN('Link Sent') THEN 1 ELSE 0 END), 0) AS link_sent,
+              IFNULL(SUM(CASE WHEN tpm.status IN('Requested') THEN 1 ELSE 0 END), 0) AS requested,
               IFNULL(SUM(CASE WHEN tpm.status = 'Awaiting Finance' THEN 1 ELSE 0 END), 0) AS awaiting_finance,
-              IFNULL(SUM(CASE WHEN tpm.status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed,
-              IFNULL(SUM(CASE WHEN tpm.status IN ('Payment Rejected', 'Approval Rejected') THEN 1 ELSE 0 END), 0) AS payment_rejected,
               IFNULL(SUM(CASE WHEN tpm.status = 'Paid' THEN 1 ELSE 0 END), 0) AS paid
       FROM
         trainer_payment_trans AS tpt
@@ -1471,18 +1468,28 @@ const trainerPaymentModal = {
       let statusCountQuery = `
       SELECT
 
-        COUNT(DISTINCT tpm.id) AS total,
+        COUNT(
+        DISTINCT CASE
+          WHEN tpm.status IN (
+          'Link Sent',
+          'Requested',
+          'Awaiting Finance',
+          'Paid'
+        )
+       THEN tpm.id
+       END
+       ) AS total,
 
         COUNT(
           DISTINCT CASE
-            WHEN tpm.status IN ('Link Sent', 'Rejected')
+            WHEN tpm.status IN ('Link Sent')
             THEN tpm.id
           END
         ) AS link_sent,
 
         COUNT(
           DISTINCT CASE
-            WHEN tpm.status IN ('Requested', 'Rejected')
+            WHEN tpm.status IN ('Requested')
             THEN tpm.id
           END
         ) AS requested,
