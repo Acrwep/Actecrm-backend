@@ -1998,16 +1998,19 @@ const trainerPaymentModal = {
           statusCount: statusResult[0] || {},
           regionCount: regionResult[0] || {},
           commercialTypeCount: commercialTypeResult[0] || {},
-          pagination: (page && limit) ? {
-            total: parseInt(countResult[0]?.total || 0, 10),
-            page: pageNumber,
-            limit: limitNumber,
-            totalPages: Math.ceil(
-              parseInt(countResult[0]?.total || 0, 10) / limitNumber,
-            ),
-          } : {
-            total: parseInt(countResult[0]?.total || 0, 10),
-          },
+          pagination:
+            page && limit
+              ? {
+                  total: parseInt(countResult[0]?.total || 0, 10),
+                  page: pageNumber,
+                  limit: limitNumber,
+                  totalPages: Math.ceil(
+                    parseInt(countResult[0]?.total || 0, 10) / limitNumber,
+                  ),
+                }
+              : {
+                  total: parseInt(countResult[0]?.total || 0, 10),
+                },
         };
       }
 
@@ -2325,12 +2328,15 @@ const trainerPaymentModal = {
           Batch_Count: 0,
         },
 
-        pagination: (page && limit) ? {
-          total,
-          page: pageNumber,
-          limit: limitNumber,
-          totalPages: Math.ceil(total / limitNumber),
-        } : { total },
+        pagination:
+          page && limit
+            ? {
+                total,
+                page: pageNumber,
+                limit: limitNumber,
+                totalPages: Math.ceil(total / limitNumber),
+              }
+            : { total },
       };
     } catch (error) {
       console.error("getPaymentsV1 ERROR:", error);
@@ -4822,6 +4828,11 @@ GROUP BY
              WHERE id = ?`,
             [account_type, bankAccount.id],
           );
+
+          await connection.query(
+            `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
+            [bankAccount.id, lastInsertId],
+          );
         }
       } else {
         await connection.query(
@@ -4846,6 +4857,14 @@ GROUP BY
             account_type,
             created_date,
           ],
+        );
+        const [newBank] = await connection.query(
+          `SELECT id FROM trainer_bank_accounts WHERE trainer_id = ? AND account_number = ?`,
+          [trainer_id, account_number],
+        );
+        await connection.query(
+          `UPDATE trainer_payment_master SET bank_id = ? WHERE id = ?`,
+          [newBank[0].id, lastInsertId],
         );
       }
 
