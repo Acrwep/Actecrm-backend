@@ -421,6 +421,7 @@ const TrainerModel = {
                           tb.account_number,
                           tb.bank_name,
                           tb.branch_name,
+                          tb.account_type,
                           tb.ifsc_code,
                           tb.signature_image,
                           t.created_by,

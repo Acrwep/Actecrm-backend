@@ -1342,9 +1342,12 @@ const trainerPaymentModal = {
       // =========================================================
       // PAGINATION
       // =========================================================
-      const pageNumber = parseInt(page, 10) || 1;
-      const limitNumber = parseInt(limit, 10) || 10;
-      const offset = (pageNumber - 1) * limitNumber;
+      let pageNumber, limitNumber, offset;
+      if (page && limit) {
+        pageNumber = parseInt(page, 10) || 1;
+        limitNumber = parseInt(limit, 10) || 10;
+        offset = (pageNumber - 1) * limitNumber;
+      }
 
       // =========================================================
       // PARAM ARRAYS
@@ -1962,10 +1965,12 @@ const trainerPaymentModal = {
       ORDER BY
         tpm.bill_raisedate DESC,
         tpm.id DESC
-      LIMIT ? OFFSET ?
     `;
 
-      queryParams.push(limitNumber, offset);
+      if (page && limit) {
+        getQuery += `  LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       // =========================================================
       // EXECUTE MASTER + COUNTS
@@ -1993,13 +1998,15 @@ const trainerPaymentModal = {
           statusCount: statusResult[0] || {},
           regionCount: regionResult[0] || {},
           commercialTypeCount: commercialTypeResult[0] || {},
-          pagination: {
+          pagination: (page && limit) ? {
             total: parseInt(countResult[0]?.total || 0, 10),
             page: pageNumber,
             limit: limitNumber,
             totalPages: Math.ceil(
               parseInt(countResult[0]?.total || 0, 10) / limitNumber,
             ),
+          } : {
+            total: parseInt(countResult[0]?.total || 0, 10),
           },
         };
       }
@@ -2318,12 +2325,12 @@ const trainerPaymentModal = {
           Batch_Count: 0,
         },
 
-        pagination: {
+        pagination: (page && limit) ? {
           total,
           page: pageNumber,
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
-        },
+        } : { total },
       };
     } catch (error) {
       console.error("getPaymentsV1 ERROR:", error);
@@ -3337,6 +3344,7 @@ LEFT JOIN region AS re
     'NFT' AS payment_type,
     tra.id AS cust_ref_number,
     '409014082505' AS source_account_number,
+    'billing@acte.in' AS email,
     tra.name AS source_narration,
     tba.account_number AS destination_account_number,
     'INR' AS currency,
