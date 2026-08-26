@@ -1424,7 +1424,6 @@ const trainerPaymentModal = {
         END AS batch_student_count,
 
         tpm.updated_date,
-
         (
           SELECT MAX(tp2.paid_date)
           FROM trainer_payment tp2
@@ -4440,6 +4439,419 @@ GROUP BY
       return { status: true };
     } catch (error) {
       await connection.rollback();
+      throw new Error(error.message);
+    } finally {
+      connection.release();
+    }
+  },
+
+  insertTrainerPaymentDirectlyToPaid: async (
+    trainer_id,
+    request_amount,
+    bank_id,
+    commercial_type,
+    created_by,
+    created_date,
+    feedback,
+    students,
+    batch_id,
+    account_number,
+    account_holder_name,
+    bank_name,
+    ifsc_code,
+    branch_name,
+    account_type,
+    paid_amount,
+    transaction_id,
+    payment_mode,
+    paid_date,
+    paid_by,
+  ) => {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      let affectedRows = 0;
+      let lastInsertId = null;
+
+      //validation
+      if (!students || students.length <= 0) {
+        throw new Error("Students cannot be empty");
+      }
+
+      if (!trainer_id) {
+        throw new Error("Trainer ID is required");
+      }
+
+      if (!commercial_type) {
+        throw new Error("Commercial type is required");
+      }
+
+      if (!request_amount || Number(request_amount) <= 0) {
+        throw new Error("Request amount must be greater than 0");
+      }
+
+      // PAY PER HEAD VALIDATION
+      if (commercial_type === "Pay Per Head") {
+        const trainerMappingIds = students
+          .map((student) => student.trainer_mapping_id)
+          .filter(Boolean);
+
+        if (trainerMappingIds.length === 0) {
+          throw new Error("No students selected.");
+        }
+
+        // Get customer IDs from trainer_mapping
+        const [customers] = await connection.query(
+          `
+          SELECT customer_id
+          FROM trainer_mapping
+          WHERE id IN (?)
+        `,
+          [trainerMappingIds],
+        );
+
+        const customerIds = customers
+          .map((customer) => customer.customer_id)
+          .filter(Boolean);
+
+        if (customerIds.length === 0) {
+          throw new Error("No customers found.");
+        }
+
+        // Check whether any customer is already assigned to a batch
+        const [batchCustomers] = await connection.query(
+          `
+          SELECT DISTINCT customer_id
+          FROM batch_trans
+          WHERE customer_id IN (?)
+        `,
+          [customerIds],
+        );
+
+        if (batchCustomers.length > 0) {
+          throw new Error(
+            "One or more selected customers are already assigned to a batch. Kindly request batch payment.",
+          );
+        }
+      }
+
+      // COMMERCIAL CALCULATION
+      let commercial = 0;
+      /*
+       * For Batch:
+       *
+       * request_amount = total batch payment
+       *
+       * Example:
+       * request_amount = 30000
+       * students = 3
+       *
+       * commercial = 30000 / 3
+       *            = 10000
+       *
+       * Each transaction will contain 10000.
+       */
+
+      const date = new Date();
+      date.setDate(date.getDate() + 15);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const deadlineDate = `${year}-${month}-${day}`;
+
+      if (commercial_type !== "Pay Per Head") {
+        commercial = Number(request_amount) / Number(students.length);
+      }
+
+      // MASTER QUERY
+      const masterQuery = `
+      INSERT INTO trainer_payment_master (
+        bill_raisedate,
+        trainer_id,
+        request_amount,
+        balance_amount,
+        commercial_type,
+        batch_amount,
+        batch_id,
+        bank_id,
+        status,
+        created_by,
+        created_date,
+        feedback,
+        is_trainer_updated,
+        deadline_date,
+        paid_amount
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+      // TRANSACTION QUERY
+      const transQuery = `
+      INSERT INTO trainer_payment_trans (
+        payment_master_id,
+        trainer_mapping_id,
+        commercial,
+        commercial_percentage,
+        attendance_status,
+        attendance_sheetlink,
+        attendance_screenshot,
+        screenshot,
+        duration_in_hours,
+        training_mode,
+        branch_id,
+        study_material,
+        assessment,
+        placement_guidance,
+        hr_rating,
+        coordinator_rating
+        
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+      // INSERT PAYMENT RECORDS
+      /*
+       * Current behavior:
+       *
+       * Pay Per Head:
+       *   1 master + 1 transaction per student
+       *
+       * Batch:
+       *   1 master + 1 transaction per student
+       *
+       * If you want Batch to create only ONE master record,
+       * the loop needs to be separated. The code below follows
+       * the structure of your current implementation.
+       */
+
+      if (commercial_type === "Batch") {
+        // BATCH
+        // ONE MASTER RECORD FOR ENTIRE BATCH
+        const masterValues = [
+          created_date,
+          trainer_id,
+          request_amount,
+          request_amount,
+          commercial_type,
+          request_amount,
+          batch_id,
+          bank_id,
+          "Paid",
+          created_by,
+          created_date,
+          feedback,
+          1,
+          deadlineDate,
+          paid_amount,
+        ];
+
+        const [insertMaster] = await connection.query(
+          masterQuery,
+          masterValues,
+        );
+
+        affectedRows += insertMaster.affectedRows;
+        lastInsertId = insertMaster.insertId;
+
+        await connection.query(
+          `INSERT INTO trainer_payment(
+          payment_master_id,
+          paid_amount,
+          status,
+          payment_type,
+          transaction_id,
+          payment_mode,
+          paid_date,
+          paid_by
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            lastInsertId,
+            paid_amount,
+            "Completed",
+            "Fully Paid",
+            transaction_id,
+            payment_mode,
+            paid_date,
+            paid_by,
+          ],
+        );
+
+        // Insert transaction for every student
+        for (const student of students) {
+          const perStudentAmount =
+            Number(request_amount) / Number(students.length);
+
+          const transValues = [
+            insertMaster.insertId,
+            student.trainer_mapping_id,
+            perStudentAmount,
+            student.commercial_percentage,
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.screenshot,
+            student.duration_in_hours,
+            student.training_mode,
+            student.branch_id,
+            student.study_material,
+            student.assessment,
+            student.placement_guidance,
+            student.hr_rating,
+            student.coordinator_rating,
+          ];
+
+          const [insertTrans] = await connection.query(transQuery, transValues);
+
+          affectedRows += insertTrans.affectedRows;
+
+          // Fetch customer details
+        }
+      } else {
+        // PAY PER HEAD
+        // ONE MASTER + ONE TRANSACTION PER STUDENT
+
+        for (const student of students) {
+          const perStudentAmount = Number(student.commercial) || 0;
+
+          if (perStudentAmount <= 0) {
+            throw new Error(
+              `Invalid commercial amount for trainer mapping ID: ${student.trainer_mapping_id}`,
+            );
+          }
+
+          // Master
+          const masterValues = [
+            created_date,
+            trainer_id,
+            perStudentAmount,
+            perStudentAmount,
+            commercial_type,
+            0,
+            batch_id,
+            bank_id,
+            "Paid",
+            created_by,
+            created_date,
+            feedback,
+            1,
+            deadlineDate,
+            paid_amount,
+          ];
+
+          const [insertMaster] = await connection.query(
+            masterQuery,
+            masterValues,
+          );
+
+          affectedRows += insertMaster.affectedRows;
+          lastInsertId = insertMaster.insertId;
+
+          await connection.query(
+            `INSERT INTO trainer_payment(
+          payment_master_id,
+          paid_amount,
+          status,
+          payment_type,
+          transaction_id,
+          payment_mode,
+          paid_date,
+          paid_by
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              lastInsertId,
+              paid_amount,
+              "Completed",
+              "Fully Paid",
+              transaction_id,
+              payment_mode,
+              paid_date,
+              paid_by,
+            ],
+          );
+
+          // Transaction
+          const transValues = [
+            insertMaster.insertId,
+            student.trainer_mapping_id,
+            perStudentAmount,
+            student.commercial_percentage,
+            student.attendance_status,
+            student.attendance_sheetlink,
+            student.attendance_screenshot,
+            student.screenshot,
+            student.duration_in_hours,
+            student.training_mode,
+            student.branch_id,
+            student.study_material,
+            student.assessment,
+            student.placement_guidance,
+            student.hr_rating,
+            student.coordinator_rating,
+          ];
+
+          const [insertTrans] = await connection.query(transQuery, transValues);
+
+          affectedRows += insertTrans.affectedRows;
+        }
+      }
+
+      const [isBankExists] = await connection.query(
+        `SELECT id FROM trainer_bank_accounts WHERE trainer_id = ? AND account_number = ?`,
+        [trainer_id, account_number],
+      );
+
+      if (isBankExists.length > 0) {
+        const bankAccount = isBankExists[0];
+        console.log(bankAccount, "bankAccount");
+        if (!bankAccount.account_type && account_type) {
+          await connection.query(
+            `UPDATE trainer_bank_accounts
+             SET account_type = ?
+             WHERE id = ?`,
+            [account_type, bankAccount.id],
+          );
+        }
+      } else {
+        await connection.query(
+          `INSERT INTO trainer_bank_accounts(
+              trainer_id,
+              account_number,
+              account_holder_name,
+              bank_name,
+              ifsc_code,
+              branch_name,
+              account_type,
+              created_date
+          )
+          VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            trainer_id,
+            account_number,
+            account_holder_name,
+            bank_name,
+            ifsc_code,
+            branch_name,
+            account_type,
+            created_date,
+          ],
+        );
+      }
+
+      await connection.commit();
+
+      return {
+        trainer_id: trainer_id,
+        payment_master_id: lastInsertId,
+        affectedRows: affectedRows,
+      };
+    } catch (error) {
+      await connection.rollback();
+      console.error("insertTrainerPaymentDirectlyToPaid Error:", error.message);
+
       throw new Error(error.message);
     } finally {
       connection.release();

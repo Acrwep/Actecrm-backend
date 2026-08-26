@@ -396,6 +396,64 @@ const requestForUnpaid = async (req, res) => {
   }
 };
 
+const insertTrainerPaymentDirectlyToPaid = async (req, res) => {
+  const {
+    trainer_id,
+    request_amount,
+    bank_id,
+    commercial_type,
+    created_by,
+    created_date,
+    feedback,
+    students,
+    batch_id,
+    account_number,
+    account_holder_name,
+    bank_name,
+    ifsc_code,
+    branch_name,
+    account_type,
+    paid_amount,
+    transaction_id,
+    payment_mode,
+    paid_date,
+    paid_by,
+  } = req.body;
+  try {
+    const result = await trainerPaymentModal.insertTrainerPaymentDirectlyToPaid(
+      trainer_id,
+      request_amount,
+      bank_id,
+      commercial_type,
+      created_by,
+      created_date,
+      feedback,
+      students,
+      batch_id,
+      account_number,
+      account_holder_name,
+      bank_name,
+      ifsc_code,
+      branch_name,
+      account_type,
+      paid_amount,
+      transaction_id,
+      payment_mode,
+      paid_date,
+      paid_by,
+    );
+    res.status(200).send({
+      message: "Payment Paid successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      message: "Error while sending payment request",
+      details: error.message,
+    });
+  }
+};
+
 const getTrainerBanks = async (req, res) => {
   const { trainer_id } = req.query;
   try {
@@ -496,6 +554,7 @@ module.exports = {
   completeRequest,
   getPaymentById,
   requestForUnpaid,
+  insertTrainerPaymentDirectlyToPaid,
   getTrainerBanks,
   acknowledgeClassCompletion,
   moveToPaid,

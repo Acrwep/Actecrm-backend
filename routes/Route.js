@@ -624,6 +624,10 @@ router.post(
 );
 router.get("/getPaymentById", trainerPaymentController.getPaymentById);
 router.post("/requestForUnpaid", trainerPaymentController.requestForUnpaid);
+router.post(
+  "/insertTrainerPaymentDirectlyToPaid",
+  trainerPaymentController.insertTrainerPaymentDirectlyToPaid,
+);
 router.get("/getTrainerBanks", trainerPaymentController.getTrainerBanks);
 router.post(
   "/acknowledgeClassCompletion",
