@@ -427,6 +427,7 @@ const feeHistory = async (request, response) => {
     user_ids,
     region_id,
     branch_id,
+    date_type,
   } = request.body;
   try {
     const result = await PaymentModel.feeHistory(
@@ -439,6 +440,7 @@ const feeHistory = async (request, response) => {
       user_ids,
       region_id,
       branch_id,
+      date_type,
     );
     return response.status(200).send({
       messages: "Data fetched successfully",
