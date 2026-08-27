@@ -1638,10 +1638,21 @@ const LeadModel = {
           ]);
         }
       } else if (followupCount[0].count > 0) {
-        const [getAction] = await pool.query(
-          `SELECT id, name FROM lead_action WHERE id = ?`,
-          [lead_action_id],
-        );
+        // const [getAction] = await pool.query(
+        //   `SELECT id, name FROM lead_action WHERE id = ?`,
+        //   [lead_action_id],
+        // );
+
+        let actionName = null;
+
+        if (lead_action_id != null) {
+          const [getAction] = await pool.query(
+            `SELECT id, name FROM lead_action WHERE id = ?`,
+            [lead_action_id],
+          );
+
+          actionName = getAction.length > 0 ? getAction[0].name : null;
+        }
         // Get first lead history Id
         const [lead_history_id] = await pool.query(
           `SELECT id AS lead_history_id FROM lead_follow_up_history WHERE lead_id = ? ORDER BY id ASC LIMIT 1`,
@@ -1655,9 +1666,18 @@ const LeadModel = {
         );
         affectedRows += update_lead_history.affectedRows;
 
+        // await pool.query(trackQuery, [
+        //   lead_id,
+        //   `Lead action updated to ${getAction[0].name}`,
+        //   updated_date,
+        //   updated_by,
+        // ]);
+
         await pool.query(trackQuery, [
           lead_id,
-          `Lead action updated to ${getAction[0].name}`,
+          actionName
+            ? `Lead action updated to ${actionName}`
+            : `Lead action updated`,
           updated_date,
           updated_by,
         ]);
