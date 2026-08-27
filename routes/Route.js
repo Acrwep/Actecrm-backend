@@ -449,6 +449,12 @@ router.post(
   trainerPaymentController.getTrainerPaymentBankSheet,
 );
 
+router.post(
+  "/getTrainerBankAccounts",
+  verifyToken,
+  trainerPaymentController.getTrainerBankAccounts,
+);
+
 router.put(
   "/financeJuniorApprove",
   verifyToken,

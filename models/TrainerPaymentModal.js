@@ -3385,6 +3385,17 @@ GROUP BY
       throw new Error(error.message);
     }
   },
+  getTrainerBankAccounts: async (trainer_bank_account_id) => {
+    try {
+      const [result] = await pool.query(
+        ` SELECT *  FROM trainer_bank_accounts WHERE id = ?`,
+        [trainer_bank_account_id],
+      );
+      return result;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   getPaymentById: async (payment_id, payment_trans_id) => {
     try {
