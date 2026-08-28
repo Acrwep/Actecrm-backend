@@ -2464,13 +2464,25 @@ SUM(
                       LEFT JOIN branches AS ps ON ps.id = c.place_of_service
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
-                      LEFT JOIN (
-                        SELECT SUM(pt.amount) AS paid_amount, pt.payment_master_id,
-                        Max(verified_date) as verified_date
-                         FROM payment_trans AS pt
-                          WHERE pt.payment_status <> 'Rejected'
-                          GROUP BY pt.payment_master_id
-                      ) AS t ON t.payment_master_id = pm.id
+                  LEFT JOIN (
+    SELECT 
+        payment_master_id,
+        SUM(amount) AS paid_amount,
+        MIN(invoice_date) AS first_payment_date,
+        MAX(invoice_date) AS last_payment_date,
+        (
+            SELECT pt2.verified_date
+            FROM payment_trans pt2
+            WHERE pt2.payment_master_id = pt.payment_master_id
+              AND pt2.payment_status <> 'Rejected'
+            ORDER BY pt2.id DESC
+            LIMIT 1
+        ) AS last_payment_verified_date,
+        COUNT(id) AS installment_count
+    FROM payment_trans pt
+    WHERE payment_status <> 'Rejected'
+    GROUP BY payment_master_id
+) AS t ON t.payment_master_id = pm.id
                       LEFT JOIN users AS su ON su.user_id = lm.assigned_to
                       LEFT JOIN branches AS b ON b.id = su.branch_id
                       LEFT JOIN region AS r ON r.id = b.region_id
@@ -2484,16 +2496,24 @@ SUM(
                       LEFT JOIN technologies AS t ON t.id = c.enrolled_course
                       LEFT JOIN payment_master AS pm ON pm.lead_id = c.lead_id
                       LEFT JOIN (
-                        SELECT payment_master_id,
-                        SUM(amount) AS paid_amount,
-                        MIN(invoice_date) AS first_payment_date,
-                        MAX(invoice_date) AS last_payment_date,
-                        max(verified_date) as verified_date,
-                        COUNT(id) AS installment_count
-                        FROM payment_trans
-                        WHERE payment_status <> 'Rejected'
-                        GROUP BY payment_master_id
-                      ) AS t ON t.payment_master_id = pm.id
+    SELECT 
+        payment_master_id,
+        SUM(amount) AS paid_amount,
+        MIN(invoice_date) AS first_payment_date,
+        MAX(invoice_date) AS last_payment_date,
+        (
+            SELECT pt2.verified_date
+            FROM payment_trans pt2
+            WHERE pt2.payment_master_id = pt.payment_master_id
+              AND pt2.payment_status <> 'Rejected'
+            ORDER BY pt2.id DESC
+            LIMIT 1
+        ) AS last_payment_verified_date,
+        COUNT(id) AS installment_count
+    FROM payment_trans pt
+    WHERE payment_status <> 'Rejected'
+    GROUP BY payment_master_id
+) AS t ON t.payment_master_id = pm.id
                       LEFT JOIN users AS su ON su.user_id = lm.assigned_to
                       LEFT JOIN branches AS b ON b.id = su.branch_id
                       LEFT JOIN region AS r ON r.id = b.region_id
@@ -2544,8 +2564,8 @@ SUM(
           countParams.push(start_date, end_date);
           bucketParams.push(start_date, end_date);
         } else if (date_type == "last_payment_verified_date") {
-          baseCondition += ` AND COALESCE(t.verified_date) >= ? AND COALESCE(t.verified_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
-          bucketQuery += ` AND COALESCE(t.verified_date) >= ? AND COALESCE(t.verified_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+          baseCondition += ` AND COALESCE(t.last_payment_verified_date) >= ? AND COALESCE(t.last_payment_verified_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+          bucketQuery += ` AND COALESCE(t.last_payment_verified_date) >= ? AND COALESCE(t.last_payment_verified_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
           queryParams.push(start_date, end_date);
           countParams.push(start_date, end_date);
           bucketParams.push(start_date, end_date);
@@ -2579,7 +2599,7 @@ SUM(
                           pm.id AS payment_master_id,
                           lm.id AS lead_id,
                           lm.assigned_to,
-                          t.verified_date as last_payment_verified_date, 
+                          t.last_payment_verified_date , 
                           su.user_name AS assigned_to_name,
                           DATEDIFF(
                             CASE
