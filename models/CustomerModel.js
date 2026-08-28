@@ -1186,6 +1186,7 @@ WHERE c.id = ?`;
       if (Array.isArray(customer_ids)) {
         for (const customer of customer_ids) {
           if (customer.status && customer.status === "Completed") {
+            console.log("Completed===>", customer.status);
             const [getFeesDetails] = await pool.query(
               `SELECT pm.total_amount, SUM(pt.amount) AS paid_amount, (pm.total_amount - SUM(pt.amount)) AS pending_fees FROM customers AS c INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id INNER JOIN payment_trans AS pt ON pm.id = pt.payment_master_id AND pt.payment_status IN ('Verified', 'Verify Pending') WHERE c.id = ? GROUP BY pm.total_amount`,
               [customer.customer_id],
@@ -1196,12 +1197,24 @@ WHERE c.id = ?`;
                 "The candidate has pending due, Kindly collect the pending fees",
               );
           }
-          const [result] = await pool.query(
-            `UPDATE customers SET status = ? WHERE id = ?`,
-            [customer.status, customer.customer_id],
-          );
+          if (customer.status === "Escalated" || customer.status === "Hold") {
+            console.log("Escalated===>", customer.status);
+            const [result] = await pool.query(
+              `UPDATE customers SET class_percentage = 0, status = ? WHERE id = ?`,
+              [customer.status, customer.customer_id],
+            );
 
-          affectedRows += result.affectedRows;
+            console.log("result==>", result);
+          } else {
+            const [result] = await pool.query(
+              `UPDATE customers SET status = ? WHERE id = ?`,
+              [customer.status, customer.customer_id],
+            );
+
+            console.log("else===>", customer.status);
+
+            affectedRows += result.affectedRows;
+          }
 
           // const [isExists] = await pool.query(
           //   `SELECT id FROM customer_status_history WHERE customer_id = ? AND status = ?`,
