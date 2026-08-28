@@ -2657,6 +2657,17 @@ SUM(
       throw new Error(error.message);
     }
   },
+  revertCustomerPaymentTrans: async (id) => {
+    try {
+      await pool.query(
+        `UPDATE payment_trans SET payment_status = 'Verify Pending', verified_date=null WHERE id = ?`,
+        [id],
+      );
+      console.log(id);
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   getBanks: async (region_id, payment_mode) => {
     try {

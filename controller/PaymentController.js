@@ -470,6 +470,22 @@ const getBanks = async (request, response) => {
   }
 };
 
+const revertCustomerPaymentTrans = async (request, response) => {
+  const { id } = request.body;
+  try {
+    const result = await PaymentModel.revertCustomerPaymentTrans(id);
+    return response.status(200).send({
+      messages: "Data Updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching revertCustomerPaymentTrans",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   getPaymentModes,
   createPayment,
@@ -485,4 +501,5 @@ module.exports = {
   recievedList,
   feeHistory,
   getBanks,
+  revertCustomerPaymentTrans,
 };

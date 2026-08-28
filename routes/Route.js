@@ -654,6 +654,7 @@ router.get(
 );
 
 router.put("/verifyReview", verifyToken, CustomerController.verifyReview);
+
 router.put(
   "/updateCustomerTrainer",
   verifyToken,
@@ -665,6 +666,11 @@ router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
 router.post("/recievedList", verifyToken, PaymentController.recievedList);
 router.post("/feeHistory", verifyToken, PaymentController.feeHistory);
 router.get("/getBanks", verifyToken, PaymentController.getBanks);
+router.post(
+  "/revertCustomerPaymentTrans",
+  verifyToken,
+  PaymentController.revertCustomerPaymentTrans,
+);
 router.post(
   "/dormantToInterested",
   verifyToken,
