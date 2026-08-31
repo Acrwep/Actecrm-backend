@@ -2657,13 +2657,30 @@ SUM(
       throw new Error(error.message);
     }
   },
-  revertCustomerPaymentTrans: async (id) => {
+  revertCustomerPaymentTrans: async (
+    payment_trans_id,
+    customer_id,
+    created_date,
+    updated_by,
+  ) => {
     try {
       await pool.query(
         `UPDATE payment_trans SET payment_status = 'Verify Pending', verified_date=null WHERE id = ?`,
-        [id],
+        [payment_trans_id],
       );
-      console.log(id);
+
+      const data = await pool.query(
+        `INSERT INTO customer_track (customer_id, status, status_date, updated_by) VALUES(?, ?, ?, ?)`,
+        [
+          customer_id,
+          "Payment Verification Reverted",
+          created_date,
+          updated_by,
+        ],
+      );
+      console.log(payment_trans_id);
+      console.log(data);
+      return data;
     } catch (error) {
       throw new Error(error.message);
     }

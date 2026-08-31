@@ -471,9 +471,15 @@ const getBanks = async (request, response) => {
 };
 
 const revertCustomerPaymentTrans = async (request, response) => {
-  const { id } = request.body;
+  const { payment_trans_id, customer_id, created_date, updated_by } =
+    request.body;
   try {
-    const result = await PaymentModel.revertCustomerPaymentTrans(id);
+    const result = await PaymentModel.revertCustomerPaymentTrans(
+      payment_trans_id,
+      customer_id,
+      created_date,
+      updated_by,
+    );
     return response.status(200).send({
       messages: "Data Updated successfully",
       data: result,
