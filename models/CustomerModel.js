@@ -2005,141 +2005,14 @@ WHERE c.id = ?`;
       // Fetch all required data concurrently
       let result;
 
-      if (bucket_status === "Student Onboarding") {
-        const statuses = [
-          "Form Pending",
-          "Awaiting Verify",
-          "Awaiting Trainer",
-        ];
+      getQuery += `
+  ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+  LIMIT ? OFFSET ?
+`;
 
-        const onboardingResults = await Promise.all(
-          statuses.map((statusName) => {
-            const statusQuery = `
-        ${getQuery}
-        AND c.status = ?
-        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-        LIMIT ? OFFSET ?
-      `;
+      queryParams.push(limitNumber, offset);
 
-            return pool.query(statusQuery, [
-              ...queryParams,
-              statusName,
-              limitNumber,
-              offset,
-            ]);
-          }),
-        );
-
-        result = onboardingResults.flatMap(([rows]) => rows);
-      } else if (bucket_status === "Training Coordination") {
-        const statuses = ["Awaiting Trainer Verify", "Trainer Approval"];
-
-        const trainingResults = await Promise.all(
-          statuses.map((statusName) => {
-            const statusQuery = `
-        ${getQuery}
-        AND c.status = ?
-        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-        LIMIT ? OFFSET ?
-      `;
-
-            return pool.query(statusQuery, [
-              ...queryParams,
-              statusName,
-              limitNumber,
-              offset,
-            ]);
-          }),
-        );
-
-        result = trainingResults.flatMap(([rows]) => rows);
-      } else if (bucket_status === "Progress Monitoring") {
-        const statuses = [
-          "Awaiting Class",
-          "Class Scheduled",
-          "Class Going",
-          "Escalated",
-          "Partially Closed",
-          "Discontinued",
-          "Hold",
-          "Refund",
-          "Demo Completed",
-          "Videos Given",
-        ];
-
-        const onboardingResults = await Promise.all(
-          statuses.map((statusName) => {
-            const statusQuery = `
-        ${getQuery}
-        AND c.status = ?
-        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-        LIMIT ? OFFSET ?
-      `;
-
-            return pool.query(statusQuery, [
-              ...queryParams,
-              statusName,
-              limitNumber,
-              offset,
-            ]);
-          }),
-        );
-
-        result = onboardingResults.flatMap(([rows]) => rows);
-      } else if (bucket_status === "Course completion") {
-        const statuses = ["Passedout process"];
-
-        const onboardingResults = await Promise.all(
-          statuses.map((statusName) => {
-            const statusQuery = `
-        ${getQuery}
-        AND c.status = ?
-        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-        LIMIT ? OFFSET ?
-      `;
-
-            return pool.query(statusQuery, [
-              ...queryParams,
-              statusName,
-              limitNumber,
-              offset,
-            ]);
-          }),
-        );
-
-        result = onboardingResults.flatMap(([rows]) => rows);
-      } else if (bucket_status === "Reviews & Certification") {
-        const statuses = ["Completed"];
-
-        const onboardingResults = await Promise.all(
-          statuses.map((statusName) => {
-            const statusQuery = `
-        ${getQuery}
-        AND c.status = ?
-        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-        LIMIT ? OFFSET ?
-      `;
-
-            return pool.query(statusQuery, [
-              ...queryParams,
-              statusName,
-              limitNumber,
-              offset,
-            ]);
-          }),
-        );
-
-        result = onboardingResults.flatMap(([rows]) => rows);
-      } else {
-        getQuery += `
-    ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-    LIMIT ? OFFSET ?
-  `;
-
-        queryParams.push(limitNumber, offset);
-
-        [result] = await pool.query(getQuery, queryParams);
-      }
+      [result] = await pool.query(getQuery, queryParams);
 
       const [
         [countResult],
@@ -2175,97 +2048,15 @@ WHERE c.id = ?`;
         };
       });
 
-      if (bucket_status === "Student Onboarding") {
-        const groupedCustomers = {
-          "Form Pending": [],
-          "Awaiting Verify": [],
-          "Awaiting Trainer": [],
-        };
-
-        res.forEach((customer) => {
-          if (groupedCustomers[customer.status]) {
-            groupedCustomers[customer.status].push(customer);
-          }
-        });
-
-        res = groupedCustomers;
-      }
-
-      if (bucket_status === "Training Coordination") {
-        const groupedCustomers = {
-          "Awaiting Trainer Verify": [],
-          "Trainer Approval": [],
-        };
-
-        res.forEach((customer) => {
-          if (groupedCustomers[customer.status]) {
-            groupedCustomers[customer.status].push(customer);
-          }
-        });
-
-        res = groupedCustomers;
-      }
-      if (bucket_status === "Progress Monitoring") {
-        const groupedCustomers = {
-          "Awaiting Class": [],
-          "Class Scheduled": [],
-          "Class Going": [],
-          Escalated: [],
-          Others: [],
-        };
-
-        const othersStatuses = [
-          "Partially Closed",
-          "Discontinued",
-          "Hold",
-          "Refund",
-          "Demo Completed",
-          "Videos Given",
-        ];
-
-        res.forEach((customer) => {
-          if (othersStatuses.includes(customer.status)) {
-            groupedCustomers.Others.push(customer);
-          } else if (groupedCustomers[customer.status]) {
-            groupedCustomers[customer.status].push(customer);
-          }
-        });
-
-        res = groupedCustomers;
-      }
-      if (bucket_status === "Course completion") {
-        const groupedCustomers = {
-          "Passedout process": [],
-        };
-
-        res.forEach((customer) => {
-          if (groupedCustomers[customer.status]) {
-            groupedCustomers[customer.status].push(customer);
-          }
-        });
-
-        res = groupedCustomers;
-      }
-      if (bucket_status === "Reviews & Certification") {
-        const groupedCustomers = {
-          Completed: [],
-        };
-
-        res.forEach((customer) => {
-          if (groupedCustomers[customer.status]) {
-            groupedCustomers[customer.status].push(customer);
-          }
-        });
-
-        res = groupedCustomers;
-      }
-
       // Fetch customer count by status
       const cusStatusCount = {
         ...getStatus[0],
         awaiting_finance:
           financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
+      };
+
+      const buketStatusCount = {
         // Bucket Counts
         student_onboarding_count: getStatus[0].student_onboarding_count ?? 0,
         training_coordination_count:
@@ -2280,6 +2071,7 @@ WHERE c.id = ?`;
       return {
         customers: res,
         customer_status_count: cusStatusCount,
+        bucket_status_count: buketStatusCount,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
