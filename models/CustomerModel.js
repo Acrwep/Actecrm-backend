@@ -805,6 +805,16 @@ const CustomerModel = {
     c.date_of_joining,
     c.is_certificate_generated,
     c.is_server_required,
+    c.welcome_call_status,
+    c.explained_next_process,
+    c.verified_contactdetails_and_expectation,
+    c.technology_verified,
+    c.preferred_language,
+    c.mode_of_class,
+    cm.name as mode_of_class_name,
+    c.batch_track_id,
+    c.batch_timing_id,
+   
 
     CASE
         WHEN c.enrolled_course IS NOT NULL
