@@ -1860,6 +1860,80 @@ WHERE c.id = ?`;
         financeParams.push(from_date, to_date);
       }
 
+      if (bucket_status != "Student Onboarding") {
+        if (bucket_status === "Training Coordination") {
+          getQuery += `
+    AND c.status IN (
+      'Awaiting Trainer Verify',
+      'Trainer Approval'
+    )
+  `;
+
+          countQuery += `
+    AND c.status IN (
+      'Awaiting Trainer Verify',
+      'Trainer Approval'
+    )
+  `;
+        }
+        if (bucket_status === "Progress Monitoring") {
+          getQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+
+          countQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+        }
+        if (bucket_status === "Course completion") {
+          getQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+
+          countQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+        }
+        if (bucket_status === "Reviews & Certification") {
+          getQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+
+          countQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+        }
+      }
       // Add status filter
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
