@@ -454,6 +454,7 @@ const getCustomersV1 = async (request, response) => {
     region,
     date_type,
     domain,
+    bucket_status,
   } = request.body;
   try {
     const result = await CustomerModel.getCustomersV1(
@@ -470,6 +471,7 @@ const getCustomersV1 = async (request, response) => {
       region,
       date_type,
       domain,
+      bucket_status,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",

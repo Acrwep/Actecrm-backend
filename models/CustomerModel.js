@@ -1484,6 +1484,7 @@ WHERE c.id = ?`;
     region,
     date_type,
     domain,
+    bucket_status,
   ) => {
     try {
       const queryParams = [];
@@ -1666,7 +1667,39 @@ WHERE c.id = ?`;
                                 'Refund',
                                 'Demo Completed',
                                 'Videos Given'
-                            ) THEN 1 END) AS Others
+                            ) THEN 1 END) AS Others,
+
+                             /* BUCKET COUNTS */
+
+  COUNT(CASE WHEN c.status IN (
+    'Form Pending',
+    'Awaiting Verify',
+    'Awaiting Trainer'
+  ) THEN 1 END) AS student_onboarding_count,
+
+  COUNT(CASE WHEN c.status IN (
+    'Awaiting Trainer Verify',
+    'Trainer Approval'
+  ) THEN 1 END) AS training_coordination_count,
+
+  COUNT(CASE WHEN c.status IN (
+    'Awaiting Class',
+    'Class Scheduled',
+    'Class Going',
+    'Escalated',
+    'Hold',
+    'Partially Closed',
+    'Discontinued',
+    'Refund',
+    'Demo Completed',
+    'Videos Given'
+  ) THEN 1 END) AS progress_monitoring_count,
+
+  COUNT(CASE WHEN c.status = 'Passedout process'
+    THEN 1 END) AS course_completion_count,
+
+  COUNT(CASE WHEN c.status = 'Completed'
+    THEN 1 END) AS reviews_certification_count
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON
                             c.lead_id = l.id
@@ -1811,6 +1844,98 @@ WHERE c.id = ?`;
         financeParams.push(from_date, to_date);
       }
 
+      // Add bucket status filter
+      if (bucket_status === "Student Onboarding") {
+        getQuery += `
+    AND c.status IN (
+      'Form Pending',
+      'Awaiting Verify',
+      'Awaiting Trainer'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Form Pending',
+      'Awaiting Verify',
+      'Awaiting Trainer'
+    )
+  `;
+      }
+
+      if (bucket_status === "Training Coordination") {
+        getQuery += `
+    AND c.status IN (
+      'Awaiting Trainer Verify',
+      'Trainer Approval'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Trainer Verify',
+      'Trainer Approval'
+    )
+  `;
+      }
+      if (bucket_status === "Progress Monitoring") {
+        getQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+      }
+      if (bucket_status === "Course completion") {
+        getQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+      }
+      if (bucket_status === "Reviews & Certification") {
+        getQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+      }
+
       // Add status filter
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
@@ -1874,20 +1999,156 @@ WHERE c.id = ?`;
       const offset = (pageNumber - 1) * limitNumber;
 
       // Add pagination to main query
-      getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
+      // getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC LIMIT ? OFFSET ?`;
+      // queryParams.push(limitNumber, offset);
 
       // Fetch all required data concurrently
+      let result;
+
+      if (bucket_status === "Student Onboarding") {
+        const statuses = [
+          "Form Pending",
+          "Awaiting Verify",
+          "Awaiting Trainer",
+        ];
+
+        const onboardingResults = await Promise.all(
+          statuses.map((statusName) => {
+            const statusQuery = `
+        ${getQuery}
+        AND c.status = ?
+        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+        LIMIT ? OFFSET ?
+      `;
+
+            return pool.query(statusQuery, [
+              ...queryParams,
+              statusName,
+              limitNumber,
+              offset,
+            ]);
+          }),
+        );
+
+        result = onboardingResults.flatMap(([rows]) => rows);
+      } else if (bucket_status === "Training Coordination") {
+        const statuses = ["Awaiting Trainer Verify", "Trainer Approval"];
+
+        const trainingResults = await Promise.all(
+          statuses.map((statusName) => {
+            const statusQuery = `
+        ${getQuery}
+        AND c.status = ?
+        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+        LIMIT ? OFFSET ?
+      `;
+
+            return pool.query(statusQuery, [
+              ...queryParams,
+              statusName,
+              limitNumber,
+              offset,
+            ]);
+          }),
+        );
+
+        result = trainingResults.flatMap(([rows]) => rows);
+      } else if (bucket_status === "Progress Monitoring") {
+        const statuses = [
+          "Awaiting Class",
+          "Class Scheduled",
+          "Class Going",
+          "Escalated",
+          "Partially Closed",
+          "Discontinued",
+          "Hold",
+          "Refund",
+          "Demo Completed",
+          "Videos Given",
+        ];
+
+        const onboardingResults = await Promise.all(
+          statuses.map((statusName) => {
+            const statusQuery = `
+        ${getQuery}
+        AND c.status = ?
+        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+        LIMIT ? OFFSET ?
+      `;
+
+            return pool.query(statusQuery, [
+              ...queryParams,
+              statusName,
+              limitNumber,
+              offset,
+            ]);
+          }),
+        );
+
+        result = onboardingResults.flatMap(([rows]) => rows);
+      } else if (bucket_status === "Course completion") {
+        const statuses = ["Passedout process"];
+
+        const onboardingResults = await Promise.all(
+          statuses.map((statusName) => {
+            const statusQuery = `
+        ${getQuery}
+        AND c.status = ?
+        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+        LIMIT ? OFFSET ?
+      `;
+
+            return pool.query(statusQuery, [
+              ...queryParams,
+              statusName,
+              limitNumber,
+              offset,
+            ]);
+          }),
+        );
+
+        result = onboardingResults.flatMap(([rows]) => rows);
+      } else if (bucket_status === "Reviews & Certification") {
+        const statuses = ["Completed"];
+
+        const onboardingResults = await Promise.all(
+          statuses.map((statusName) => {
+            const statusQuery = `
+        ${getQuery}
+        AND c.status = ?
+        ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+        LIMIT ? OFFSET ?
+      `;
+
+            return pool.query(statusQuery, [
+              ...queryParams,
+              statusName,
+              limitNumber,
+              offset,
+            ]);
+          }),
+        );
+
+        result = onboardingResults.flatMap(([rows]) => rows);
+      } else {
+        getQuery += `
+    ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+    LIMIT ? OFFSET ?
+  `;
+
+        queryParams.push(limitNumber, offset);
+
+        [result] = await pool.query(getQuery, queryParams);
+      }
+
       const [
         [countResult],
-        [result],
         [getStatus],
         [financeResult],
         [paymentStatus],
         [rejectedPaymentCount],
       ] = await Promise.all([
         pool.query(countQuery, countQueryParams),
-        pool.query(getQuery, queryParams),
         pool.query(getCountQuery, countParams),
         pool.query(financeQuery, financeParams),
         pool.query(paymentQuery, paymentParams),
@@ -1913,12 +2174,106 @@ WHERE c.id = ?`;
             : 0,
         };
       });
+
+      if (bucket_status === "Student Onboarding") {
+        const groupedCustomers = {
+          "Form Pending": [],
+          "Awaiting Verify": [],
+          "Awaiting Trainer": [],
+        };
+
+        res.forEach((customer) => {
+          if (groupedCustomers[customer.status]) {
+            groupedCustomers[customer.status].push(customer);
+          }
+        });
+
+        res = groupedCustomers;
+      }
+
+      if (bucket_status === "Training Coordination") {
+        const groupedCustomers = {
+          "Awaiting Trainer Verify": [],
+          "Trainer Approval": [],
+        };
+
+        res.forEach((customer) => {
+          if (groupedCustomers[customer.status]) {
+            groupedCustomers[customer.status].push(customer);
+          }
+        });
+
+        res = groupedCustomers;
+      }
+      if (bucket_status === "Progress Monitoring") {
+        const groupedCustomers = {
+          "Awaiting Class": [],
+          "Class Scheduled": [],
+          "Class Going": [],
+          Escalated: [],
+          Others: [],
+        };
+
+        const othersStatuses = [
+          "Partially Closed",
+          "Discontinued",
+          "Hold",
+          "Refund",
+          "Demo Completed",
+          "Videos Given",
+        ];
+
+        res.forEach((customer) => {
+          if (othersStatuses.includes(customer.status)) {
+            groupedCustomers.Others.push(customer);
+          } else if (groupedCustomers[customer.status]) {
+            groupedCustomers[customer.status].push(customer);
+          }
+        });
+
+        res = groupedCustomers;
+      }
+      if (bucket_status === "Course completion") {
+        const groupedCustomers = {
+          "Passedout process": [],
+        };
+
+        res.forEach((customer) => {
+          if (groupedCustomers[customer.status]) {
+            groupedCustomers[customer.status].push(customer);
+          }
+        });
+
+        res = groupedCustomers;
+      }
+      if (bucket_status === "Reviews & Certification") {
+        const groupedCustomers = {
+          Completed: [],
+        };
+
+        res.forEach((customer) => {
+          if (groupedCustomers[customer.status]) {
+            groupedCustomers[customer.status].push(customer);
+          }
+        });
+
+        res = groupedCustomers;
+      }
+
       // Fetch customer count by status
       const cusStatusCount = {
         ...getStatus[0],
         awaiting_finance:
           financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
+        // Bucket Counts
+        student_onboarding_count: getStatus[0].student_onboarding_count ?? 0,
+        training_coordination_count:
+          getStatus[0].training_coordination_count ?? 0,
+        progress_monitoring_count: getStatus[0].progress_monitoring_count ?? 0,
+        course_completion_count: getStatus[0].course_completion_count ?? 0,
+        reviews_certification_count:
+          getStatus[0].reviews_certification_count ?? 0,
       };
 
       // Return customer result
