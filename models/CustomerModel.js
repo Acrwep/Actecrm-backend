@@ -1,5 +1,6 @@
 const pool = require("../config/dbconfig");
 const CommonModel = require("../models/CommonModel");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const CustomerModel = {
   updateCustomer: async (
@@ -1485,6 +1486,7 @@ WHERE c.id = ?`;
     date_type,
     domain,
     bucket_status,
+    bucket,
   ) => {
     try {
       const queryParams = [];
@@ -1538,9 +1540,12 @@ WHERE c.id = ?`;
                       l.ra_id,
                       ra_user.user_name AS ra_name,
                       c.is_linkedin_verified,
-                      c.is_google_verified
+                      c.is_google_verified,
+                      cm.name AS mode_of_class
                     FROM
                         customers AS c
+                        LEFT JOIN class_mode AS cm ON
+                        c.mode_of_class = cm.id
                     LEFT JOIN customer_status_history AS csh
                         ON csh.id = c.latest_status_history_id
                     LEFT JOIN technologies AS t ON
@@ -1593,6 +1598,8 @@ WHERE c.id = ?`;
       let countQuery = `SELECT
                             COUNT(c.id) AS total
                         FROM customers AS c
+                        LEFT JOIN class_mode AS cm ON
+                        c.mode_of_class = cm.id
                         LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
                         LEFT JOIN technologies AS t
@@ -1644,6 +1651,7 @@ WHERE c.id = ?`;
                           pt1.id = ps1.latest_trans_id
                         WHERE 1 = 1`;
 
+      let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
       // All your existing count queries remain unchanged
       let getCountQuery = `SELECT
                           COUNT(c.id) AS total_count,
@@ -1670,6 +1678,12 @@ WHERE c.id = ?`;
                             ) THEN 1 END) AS Others,
 
                              /* BUCKET COUNTS */
+
+                                 SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
+                            SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region,
 
   COUNT(CASE WHEN c.status IN (
     'Form Pending',
@@ -1701,6 +1715,8 @@ WHERE c.id = ?`;
   COUNT(CASE WHEN c.status = 'Completed'
     THEN 1 END) AS reviews_certification_count
                         FROM customers AS c
+                        LEFT JOIN class_mode AS cm ON
+                        c.mode_of_class = cm.id
                         LEFT JOIN lead_master AS l ON
                             c.lead_id = l.id
                         LEFT JOIN region AS r ON
@@ -1784,6 +1800,16 @@ WHERE c.id = ?`;
         paymentParams.push(...doubleParams);
         rejectedPaymentParams.push(...doubleParams);
         financeParams.push(...doubleParams);
+      }
+
+      if (bucket && bucket === "Online") {
+        getQuery += ` AND cm.name = 'Online'`;
+        countQuery += ` AND cm.name = 'Online'`;
+      }
+
+      if (bucket && bucket === "Classroom") {
+        getQuery += ` AND cm.name = 'Classroom'`;
+        countQuery += ` AND cm.name = 'Classroom'`;
       }
 
       // Add region filter
@@ -2055,6 +2081,13 @@ WHERE c.id = ?`;
           financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
       };
+      const regoinstatuscount = {
+        chennai_region: getStatus[0].chennai_region ?? 0,
+        bangalore_region: getStatus[0].bangalore_region ?? 0,
+        hub_region: getStatus[0].hub_region ?? 0,
+        online_mode: getStatus[0].online_mode ?? 0,
+        classroom_mode: getStatus[0].classroom_mode ?? 0,
+      };
 
       const buketStatusCount = {
         // Bucket Counts
@@ -2072,6 +2105,7 @@ WHERE c.id = ?`;
         customers: res,
         customer_status_count: cusStatusCount,
         bucket_status_count: buketStatusCount,
+        regoinstatuscount: regoinstatuscount,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
