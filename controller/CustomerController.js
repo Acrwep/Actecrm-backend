@@ -145,14 +145,34 @@ const getCustomerById = async (request, response) => {
 };
 
 const verifyStudent = async (request, response) => {
-  const { customer_id, proof_communication, comments, is_satisfied } =
-    request.body;
+  const {
+    customer_id,
+    proof_communication,
+    comments,
+    is_satisfied,
+    welcome_call_status,
+    explained_next_process,
+    verified_contactdetails_and_expectation,
+    technology_verified,
+    preferred_language,
+    batch_track_id,
+    batch_timing_id,
+    mode_of_class,
+  } = request.body;
   try {
     const result = await CustomerModel.verifyStudent(
       customer_id,
       proof_communication,
       comments,
       is_satisfied,
+      welcome_call_status,
+      explained_next_process,
+      verified_contactdetails_and_expectation,
+      technology_verified,
+      preferred_language,
+      batch_track_id,
+      batch_timing_id,
+      mode_of_class,
     );
     return response.status(200).send({
       message: "Verified successfully",

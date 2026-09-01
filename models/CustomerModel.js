@@ -1084,6 +1084,14 @@ WHERE c.id = ?`;
     proof_communication,
     comments,
     is_satisfied,
+    welcome_call_status,
+    explained_next_process,
+    verified_contactdetails_and_expectation,
+    technology_verified,
+    preferred_language,
+    batch_track_id,
+    batch_timing_id,
+    mode_of_class,
   ) => {
     try {
       const [is_verified_customer] = await pool.query(
@@ -1092,9 +1100,24 @@ WHERE c.id = ?`;
       );
       if (is_verified_customer.length > 0)
         throw new Error("Student has already been verified");
-      const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1 WHERE id = ?`;
-      const values = [proof_communication, comments, is_satisfied, customer_id];
+      const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1, welcome_call_status = ?, explained_next_process = ?, verified_contactdetails_and_expectation = ?, technology_verified = ?, preferred_language = ?, batch_track_id = ?,
+      batch_timing_id = ?, mode_of_class = ?  WHERE id = ?`;
+      const values = [
+        proof_communication,
+        comments,
+        is_satisfied,
+        welcome_call_status,
+        explained_next_process,
+        verified_contactdetails_and_expectation,
+        technology_verified,
+        JSON.stringify(preferred_language),
+        batch_track_id,
+        batch_timing_id,
+        mode_of_class,
+        customer_id,
+      ];
       const [result] = await pool.query(updateQuery, values);
+      console.log("result==>", result);
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);
