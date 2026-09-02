@@ -814,6 +814,8 @@ const CustomerModel = {
     cm.name as mode_of_class_name,
     c.batch_track_id,
     c.batch_timing_id,
+    c.proof_communication as customer_proof_communication,
+    c.comments as customer_comments,
    
 
     CASE
