@@ -1105,12 +1105,12 @@ WHERE c.id = ?`;
     place_of_service,
   ) => {
     try {
-      const [is_verified_customer] = await pool.query(
-        `SELECT id FROM customers WHERE id = ? AND is_customer_verified = 1`,
-        [customer_id],
-      );
-      if (is_verified_customer.length > 0)
-        throw new Error("Student has already been verified");
+      // const [is_verified_customer] = await pool.query(
+      //   `SELECT id FROM customers WHERE id = ? AND is_customer_verified = 1`,
+      //   [customer_id],
+      // );
+      // if (is_verified_customer.length > 0)
+      //   throw new Error("Student has already been verified");
       const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1, welcome_call_status = ?, explained_next_process = ?, verified_contactdetails_and_expectation = ?, technology_verified = ?, preferred_language = ?, batch_track_id = ?,
       batch_timing_id = ?, mode_of_class = ?, place_of_service = ?  WHERE id = ?`;
       const values = [
