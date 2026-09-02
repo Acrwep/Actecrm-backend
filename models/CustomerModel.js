@@ -885,7 +885,7 @@ const CustomerModel = {
     map.id AS training_map_id,
     map.trainer_id,
     map.commercial,
-    map.mode_of_class,
+    map.mode_of_class as trainer_mode_of_class,
     map.trainer_type,
     map.proof_communication,
     map.comments,
