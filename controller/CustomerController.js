@@ -222,6 +222,36 @@ const trainerAssign = async (request, response) => {
   }
 };
 
+const updateTrainerCoordination = async (request, response) => {
+  const {
+    whatsapp_group_creation,
+    hr_welcome_message,
+    shared_attendance_link,
+    first_class_monitoring,
+    trainer_confirmation,
+    trainer_mapping_id,
+  } = request.body;
+  try {
+    const result = await CustomerModel.updateTrainerCoordination(
+      whatsapp_group_creation,
+      hr_welcome_message,
+      shared_attendance_link,
+      first_class_monitoring,
+      trainer_confirmation,
+      trainer_mapping_id,
+    );
+    return response.status(200).send({
+      message: "Trainer Coordination Updated Successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while Trainer Coordination Updated",
+      details: error.message,
+    });
+  }
+};
+
 const verifyTrainer = async (request, response) => {
   const { id, verified_date } = request.body;
   try {
@@ -743,6 +773,7 @@ module.exports = {
   getCustomerById,
   verifyStudent,
   trainerAssign,
+  updateTrainerCoordination,
   verifyTrainer,
   rejectTrainer,
   updateCustomerStatus,

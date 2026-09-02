@@ -893,6 +893,11 @@ const CustomerModel = {
     map.verified_date AS trainer_verified_date,
     map.is_rejected AS is_trainer_rejected,
     map.rejected_date AS trainer_rejected_date,
+    map.whatsapp_group_creation,
+    map.hr_welcome_message,
+    map.shared_attendance_link,
+    map.first_class_monitoring,
+    map.trainer_confirmation,
 
     c.class_schedule_id,
     cs.name AS class_schedule_name,
@@ -1190,6 +1195,34 @@ WHERE c.id = ?`;
       ];
 
       const [result] = await pool.query(insertQuery, values);
+      return result.affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateTrainerCoordination: async (
+    whatsapp_group_creation,
+    hr_welcome_message,
+    shared_attendance_link,
+    first_class_monitoring,
+    trainer_confirmation,
+    trainer_mapping_id,
+  ) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE trainer_mapping SET whatsapp_group_creation = ?, hr_welcome_message = ?, shared_attendance_link = ?,
+         first_class_monitoring = ?, trainer_confirmation = ?  WHERE id = ?`,
+        [
+          whatsapp_group_creation,
+          hr_welcome_message,
+          shared_attendance_link,
+          first_class_monitoring,
+          trainer_confirmation,
+          trainer_mapping_id,
+        ],
+      );
+
       return result.affectedRows;
     } catch (error) {
       throw new Error(error.message);

@@ -104,6 +104,11 @@ router.post("/getCustomers", verifyToken, CustomerController.getCustomers);
 router.get("/getCustomerById", CustomerController.getCustomerById);
 router.put("/verifyStudent", verifyToken, CustomerController.verifyStudent);
 router.post("/trainerAssign", verifyToken, CustomerController.trainerAssign);
+router.put(
+  "/updateTrainerCoordination",
+  verifyToken,
+  CustomerController.updateTrainerCoordination,
+);
 router.put("/verifyTrainer", verifyToken, CustomerController.verifyTrainer);
 router.put("/rejectTrainer", verifyToken, CustomerController.rejectTrainer);
 router.put("/updateCustomerStatus", CustomerController.updateCustomerStatus);
