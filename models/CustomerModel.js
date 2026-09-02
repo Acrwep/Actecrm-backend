@@ -1052,6 +1052,10 @@ WHERE c.id = ?`;
 
       const [result] = await pool.query(getQuery, [customer_id]);
 
+      const preferred_language = result[0]?.preferred_language
+        ? JSON.parse(result[0].preferred_language)
+        : [];
+
       if (result.length === 0) {
         return null; // Or handle as needed
       }
@@ -1079,6 +1083,7 @@ WHERE c.id = ?`;
 
       return {
         ...row,
+        preferred_language: preferred_language,
         total_amount: totalAmount,
         paid_amount: paidAmount,
         balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
