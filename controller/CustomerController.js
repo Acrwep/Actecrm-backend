@@ -159,6 +159,7 @@ const verifyStudent = async (request, response) => {
     batch_timing_id,
     mode_of_class,
     place_of_service,
+    trainer_fixation_call,
   } = request.body;
   try {
     const result = await CustomerModel.verifyStudent(
@@ -175,6 +176,7 @@ const verifyStudent = async (request, response) => {
       batch_timing_id,
       mode_of_class,
       place_of_service,
+      trainer_fixation_call,
     );
     return response.status(200).send({
       message: "Verified successfully",

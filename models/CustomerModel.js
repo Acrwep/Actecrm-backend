@@ -810,6 +810,7 @@ const CustomerModel = {
     c.verified_contactdetails_and_expectation,
     c.technology_verified,
     c.preferred_language,
+    c.trainer_fixation_call,
     c.mode_of_class,
     cm.name as mode_of_class_name,
     c.batch_track_id,
@@ -1115,6 +1116,7 @@ WHERE c.id = ?`;
     batch_timing_id,
     mode_of_class,
     place_of_service,
+    trainer_fixation_call,
   ) => {
     try {
       // const [is_verified_customer] = await pool.query(
@@ -1124,7 +1126,7 @@ WHERE c.id = ?`;
       // if (is_verified_customer.length > 0)
       //   throw new Error("Student has already been verified");
       const updateQuery = `UPDATE customers SET proof_communication = ?, comments = ?, is_satisfied = ?, is_customer_verified = 1, welcome_call_status = ?, explained_next_process = ?, verified_contactdetails_and_expectation = ?, technology_verified = ?, preferred_language = ?, batch_track_id = ?,
-      batch_timing_id = ?, mode_of_class = ?, place_of_service = ?  WHERE id = ?`;
+      batch_timing_id = ?, mode_of_class = ?, place_of_service = ?, trainer_fixation_call = ?  WHERE id = ?`;
       const values = [
         proof_communication,
         comments,
@@ -1138,6 +1140,7 @@ WHERE c.id = ?`;
         batch_timing_id,
         mode_of_class,
         place_of_service,
+        trainer_fixation_call,
         customer_id,
       ];
       const [result] = await pool.query(updateQuery, values);
