@@ -73,7 +73,7 @@ const AdmissionModel = {
                     LEFT JOIN class_mode AS cm ON
                         c.mode_of_class = cm.id
                     LEFT JOIN branches AS b ON
-                        c.place_of_service = b.id
+                        su.branch_id = b.id
                     LEFT JOIN region AS r ON
                         b.region_id = r.id
                     WHERE 1 = 1`;
@@ -92,7 +92,7 @@ const AdmissionModel = {
                         LEFT JOIN class_mode AS cm ON
                             c.mode_of_class = cm.id
                         LEFT JOIN branches AS b ON
-                            c.place_of_service = b.id
+                            su.branch_id = b.id
                         LEFT JOIN region AS r ON
                         b.region_id = r.id
                         WHERE 1 = 1`;
@@ -114,7 +114,7 @@ const AdmissionModel = {
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
                         LEFT JOIN branches AS b ON
-                            c.place_of_service = b.id
+                            su.branch_id = b.id
                         LEFT JOIN region AS r ON
                         b.region_id = r.id
                         LEFT JOIN class_mode AS cm ON
