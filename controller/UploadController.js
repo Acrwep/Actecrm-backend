@@ -3,7 +3,8 @@ const fs = require("fs");
 const path = require("path");
 
 const insertCourse = async (request, response) => {
-  const { course_name, price, offer_price } = request.body;
+  const { course_name, price, offer_price, is_server, server_amount } =
+    request.body;
 
   try {
     // 🔹 Check duplicate name
@@ -35,10 +36,20 @@ const insertCourse = async (request, response) => {
         price,
         offer_price,
         brouchures,
-        syllabus
+        syllabus,
+        is_server,
+        server_amount
       )
-      VALUES (?, ?, ?, ?, ?)`,
-      [course_name, price, offer_price, brouchures, syllabus],
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        course_name,
+        price,
+        offer_price,
+        brouchures,
+        syllabus,
+        is_server,
+        server_amount,
+      ],
     );
 
     response.status(200).json({
@@ -96,6 +107,8 @@ const updateCourse = async (request, response) => {
     offer_price,
     remove_brouchures,
     remove_syllabus,
+    is_server,
+    server_amount,
   } = request.body;
 
   try {
@@ -173,9 +186,18 @@ const updateCourse = async (request, response) => {
 
     await pool.query(
       `UPDATE technologies
-       SET name = ?, price = ?, offer_price = ?, brouchures = ?, syllabus = ?
+       SET name = ?, price = ?, offer_price = ?, brouchures = ?, syllabus = ?, is_server = ?, server_amount = ?
        WHERE id = ?`,
-      [course_name, price, offer_price, brouchures, syllabus, course_id],
+      [
+        course_name,
+        price,
+        offer_price,
+        brouchures,
+        syllabus,
+        is_server,
+        server_amount,
+        course_id,
+      ],
     );
 
     return response.status(200).json({

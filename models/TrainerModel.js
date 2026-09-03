@@ -11,6 +11,8 @@ const TrainerModel = {
                           t.offer_price,
                           t.brouchures,
                           t.syllabus,
+                          t.is_server,
+                          t.server_amount,
                           IFNULL(COUNT(lm.id), 0) AS total_leads,
                           SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS total_customer
                       FROM

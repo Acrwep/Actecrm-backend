@@ -10,6 +10,8 @@ const AdmissionModel = {
     page,
     limit,
     bucket,
+    region_id,
+    branch_id,
   ) => {
     try {
       const queryParams = [];
@@ -25,6 +27,10 @@ const AdmissionModel = {
                         t.id AS course_id,
                         t.name AS course_name,
                         lm.assigned_to,
+                        b.id as branch_id,
+                        r.id as region_id,
+                        b.name as branch_name,
+                        r.name as region_name,
                         su.user_name AS sale_executive,
                         hu.user_id AS hr_user_id,
                         hu.user_name AS hr_user_name,
@@ -87,6 +93,8 @@ const AdmissionModel = {
                             c.mode_of_class = cm.id
                         LEFT JOIN branches AS b ON
                             c.place_of_service = b.id
+                        LEFT JOIN region AS r ON
+                        b.region_id = r.id
                         WHERE 1 = 1`;
 
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
@@ -105,6 +113,10 @@ const AdmissionModel = {
                             lm.id = c.lead_id
                         LEFT JOIN users AS su ON
                             su.user_id = lm.assigned_to
+                        LEFT JOIN branches AS b ON
+                            c.place_of_service = b.id
+                        LEFT JOIN region AS r ON
+                        b.region_id = r.id
                         LEFT JOIN class_mode AS cm ON
                             c.mode_of_class = cm.id
                         WHERE 1 = 1`;
@@ -139,6 +151,34 @@ const AdmissionModel = {
         queryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
         regionParams.push(from_date, to_date);
+      }
+
+      if (region_id) {
+        getQuery += `
+        AND r.id = ?
+      `;
+        countQuery += `  AND r.id = ?
+      `;
+        regionQuery += `  AND r.id = ?
+      `;
+
+        queryParams.push(region_id);
+        countParams.push(region_id);
+        regionParams.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += `
+        AND b.id = ?
+      `;
+        countQuery += `  AND b.id = ?
+      `;
+        regionQuery += `  AND b.id = ?
+      `;
+
+        queryParams.push(branch_id);
+        countParams.push(branch_id);
+        regionParams.push(branch_id);
       }
 
       // search filter
