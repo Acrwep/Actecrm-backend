@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const BatchModel = {
   createBatch: async (
@@ -117,6 +118,7 @@ const BatchModel = {
   ) => {
     try {
       const batchParams = [];
+      const regionParams = [];
       let batchQuery = `SELECT
                             bm.id AS batch_id,
                             bm.batch_number,
@@ -128,6 +130,8 @@ const BatchModel = {
                             bm.branch_id,
                             b.name AS branch_name,
                             bm.created_date
+                           
+
                         FROM
                             batch_master AS bm
                         INNER JOIN region AS r ON
@@ -138,34 +142,83 @@ const BatchModel = {
                             t.id = bm.trainer_id
                         WHERE 1 = 1`;
 
+      let regionQuery = `
+  SELECT
+    COUNT(*) AS total_batches,
+
+    SUM(
+      CASE
+        WHEN r.name = 'Chennai' THEN 1
+        ELSE 0
+      END
+    ) AS chennai_region,
+
+    SUM(
+      CASE
+        WHEN r.name = 'Bangalore' THEN 1
+        ELSE 0
+      END
+    ) AS bangalore_region,
+
+    SUM(
+      CASE
+        WHEN r.name = 'Hub' THEN 1
+        ELSE 0
+      END
+    ) AS hub_region
+
+  FROM batch_master AS bm
+
+  INNER JOIN region AS r
+    ON r.id = bm.region_id
+
+  INNER JOIN branches AS b
+    ON b.id = bm.branch_id
+
+  LEFT JOIN trainer AS t
+    ON t.id = bm.trainer_id
+
+  WHERE 1 = 1
+`;
+
       if (batch_id) {
         batchQuery += ` AND bm.id = ?`;
+        regionQuery += ` AND bm.id = ?`;
         batchParams.push(batch_id);
+        regionParams.push(batch_id);
       }
 
       if (trainer_id) {
         batchQuery += ` AND bm.trainer_id = ?`;
+        regionQuery += ` AND bm.trainer_id = ?`;
         batchParams.push(trainer_id);
+        regionParams.push(trainer_id);
       }
 
       if (start_date && end_date) {
         batchQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
+        regionQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
         batchParams.push(start_date, end_date);
+        regionParams.push(start_date, end_date);
       }
 
       if (region_id) {
         batchQuery += ` AND bm.region_id = ?`;
+
         batchParams.push(region_id);
       }
 
       if (branch_id) {
         batchQuery += ` AND bm.branch_id = ?`;
+        regionQuery += ` AND bm.branch_id = ?`;
         batchParams.push(branch_id);
+        regionParams.push(branch_id);
       }
 
       batchQuery += ` ORDER BY bm.id DESC`;
 
       const [batches] = await pool.query(batchQuery, batchParams);
+      const [regionBatches] = await pool.query(regionQuery, regionParams);
 
       const batchIds = [...new Set(batches.map((b) => b.batch_id))];
 
@@ -242,7 +295,21 @@ const BatchModel = {
         };
       });
 
-      return res;
+      const regionCount = regionBatches[0] || {};
+
+      return {
+        data: res,
+
+        region_count: {
+          total_region: Number(regionCount.total_batches) || 0,
+
+          chennai_region: Number(regionCount.chennai_region) || 0,
+
+          bangalore_region: Number(regionCount.bangalore_region) || 0,
+
+          hub_region: Number(regionCount.hub_region) || 0,
+        },
+      };
     } catch (error) {
       throw new Error(error.message);
     }
