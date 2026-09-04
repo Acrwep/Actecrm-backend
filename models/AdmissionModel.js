@@ -46,7 +46,8 @@ const AdmissionModel = {
     map.hr_welcome_message,
     map.shared_attendance_link,
     map.first_class_monitoring,
-    map.trainer_confirmation 
+    map.trainer_confirmation,
+    map.id as trainer_mapping_id
 
 
                     FROM
