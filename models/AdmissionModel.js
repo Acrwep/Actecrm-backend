@@ -35,7 +35,20 @@ const AdmissionModel = {
                         hu.user_id AS hr_user_id,
                         hu.user_name AS hr_user_name,
                         ra.user_id AS ra_user_id,
-                        ra.user_name AS ra_user_name
+                        ra.user_name AS ra_user_name,
+                        c.welcome_call_status,
+                        c.explained_next_process,
+                        c.verified_contactdetails_and_expectation,
+                        c.technology_verified,
+                        c.preferred_language,
+                        c.trainer_fixation_call,
+                         map.whatsapp_group_creation,
+    map.hr_welcome_message,
+    map.shared_attendance_link,
+    map.first_class_monitoring,
+    map.trainer_confirmation 
+
+
                     FROM
                         customers AS c
                     INNER JOIN technologies AS t ON
@@ -76,6 +89,18 @@ const AdmissionModel = {
                         su.branch_id = b.id
                     LEFT JOIN region AS r ON
                         b.region_id = r.id
+                    LEFT JOIN (
+    SELECT
+        MAX(id) AS trainer_map_id,
+        customer_id
+    FROM trainer_mapping
+    GROUP BY customer_id
+) AS latest_map
+    ON latest_map.customer_id = c.id
+    LEFT JOIN trainer_mapping AS map
+    ON map.id = latest_map.trainer_map_id
+    LEFT JOIN trainer AS tr
+    ON tr.id = map.trainer_id
                     WHERE 1 = 1`;
 
       // Get pagination count query
