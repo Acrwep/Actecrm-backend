@@ -1,5 +1,6 @@
 const pool = require("../config/dbconfig");
 const nodemailer = require("nodemailer");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_HOST,
@@ -22,11 +23,14 @@ const ServerModel = {
     limit,
     user_ids,
     type,
+    region_id,
+    branch_id,
   ) => {
     try {
       const queryParams = [];
       const paginationParams = [];
       const statusParams = [];
+      const regionParams = [];
       let getQuery = `SELECT
                           s.id,
                           s.customer_id,
@@ -48,7 +52,11 @@ const ServerModel = {
                           st.id AS server_trans_id,
                           st.status AS server_status,
                           s.server_raise_date,
-                          st.screenshot
+                          st.screenshot,
+                          r.name as region_name,
+                          b.name as branch_name,
+                          r.id as region_id,
+                          b.id as branch_id
                       FROM
                           server_master AS s
                       INNER JOIN customers AS c ON
@@ -59,6 +67,11 @@ const ServerModel = {
                           l.id = c.lead_id
                       INNER JOIN users AS u ON
                           u.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
+
                       LEFT JOIN (
                       	SELECT server_id, MAX(id) AS trans_id FROM server_trans
                         GROUP BY server_id
@@ -68,9 +81,47 @@ const ServerModel = {
                       	st.id = latest.trans_id
                       WHERE 1 = 1`;
 
-      let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
+      let regionquery = `SELECT
+                           SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'  THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub_region
+                      FROM
+                          server_master AS s
+                      INNER JOIN customers AS c ON
+                          c.id = s.customer_id
+                      INNER JOIN technologies AS t ON
+                          t.id = c.enrolled_course
+                      INNER JOIN lead_master AS l ON
+                          l.id = c.lead_id
+                      INNER JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
 
-      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested, IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected', 'Approval Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to WHERE 1 = 1`;
+                      LEFT JOIN (
+                      	SELECT server_id, MAX(id) AS trans_id FROM server_trans
+                        GROUP BY server_id
+                      ) AS latest ON
+                      	latest.server_id = s.id
+                      LEFT JOIN server_trans AS st ON
+                      	st.id = latest.trans_id
+                      WHERE 1 = 1`;
+
+      let paginationQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to 
+                         LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
+                         WHERE 1 = 1`;
+
+      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested, IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected', 'Approval Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
+                         LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
+                         WHERE 1 = 1`;
 
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
@@ -78,16 +129,20 @@ const ServerModel = {
           getQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           paginationQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           statusQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+          regionquery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           queryParams.push(...user_ids, ...user_ids);
           paginationParams.push(...user_ids, ...user_ids);
           statusParams.push(...user_ids, ...user_ids);
+          regionParams.push(...user_ids, ...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           paginationQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           statusQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
+          regionquery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           queryParams.push(user_ids, user_ids);
           paginationParams.push(user_ids, user_ids);
           statusParams.push(user_ids, user_ids);
+          regionParams.push(user_ids, user_ids);
         }
       }
 
@@ -96,37 +151,45 @@ const ServerModel = {
           getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           queryParams.push(start_date, end_date);
           paginationParams.push(start_date, end_date);
           statusParams.push(start_date, end_date);
+          regionParams.push(start_date, end_date);
         } else {
           getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
           paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
           statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
           queryParams.push(start_date, end_date);
           paginationParams.push(start_date, end_date);
           statusParams.push(start_date, end_date);
+          regionParams.push(start_date, end_date);
         }
       }
 
       if (name) {
         getQuery += ` AND c.name LIKE '%${name}%'`;
         paginationQuery += ` AND c.name LIKE '%${name}%'`;
+        regionquery += ` AND c.name LIKE '%${name}%'`;
       }
 
       if (mobile) {
         getQuery += ` AND c.phone LIKE '%${mobile}%'`;
         paginationQuery += ` AND c.phone LIKE '%${mobile}%'`;
+        regionquery += ` AND c.phone LIKE '%${mobile}%'`;
       }
 
       if (email) {
         getQuery += ` AND c.email LIKE '%${email}%'`;
         paginationQuery += ` AND c.email LIKE '%${email}%'`;
+        regionquery += ` AND c.email LIKE '%${email}%'`;
       }
 
       if (server) {
         getQuery += ` AND t.name LIKE '%${server}%'`;
         paginationQuery += ` AND t.name LIKE '%${server}%'`;
+        regionquery += ` AND t.name LIKE '%${server}%'`;
       }
 
       if (status && status.length > 0) {
@@ -134,14 +197,51 @@ const ServerModel = {
           const placeholders = status.map(() => "?").join(", ");
           getQuery += ` AND s.status IN (${placeholders})`;
           paginationQuery += ` AND s.status IN (${placeholders})`;
+          regionquery += ` AND s.status IN (${placeholders})`;
           queryParams.push(...status);
           paginationParams.push(...status);
+          regionParams.push(...status);
         } else {
           getQuery += ` AND s.status = ?`;
           paginationQuery += ` AND s.status = ?`;
+          regionquery += ` AND s.status = ?`;
           queryParams.push(status);
           paginationParams.push(status);
+          regionParams.push(status);
         }
+      }
+
+      if (region_id) {
+        getQuery += `
+        AND r.id = ?
+      `;
+        paginationQuery += `  AND r.id = ?
+      `;
+        statusQuery += `  AND r.id = ?
+      `;
+        regionquery += `  AND r.id = ?
+      `;
+
+        queryParams.push(region_id);
+        paginationParams.push(region_id);
+        statusParams.push(region_id);
+        regionParams.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += `
+        AND b.id = ?
+      `;
+        paginationQuery += `  AND b.id = ?
+      `;
+        statusQuery += `  AND b.id = ?
+      `;
+        regionquery += `  AND b.id = ?
+      `;
+        queryParams.push(branch_id);
+        paginationParams.push(branch_id);
+        statusParams.push(branch_id);
+        regionParams.push(branch_id);
       }
 
       const [pageResult] = await pool.query(paginationQuery, paginationParams);
@@ -161,6 +261,11 @@ const ServerModel = {
       }
 
       const [result] = await pool.query(getQuery, queryParams);
+      const [regionResult] = await pool.query(regionquery, regionParams);
+
+      const chennai = regionResult[0]?.chennai_region || 0;
+      const bangalore = regionResult[0]?.bangalore_region || 0;
+      const hub = regionResult[0]?.hub_region || 0;
 
       // Optimize history query - only fetch relevant records
       if (result.length > 0) {
@@ -211,6 +316,11 @@ const ServerModel = {
             limit: limitNumber,
             totalPages: Math.ceil(total / limitNumber),
           },
+          region_count: {
+            chennai_region: chennai,
+            bangalore_region: bangalore,
+            hub_region: hub,
+          },
         };
       } else {
         // No results case
@@ -224,6 +334,11 @@ const ServerModel = {
             page: pageNumber,
             limit: limitNumber,
             totalPages: 0,
+          },
+          region_count: {
+            chennai_region: chennai,
+            bangalore_region: bangalore,
+            hub_region: hub,
           },
         };
       }
