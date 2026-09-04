@@ -19,6 +19,7 @@ const ServerModel = {
     email,
     server,
     status,
+    type,
     page,
     limit,
     user_ids,
@@ -152,25 +153,25 @@ SUM(
       }
 
       if (start_date && end_date) {
-        // if (type === "Raise Date") {
-        //   getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        //   paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        //   statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        //   regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-        //   queryParams.push(start_date, end_date);
-        //   paginationParams.push(start_date, end_date);
-        //   statusParams.push(start_date, end_date);
-        //   regionParams.push(start_date, end_date);
-        // } else {
-        getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-        queryParams.push(start_date, end_date);
-        paginationParams.push(start_date, end_date);
-        statusParams.push(start_date, end_date);
-        regionParams.push(start_date, end_date);
-        // }
+        if (type === "Raise Date") {
+          getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          paginationParams.push(start_date, end_date);
+          statusParams.push(start_date, end_date);
+          regionParams.push(start_date, end_date);
+        } else {
+          getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+          queryParams.push(start_date, end_date);
+          paginationParams.push(start_date, end_date);
+          statusParams.push(start_date, end_date);
+          regionParams.push(start_date, end_date);
+        }
       }
 
       if (name) {
@@ -257,14 +258,13 @@ SUM(
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      // if (type === "Raise Date") {
-      //   getQuery += ` ORDER BY s.server_raise_date DESC LIMIT ? OFFSET ?`;
-      //   queryParams.push(limitNumber, offset);
-      // } else {
-
-      getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
-      //}
+      if (type === "Raise Date") {
+        getQuery += ` ORDER BY s.server_raise_date DESC LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      } else {
+        getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       const [result] = await pool.query(getQuery, queryParams);
       const [regionResult] = await pool.query(regionquery, regionParams);
