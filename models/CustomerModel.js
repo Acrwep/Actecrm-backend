@@ -1564,7 +1564,9 @@ WHERE c.id = ?`;
     date_type,
     domain,
     bucket_status,
-    // bucket,
+    region_id,
+    branch_id,
+    bucket,
   ) => {
     try {
       const queryParams = [];
@@ -1574,7 +1576,7 @@ WHERE c.id = ?`;
       const rejectedPaymentParams = [];
       const financeParams = [];
 
-      // Get customers query
+      // Get customers query   class_mode
       let getQuery = `SELECT
                       c.id,
                       c.lead_id,
@@ -1582,7 +1584,12 @@ WHERE c.id = ?`;
                       c.name,
                       c.email,
                       c.phonecode,
+                      cm.name as mode_of_class,
                       c.phone,
+                      re.id AS region_id,
+                      b.id AS branch_id,
+                      re.name AS region_name,
+                      b.name AS branch_name,
                       c.date_of_joining,
                       c.is_certificate_generated,
                       CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
@@ -1636,8 +1643,14 @@ WHERE c.id = ?`;
                         l.primary_course_id = tg.id
                     LEFT JOIN users AS au ON
                         au.user_id = l.assigned_to
+                    LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
                     LEFT JOIN users AS ra_user ON
                         ra_user.user_id = l.ra_id
+                    LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
                     LEFT JOIN(
                       SELECT MAX(id) AS trainer_map_id, customer_id FROM trainer_mapping
                         GROUP BY customer_id
@@ -1686,8 +1699,14 @@ WHERE c.id = ?`;
                             ON pm.lead_id = c.lead_id
                         LEFT JOIN technologies AS tg
                             ON l.primary_course_id = tg.id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
                         LEFT JOIN users AS au
                             ON au.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
                         LEFT JOIN (
                             SELECT
                                 MAX(id) AS trainer_map_id,
@@ -1725,7 +1744,7 @@ WHERE c.id = ?`;
                           pt1.id = ps1.latest_trans_id
                         WHERE 1 = 1`;
 
-      // let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
+      let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
       // All your existing count queries remain unchanged
       let getCountQuery = `SELECT
                           COUNT(c.id) AS total_count,
@@ -1751,9 +1770,11 @@ WHERE c.id = ?`;
                                 'Videos Given'
                             ) THEN 1 END) AS Others,
 
-                             /* BUCKET COUNTS */
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region,
 
-                         
+                             /* BUCKET COUNTS */         
 
   COUNT(CASE WHEN c.status IN (
     'Form Pending',
@@ -1787,10 +1808,18 @@ WHERE c.id = ?`;
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON
                             c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
                         LEFT JOIN region AS r ON
                             r.id = c.region_id
                         LEFT JOIN payment_master AS pm ON
                             c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
                         LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
                         WHERE
@@ -1804,6 +1833,15 @@ WHERE c.id = ?`;
                             ON csh.id = c.latest_status_history_id
                           LEFT JOIN lead_master AS l ON
                               c.lead_id = l.id
+                          LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                    LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                          
                           LEFT JOIN region AS r ON
                               r.id = c.region_id
                           LEFT JOIN payment_master AS pm ON
@@ -1829,6 +1867,14 @@ WHERE c.id = ?`;
                             ON csh.id = c.latest_status_history_id
                           LEFT JOIN lead_master AS l ON
                               c.lead_id = l.id
+                          LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                    LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
                           INNER JOIN payment_master AS pm ON
                               pm.lead_id = c.lead_id
                           INNER JOIN payment_trans AS pt ON
@@ -1844,6 +1890,14 @@ WHERE c.id = ?`;
                                     ON csh.id = c.latest_status_history_id
                                 LEFT JOIN lead_master AS l ON
                                     c.lead_id = l.id
+                                LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                    LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
                                 INNER JOIN payment_master AS pm ON
                                     pm.lead_id = c.lead_id
                                 INNER JOIN payment_trans AS pt ON
@@ -1870,15 +1924,68 @@ WHERE c.id = ?`;
         financeParams.push(...doubleParams);
       }
 
-      // if (bucket && bucket === "Online") {
-      //   getQuery += ` AND cm.name = 'Online'`;
-      //   countQuery += ` AND cm.name = 'Online'`;
-      // }
+      if (region_id) {
+        getQuery += `
+        AND re.id = ?
+      `;
+        countQuery += `  AND re.id = ?
+      `;
+        getCountQuery += `  AND re.id = ?
+      `;
+        financeQuery += `  AND re.id = ?
+      `;
+        paymentQuery += `  AND re.id = ?
+      `;
+        rejectedPaymentQuery += `  AND re.id = ?
+      `;
 
-      // if (bucket && bucket === "Classroom") {
-      //   getQuery += ` AND cm.name = 'Classroom'`;
-      //   countQuery += ` AND cm.name = 'Classroom'`;
-      // }
+        queryParams.push(region_id);
+        countQueryParams.push(region_id);
+        countParams.push(region_id);
+        financeParams.push(region_id);
+        paymentParams.push(region_id);
+        rejectedPaymentParams.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += `
+        AND b.id = ?
+      `;
+        countQuery += `  AND b.id = ?
+      `;
+        getCountQuery += `  AND b.id = ?
+      `;
+        financeQuery += `  AND b.id = ?
+      `;
+        paymentQuery += `  AND b.id = ?
+      `;
+        rejectedPaymentQuery += `  AND b.id = ?
+      `;
+
+        queryParams.push(branch_id);
+        countQueryParams.push(branch_id);
+        countParams.push(branch_id);
+        financeParams.push(branch_id);
+        paymentParams.push(branch_id);
+        rejectedPaymentParams.push(branch_id);
+      }
+      if (bucket && bucket === "Online") {
+        getQuery += ` AND cm.name = 'Online'`;
+        countQuery += ` AND cm.name = 'Online'`;
+        getCountQuery += ` AND cm.name = 'Online'`;
+        financeQuery += ` AND cm.name = 'Online'`;
+        paymentQuery += ` AND cm.name = 'Online'`;
+        rejectedPaymentQuery += ` AND cm.name = 'Online'`;
+      }
+
+      if (bucket && bucket === "Classroom") {
+        getQuery += ` AND cm.name = 'Classroom'`;
+        countQuery += ` AND cm.name = 'Classroom'`;
+        getCountQuery += ` AND cm.name = 'Classroom'`;
+        financeQuery += ` AND cm.name = 'Classroom'`;
+        paymentQuery += ` AND cm.name = 'Classroom'`;
+        rejectedPaymentQuery += ` AND cm.name = 'Classroom'`;
+      }
 
       // Add region filter
       if (region) {
@@ -2131,13 +2238,13 @@ WHERE c.id = ?`;
           financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
       };
-      // const regoinstatuscount = {
-      //   chennai_region: getStatus[0].chennai_region ?? 0,
-      //   bangalore_region: getStatus[0].bangalore_region ?? 0,
-      //   hub_region: getStatus[0].hub_region ?? 0,
-      //   online_mode: getStatus[0].online_mode ?? 0,
-      //   classroom_mode: getStatus[0].classroom_mode ?? 0,
-      // };
+      const regoinstatuscount = {
+        chennai_region: getStatus[0].chennai_region ?? 0,
+        bangalore_region: getStatus[0].bangalore_region ?? 0,
+        hub_region: getStatus[0].hub_region ?? 0,
+        // online_mode: getStatus[0].online_mode ?? 0,
+        // classroom_mode: getStatus[0].classroom_mode ?? 0,
+      };
 
       const buketStatusCount = {
         // Bucket Counts
@@ -2155,7 +2262,7 @@ WHERE c.id = ?`;
         customers: res,
         customer_status_count: cusStatusCount,
         bucket_status_count: buketStatusCount,
-        // regoinstatuscount: regoinstatuscount,
+        regoin_count: regoinstatuscount,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

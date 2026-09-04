@@ -22,7 +22,6 @@ const ServerModel = {
     page,
     limit,
     user_ids,
-    type,
     region_id,
     branch_id,
   ) => {
@@ -84,8 +83,14 @@ const ServerModel = {
       let regionquery = `SELECT
                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai_region,
                             SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'  THEN 1 ELSE 0 END) AS bangalore_region,
-                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub_region
-                      FROM
+SUM(
+  CASE
+    WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+      OR l.assigned_to LIKE '%${CONSTANT_STATUS.DEV}%'
+    THEN 1
+    ELSE 0
+  END
+) AS hub_region                      FROM
                           server_master AS s
                       INNER JOIN customers AS c ON
                           c.id = s.customer_id
@@ -147,25 +152,25 @@ const ServerModel = {
       }
 
       if (start_date && end_date) {
-        if (type === "Raise Date") {
-          getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-          paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-          statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-          regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-          queryParams.push(start_date, end_date);
-          paginationParams.push(start_date, end_date);
-          statusParams.push(start_date, end_date);
-          regionParams.push(start_date, end_date);
-        } else {
-          getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          queryParams.push(start_date, end_date);
-          paginationParams.push(start_date, end_date);
-          statusParams.push(start_date, end_date);
-          regionParams.push(start_date, end_date);
-        }
+        // if (type === "Raise Date") {
+        //   getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+        //   paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+        //   statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+        //   regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+        //   queryParams.push(start_date, end_date);
+        //   paginationParams.push(start_date, end_date);
+        //   statusParams.push(start_date, end_date);
+        //   regionParams.push(start_date, end_date);
+        // } else {
+        getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        paginationParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
+        regionParams.push(start_date, end_date);
+        // }
       }
 
       if (name) {
@@ -252,13 +257,14 @@ const ServerModel = {
       const limitNumber = parseInt(limit, 10) || 10;
       const offset = (pageNumber - 1) * limitNumber;
 
-      if (type === "Raise Date") {
-        getQuery += ` ORDER BY s.server_raise_date DESC LIMIT ? OFFSET ?`;
-        queryParams.push(limitNumber, offset);
-      } else {
-        getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
-        queryParams.push(limitNumber, offset);
-      }
+      // if (type === "Raise Date") {
+      //   getQuery += ` ORDER BY s.server_raise_date DESC LIMIT ? OFFSET ?`;
+      //   queryParams.push(limitNumber, offset);
+      // } else {
+
+      getQuery += ` ORDER BY s.created_date DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+      //}
 
       const [result] = await pool.query(getQuery, queryParams);
       const [regionResult] = await pool.query(regionquery, regionParams);

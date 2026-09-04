@@ -13,7 +13,6 @@ const getServerRequest = async (request, response) => {
     page,
     limit,
     user_ids,
-    type,
     region_id,
     branch_id,
   } = request.body;
@@ -29,7 +28,6 @@ const getServerRequest = async (request, response) => {
       page,
       limit,
       user_ids,
-      type,
       region_id,
       branch_id,
     );
