@@ -1564,11 +1564,13 @@ WHERE c.id = ?`;
     region_id,
     branch_id,
     bucket,
+    class_going_sub_bucket,
   ) => {
     try {
       const queryParams = [];
       const countParams = [];
       const countQueryParams = [];
+      const classGoingSubBucketParams = [];
       const paymentParams = [];
       const rejectedPaymentParams = [];
       const financeParams = [];
@@ -1679,6 +1681,51 @@ WHERE c.id = ?`;
                     LEFT JOIN payment_trans AS pt1 ON
                       pt1.id = ps1.latest_trans_id
                     WHERE 1 = 1`;
+      let classGoingSubBucketQuery = `SELECT
+COUNT(
+    CASE
+        WHEN (c.class_percentage >= 0 AND c.class_percentage <= 25)
+             OR c.class_percentage IS NULL
+        THEN 1
+    END
+) AS under_25,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 25
+        AND c.class_percentage <= 50
+        THEN 1
+    END) AS under_50,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 50
+        AND c.class_percentage <= 75
+        THEN 1
+    END) AS under_75,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 75
+        AND c.class_percentage <= 99
+        THEN 1
+    END) AS under_99
+
+FROM customers AS c
+LEFT JOIN customer_status_history AS csh
+    ON csh.id = c.latest_status_history_id
+LEFT JOIN lead_master AS l
+    ON c.lead_id = l.id
+LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+LEFT JOIN region AS re
+    ON b.region_id = re.id
+LEFT JOIN region AS r
+    ON r.id = c.region_id
+LEFT JOIN class_mode AS cm
+    ON c.mode_of_class = cm.id
+WHERE 1 = 1
+    AND c.status = 'Class Going'
+`;
 
       // Get pagination count query
       let countQuery = `SELECT
@@ -1911,6 +1958,7 @@ WHERE c.id = ?`;
         paymentQuery += userFilter;
         rejectedPaymentQuery += userFilter;
         financeQuery += userFilter;
+        classGoingSubBucketQuery += userFilter;
 
         const doubleParams = [...user_ids, ...user_ids];
         queryParams.push(...doubleParams);
@@ -1919,6 +1967,7 @@ WHERE c.id = ?`;
         paymentParams.push(...doubleParams);
         rejectedPaymentParams.push(...doubleParams);
         financeParams.push(...doubleParams);
+        classGoingSubBucketParams.push(...doubleParams);
       }
 
       if (region_id) {
@@ -1935,6 +1984,8 @@ WHERE c.id = ?`;
       `;
         rejectedPaymentQuery += `  AND re.id = ?
       `;
+        classGoingSubBucketQuery += `  AND re.id = ?
+      `;
 
         queryParams.push(region_id);
         countQueryParams.push(region_id);
@@ -1942,6 +1993,7 @@ WHERE c.id = ?`;
         financeParams.push(region_id);
         paymentParams.push(region_id);
         rejectedPaymentParams.push(region_id);
+        classGoingSubBucketParams.push(region_id);
       }
 
       if (branch_id) {
@@ -1958,6 +2010,8 @@ WHERE c.id = ?`;
       `;
         rejectedPaymentQuery += `  AND b.id = ?
       `;
+        classGoingSubBucketQuery += `  AND b.id = ?
+      `;
 
         queryParams.push(branch_id);
         countQueryParams.push(branch_id);
@@ -1965,6 +2019,7 @@ WHERE c.id = ?`;
         financeParams.push(branch_id);
         paymentParams.push(branch_id);
         rejectedPaymentParams.push(branch_id);
+        classGoingSubBucketParams.push(branch_id);
       }
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
@@ -1973,6 +2028,7 @@ WHERE c.id = ?`;
         financeQuery += ` AND cm.name = 'Online'`;
         paymentQuery += ` AND cm.name = 'Online'`;
         rejectedPaymentQuery += ` AND cm.name = 'Online'`;
+        classGoingSubBucketQuery += ` AND cm.name = 'Online'`;
       }
 
       if (bucket && bucket === "Classroom") {
@@ -1982,6 +2038,7 @@ WHERE c.id = ?`;
         financeQuery += ` AND cm.name = 'Classroom'`;
         paymentQuery += ` AND cm.name = 'Classroom'`;
         rejectedPaymentQuery += ` AND cm.name = 'Classroom'`;
+        classGoingSubBucketQuery += ` AND cm.name = 'Classroom'`;
       }
 
       // Add region filter
@@ -1991,11 +2048,13 @@ WHERE c.id = ?`;
           countQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           getCountQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           financeQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
+          classGoingSubBucketQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
         } else if (region === "Online") {
           getQuery += ` AND r.name IN ('Hub')`;
           countQuery += ` AND r.name IN ('Hub')`;
           getCountQuery += ` AND r.name IN ('Hub')`;
           financeQuery += ` AND r.name IN ('Hub')`;
+          classGoingSubBucketQuery += ` AND r.name IN ('Hub')`;
         }
       }
 
@@ -2006,6 +2065,7 @@ WHERE c.id = ?`;
         financeQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         paymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         rejectedPaymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        classGoingSubBucketQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
       }
 
       // Add date range filter
@@ -2018,6 +2078,7 @@ WHERE c.id = ?`;
           financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          classGoingSubBucketQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         } else {
           const defaultDateColumn =
             "COALESCE(c.date_of_joining, c.created_date)";
@@ -2032,6 +2093,7 @@ WHERE c.id = ?`;
           financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          classGoingSubBucketQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
 
         queryParams.push(from_date, to_date);
@@ -2040,6 +2102,7 @@ WHERE c.id = ?`;
         paymentParams.push(from_date, to_date);
         rejectedPaymentParams.push(from_date, to_date);
         financeParams.push(from_date, to_date);
+        classGoingSubBucketParams.push(from_date, to_date);
       }
 
       if (bucket_status != "Student Onboarding") {
@@ -2149,6 +2212,45 @@ WHERE c.id = ?`;
         countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
       }
 
+      // Add Class Going sub-bucket filter
+      if (status === "Class Going" && class_going_sub_bucket) {
+        if (class_going_sub_bucket === "under_25") {
+          const condition = `
+      AND (
+        (c.class_percentage >= 0 AND c.class_percentage <= 25)
+        OR c.class_percentage IS NULL
+      )
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+        } else if (class_going_sub_bucket === "under_50") {
+          const condition = `
+      AND c.class_percentage > 25
+      AND c.class_percentage <= 50
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+        } else if (class_going_sub_bucket === "under_75") {
+          const condition = `
+      AND c.class_percentage > 50
+      AND c.class_percentage <= 75
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+        } else if (class_going_sub_bucket === "under_99") {
+          const condition = `
+      AND c.class_percentage > 75
+      AND c.class_percentage <= 99
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+        }
+      }
+
       if (search_filter) {
         const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? )`;
         getQuery += filterQuery;
@@ -2218,13 +2320,22 @@ WHERE c.id = ?`;
         [financeResult],
         [paymentStatus],
         [rejectedPaymentCount],
+        [classGoingSubBucketResult],
       ] = await Promise.all([
         pool.query(countQuery, countQueryParams),
         pool.query(getCountQuery, countParams),
         pool.query(financeQuery, financeParams),
         pool.query(paymentQuery, paymentParams),
         pool.query(rejectedPaymentQuery, rejectedPaymentParams),
+        pool.query(classGoingSubBucketQuery, classGoingSubBucketParams),
       ]);
+
+      const classGoingSubBucketCount = {
+        under_25: classGoingSubBucketResult[0]?.under_25 ?? 0,
+        under_50: classGoingSubBucketResult[0]?.under_50 ?? 0,
+        under_75: classGoingSubBucketResult[0]?.under_75 ?? 0,
+        under_99: classGoingSubBucketResult[0]?.under_99 ?? 0,
+      };
 
       // Get total count
       const total = countResult[0]?.total || 0;
@@ -2278,6 +2389,7 @@ WHERE c.id = ?`;
         customer_status_count: cusStatusCount,
         bucket_status_count: buketStatusCount,
         regoin_count: regoinstatuscount,
+        class_going_sub_bucket_count: classGoingSubBucketCount,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

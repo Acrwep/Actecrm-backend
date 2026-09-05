@@ -509,6 +509,7 @@ const getCustomersV1 = async (request, response) => {
     region_id,
     branch_id,
     bucket,
+    class_going_sub_bucket,
   } = request.body;
   try {
     const result = await CustomerModel.getCustomersV1(
@@ -526,6 +527,7 @@ const getCustomersV1 = async (request, response) => {
       region_id,
       branch_id,
       bucket,
+      class_going_sub_bucket,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",
