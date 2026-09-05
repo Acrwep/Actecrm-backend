@@ -1553,10 +1553,7 @@ WHERE c.id = ?`;
     from_date,
     to_date,
     status,
-    name,
-    email,
-    mobile,
-    course,
+    search_filter,
     user_ids,
     page,
     limit,
@@ -2152,29 +2149,47 @@ WHERE c.id = ?`;
         countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
       }
 
+      if (search_filter) {
+        const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? )`;
+        getQuery += filterQuery;
+        countQuery += filterQuery;
+        queryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        countQueryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+      }
+
       // Add name filter
-      if (name) {
-        getQuery += ` AND c.name LIKE '%${name}%'`;
-        countQuery += ` AND c.name LIKE '%${name}%'`;
-      }
+      // if (name) {
+      //   getQuery += ` AND c.name LIKE '%${name}%'`;
+      //   countQuery += ` AND c.name LIKE '%${name}%'`;
+      // }
 
-      // Add email filter
-      if (email) {
-        getQuery += ` AND c.email LIKE '%${email}%'`;
-        countQuery += ` AND c.email LIKE '%${email}%'`;
-      }
+      // // Add email filter
+      // if (email) {
+      //   getQuery += ` AND c.email LIKE '%${email}%'`;
+      //   countQuery += ` AND c.email LIKE '%${email}%'`;
+      // }
 
-      // Add mobile number filter
-      if (mobile) {
-        getQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
-        countQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
-      }
+      // // Add mobile number filter
+      // if (mobile) {
+      //   getQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
+      //   countQuery += ` AND (c.phone LIKE '%${mobile}%' OR c.whatsapp LIKE '%${mobile}%')`;
+      // }
 
-      // Add course filter
-      if (course) {
-        getQuery += ` AND tg.name LIKE '%${course}%'`;
-        countQuery += ` AND tg.name LIKE '%${course}%'`;
-      }
+      // // Add course filter
+      // if (course) {
+      //   getQuery += ` AND tg.name LIKE '%${course}%'`;
+      //   countQuery += ` AND tg.name LIKE '%${course}%'`;
+      // }
 
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;

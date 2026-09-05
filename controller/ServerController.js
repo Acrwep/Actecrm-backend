@@ -5,10 +5,7 @@ const getServerRequest = async (request, response) => {
   const {
     start_date,
     end_date,
-    name,
-    mobile,
-    email,
-    server,
+    search_filter,
     status,
     type,
     page,
@@ -21,10 +18,7 @@ const getServerRequest = async (request, response) => {
     const result = await ServerModel.getServerRequest(
       start_date,
       end_date,
-      name,
-      mobile,
-      email,
-      server,
+      search_filter,
       status,
       type,
       page,

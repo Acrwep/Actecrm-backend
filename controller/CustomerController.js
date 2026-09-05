@@ -495,11 +495,8 @@ const checkIsCustomerReg = async (request, response) => {
 
 const getCustomersV1 = async (request, response) => {
   const {
-    name,
-    email,
-    mobile,
+    search_filter,
     status,
-    course,
     from_date,
     to_date,
     user_ids,
@@ -518,10 +515,7 @@ const getCustomersV1 = async (request, response) => {
       from_date,
       to_date,
       status,
-      name,
-      email,
-      mobile,
-      course,
+      search_filter,
       user_ids,
       page,
       limit,

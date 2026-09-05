@@ -14,10 +14,7 @@ const ServerModel = {
   getServerRequest: async (
     start_date,
     end_date,
-    name,
-    mobile,
-    email,
-    server,
+    search_filter,
     status,
     type,
     page,
@@ -174,28 +171,53 @@ SUM(
         }
       }
 
-      if (name) {
-        getQuery += ` AND c.name LIKE '%${name}%'`;
-        paginationQuery += ` AND c.name LIKE '%${name}%'`;
-        regionquery += ` AND c.name LIKE '%${name}%'`;
-      }
+      // if (name) {
+      //   getQuery += ` AND c.name LIKE '%${name}%'`;
+      //   paginationQuery += ` AND c.name LIKE '%${name}%'`;
+      //   regionquery += ` AND c.name LIKE '%${name}%'`;
+      // }
 
-      if (mobile) {
-        getQuery += ` AND c.phone LIKE '%${mobile}%'`;
-        paginationQuery += ` AND c.phone LIKE '%${mobile}%'`;
-        regionquery += ` AND c.phone LIKE '%${mobile}%'`;
-      }
+      // if (mobile) {
+      //   getQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      //   paginationQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      //   regionquery += ` AND c.phone LIKE '%${mobile}%'`;
+      // }
 
-      if (email) {
-        getQuery += ` AND c.email LIKE '%${email}%'`;
-        paginationQuery += ` AND c.email LIKE '%${email}%'`;
-        regionquery += ` AND c.email LIKE '%${email}%'`;
-      }
+      // if (email) {
+      //   getQuery += ` AND c.email LIKE '%${email}%'`;
+      //   paginationQuery += ` AND c.email LIKE '%${email}%'`;
+      //   regionquery += ` AND c.email LIKE '%${email}%'`;
+      // }
 
-      if (server) {
-        getQuery += ` AND t.name LIKE '%${server}%'`;
-        paginationQuery += ` AND t.name LIKE '%${server}%'`;
-        regionquery += ` AND t.name LIKE '%${server}%'`;
+      // if (server) {
+      //   getQuery += ` AND t.name LIKE '%${server}%'`;
+      //   paginationQuery += ` AND t.name LIKE '%${server}%'`;
+      //   regionquery += ` AND t.name LIKE '%${server}%'`;
+      // }
+
+      if (search_filter) {
+        const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? )`;
+        getQuery += filterQuery;
+        paginationQuery += filterQuery;
+        regionquery += filterQuery;
+        queryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        paginationParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        regionParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
       }
 
       if (status && status.length > 0) {
