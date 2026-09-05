@@ -1823,12 +1823,14 @@ WHERE 1 = 1
   COUNT(CASE WHEN c.status IN (
     'Form Pending',
     'Awaiting Verify',
-    'Awaiting Trainer'
+    'Awaiting Trainer',
+    'Trainer Rejected'
   ) THEN 1 END) AS student_onboarding_count,
 
   COUNT(CASE WHEN c.status IN (
     'Awaiting Trainer Verify',
-    'Trainer Approval'
+    'Trainer Approval',
+    'Approval Rejected' 
   ) THEN 1 END) AS training_coordination_count,
 
   COUNT(CASE WHEN c.status IN (
@@ -2110,14 +2112,16 @@ WHERE 1 = 1
           getQuery += `
     AND c.status IN (
       'Awaiting Trainer Verify',
-      'Trainer Approval'
+      'Trainer Approval',
+      'Approval Rejected' 
     )
   `;
 
           countQuery += `
     AND c.status IN (
       'Awaiting Trainer Verify',
-      'Trainer Approval'
+      'Trainer Approval',
+      'Approval Rejected'
     )
   `;
         }
