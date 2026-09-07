@@ -411,13 +411,13 @@ const CustomerModel = {
                           COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
                           COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
                           COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
+                          COUNT(CASE WHEN c.status = 'Demo Completed' THEN 1 END) AS demo_completed,
+                          COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
                           COUNT(CASE WHEN c.status IN(
                                 'Hold',
                                 'Partially Closed',
                                 'Discontinued',
-                                'Refund',
-                                'Demo Completed',
-                                'Videos Given'
+                                'Refund'
                             ) THEN 1 END) AS Others
                         FROM customers AS c
                         INNER JOIN lead_master AS l ON
@@ -522,8 +522,8 @@ const CustomerModel = {
 
       // Add status filter for others
       if (status === "Others") {
-        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
-        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
+        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
       }
 
       // Add name filter
@@ -1838,13 +1838,13 @@ WHERE 1 = 1
                           COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
                           COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
                           COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
+                          COUNT(CASE WHEN c.status = 'Demo Completed' THEN 1 END) AS demo_completed,
+                          COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
                           COUNT(CASE WHEN c.status IN(
                                 'Hold',
                                 'Partially Closed',
                                 'Discontinued',
-                                'Refund',
-                                'Demo Completed',
-                                'Videos Given'
+                                'Refund' 
                             ) THEN 1 END) AS Others,
                           
 
@@ -1871,15 +1871,15 @@ WHERE 1 = 1
     'Hold',
     'Partially Closed',
     'Discontinued',
-    'Refund',
-    'Demo Completed',
-    'Videos Given'
+    'Refund'
+    
   ) THEN 1 END) AS progress_monitoring_count,
 
   COUNT(CASE WHEN c.status = 'Passedout process'
     THEN 1 END) AS course_completion_count,
 
-  COUNT(CASE WHEN c.status = 'Completed'
+  COUNT(CASE WHEN c.status in ( 'Completed', 'Demo Completed',
+    'Videos Given')
     THEN 1 END) AS reviews_certification_count
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON
@@ -2215,9 +2215,8 @@ WHERE 1 = 1
       'Partially Closed',
       'Discontinued',
       'Hold',
-      'Refund',
-      'Demo Completed',
-      'Videos Given'
+      'Refund'
+      
     )
   `;
 
@@ -2230,9 +2229,8 @@ WHERE 1 = 1
       'Partially Closed',
       'Discontinued',
       'Hold',
-      'Refund',
-      'Demo Completed',
-      'Videos Given'
+      'Refund'
+      
     )
   `;
         getCountQuery += `
@@ -2244,9 +2242,8 @@ WHERE 1 = 1
             'Partially Closed',
             'Discontinued',
             'Hold',
-            'Refund',
-            'Demo Completed',
-            'Videos Given'
+            'Refund'
+            
           )
         `;
       }
@@ -2271,18 +2268,24 @@ WHERE 1 = 1
       if (bucket_status === "Reviews & Certification") {
         getQuery += `
     AND c.status IN (
-      'Completed'
+      'Completed',
+      'Demo Completed',
+    'Videos Given'
     )
   `;
 
         countQuery += `
     AND c.status IN (
-      'Completed'
+      'Completed',
+      'Demo Completed',
+    'Videos Given'
     )
   `;
         getCountQuery += `
           AND c.status IN (
-            'Completed'
+            'Completed',
+            'Demo Completed',
+    'Videos Given'
           )
         `;
       }
@@ -2323,9 +2326,9 @@ WHERE 1 = 1
 
       // Add status filter for others
       if (status === "Others") {
-        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
-        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
-        getCountQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
+        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
+        getCountQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
       }
 
       // Add Class Going sub-bucket filter
