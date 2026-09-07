@@ -1570,6 +1570,7 @@ WHERE c.id = ?`;
       const queryParams = [];
       const countParams = [];
       const countQueryParams = [];
+      const bucketsCountQueryParams = [];
       const classGoingSubBucketParams = [];
       const paymentParams = [];
       const rejectedPaymentParams = [];
@@ -1723,6 +1724,8 @@ LEFT JOIN region AS r
     ON r.id = c.region_id
 LEFT JOIN class_mode AS cm
     ON c.mode_of_class = cm.id
+LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
 WHERE 1 = 1
     AND c.status = 'Class Going'
 `;
@@ -1791,7 +1794,37 @@ WHERE 1 = 1
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
       // All your existing count queries remain unchanged
       let getCountQuery = `SELECT
-                          COUNT(c.id) AS total_count,
+                          
+
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region
+
+                             
+                        FROM customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN payment_master AS pm ON
+                            c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                        WHERE
+                            1 = 1`;
+
+      let bucketsCountQuery = `SELECT
+      COUNT(c.id) AS total_count,
                           COUNT(CASE WHEN c.status IN('Form Pending') THEN 1 END) AS form_pending,
                           COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify,
                           COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
@@ -1813,10 +1846,7 @@ WHERE 1 = 1
                                 'Demo Completed',
                                 'Videos Given'
                             ) THEN 1 END) AS Others,
-
-                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
-                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%' ${cmCondition} THEN 1 ELSE 0 END) AS bangalore_region,
-                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%' ${cmCondition} THEN 1 ELSE 0 END) AS hub_region,
+                          
 
                              /* BUCKET COUNTS */         
 
@@ -1868,6 +1898,8 @@ WHERE 1 = 1
                             c.mode_of_class = cm.id
                         LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
                         WHERE
                             1 = 1`;
 
@@ -1957,6 +1989,7 @@ WHERE 1 = 1
         getQuery += userFilter;
         countQuery += userFilter;
         getCountQuery += userFilter;
+        bucketsCountQuery += userFilter;
         paymentQuery += userFilter;
         rejectedPaymentQuery += userFilter;
         financeQuery += userFilter;
@@ -1966,6 +1999,7 @@ WHERE 1 = 1
         queryParams.push(...doubleParams);
         countQueryParams.push(...doubleParams);
         countParams.push(...doubleParams);
+        bucketsCountQueryParams.push(...doubleParams);
         paymentParams.push(...doubleParams);
         rejectedPaymentParams.push(...doubleParams);
         financeParams.push(...doubleParams);
@@ -1980,6 +2014,8 @@ WHERE 1 = 1
       `;
         getCountQuery += `  AND re.id = ?
       `;
+        bucketsCountQuery += `  AND re.id = ?
+      `;
         financeQuery += `  AND re.id = ?
       `;
         paymentQuery += `  AND re.id = ?
@@ -1992,6 +2028,7 @@ WHERE 1 = 1
         queryParams.push(region_id);
         countQueryParams.push(region_id);
         countParams.push(region_id);
+        bucketsCountQueryParams.push(region_id);
         financeParams.push(region_id);
         paymentParams.push(region_id);
         rejectedPaymentParams.push(region_id);
@@ -2006,6 +2043,8 @@ WHERE 1 = 1
       `;
         getCountQuery += `  AND b.id = ?
       `;
+        bucketsCountQuery += `  AND b.id = ?
+      `;
         financeQuery += `  AND b.id = ?
       `;
         paymentQuery += `  AND b.id = ?
@@ -2018,6 +2057,7 @@ WHERE 1 = 1
         queryParams.push(branch_id);
         countQueryParams.push(branch_id);
         countParams.push(branch_id);
+        bucketsCountQueryParams.push(branch_id);
         financeParams.push(branch_id);
         paymentParams.push(branch_id);
         rejectedPaymentParams.push(branch_id);
@@ -2027,6 +2067,7 @@ WHERE 1 = 1
         getQuery += ` AND cm.name = 'Online'`;
         countQuery += ` AND cm.name = 'Online'`;
         getCountQuery += ` AND cm.name = 'Online'`;
+        bucketsCountQuery += ` AND cm.name = 'Online'`;
         financeQuery += ` AND cm.name = 'Online'`;
         paymentQuery += ` AND cm.name = 'Online'`;
         rejectedPaymentQuery += ` AND cm.name = 'Online'`;
@@ -2037,6 +2078,7 @@ WHERE 1 = 1
         getQuery += ` AND cm.name = 'Classroom'`;
         countQuery += ` AND cm.name = 'Classroom'`;
         getCountQuery += ` AND cm.name = 'Classroom'`;
+        bucketsCountQuery += ` AND cm.name = 'Classroom'`;
         financeQuery += ` AND cm.name = 'Classroom'`;
         paymentQuery += ` AND cm.name = 'Classroom'`;
         rejectedPaymentQuery += ` AND cm.name = 'Classroom'`;
@@ -2049,12 +2091,14 @@ WHERE 1 = 1
           getQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           countQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           getCountQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
+          bucketsCountQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           financeQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
           classGoingSubBucketQuery += ` AND r.name IN ('Chennai', 'Bangalore')`;
         } else if (region === "Online") {
           getQuery += ` AND r.name IN ('Hub')`;
           countQuery += ` AND r.name IN ('Hub')`;
           getCountQuery += ` AND r.name IN ('Hub')`;
+          bucketsCountQuery += ` AND r.name IN ('Hub')`;
           financeQuery += ` AND r.name IN ('Hub')`;
           classGoingSubBucketQuery += ` AND r.name IN ('Hub')`;
         }
@@ -2064,6 +2108,7 @@ WHERE 1 = 1
         getQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         countQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         getCountQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        bucketsCountQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         financeQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         paymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
         rejectedPaymentQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
@@ -2077,6 +2122,7 @@ WHERE 1 = 1
           getQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           getCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          bucketsCountQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           financeQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           paymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${dateColumn} >= ? AND ${dateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
@@ -2092,6 +2138,7 @@ WHERE 1 = 1
           getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          bucketsCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
@@ -2101,15 +2148,41 @@ WHERE 1 = 1
         queryParams.push(from_date, to_date);
         countQueryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
+        bucketsCountQueryParams.push(from_date, to_date);
         paymentParams.push(from_date, to_date);
         rejectedPaymentParams.push(from_date, to_date);
         financeParams.push(from_date, to_date);
         classGoingSubBucketParams.push(from_date, to_date);
       }
 
-      if (bucket_status != "Student Onboarding") {
-        if (bucket_status === "Training Coordination") {
-          getQuery += `
+      if (bucket_status === "Student Onboarding") {
+        getQuery += `
+    AND c.status IN (
+        'Form Pending',
+    'Awaiting Verify',
+    'Awaiting Trainer',
+    'Trainer Rejected'
+ )
+  `;
+        countQuery += `
+    AND c.status IN (
+      'Form Pending',
+      'Awaiting Verify',
+      'Awaiting Trainer',
+      'Trainer Rejected'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Form Pending',
+            'Awaiting Verify',
+            'Awaiting Trainer',
+            'Trainer Rejected'
+          )
+        `;
+      }
+      if (bucket_status === "Training Coordination") {
+        getQuery += `
     AND c.status IN (
       'Awaiting Trainer Verify',
       'Trainer Approval',
@@ -2117,103 +2190,142 @@ WHERE 1 = 1
     )
   `;
 
-          countQuery += `
+        countQuery += `
     AND c.status IN (
       'Awaiting Trainer Verify',
       'Trainer Approval',
       'Approval Rejected'
     )
   `;
-        }
-        if (bucket_status === "Progress Monitoring") {
-          getQuery += `
-    AND c.status IN (
-      'Awaiting Class',
-      'Class Scheduled',
-      'Class Going',
-      'Escalated',
-      'Partially Closed',
-      'Discontinued',
-      'Hold',
-      'Refund',
-      'Demo Completed',
-      'Videos Given'
-    )
-  `;
-
-          countQuery += `
-    AND c.status IN (
-      'Awaiting Class',
-      'Class Scheduled',
-      'Class Going',
-      'Escalated',
-      'Partially Closed',
-      'Discontinued',
-      'Hold',
-      'Refund',
-      'Demo Completed',
-      'Videos Given'
-    )
-  `;
-        }
-        if (bucket_status === "Course completion") {
-          getQuery += `
-    AND c.status IN (
-      'Passedout process'
-    )
-  `;
-
-          countQuery += `
-    AND c.status IN (
-      'Passedout process'
-    )
-  `;
-        }
-        if (bucket_status === "Reviews & Certification") {
-          getQuery += `
-    AND c.status IN (
-      'Completed'
-    )
-  `;
-
-          countQuery += `
-    AND c.status IN (
-      'Completed'
-    )
-  `;
-        }
+        getCountQuery += `
+          AND c.status IN (
+            'Awaiting Trainer Verify',
+            'Trainer Approval',
+            'Approval Rejected'
+          )
+        `;
       }
+      if (bucket_status === "Progress Monitoring") {
+        getQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Class',
+      'Class Scheduled',
+      'Class Going',
+      'Escalated',
+      'Partially Closed',
+      'Discontinued',
+      'Hold',
+      'Refund',
+      'Demo Completed',
+      'Videos Given'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Awaiting Class',
+            'Class Scheduled',
+            'Class Going',
+            'Escalated',
+            'Partially Closed',
+            'Discontinued',
+            'Hold',
+            'Refund',
+            'Demo Completed',
+            'Videos Given'
+          )
+        `;
+      }
+      if (bucket_status === "Course completion") {
+        getQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Passedout process'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Passedout process'
+          )
+        `;
+      }
+      if (bucket_status === "Reviews & Certification") {
+        getQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Completed'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Completed'
+          )
+        `;
+      }
+
       // Add status filter
       if (status && status.length > 0) {
         if (status === "Awaiting Finance") {
           // Special handling for Awaiting Finance status
           getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
           countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+          getCountQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
           queryParams.push(status);
           countQueryParams.push(status);
+          countParams.push(status);
         } else if (Array.isArray(status)) {
           const placeholders = status.map(() => "?").join(", ");
           getQuery += ` AND c.status IN (${placeholders})`;
           countQuery += ` AND c.status IN (${placeholders})`;
+          getCountQuery += ` AND c.status IN (${placeholders})`;
           queryParams.push(...status);
           countQueryParams.push(...status);
+          countParams.push(...status);
         } else if (status !== "Others" && status !== "Payment Rejected") {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
+          getCountQuery += ` AND c.status = ?`;
           queryParams.push(status);
           countQueryParams.push(status);
+          countParams.push(status);
         }
       }
 
       if (status === "Payment Rejected") {
         getQuery += ` AND pt1.is_last_pay_rejected = 1`;
         countQuery += ` AND pt1.is_last_pay_rejected = 1`;
+        getCountQuery += ` AND pt1.is_last_pay_rejected = 1`;
       }
 
       // Add status filter for others
       if (status === "Others") {
         getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
         countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
+        getCountQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund', 'Demo Completed', 'Videos Given')`;
       }
 
       // Add Class Going sub-bucket filter
@@ -2228,6 +2340,7 @@ WHERE 1 = 1
 
           getQuery += condition;
           countQuery += condition;
+          getCountQuery += condition;
         } else if (class_going_sub_bucket === "under_50") {
           const condition = `
       AND c.class_percentage > 25
@@ -2236,6 +2349,7 @@ WHERE 1 = 1
 
           getQuery += condition;
           countQuery += condition;
+          getCountQuery += condition;
         } else if (class_going_sub_bucket === "under_75") {
           const condition = `
       AND c.class_percentage > 50
@@ -2244,6 +2358,7 @@ WHERE 1 = 1
 
           getQuery += condition;
           countQuery += condition;
+          getCountQuery += condition;
         } else if (class_going_sub_bucket === "under_99") {
           const condition = `
       AND c.class_percentage > 75
@@ -2252,6 +2367,7 @@ WHERE 1 = 1
 
           getQuery += condition;
           countQuery += condition;
+          getCountQuery += condition;
         }
       }
 
@@ -2259,6 +2375,8 @@ WHERE 1 = 1
         const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? )`;
         getQuery += filterQuery;
         countQuery += filterQuery;
+        getCountQuery += filterQuery;
+        bucketsCountQuery += filterQuery;
         queryParams.push(
           `%${search_filter}%`,
           `%${search_filter}%`,
@@ -2266,6 +2384,18 @@ WHERE 1 = 1
           `%${search_filter}%`,
         );
         countQueryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        countParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        bucketsCountQueryParams.push(
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
@@ -2325,6 +2455,7 @@ WHERE 1 = 1
         [paymentStatus],
         [rejectedPaymentCount],
         [classGoingSubBucketResult],
+        [bucketsCountResult],
       ] = await Promise.all([
         pool.query(countQuery, countQueryParams),
         pool.query(getCountQuery, countParams),
@@ -2332,6 +2463,7 @@ WHERE 1 = 1
         pool.query(paymentQuery, paymentParams),
         pool.query(rejectedPaymentQuery, rejectedPaymentParams),
         pool.query(classGoingSubBucketQuery, classGoingSubBucketParams),
+        pool.query(bucketsCountQuery, bucketsCountQueryParams),
       ]);
 
       const classGoingSubBucketCount = {
@@ -2363,7 +2495,7 @@ WHERE 1 = 1
 
       // Fetch customer count by status
       const cusStatusCount = {
-        ...getStatus[0],
+        ...bucketsCountResult[0],
         awaiting_finance:
           financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
@@ -2378,13 +2510,16 @@ WHERE 1 = 1
 
       const buketStatusCount = {
         // Bucket Counts
-        student_onboarding_count: getStatus[0].student_onboarding_count ?? 0,
+        student_onboarding_count:
+          bucketsCountResult[0].student_onboarding_count ?? 0,
         training_coordination_count:
-          getStatus[0].training_coordination_count ?? 0,
-        progress_monitoring_count: getStatus[0].progress_monitoring_count ?? 0,
-        course_completion_count: getStatus[0].course_completion_count ?? 0,
+          bucketsCountResult[0].training_coordination_count ?? 0,
+        progress_monitoring_count:
+          bucketsCountResult[0].progress_monitoring_count ?? 0,
+        course_completion_count:
+          bucketsCountResult[0].course_completion_count ?? 0,
         reviews_certification_count:
-          getStatus[0].reviews_certification_count ?? 0,
+          bucketsCountResult[0].reviews_certification_count ?? 0,
       };
 
       // Return customer result
