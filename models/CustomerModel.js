@@ -1832,6 +1832,8 @@ WHERE 1 = 1
                           )  THEN 1 END) AS assign_trainer,
                         COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
                           COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,
+                          COUNT(CASE WHEN c.status = 'Payment Rejected' THEN 1 END) AS payment_rejected,
+                          COUNT(CASE WHEN c.status = 'Awaiting Finance' THEN 1 END) AS awaiting_finance,
                           COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify,
                           COUNT(CASE WHEN c.status = 'Approval Rejected' THEN 1 END) AS approval_rejected,
                           COUNT(CASE WHEN c.status = 'Trainer Approval' THEN 1 END) AS trainer_approval,
@@ -1860,7 +1862,10 @@ WHERE 1 = 1
     'Trainer Rejected',
     'Awaiting Trainer Verify',
     'Trainer Approval',
-    'Approval Rejected'
+    'Approval Rejected',
+    'Payment Rejected',
+    'Awaiting Finance'
+
   ) THEN 1 END) AS student_onboarding_count,
 
   COUNT(CASE WHEN c.status IN (
@@ -2167,7 +2172,9 @@ WHERE 1 = 1
     'Trainer Rejected',
     'Awaiting Trainer Verify',
     'Trainer Approval',
-    'Approval Rejected'
+    'Approval Rejected',
+    'Payment Rejected',
+    'Awaiting Finance'
  )
   `;
         countQuery += `
@@ -2178,7 +2185,9 @@ WHERE 1 = 1
       'Trainer Rejected',
       'Awaiting Trainer Verify',
       'Trainer Approval',
-      'Approval Rejected'
+      'Approval Rejected',
+      'Payment Rejected',
+    'Awaiting Finance'
     )
   `;
         getCountQuery += `
@@ -2189,7 +2198,9 @@ WHERE 1 = 1
             'Trainer Rejected',
             'Awaiting Trainer Verify',
             'Trainer Approval',
-            'Approval Rejected'
+            'Approval Rejected',
+            'Payment Rejected',
+    'Awaiting Finance'
           )
         `;
       }
@@ -2295,15 +2306,16 @@ WHERE 1 = 1
 
       // Add status filter
       if (status && status.length > 0) {
-        if (status === "Awaiting Finance") {
-          // Special handling for Awaiting Finance status
-          getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
-          countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
-          getCountQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
-          queryParams.push(status);
-          countQueryParams.push(status);
-          countParams.push(status);
-        } else if (Array.isArray(status)) {
+        // if (status === "Awaiting Finance") {
+        //   // Special handling for Awaiting Finance status
+        //   getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   getCountQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   queryParams.push(status);
+        //   countQueryParams.push(status);
+        //   countParams.push(status);
+        // } else
+        if (Array.isArray(status)) {
           const placeholders = status.map(() => "?").join(", ");
           getQuery += ` AND c.status IN (${placeholders})`;
           countQuery += ` AND c.status IN (${placeholders})`;
@@ -2311,11 +2323,7 @@ WHERE 1 = 1
           queryParams.push(...status);
           countQueryParams.push(...status);
           countParams.push(...status);
-        } else if (
-          status !== "Others" &&
-          status !== "Payment Rejected" &&
-          status !== "assign_trainer"
-        ) {
+        } else if (status !== "Others" && status !== "assign_trainer") {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
           getCountQuery += ` AND c.status = ?`;
@@ -2325,11 +2333,11 @@ WHERE 1 = 1
         }
       }
 
-      if (status === "Payment Rejected") {
-        getQuery += ` AND pt1.is_last_pay_rejected = 1`;
-        countQuery += ` AND pt1.is_last_pay_rejected = 1`;
-        getCountQuery += ` AND pt1.is_last_pay_rejected = 1`;
-      }
+      // if (status === "Payment Rejected") {
+      //   getQuery += ` AND pt1.is_last_pay_rejected = 1`;
+      //   countQuery += ` AND pt1.is_last_pay_rejected = 1`;
+      //   getCountQuery += ` AND pt1.is_last_pay_rejected = 1`;
+      // }
 
       // Add status filter for others
       if (status === "Others") {
@@ -2527,9 +2535,11 @@ WHERE 1 = 1
       // Fetch customer count by status
       const cusStatusCount = {
         ...bucketsCountResult[0],
-        awaiting_finance:
-          financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
-        rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
+        // awaiting_finance:
+        //   financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
+        // rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
+        awaiting_finance: bucketsCountResult[0].awaiting_finance ?? 0,
+        payment_rejected: bucketsCountResult[0].payment_rejected ?? 0,
       };
       const regoinstatuscount = {
         chennai_region: getStatus[0].chennai_region ?? 0,
