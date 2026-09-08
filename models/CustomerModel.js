@@ -2138,19 +2138,19 @@ WHERE 1 = 1
         } else {
           const defaultDateColumn =
             "COALESCE(c.date_of_joining, c.created_date)";
-          const paymentDateColumn = "c.payment_date";
-          const queryDateColumn =
-            status === "Awaiting Finance" || status === "Payment Rejected"
-              ? paymentDateColumn
-              : defaultDateColumn;
-          getQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          countQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          // const paymentDateColumn = "c.payment_date";
+          // const queryDateColumn =
+          //   status === "Awaiting Finance" || status === "Payment Rejected"
+          //     ? paymentDateColumn
+          //     : defaultDateColumn;
+          getQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          countQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           getCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
           bucketsCountQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          financeQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          paymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          rejectedPaymentQuery += ` AND ${paymentDateColumn} >= ? AND ${paymentDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
-          classGoingSubBucketQuery += ` AND ${queryDateColumn} >= ? AND ${queryDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          financeQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          paymentQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          rejectedPaymentQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
+          classGoingSubBucketQuery += ` AND ${defaultDateColumn} >= ? AND ${defaultDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)`;
         }
 
         queryParams.push(from_date, to_date);
