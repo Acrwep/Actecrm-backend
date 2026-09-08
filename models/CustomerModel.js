@@ -1827,7 +1827,10 @@ WHERE 1 = 1
       COUNT(c.id) AS total_count,
                           COUNT(CASE WHEN c.status IN('Form Pending') THEN 1 END) AS form_pending,
                           COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify,
-                          COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
+                          COUNT(CASE WHEN c.status in ('Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+                          )  THEN 1 END) AS assign_trainer,
+                        COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
                           COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,
                           COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify,
                           COUNT(CASE WHEN c.status = 'Approval Rejected' THEN 1 END) AS approval_rejected,
@@ -1854,17 +1857,17 @@ WHERE 1 = 1
     'Form Pending',
     'Awaiting Verify',
     'Awaiting Trainer',
-    'Trainer Rejected'
+    'Trainer Rejected',
+    'Awaiting Trainer Verify',
+    'Trainer Approval',
+    'Approval Rejected'
   ) THEN 1 END) AS student_onboarding_count,
 
   COUNT(CASE WHEN c.status IN (
-    'Awaiting Trainer Verify',
-    'Trainer Approval',
-    'Approval Rejected' 
+    'Awaiting Class'
   ) THEN 1 END) AS training_coordination_count,
 
   COUNT(CASE WHEN c.status IN (
-    'Awaiting Class',
     'Class Scheduled',
     'Class Going',
     'Escalated',
@@ -2161,7 +2164,10 @@ WHERE 1 = 1
         'Form Pending',
     'Awaiting Verify',
     'Awaiting Trainer',
-    'Trainer Rejected'
+    'Trainer Rejected',
+    'Awaiting Trainer Verify',
+    'Trainer Approval',
+    'Approval Rejected'
  )
   `;
         countQuery += `
@@ -2169,29 +2175,7 @@ WHERE 1 = 1
       'Form Pending',
       'Awaiting Verify',
       'Awaiting Trainer',
-      'Trainer Rejected'
-    )
-  `;
-        getCountQuery += `
-          AND c.status IN (
-            'Form Pending',
-            'Awaiting Verify',
-            'Awaiting Trainer',
-            'Trainer Rejected'
-          )
-        `;
-      }
-      if (bucket_status === "Training Coordination") {
-        getQuery += `
-    AND c.status IN (
-      'Awaiting Trainer Verify',
-      'Trainer Approval',
-      'Approval Rejected' 
-    )
-  `;
-
-        countQuery += `
-    AND c.status IN (
+      'Trainer Rejected',
       'Awaiting Trainer Verify',
       'Trainer Approval',
       'Approval Rejected'
@@ -2199,16 +2183,37 @@ WHERE 1 = 1
   `;
         getCountQuery += `
           AND c.status IN (
+            'Form Pending',
+            'Awaiting Verify',
+            'Awaiting Trainer',
+            'Trainer Rejected',
             'Awaiting Trainer Verify',
             'Trainer Approval',
             'Approval Rejected'
           )
         `;
       }
+      if (bucket_status === "Training Coordination") {
+        getQuery += `
+    AND c.status IN (
+     'Awaiting Class'
+    )
+  `;
+
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Class'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Awaiting Class'
+          )
+        `;
+      }
       if (bucket_status === "Progress Monitoring") {
         getQuery += `
     AND c.status IN (
-      'Awaiting Class',
       'Class Scheduled',
       'Class Going',
       'Escalated',
@@ -2222,7 +2227,6 @@ WHERE 1 = 1
 
         countQuery += `
     AND c.status IN (
-      'Awaiting Class',
       'Class Scheduled',
       'Class Going',
       'Escalated',
@@ -2235,7 +2239,6 @@ WHERE 1 = 1
   `;
         getCountQuery += `
           AND c.status IN (
-            'Awaiting Class',
             'Class Scheduled',
             'Class Going',
             'Escalated',
@@ -2308,7 +2311,11 @@ WHERE 1 = 1
           queryParams.push(...status);
           countQueryParams.push(...status);
           countParams.push(...status);
-        } else if (status !== "Others" && status !== "Payment Rejected") {
+        } else if (
+          status !== "Others" &&
+          status !== "Payment Rejected" &&
+          status !== "assign_trainer"
+        ) {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
           getCountQuery += ` AND c.status = ?`;
@@ -2372,6 +2379,27 @@ WHERE 1 = 1
           countQuery += condition;
           getCountQuery += condition;
         }
+      }
+
+      if (status === "assign_trainer") {
+        getQuery += `
+    AND c.status IN (
+    'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+ )
+  `;
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+    )
+  `;
+        getCountQuery += `
+          AND c.status IN (
+            'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+          )
+        `;
       }
 
       if (search_filter) {
