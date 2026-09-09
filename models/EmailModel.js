@@ -1706,6 +1706,13 @@ const sendPayslip = async (
         font-weight: 600;
       }
 
+      .td-header-right {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        font-weight: 600;
+        text-align: right;
+      }
+
       .td-value {
         border: 1px solid #000;
         padding: 6px 8px;
@@ -1788,48 +1795,48 @@ const sendPayslip = async (
         <td class="td-header">Freelancer Name:</td>
         <td class="td-value">${trainer_name}</td>
 
-        <td class="td-value" style="text-align: right">${course}</td>
-        <td class="td-header">Course Name</td>
+        <td class="td-header-right">Course Name</td>
+        <td class="td-value">${course}</td>
       </tr>
 
       <tr>
         <td class="td-header">Trainer ID:</td>
         <td class="td-value">${trainer_id}</td>
 
-        <td class="td-value" style="text-align: right">${students}</td>
-        <td class="td-header">Student Info</td>
+        <td class="td-header-right">Student Info</td>
+        <td class="td-value">${students}</td>
       </tr>
 
       <tr>
         <td class="td-header">Designation:</td>
         <td class="td-value">Freelance Software Trainer</td>
 
-        <td class="td-value" style="text-align: right">1</td>
-        <td class="td-header">Classes Taken</td>
+        <td class="td-header-right">Classes Taken</td>
+        <td class="td-value">1</td>
       </tr>
 
       <tr>
         <td class="td-header">Department</td>
         <td class="td-value">Training and Development</td>
 
-        <td class="td-value" style="text-align: right">${total_hours_taken}</td>
-        <td class="td-header">Total Hours Taken</td>
+        <td class="td-header-right">Total Hours Taken</td>
+        <td class="td-value">${total_hours_taken}</td>
       </tr>
 
       <tr>
         <td class="td-header">Payment Date</td>
         <td class="td-value">${payment_date ? moment(payment_date).format("DD-MM-YYYY") : "-"}</td>
 
-        <td class="td-value" style="text-align: right">${training_mode}</td>
-        <td class="td-header">Mode</td>
+        <td class="td-header-right">Mode</td>
+        <td class="td-value">${training_mode}</td>
       </tr>
 
       <tr>
         <td class="td-header">Training Period</td>
         <td class="td-value">${training_period}</td>
 
-        <td class="td-value" style="text-align: right">${commercial}</td>
-        <td class="td-header">Total Earnings</td>
+        <td class="td-header-right">Total Earnings</td>
+        <td class="td-value">${commercial}</td>
       </tr>
     </table>
 
@@ -1994,6 +2001,13 @@ const sendPayslip = async (
         font-weight: 600;
       }
 
+      .td-header-right {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        font-weight: 600;
+        text-align: right;
+      }
+
       .td-value {
         border: 1px solid #000;
         padding: 6px 8px;
@@ -2076,50 +2090,50 @@ const sendPayslip = async (
         <td class="td-header">Freelancer Name</td>
         <td class="td-value">${trainer_name}</td>
 
-        <td class="td-value" style="text-align: right">${course}</td>
-        <td class="td-header">Batch</td>
+        <td class="td-header-right">Batch</td>
+        <td class="td-value">${course}</td>
       </tr>
 
       <tr>
         <td class="td-header">Trainer ID</td>
         <td class="td-value">${trainer_id}</td>
 
-        <td class="td-value" style="text-align: right">${batch_code}</td>
-        <td class="td-header">Batch ID</td>
+        <td class="td-header-right">Batch ID</td>
+        <td class="td-value">${batch_code}</td>
       </tr>
 
       <tr>
         <td class="td-header">Designation</td>
         <td class="td-value">Freelance Software Trainer</td>
 
-        <td class="td-value" style="text-align: right">${count_of_candidates}</td>
-        <td class="td-header">Classes Taken</td>
+        <td class="td-header-right">Classes Taken</td>
+        <td class="td-value">${count_of_candidates}</td>
       </tr>
 
       <tr>
         <td class="td-header">Department</td>
         <td class="td-value">Training and Development</td>
 
-        <td class="td-value" style="text-align: right">
+        <td class="td-header-right">Total Hours Taken</td>
+        <td class="td-value">
          ${total_hours_taken}
         </td>
-        <td class="td-header">Total Hours Taken</td>
       </tr>
 
       <tr>
         <td class="td-header">Payment Date</td>
         <td class="td-value">${payment_date ? moment(payment_date).format("DD-MM-YYYY") : "-"}</td>
 
-        <td class="td-value" style="text-align: right">${training_mode}</td>
-        <td class="td-header">Mode</td>
+        <td class="td-header-right">Mode</td>
+        <td class="td-value">${training_mode}</td>
       </tr>
 
       <tr>
         <td class="td-header">Training Period</td>
         <td class="td-value">${training_period}</td>
 
-        <td class="td-value" style="text-align: right">Total Earnings</td>
-        <td class="td-header">${commercial}</td>
+        <td class="td-header-right">${commercial}</td>
+        <td class="td-value">Total Earnings</td>
       </tr>
 
       <!-- Student Info Full Width -->
@@ -2244,7 +2258,7 @@ const sendPayslip = async (
     // 2. Launch Puppeteer and create PDF
     const browser = await puppeteer.launch({
       headless: true,
-      // executablePath: "/usr/bin/chromium-browser",
+      executablePath: "/usr/bin/chromium-browser",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
@@ -2392,6 +2406,13 @@ const viewPayslip = async (
         font-weight: 600;
       }
 
+      .td-header-right {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        font-weight: 600;
+        text-align: right;
+      }
+
       .td-value {
         border: 1px solid #000;
         padding: 6px 8px;
@@ -2474,48 +2495,48 @@ const viewPayslip = async (
         <td class="td-header">Freelancer Name:</td>
         <td class="td-value">${trainer_name}</td>
 
-        <td class="td-value" style="text-align: right">${course}</td>
-        <td class="td-header">Course Name</td>
+        <td class="td-header-right">Course Name</td>
+        <td class="td-value">${course}</td>
       </tr>
 
       <tr>
         <td class="td-header">Trainer ID:</td>
         <td class="td-value">${trainer_id}</td>
 
-        <td class="td-value" style="text-align: right">${students}</td>
-        <td class="td-header">Student Info</td>
+        <td class="td-header-right">Student Info</td>
+        <td class="td-value">${students}</td>
       </tr>
 
       <tr>
         <td class="td-header">Designation:</td>
         <td class="td-value">Freelance Software Trainer</td>
 
-        <td class="td-value" style="text-align: right">1</td>
-        <td class="td-header">Classes Taken</td>
+        <td class="td-header-right">Classes Taken</td>
+        <td class="td-value">1</td>
       </tr>
 
       <tr>
         <td class="td-header">Department</td>
         <td class="td-value">Training and Development</td>
 
-        <td class="td-value" style="text-align: right">${total_hours_taken}</td>
-        <td class="td-header">Total Hours Taken</td>
+        <td class="td-header-right">Total Hours Taken</td>
+        <td class="td-value">${total_hours_taken}</td>
       </tr>
 
       <tr>
         <td class="td-header">Payment Date</td>
         <td class="td-value">${payment_date ? moment(payment_date).format("DD-MM-YYYY") : "-"}</td>
 
-        <td class="td-value" style="text-align: right">${training_mode}</td>
-        <td class="td-header">Mode</td>
+        <td class="td-header-right">Mode</td>
+        <td class="td-value">${training_mode}</td>
       </tr>
 
       <tr>
         <td class="td-header">Training Period</td>
         <td class="td-value">${training_period}</td>
 
-        <td class="td-value" style="text-align: right">${commercial}</td>
-        <td class="td-header">Total Earnings</td>
+        <td class="td-header-right">Total Earnings</td>
+        <td class="td-value">${commercial}</td>
       </tr>
     </table>
 
@@ -2680,6 +2701,13 @@ const viewPayslip = async (
         font-weight: 600;
       }
 
+      .td-header-right {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        font-weight: 600;
+        text-align: right;
+      }
+
       .td-value {
         border: 1px solid #000;
         padding: 6px 8px;
@@ -2762,50 +2790,50 @@ const viewPayslip = async (
         <td class="td-header">Freelancer Name</td>
         <td class="td-value">${trainer_name}</td>
 
-        <td class="td-value" style="text-align: right">${course}</td>
-        <td class="td-header">Batch</td>
+        <td class="td-header-right">Batch</td>
+        <td class="td-value">${course}</td>
       </tr>
 
       <tr>
         <td class="td-header">Trainer ID</td>
         <td class="td-value">${trainer_id}</td>
 
-        <td class="td-value" style="text-align: right">${batch_code}</td>
-        <td class="td-header">Batch ID</td>
+        <td class="td-header-right">Batch ID</td>
+        <td class="td-value">${batch_code}</td>
       </tr>
 
       <tr>
         <td class="td-header">Designation</td>
         <td class="td-value">Freelance Software Trainer</td>
 
-        <td class="td-value" style="text-align: right">${count_of_candidates}</td>
-        <td class="td-header">Classes Taken</td>
+        <td class="td-header-right">Classes Taken</td>
+        <td class="td-value">${count_of_candidates}</td>
       </tr>
 
       <tr>
         <td class="td-header">Department</td>
         <td class="td-value">Training and Development</td>
 
-        <td class="td-value" style="text-align: right">
+        <td class="td-header-right">Total Hours Taken</td>
+        <td class="td-value">
          ${total_hours_taken}
         </td>
-        <td class="td-header">Total Hours Taken</td>
       </tr>
 
       <tr>
         <td class="td-header">Payment Date</td>
         <td class="td-value">${payment_date ? moment(payment_date).format("DD-MM-YYYY") : "-"}</td>
 
-        <td class="td-value" style="text-align: right">${training_mode}</td>
-        <td class="td-header">Mode</td>
+        <td class="td-header-right">Mode</td>
+        <td class="td-value">${training_mode}</td>
       </tr>
 
       <tr>
         <td class="td-header">Training Period</td>
         <td class="td-value">${training_period}</td>
 
-        <td class="td-value" style="text-align: right">Total Earnings</td>
-        <td class="td-header">${commercial}</td>
+        <td class="td-header-right">${commercial}</td>
+        <td class="td-value">Total Earnings</td>
       </tr>
 
       <!-- Student Info Full Width -->
