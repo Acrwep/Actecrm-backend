@@ -605,8 +605,8 @@ const UserModel = {
         };
       }
 
-      const totalAmount = user[0].total_amount;
-      const paidAmount = user[0].paid_amount;
+      const totalAmount = Number(user[0].total_amount || 0);
+      const paidAmount = Number(user[0].paid_amount || 0);
 
       if (totalAmount === paidAmount) {
         return {
