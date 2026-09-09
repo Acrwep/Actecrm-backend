@@ -115,10 +115,12 @@ const BatchModel = {
     end_date,
     region_id,
     branch_id,
+    customer_search_filter,
   ) => {
     try {
       const batchParams = [];
       const regionParams = [];
+      const customerParams = [];
       let batchQuery = `SELECT
                             bm.id AS batch_id,
                             bm.batch_number,
@@ -225,40 +227,80 @@ const BatchModel = {
       let customerMap = new Map();
 
       if (batchIds.length > 0) {
-        const [customers] = await pool.query(
-          `SELECT
-              bt.id AS batch_trans_id,
-              bt.batch_master_id AS batch_id,
-              c.id,
-              c.name,
-              c.phone,
-              c.email,
-              c.status,
-              c.linkedin_review,
-              c.google_review,
-              cer.course_duration AS cer_course_duration,
-              cer.course_completion_month AS cer_course_completion_month,
-              cer.location AS cer_location,
-              c.review_updated_date,
-              t.name AS course_name,
-              c.class_schedule_id,
-              c.class_start_date,
-              c.class_scheduled_at,
-              c.class_comments,
-              c.class_percentage,
-              c.class_attachment,
-              c.is_certificate_generated
-          FROM
-              batch_trans AS bt
-          INNER JOIN customers AS c ON
-              c.id = bt.customer_id
-          INNER JOIN technologies AS t ON
-            t.id = c.enrolled_course
-          LEFT JOIN certificates AS cer ON
-            cer.customer_id = c.id
-          WHERE bt.batch_master_id IN (?)`,
-          [batchIds],
-        );
+        let filteredBatchIds = batchIds;
+
+        if (customer_search_filter) {
+          const searchValue = `%${customer_search_filter}%`;
+
+          const [matchedBatches] = await pool.query(
+            `
+      SELECT DISTINCT
+        bt.batch_master_id AS batch_id
+      FROM batch_trans AS bt
+      INNER JOIN customers AS c
+        ON c.id = bt.customer_id
+      WHERE bt.batch_master_id IN (?)
+        AND (
+          c.name LIKE ?
+          OR c.phone LIKE ?
+          OR c.email LIKE ?
+        )
+    `,
+            [batchIds, searchValue, searchValue, searchValue],
+          );
+
+          filteredBatchIds = matchedBatches.map((row) => row.batch_id);
+        }
+
+        if (filteredBatchIds.length === 0) {
+          return {
+            data: [],
+            region_count: {
+              total_region: 0,
+              chennai_region: 0,
+              bangalore_region: 0,
+              hub_region: 0,
+            },
+          };
+        }
+
+        let customerQuery = `
+  SELECT
+      bt.id AS batch_trans_id,
+      bt.batch_master_id AS batch_id,
+      c.id,
+      c.name,
+      c.phone,
+      c.email,
+      c.status,
+      c.linkedin_review,
+      c.google_review,
+      cer.course_duration AS cer_course_duration,
+      cer.course_completion_month AS cer_course_completion_month,
+      cer.location AS cer_location,
+      c.review_updated_date,
+      t.name AS course_name,
+      c.class_schedule_id,
+      c.class_start_date,
+      c.class_scheduled_at,
+      c.class_comments,
+      c.class_percentage,
+      c.class_attachment,
+      c.is_certificate_generated
+  FROM
+      batch_trans AS bt
+  INNER JOIN customers AS c
+      ON c.id = bt.customer_id
+  INNER JOIN technologies AS t
+      ON t.id = c.enrolled_course
+  LEFT JOIN certificates AS cer
+      ON cer.customer_id = c.id
+  WHERE bt.batch_master_id IN (?)
+`;
+
+        customerParams.push(filteredBatchIds);
+
+        const [customers] = await pool.query(customerQuery, customerParams);
 
         customers.forEach((r) => {
           if (!customerMap.has(r.batch_id)) {
@@ -268,32 +310,40 @@ const BatchModel = {
         });
       }
 
-      let res = batches.map((item) => {
-        const customers = customerMap.get(item.batch_id) || [];
+      let res = batches
+        .filter((item) => {
+          if (customer_search_filter) {
+            return customerMap.has(item.batch_id);
+          }
 
-        const completed_student = customers.filter(
-          (c) => Number(c.class_percentage) === 100,
-        ).length;
-        const total_students = customers.length;
-        const linkedin_review = customers.filter(
-          (c) => c.linkedin_review !== null,
-        ).length;
-        const google_review = customers.filter(
-          (c) => c.google_review !== null,
-        ).length;
-        const status =
-          completed_student === total_students ? "Completed" : "In Progress";
+          return true;
+        })
+        .map((item) => {
+          const customers = customerMap.get(item.batch_id) || [];
 
-        return {
-          ...item,
-          completed_student,
-          total_students,
-          linkedin_review,
-          google_review,
-          status,
-          customers,
-        };
-      });
+          const completed_student = customers.filter(
+            (c) => Number(c.class_percentage) === 100,
+          ).length;
+          const total_students = customers.length;
+          const linkedin_review = customers.filter(
+            (c) => c.linkedin_review !== null,
+          ).length;
+          const google_review = customers.filter(
+            (c) => c.google_review !== null,
+          ).length;
+          const status =
+            completed_student === total_students ? "Completed" : "In Progress";
+
+          return {
+            ...item,
+            completed_student,
+            total_students,
+            linkedin_review,
+            google_review,
+            status,
+            customers,
+          };
+        });
 
       const regionCount = regionBatches[0] || {};
 
