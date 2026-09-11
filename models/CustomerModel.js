@@ -1613,6 +1613,7 @@ WHERE c.id = ?`;
                       map.id AS training_map_id,
                       map.trainer_id,
                       map.commercial,
+                      map.comments as trainer_mapping_comments,
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,
