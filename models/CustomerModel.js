@@ -1586,6 +1586,7 @@ WHERE c.id = ?`;
                       c.phonecode,
                       cm.name as mode_of_class,
                       c.phone,
+                      cshy.updated_at as last_updated_at, 
                       re.id AS region_id,
                       b.id AS branch_id,
                       re.name AS region_name,
@@ -1681,6 +1682,10 @@ WHERE c.id = ?`;
                     ) AS ps1 ON ps1.payment_master_id = pm.id
                     LEFT JOIN payment_trans AS pt1 ON
                       pt1.id = ps1.latest_trans_id
+                    left join(
+                    select  customer_id, max(id) as latest_status_history_id  from customer_status_history
+                    group by customer_id) as latest_status on latest_status.customer_id = c.id
+                    LEFT JOIN customer_status_history AS cshy ON cshy.id = latest_status.latest_status_history_id
                     WHERE 1 = 1`;
       let classGoingSubBucketQuery = `SELECT
 COUNT(
