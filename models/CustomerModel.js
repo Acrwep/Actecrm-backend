@@ -1607,7 +1607,7 @@ WHERE c.id = ?`;
                       tr.mobile_phone_code AS trainer_mobile_code,
                       tr.mobile AS trainer_mobile,
                       tr.email AS trainer_email,
-                      tr.overall_exp_year,
+                      
                       tus.user_id AS trainer_hr_id,
                       tus.user_name AS trainer_hr_name,
                       map.id AS training_map_id,
@@ -1618,7 +1618,7 @@ WHERE c.id = ?`;
                       c.google_review,
                       c.payment_date AS last_payment_date,
                       c.class_percentage,
-                      pt.next_due_date,
+                      c.class_scheduled_at,
                       pt1.is_second_due AS is_second_due,
                       pt1.is_last_pay_rejected,
                       COALESCE(ps.total_paid, 0) AS paid_amount,
