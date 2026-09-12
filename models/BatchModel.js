@@ -206,8 +206,10 @@ const BatchModel = {
 
       if (region_id) {
         batchQuery += ` AND bm.region_id = ?`;
+        regionQuery += ` AND bm.region_id = ?`;
 
         batchParams.push(region_id);
+        regionParams.push(region_id);
       }
 
       if (branch_id) {
