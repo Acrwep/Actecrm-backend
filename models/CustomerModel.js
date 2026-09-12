@@ -2473,9 +2473,14 @@ WHERE 1 = 1
       // }
 
       // Apply pagination
-      const pageNumber = parseInt(page, 10) || 1;
-      const limitNumber = parseInt(limit, 10) || 10;
-      const offset = (pageNumber - 1) * limitNumber;
+      // const pageNumber = parseInt(page, 10) || 1;
+      // const limitNumber = parseInt(limit, 10) || 10;
+      // const offset = (pageNumber - 1) * limitNumber;
+
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+      const offset =
+        pageNumber && limitNumber ? (pageNumber - 1) * limitNumber : 0;
 
       // Add pagination to main query
       // getQuery += ` ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC LIMIT ? OFFSET ?`;
@@ -2484,12 +2489,24 @@ WHERE 1 = 1
       // Fetch all required data concurrently
       let result;
 
+      //       getQuery += `
+      //   ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+      //   LIMIT ? OFFSET ?
+      // `;
+
+      //       queryParams.push(limitNumber, offset);
+
       getQuery += `
   ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
-  LIMIT ? OFFSET ?
 `;
 
-      queryParams.push(limitNumber, offset);
+      if (page && limit) {
+        getQuery += `
+    LIMIT ? OFFSET ?
+  `;
+
+        queryParams.push(limitNumber, offset);
+      }
 
       [result] = await pool.query(getQuery, queryParams);
 
