@@ -1337,6 +1337,15 @@ WHERE c.id = ?`;
             `UPDATE customers SET latest_status_history_id = ? WHERE id = ?`,
             [historyResult.insertId, customer.customer_id],
           );
+          if (
+            customer.status == "Approval Rejected" &&
+            customer.trainer_mapping_id
+          ) {
+            await pool.query(
+              `UPDATE trainer_mapping SET approval_rejected_reason = ? WHERE id = ?`,
+              [customer.approval_rejected_reason, customer.trainer_mapping_id],
+            );
+          }
         }
       }
 
@@ -1614,6 +1623,7 @@ WHERE c.id = ?`;
                       map.trainer_id,
                       map.commercial,
                       map.comments as trainer_mapping_comments,
+                      map.approval_rejected_reason,
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,
