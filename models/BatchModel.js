@@ -312,7 +312,11 @@ const BatchModel = {
         });
       }
 
-      let res = batches
+      // =========================================================
+      // STEP 1: CREATE THE SAME BATCH RESULT AS BEFORE
+      // =========================================================
+
+      let batchResult = batches
         .filter((item) => {
           if (customer_search_filter) {
             return customerMap.has(item.batch_id);
@@ -326,13 +330,17 @@ const BatchModel = {
           const completed_student = customers.filter(
             (c) => Number(c.class_percentage) === 100,
           ).length;
+
           const total_students = customers.length;
+
           const linkedin_review = customers.filter(
             (c) => c.linkedin_review !== null,
           ).length;
+
           const google_review = customers.filter(
             (c) => c.google_review !== null,
           ).length;
+
           const status =
             completed_student === total_students ? "Completed" : "In Progress";
 
@@ -347,7 +355,95 @@ const BatchModel = {
           };
         });
 
+      // =========================================================
+      // STEP 2: GROUP
+      // REGION → BRANCH → BATCH → CUSTOMERS
+      // =========================================================
+
+      const regionMap = new Map();
+
+      batchResult.forEach((batch) => {
+        // -----------------------------
+        // REGION
+        // -----------------------------
+        if (!regionMap.has(batch.region_id)) {
+          regionMap.set(batch.region_id, {
+            region_id: batch.region_id,
+            region_name: batch.region_name,
+            branches: [],
+          });
+        }
+
+        const region = regionMap.get(batch.region_id);
+
+        // -----------------------------
+        // BRANCH
+        // -----------------------------
+        let branch = region.branches.find(
+          (b) => b.branch_id === batch.branch_id,
+        );
+
+        if (!branch) {
+          branch = {
+            branch_id: batch.branch_id,
+            branch_name: batch.branch_name,
+            batches: [],
+          };
+
+          region.branches.push(branch);
+        }
+
+        // -----------------------------
+        // BATCH
+        // -----------------------------
+        branch.batches.push(batch);
+      });
+
+      // Convert Map into array
+      const res = Array.from(regionMap.values());
+
+      // =========================================================
+      // EXISTING REGION COUNT
+      // =========================================================
+
       const regionCount = regionBatches[0] || {};
+
+      // let res = batches
+      //   .filter((item) => {
+      //     if (customer_search_filter) {
+      //       return customerMap.has(item.batch_id);
+      //     }
+
+      //     return true;
+      //   })
+      //   .map((item) => {
+      //     const customers = customerMap.get(item.batch_id) || [];
+
+      //     const completed_student = customers.filter(
+      //       (c) => Number(c.class_percentage) === 100,
+      //     ).length;
+      //     const total_students = customers.length;
+      //     const linkedin_review = customers.filter(
+      //       (c) => c.linkedin_review !== null,
+      //     ).length;
+      //     const google_review = customers.filter(
+      //       (c) => c.google_review !== null,
+      //     ).length;
+      //     const status =
+      //       completed_student === total_students ? "Completed" : "In Progress";
+
+      //     return {
+      //       ...item,
+      //       completed_student,
+      //       total_students,
+      //       linkedin_review,
+      //       google_review,
+      //       status,
+      //       customers,
+      //     };
+      //   });
+
+      // const regionCount = regionBatches[0] || {};
 
       return {
         data: res,
