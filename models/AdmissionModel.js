@@ -87,7 +87,13 @@ const AdmissionModel = {
                            ELSE 0
                         END AS certificate_verification,
 
-                        c.is_certificate_generated AS course_completion_certificate
+                        c.is_certificate_generated AS course_completion_certificate,
+
+                        CASE 
+                        WHEN c.status = 'Completed'
+                        THEN 1
+                        ELSE 0
+                        END AS is_course_completed
 
                     FROM
                         customers AS c
