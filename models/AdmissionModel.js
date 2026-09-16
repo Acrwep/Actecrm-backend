@@ -43,13 +43,51 @@ const AdmissionModel = {
                         c.technology_verified,
                         c.preferred_language,
                         c.trainer_fixation_call,
-                         map.whatsapp_group_creation,
-    map.hr_welcome_message,
-    map.shared_attendance_link,
-    map.first_class_monitoring,
-    map.trainer_confirmation,
-    map.id as trainer_mapping_id
 
+                         map.whatsapp_group_creation,
+                         map.hr_welcome_message,
+                         map.shared_attendance_link,
+                         map.first_class_monitoring,
+                         map.trainer_confirmation,
+                         map.id as trainer_mapping_id,
+
+                        CASE 
+                        WHEN c.class_percentage >=100
+                        AND c.status IN ('Passedout process', 'Completed')
+                        THEN 1 
+                        ELSE 0
+                        END AS class_completion_confirmation,
+
+                        CASE
+                            WHEN EXISTS (
+                                 SELECT 1
+                                 FROM trainer_payment_trans AS tpt
+                                WHERE tpt.trainer_mapping_id = latest_map.trainer_map_id
+                            )
+                            THEN 1
+                            ELSE 0
+                        END AS trainer_completion_report,
+                        c.is_acknowledged AS student_completion_report,
+
+                        CASE
+                           WHEN c.google_review IS NOT NULL
+                           THEN 1
+                           ELSE 0
+                        END AS google_review_collection,
+
+                        CASE
+                           WHEN c.linkedin_review IS NOT NULL
+                           THEN 1
+                           ELSE 0
+                        END AS linkedin_review_collection,
+
+                        CASE
+                           WHEN c.is_google_verified = 1 AND c.is_linkedin_verified = 1
+                           THEN 1
+                           ELSE 0
+                        END AS certificate_verification,
+
+                        c.is_certificate_generated AS course_completion_certificate
 
                     FROM
                         customers AS c

@@ -1859,13 +1859,13 @@ WHERE 1 = 1
                           COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
                           COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
                           COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
+                          COUNT(CASE WHEN c.status = 'Hold' THEN 1 END) AS hold,
+                          COUNT(CASE WHEN c.status = 'Refund' THEN 1 END) AS refund,
                           COUNT(CASE WHEN c.status = 'Demo Completed' THEN 1 END) AS demo_completed,
                           COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
                           COUNT(CASE WHEN c.status IN(
-                                'Hold',
                                 'Partially Closed',
-                                'Discontinued',
-                                'Refund' 
+                                'Discontinued'
                             ) THEN 1 END) AS Others,
                           
 
@@ -1892,10 +1892,7 @@ WHERE 1 = 1
     'Class Scheduled',
     'Class Going',
     'Escalated',
-    'Hold',
-    'Partially Closed',
-    'Discontinued',
-    'Refund'
+    'Hold'
     
   ) THEN 1 END) AS progress_monitoring_count,
 
@@ -1903,7 +1900,7 @@ WHERE 1 = 1
     THEN 1 END) AS course_completion_count,
 
   COUNT(CASE WHEN c.status in ( 'Completed', 'Demo Completed',
-    'Videos Given')
+    'Videos Given','Partially Closed','Discontinued','Refund')
     THEN 1 END) AS reviews_certification_count
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON
@@ -2216,7 +2213,7 @@ WHERE 1 = 1
             'Trainer Approval',
             'Approval Rejected',
             'Payment Rejected',
-    'Awaiting Finance'
+            'Awaiting Finance'
           )
         `;
       }
@@ -2244,11 +2241,7 @@ WHERE 1 = 1
       'Class Scheduled',
       'Class Going',
       'Escalated',
-      'Partially Closed',
-      'Discontinued',
-      'Hold',
-      'Refund'
-      
+      'Hold'
     )
   `;
 
@@ -2257,10 +2250,7 @@ WHERE 1 = 1
       'Class Scheduled',
       'Class Going',
       'Escalated',
-      'Partially Closed',
-      'Discontinued',
-      'Hold',
-      'Refund'
+      'Hold'
       
     )
   `;
@@ -2269,10 +2259,7 @@ WHERE 1 = 1
             'Class Scheduled',
             'Class Going',
             'Escalated',
-            'Partially Closed',
-            'Discontinued',
-            'Hold',
-            'Refund'
+            'Hold'
             
           )
         `;
@@ -2300,7 +2287,10 @@ WHERE 1 = 1
     AND c.status IN (
       'Completed',
       'Demo Completed',
-    'Videos Given'
+      'Videos Given',
+      'Partially Closed',
+      'Discontinued',
+      'Refund'
     )
   `;
 
@@ -2308,14 +2298,20 @@ WHERE 1 = 1
     AND c.status IN (
       'Completed',
       'Demo Completed',
-    'Videos Given'
+      'Videos Given',
+      'Partially Closed',
+      'Discontinued',
+      'Refund'
     )
   `;
         getCountQuery += `
           AND c.status IN (
             'Completed',
             'Demo Completed',
-    'Videos Given'
+            'Videos Given',
+            'Partially Closed',
+            'Discontinued',
+            'Refund'
           )
         `;
       }
@@ -2357,9 +2353,9 @@ WHERE 1 = 1
 
       // Add status filter for others
       if (status === "Others") {
-        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
-        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
-        getCountQuery += ` AND c.status IN ('Partially Closed', 'Discontinued', 'Hold', 'Refund')`;
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
+        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
+        getCountQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
       }
 
       // Add Class Going sub-bucket filter
@@ -2427,34 +2423,53 @@ WHERE 1 = 1
       }
 
       if (search_filter) {
-        const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? )`;
+        const filterQuery = `
+    AND (
+      c.student_id LIKE ?
+      OR c.name LIKE ?
+      OR c.phone LIKE ?
+      OR c.email LIKE ?
+      OR t.name LIKE ?
+    )
+  `;
+
         getQuery += filterQuery;
         countQuery += filterQuery;
         getCountQuery += filterQuery;
         bucketsCountQuery += filterQuery;
+
+        const searchValue = `%${search_filter}%`;
+
         queryParams.push(
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
         );
+
         countQueryParams.push(
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
         );
+
         countParams.push(
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
         );
+
         bucketsCountQueryParams.push(
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
-          `%${search_filter}%`,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
         );
       }
 
