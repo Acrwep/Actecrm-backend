@@ -227,6 +227,7 @@ const trainerAssign = async (request, response) => {
 const updateTrainerCoordination = async (request, response) => {
   const {
     whatsapp_group_creation,
+    whatsapp_invite_link,
     hr_welcome_message,
     shared_attendance_link,
     first_class_monitoring,
@@ -236,6 +237,7 @@ const updateTrainerCoordination = async (request, response) => {
   try {
     const result = await CustomerModel.updateTrainerCoordination(
       whatsapp_group_creation,
+      whatsapp_invite_link,
       hr_welcome_message,
       shared_attendance_link,
       first_class_monitoring,
