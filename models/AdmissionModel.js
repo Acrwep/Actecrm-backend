@@ -43,6 +43,9 @@ const AdmissionModel = {
                         c.technology_verified,
                         c.preferred_language,
                         c.trainer_fixation_call,
+                        c.is_server_required,
+                        smr.status as server_master_status,
+                        smr.id as server_master_id,
 
                          map.whatsapp_group_creation,
                          map.hr_welcome_message,
@@ -101,6 +104,7 @@ const AdmissionModel = {
                         t.id = c.enrolled_course
                     INNER JOIN lead_master AS lm ON
                         lm.id = c.lead_id
+                    left join server_master as smr on smr.customer_id = c.id
                     LEFT JOIN users AS su ON
                         su.user_id = lm.assigned_to
                     LEFT JOIN(
