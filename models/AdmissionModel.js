@@ -85,7 +85,7 @@ const AdmissionModel = {
                            WHEN c.is_google_verified = 1 AND c.is_linkedin_verified = 1
                            THEN 1
                            ELSE 0
-                        END AS certificate_verification,
+                        END AS review_verification_status,
 
                         c.is_certificate_generated AS course_completion_certificate,
 
