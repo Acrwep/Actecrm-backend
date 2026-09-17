@@ -13,6 +13,9 @@ const BatchModel = {
     status,
     start_date,
     end_date,
+    start_time,
+    end_time,
+    course_id,
   ) => {
     try {
       let affectedRows = 0;
@@ -73,9 +76,12 @@ const BatchModel = {
             created_date,
             status,
             start_date,
-            end_date
+            end_date,
+            start_time,
+            end_time,
+            course_id
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           batch_name,
           batchNumber,
@@ -87,6 +93,9 @@ const BatchModel = {
           status,
           start_date,
           end_date,
+          start_time,
+          end_time,
+          course_id,
         ],
       );
 
@@ -143,8 +152,11 @@ const BatchModel = {
                             bm.created_date,
                             bm.status as batch_status,
                             bm.start_date as batch_start_date,
-                            bm.end_date as batch_end_date
-                           
+                            bm.end_date as batch_end_date,
+                            bm.start_time as batch_start_time,
+                            bm.end_time as batch_end_time,
+                            tg.name as batch_course_name,
+                            bm.course_id as batch_course_id
 
                         FROM
                             batch_master AS bm
@@ -154,6 +166,7 @@ const BatchModel = {
                             b.id = bm.branch_id
                         LEFT JOIN trainer AS t ON
                             t.id = bm.trainer_id
+                        left join technologies tg on tg.id = bm.course_id 
                         WHERE 1 = 1`;
 
       let regionQuery = `
@@ -485,6 +498,9 @@ const BatchModel = {
     status,
     start_date,
     end_date,
+    start_time,
+    end_time,
+    course_id,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -511,7 +527,10 @@ const BatchModel = {
            branch_id = ?,
            status = ?,
            start_date = ?,
-           end_date = ?
+           end_date = ?,
+           start_time = ?,
+           end_time = ?,
+           course_id = ?
        WHERE id = ?`,
         [
           batch_name,
@@ -521,6 +540,9 @@ const BatchModel = {
           status,
           start_date,
           end_date,
+          start_time,
+          end_time,
+          course_id,
           batch_id,
         ],
       );

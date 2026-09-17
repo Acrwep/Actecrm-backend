@@ -13,6 +13,9 @@ const createBatch = async (request, response) => {
     status,
     start_date,
     end_date,
+    start_time,
+    end_time,
+    course_id,
   } = request.body;
   try {
     const result = await BatchModel.createBatch(
@@ -26,6 +29,9 @@ const createBatch = async (request, response) => {
       status,
       start_date,
       end_date,
+      start_time,
+      end_time,
+      course_id,
     );
     response.status(201).send({
       message: "Batch created successfully",
@@ -82,6 +88,9 @@ const updateBatch = async (request, response) => {
     status,
     start_date,
     end_date,
+    start_time,
+    end_time,
+    course_id,
   } = request.body;
   try {
     const result = await BatchModel.updateBatch(
@@ -94,6 +103,9 @@ const updateBatch = async (request, response) => {
       status,
       start_date,
       end_date,
+      start_time,
+      end_time,
+      course_id,
     );
     response.status(201).send({
       message: "Batch created successfully",
