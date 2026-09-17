@@ -817,6 +817,7 @@ const CustomerModel = {
     c.batch_timing_id,
     c.proof_communication as customer_proof_communication,
     c.comments as customer_comments,
+    c.lms_access,
    
 
     CASE

@@ -50,6 +50,7 @@ const PaymentModel = {
     contact_number,
     gst_address,
     location,
+    lms_access,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -167,7 +168,7 @@ const PaymentModel = {
 
       const studentId = `${prefix}${String(sequence).padStart(3, "0")}`;
 
-      const customerQuery = `INSERT INTO customers (lead_id, student_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date, date_of_joining, mode_of_class, place_of_service) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const customerQuery = `INSERT INTO customers (lead_id, student_id, name, email, phonecode, phone, whatsapp_phone_code, whatsapp, status, created_date, region_id, branch_id, batch_timing_id, placement_support, enrolled_course, batch_track_id, is_server_required, country, state, current_location, place_of_supply, address, state_code, gst_number, payment_date, date_of_joining, mode_of_class, place_of_service, lms_access) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const customerValues = [
         lead_id,
         studentId,
@@ -197,6 +198,7 @@ const PaymentModel = {
         date_of_joining,
         mode_of_class,
         place_of_service,
+        lms_access,
       ];
 
       const [insertCustomer] = await connection.query(
