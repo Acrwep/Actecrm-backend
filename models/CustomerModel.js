@@ -37,6 +37,7 @@ const CustomerModel = {
     mode_of_class,
     place_of_service,
     pincode,
+    lms_access,
   ) => {
     try {
       let affectedRows = 0;
@@ -84,7 +85,8 @@ const CustomerModel = {
                                 gst_number = ?,
                                 mode_of_class = ?,
                                 place_of_service = ?,
-                                pincode = ?`;
+                                pincode = ?,
+                                lms_access = ?`;
       queryParams.push(
         name,
         email,
@@ -115,6 +117,7 @@ const CustomerModel = {
         mode_of_class,
         place_of_service,
         pincode,
+        lms_access,
       );
 
       if (is_customer_updated) {

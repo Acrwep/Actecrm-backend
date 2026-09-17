@@ -39,6 +39,7 @@ const updateCustomer = async (request, response) => {
     mode_of_class,
     place_of_service,
     pincode,
+    lms_access,
   } = request.body;
   try {
     const result = await CustomerModel.updateCustomer(
@@ -75,6 +76,7 @@ const updateCustomer = async (request, response) => {
       mode_of_class,
       place_of_service,
       pincode,
+      lms_access,
     );
     return response.status(200).send({
       message: "Customer updated successfully",
