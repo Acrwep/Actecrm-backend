@@ -96,7 +96,13 @@ const AdmissionModel = {
                         WHEN c.status = 'Completed'
                         THEN 1
                         ELSE 0
-                        END AS is_course_completed
+                        END AS is_course_completed,
+
+                        case 
+                        when c.status in ('Class Going', 'Completed', 'Passedout process')
+                        then 1
+                        else 0
+                        end as class_progress_monitoring
 
                     FROM
                         customers AS c
