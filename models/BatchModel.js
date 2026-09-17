@@ -10,6 +10,9 @@ const BatchModel = {
     customers,
     created_by,
     created_date,
+    status,
+    start_date,
+    end_date,
   ) => {
     try {
       let affectedRows = 0;
@@ -67,9 +70,12 @@ const BatchModel = {
             region_id,
             branch_id,
             created_by,
-            created_date
+            created_date,
+            status,
+            start_date,
+            end_date
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           batch_name,
           batchNumber,
@@ -78,6 +84,9 @@ const BatchModel = {
           branch_id,
           created_by,
           created_date,
+          status,
+          start_date,
+          end_date,
         ],
       );
 
@@ -131,7 +140,10 @@ const BatchModel = {
                             r.name AS region_name,
                             bm.branch_id,
                             b.name AS branch_name,
-                            bm.created_date
+                            bm.created_date,
+                            bm.status as batch_status,
+                            bm.start_date as batch_start_date,
+                            bm.end_date as batch_end_date
                            
 
                         FROM
@@ -470,6 +482,9 @@ const BatchModel = {
     region_id,
     branch_id,
     customers,
+    status,
+    start_date,
+    end_date,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -493,9 +508,21 @@ const BatchModel = {
        SET batch_name = ?,
            trainer_id = ?,
            region_id = ?,
-           branch_id = ?
+           branch_id = ?,
+           status = ?,
+           start_date = ?,
+           end_date = ?
        WHERE id = ?`,
-        [batch_name, trainer_id, region_id, branch_id, batch_id],
+        [
+          batch_name,
+          trainer_id,
+          region_id,
+          branch_id,
+          status,
+          start_date,
+          end_date,
+          batch_id,
+        ],
       );
 
       affectedRows += updateBatch.affectedRows;
