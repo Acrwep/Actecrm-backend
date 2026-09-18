@@ -120,7 +120,7 @@ const updateBatch = async (request, response) => {
 };
 
 const batchStudents = async (request, response) => {
-  const { name, mobile, email, page, limit } = request.body;
+  const { name, mobile, email, page, limit, trainer_id } = request.body;
   try {
     const result = await BatchModel.batchStudents(
       name,
@@ -128,6 +128,7 @@ const batchStudents = async (request, response) => {
       email,
       page,
       limit,
+      trainer_id,
     );
     return response.status(200).send({
       message: "Data fetched successfully",

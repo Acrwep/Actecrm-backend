@@ -222,11 +222,50 @@ const BatchModel = {
         regionParams.push(trainer_id);
       }
 
+      // if (start_date && end_date) {
+      //   batchQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
+      //   regionQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
+      //   batchParams.push(start_date, end_date);
+      //   regionParams.push(start_date, end_date);
+      // }
+
       if (start_date && end_date) {
-        batchQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
-        regionQuery += ` AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?`;
-        batchParams.push(start_date, end_date);
-        regionParams.push(start_date, end_date);
+        batchQuery += `
+    AND (
+      (
+        bm.start_date IS NOT NULL
+        AND bm.end_date IS NOT NULL
+        AND CAST(bm.start_date AS DATE) <= ?
+        AND CAST(bm.end_date AS DATE) >= ?
+      )
+      OR
+      (
+        bm.start_date IS NULL
+        AND bm.end_date IS NULL
+        AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?
+      )
+    )
+  `;
+
+        regionQuery += `
+    AND (
+      (
+        bm.start_date IS NOT NULL
+        AND bm.end_date IS NOT NULL
+        AND CAST(bm.start_date AS DATE) <= ?
+        AND CAST(bm.end_date AS DATE) >= ?
+      )
+      OR
+      (
+        bm.start_date IS NULL
+        AND bm.end_date IS NULL
+        AND CAST(bm.created_date AS DATE) BETWEEN ? AND ?
+      )
+    )
+  `;
+
+        batchParams.push(end_date, start_date, start_date, end_date);
+        regionParams.push(end_date, start_date, start_date, end_date);
       }
 
       if (region_id) {
@@ -601,7 +640,7 @@ const BatchModel = {
     }
   },
 
-  batchStudents: async (name, mobile, email, page, limit) => {
+  batchStudents: async (name, mobile, email, page, limit, trainer_id) => {
     try {
       const queryParams = [];
       let getQuery = `SELECT
@@ -666,6 +705,11 @@ const BatchModel = {
       if (mobile) {
         getQuery += ` AND c.phone LIKE '%${mobile}%'`;
         countQuery += ` AND c.phone LIKE '%${mobile}%'`;
+      }
+
+      if (trainer_id) {
+        getQuery += ` AND tm.trainer_id = ${trainer_id}`;
+        countQuery += ` AND tm.trainer_id = ${trainer_id}`;
       }
 
       const [countResult] = await pool.query(countQuery);
