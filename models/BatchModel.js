@@ -16,6 +16,7 @@ const BatchModel = {
     start_time,
     end_time,
     course_id,
+    type,
   ) => {
     try {
       let affectedRows = 0;
@@ -24,7 +25,7 @@ const BatchModel = {
         [batch_name],
       );
 
-      if (isBatchExists.length > 1)
+      if (isBatchExists.length > 0)
         throw new Error("Batch name already exists");
 
       if (
@@ -56,19 +57,32 @@ const BatchModel = {
         `SELECT IFNULL(MAX(id), 0) AS id FROM batch_master`,
       );
 
-      let batchNumber;
+      if (type == "batch") {
+        console.log("batch");
+        // let batchNumber;
 
-      if (batchcount[0].id === 0) {
-        batchNumber = "B0001";
-      } else {
-        const id = batchcount[0].id;
-        batchNumber = "B" + String(id).padStart(4, "0");
-      }
+        // if (batchcount[0].id === 0) {
+        //   batchNumber = "B0001";
+        // } else {
+        //   const id = batchcount[0].id;
+        //   batchNumber = "B" + String(id).padStart(4, "0");
+        // }
 
-      const [insertBatch] = await pool.query(
-        `INSERT INTO batch_master(
+        const [latestBatch] = await pool.query(`
+  SELECT MAX(CAST(SUBSTRING(batch_number, 2) AS UNSIGNED)) AS latest_number
+  FROM batch_master
+  WHERE batch_number IS NOT NULL
+`);
+
+        const nextNumber = (latestBatch[0].latest_number || 0) + 1;
+
+        const batchNumber = "B" + String(nextNumber).padStart(4, "0");
+
+        const [insertBatch] = await pool.query(
+          `INSERT INTO batch_master(
             batch_name,
             batch_number,
+            type,
             trainer_id,
             region_id,
             branch_id,
@@ -81,42 +95,112 @@ const BatchModel = {
             end_time,
             course_id
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          batch_name,
-          batchNumber,
-          trainer_id,
-          region_id,
-          branch_id,
-          created_by,
-          created_date,
-          status,
-          start_date,
-          end_date,
-          start_time,
-          end_time,
-          course_id,
-        ],
-      );
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            batch_name,
+            batchNumber,
+            type,
+            trainer_id,
+            region_id,
+            branch_id,
+            created_by,
+            created_date,
+            status,
+            start_date,
+            end_date,
+            start_time,
+            end_time,
+            course_id,
+          ],
+        );
 
-      affectedRows += insertBatch.affectedRows;
+        affectedRows += insertBatch.affectedRows;
 
-      if (
-        customers !== undefined ||
-        !Array.isArray(customers) ||
-        customers.length > 0
-      ) {
-        for (const customer of customers) {
-          const [insertCustomer] = await pool.query(
-            `INSERT INTO batch_trans(
+        if (
+          customers !== undefined ||
+          !Array.isArray(customers) ||
+          customers.length > 0
+        ) {
+          for (const customer of customers) {
+            const [insertCustomer] = await pool.query(
+              `INSERT INTO batch_trans(
                 batch_master_id,
                 customer_id
             )
             VALUES(?, ?)`,
-            [insertBatch.insertId, customer.customer_id],
-          );
+              [insertBatch.insertId, customer.customer_id],
+            );
 
-          affectedRows += insertCustomer.affectedRows;
+            affectedRows += insertCustomer.affectedRows;
+          }
+        }
+      } else if (type == "group") {
+        console.log("group");
+        const [latestBatch] = await pool.query(`
+  SELECT MAX(CAST(SUBSTRING(group_number, 2) AS UNSIGNED)) AS latest_number
+  FROM batch_master
+  WHERE group_number IS NOT NULL
+`);
+
+        const nextNumber = (latestBatch[0].latest_number || 0) + 1;
+
+        const batchNumber = "G" + String(nextNumber).padStart(4, "0");
+
+        const [insertBatch] = await pool.query(
+          `INSERT INTO batch_master(
+            batch_name,
+            group_number,
+            type,
+            trainer_id,
+            region_id,
+            branch_id,
+            created_by,
+            created_date,
+            status,
+            start_date,
+            end_date,
+            start_time,
+            end_time,
+            course_id
+        )
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            batch_name,
+            batchNumber,
+            type,
+            trainer_id,
+            region_id,
+            branch_id,
+            created_by,
+            created_date,
+            status,
+            start_date,
+            end_date,
+            start_time,
+            end_time,
+            course_id,
+          ],
+        );
+
+        affectedRows += insertBatch.affectedRows;
+
+        if (
+          customers !== undefined ||
+          !Array.isArray(customers) ||
+          customers.length > 0
+        ) {
+          for (const customer of customers) {
+            const [insertCustomer] = await pool.query(
+              `INSERT INTO batch_trans(
+                batch_master_id,
+                customer_id
+            )
+            VALUES(?, ?)`,
+              [insertBatch.insertId, customer.customer_id],
+            );
+
+            affectedRows += insertCustomer.affectedRows;
+          }
         }
       }
 
@@ -134,6 +218,7 @@ const BatchModel = {
     region_id,
     branch_id,
     customer_search_filter,
+    type,
   ) => {
     try {
       const batchParams = [];
@@ -156,7 +241,9 @@ const BatchModel = {
                             bm.start_time as batch_start_time,
                             bm.end_time as batch_end_time,
                             tg.name as batch_course_name,
-                            bm.course_id as batch_course_id
+                            bm.course_id as batch_course_id,
+                            bm.type,
+                            bm.group_number
 
                         FROM
                             batch_master AS bm
@@ -281,6 +368,13 @@ const BatchModel = {
         regionQuery += ` AND bm.branch_id = ?`;
         batchParams.push(branch_id);
         regionParams.push(branch_id);
+      }
+
+      if (type) {
+        batchQuery += ` AND bm.type = ?`;
+        regionQuery += ` AND bm.type = ?`;
+        batchParams.push(type);
+        regionParams.push(type);
       }
 
       batchQuery += ` ORDER BY bm.id DESC`;

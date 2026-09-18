@@ -16,6 +16,7 @@ const createBatch = async (request, response) => {
     start_time,
     end_time,
     course_id,
+    type,
   } = request.body;
   try {
     const result = await BatchModel.createBatch(
@@ -32,6 +33,7 @@ const createBatch = async (request, response) => {
       start_time,
       end_time,
       course_id,
+      type,
     );
     response.status(201).send({
       message: "Batch created successfully",
@@ -54,6 +56,7 @@ const getBatches = async (request, response) => {
     region_id,
     branch_id,
     customer_search_filter,
+    type,
   } = request.body;
   try {
     const result = await BatchModel.getBatches(
@@ -64,6 +67,7 @@ const getBatches = async (request, response) => {
       region_id,
       branch_id,
       customer_search_filter,
+      type,
     );
     response.status(200).send({
       message: "Batches fetched successfully",

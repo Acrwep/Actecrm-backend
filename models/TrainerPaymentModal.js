@@ -4970,13 +4970,14 @@ GROUP BY
                         bm.batch_name,
                         bm.trainer_id,
                         t.trainer_id AS trainer_code,
-                        t.name AS trainer_name
+                        t.name AS trainer_name,
+                        bm.type
                     FROM
                         batch_master AS bm
                     INNER JOIN trainer AS t ON
                       t.id = bm.trainer_id
                     WHERE
-                        bm.trainer_id = ?
+                        bm.trainer_id = ? and bm.type ='batch'
                         AND NOT EXISTS (
                           SELECT 1 FROM trainer_payment_master
                             WHERE batch_id = bm.id
