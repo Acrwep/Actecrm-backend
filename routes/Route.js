@@ -501,6 +501,7 @@ router.post("/createBatch", verifyToken, BatchController.createBatch);
 router.post("/getCustomerBatches", verifyToken, BatchController.getBatches);
 router.put("/updateBatch", verifyToken, BatchController.updateBatch);
 router.delete("/deleteBatch", verifyToken, BatchController.deleteBatch);
+router.put("/swapBatchToGroup", verifyToken, BatchController.swapBatchToGroup);
 router.post("/batchStudents", verifyToken, BatchController.batchStudents);
 // Batch module end
 

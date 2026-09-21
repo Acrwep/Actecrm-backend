@@ -749,19 +749,57 @@ const BatchModel = {
         );
       }
 
-      const [batch] = await pool.query(
-        `SELECT id FROM batch_master WHERE id = ? and is_active = 0`,
+      const [deleteBatch] = await pool.query(
+        `delete from batch_master
+       WHERE id = ?`,
         [batch_id],
       );
 
-      if (batch.length > 0) {
-        throw new Error("batch is already deleted");
+      const [deleteBatchTrans] = await pool.query(
+        `delete from batch_trans
+       WHERE batch_master_id = ?`,
+        [batch_id],
+      );
+
+      affectedRows += deleteBatchTrans.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    } finally {
+    }
+  },
+
+  swapBatchToGroup: async (batch_id) => {
+    try {
+      let affectedRows = 0;
+
+      const [payment] = await pool.query(
+        `SELECT batch_id FROM trainer_payment_master WHERE batch_id = ?`,
+        [batch_id],
+      );
+
+      if (payment.length > 0) {
+        throw new Error(
+          "can't swap batch to group because batch payment already done",
+        );
       }
+
+      const [latestBatch] = await pool.query(`
+  SELECT MAX(CAST(SUBSTRING(group_number, 2) AS UNSIGNED)) AS latest_number
+  FROM batch_master
+  WHERE group_number IS NOT NULL
+`);
+
+      const nextNumber = (latestBatch[0].latest_number || 0) + 1;
+
+      const batchNumber = "G" + String(nextNumber).padStart(4, "0");
       const [updateBatch] = await pool.query(
         `UPDATE batch_master
-       SET  is_active = 0
+       SET  group_number = ?,
+       type = 'group'
        WHERE id = ?`,
-        [batch_id],
+        [batchNumber, batch_id],
       );
 
       affectedRows += updateBatch.affectedRows;

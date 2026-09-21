@@ -1695,7 +1695,7 @@ const trainerPaymentModal = {
 
           getQuery += condition;
           countQuery += condition;
-          statusCountQuery += condition;
+          //statusCountQuery += condition;
           regionCountQuery += condition;
           commercialTypeCountQuery += condition;
         } else {
@@ -1705,7 +1705,7 @@ const trainerPaymentModal = {
 
           getQuery += condition;
           countQuery += condition;
-          statusCountQuery += condition;
+          // statusCountQuery += condition;
           regionCountQuery += condition;
           commercialTypeCountQuery += condition;
 
@@ -1780,12 +1780,12 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        statusCountQuery += condition;
+        //statusCountQuery += condition;
         regionCountQuery += condition;
 
         queryParams.push(commercial_type);
         countParams.push(commercial_type);
-        statusParams.push(commercial_type);
+        //statusParams.push(commercial_type);
         regionParams.push(commercial_type);
       }
 

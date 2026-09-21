@@ -139,6 +139,22 @@ const deleteBatch = async (request, response) => {
   }
 };
 
+const swapBatchToGroup = async (request, response) => {
+  const { batch_id } = request.body;
+  try {
+    const result = await BatchModel.swapBatchToGroup(batch_id);
+    response.status(201).send({
+      message: "Batch swapped to group successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while swapping batch to group",
+      details: error.message,
+    });
+  }
+};
+
 const batchStudents = async (request, response) => {
   const { name, mobile, email, page, limit, trainer_id } = request.body;
   try {
@@ -167,5 +183,6 @@ module.exports = {
   getBatches,
   updateBatch,
   deleteBatch,
+  swapBatchToGroup,
   batchStudents,
 };
