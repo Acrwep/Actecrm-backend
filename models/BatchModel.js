@@ -17,6 +17,7 @@ const BatchModel = {
     end_time,
     course_id,
     type,
+    batch_timing_id,
   ) => {
     try {
       let affectedRows = 0;
@@ -93,9 +94,10 @@ const BatchModel = {
             end_date,
             start_time,
             end_time,
-            course_id
+            course_id,
+            batch_timing_id
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             batch_name,
             batchNumber,
@@ -111,6 +113,7 @@ const BatchModel = {
             start_time,
             end_time,
             course_id,
+            batch_timing_id,
           ],
         );
 
@@ -161,9 +164,10 @@ const BatchModel = {
             end_date,
             start_time,
             end_time,
-            course_id
+            course_id,
+            batch_timing_id
         )
-        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             batch_name,
             batchNumber,
@@ -179,6 +183,7 @@ const BatchModel = {
             start_time,
             end_time,
             course_id,
+            batch_timing_id,
           ],
         );
 
@@ -243,7 +248,9 @@ const BatchModel = {
                             tg.name as batch_course_name,
                             bm.course_id as batch_course_id,
                             bm.type,
-                            bm.group_number
+                            bm.group_number,
+                            bm.batch_timing_id,
+                            bs.name as batch_timing_name
 
                         FROM
                             batch_master AS bm
@@ -253,7 +260,8 @@ const BatchModel = {
                             b.id = bm.branch_id
                         LEFT JOIN trainer AS t ON
                             t.id = bm.trainer_id
-                        left join technologies tg on tg.id = bm.course_id 
+                        left join technologies tg on tg.id = bm.course_id
+                        left join batches bs on bs.id = bm.batch_timing_id 
                         WHERE 1 = 1 and bm.is_active = 1`;
 
       let regionQuery = `
@@ -634,6 +642,7 @@ const BatchModel = {
     start_time,
     end_time,
     course_id,
+    batch_timing_id,
   ) => {
     const connection = await pool.getConnection();
     try {
@@ -663,7 +672,8 @@ const BatchModel = {
            end_date = ?,
            start_time = ?,
            end_time = ?,
-           course_id = ?
+           course_id = ?,
+           batch_timing_id = ?
        WHERE id = ?`,
         [
           batch_name,
@@ -676,6 +686,7 @@ const BatchModel = {
           start_time,
           end_time,
           course_id,
+          batch_timing_id,
           batch_id,
         ],
       );
@@ -745,7 +756,7 @@ const BatchModel = {
 
       if (payment.length > 0) {
         throw new Error(
-          "can't delete batch because batch payment already done",
+          "Batch cannot be deleted because payment has already been processed",
         );
       }
 
@@ -781,7 +792,7 @@ const BatchModel = {
 
       if (payment.length > 0) {
         throw new Error(
-          "can't swap batch to group because batch payment already done",
+          "Batch cannot be swap because payment has already been processed",
         );
       }
 
