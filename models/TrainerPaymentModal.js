@@ -4977,7 +4977,7 @@ GROUP BY
                     INNER JOIN trainer AS t ON
                       t.id = bm.trainer_id
                     WHERE
-                        bm.trainer_id = ? and bm.type ='batch'
+                        bm.trainer_id = ? and bm.type ='batch' and bm.is_active = 1
                         AND NOT EXISTS (
                           SELECT 1 FROM trainer_payment_master
                             WHERE batch_id = bm.id

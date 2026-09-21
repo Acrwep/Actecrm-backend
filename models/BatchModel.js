@@ -254,7 +254,7 @@ const BatchModel = {
                         LEFT JOIN trainer AS t ON
                             t.id = bm.trainer_id
                         left join technologies tg on tg.id = bm.course_id 
-                        WHERE 1 = 1`;
+                        WHERE 1 = 1 and bm.is_active = 1`;
 
       let regionQuery = `
   SELECT
@@ -292,7 +292,7 @@ const BatchModel = {
   LEFT JOIN trainer AS t
     ON t.id = bm.trainer_id
 
-  WHERE 1 = 1
+  WHERE 1 = 1 and bm.is_active = 1
 `;
 
       if (batch_id) {
@@ -731,6 +731,45 @@ const BatchModel = {
       throw new Error(error.message);
     } finally {
       connection.release();
+    }
+  },
+
+  deleteBatch: async (batch_id) => {
+    try {
+      let affectedRows = 0;
+
+      const [payment] = await pool.query(
+        `SELECT batch_id FROM trainer_payment_master WHERE batch_id = ?`,
+        [batch_id],
+      );
+
+      if (payment.length > 0) {
+        throw new Error(
+          "can't delete batch because batch payment already done",
+        );
+      }
+
+      const [batch] = await pool.query(
+        `SELECT id FROM batch_master WHERE id = ? and is_active = 0`,
+        [batch_id],
+      );
+
+      if (batch.length > 0) {
+        throw new Error("batch is already deleted");
+      }
+      const [updateBatch] = await pool.query(
+        `UPDATE batch_master
+       SET  is_active = 0
+       WHERE id = ?`,
+        [batch_id],
+      );
+
+      affectedRows += updateBatch.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    } finally {
     }
   },
 

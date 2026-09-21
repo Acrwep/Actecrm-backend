@@ -123,6 +123,22 @@ const updateBatch = async (request, response) => {
   }
 };
 
+const deleteBatch = async (request, response) => {
+  const { batch_id } = request.query;
+  try {
+    const result = await BatchModel.deleteBatch(batch_id);
+    response.status(201).send({
+      message: "Batch deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while deleting batch",
+      details: error.message,
+    });
+  }
+};
+
 const batchStudents = async (request, response) => {
   const { name, mobile, email, page, limit, trainer_id } = request.body;
   try {
@@ -150,5 +166,6 @@ module.exports = {
   createBatch,
   getBatches,
   updateBatch,
+  deleteBatch,
   batchStudents,
 };
