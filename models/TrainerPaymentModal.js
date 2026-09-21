@@ -1668,13 +1668,13 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        // statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
-        // statusParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
         regionParams.push(start_date, end_date);
         commercialTypeParams.push(start_date, end_date);
       }
@@ -1695,7 +1695,7 @@ const trainerPaymentModal = {
 
           getQuery += condition;
           countQuery += condition;
-          //statusCountQuery += condition;
+          statusCountQuery += condition;
           regionCountQuery += condition;
           commercialTypeCountQuery += condition;
         } else {
@@ -1705,13 +1705,13 @@ const trainerPaymentModal = {
 
           getQuery += condition;
           countQuery += condition;
-          // statusCountQuery += condition;
+          statusCountQuery += condition;
           regionCountQuery += condition;
           commercialTypeCountQuery += condition;
 
           queryParams.push(status);
           countParams.push(status);
-          // statusParams.push(status);
+          statusParams.push(status);
           regionParams.push(status);
           commercialTypeParams.push(status);
         }
@@ -1727,13 +1727,13 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        // statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
         queryParams.push(trainer_id);
         countParams.push(trainer_id);
-        //statusParams.push(trainer_id);
+        statusParams.push(trainer_id);
         regionParams.push(trainer_id);
         commercialTypeParams.push(trainer_id);
       }
@@ -1759,13 +1759,13 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        // statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
         queryParams.push(training_mode);
         countParams.push(training_mode);
-        //  statusParams.push(training_mode);
+        statusParams.push(training_mode);
         regionParams.push(training_mode);
         commercialTypeParams.push(training_mode);
       }
@@ -1780,12 +1780,12 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        //  statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
 
         queryParams.push(commercial_type);
         countParams.push(commercial_type);
-        // statusParams.push(commercial_type);
+        statusParams.push(commercial_type);
         regionParams.push(commercial_type);
       }
 
@@ -1824,13 +1824,13 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        //  statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
         queryParams.push(region_id);
         countParams.push(region_id);
-        //  statusParams.push(region_id);
+        statusParams.push(region_id);
         regionParams.push(region_id);
         commercialTypeParams.push(region_id);
       }
@@ -1870,7 +1870,7 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        //  statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
@@ -1890,13 +1890,13 @@ const trainerPaymentModal = {
           searchValue,
         );
 
-        // statusParams.push(
-        //   searchValue,
-        //   searchValue,
-        //   searchValue,
-        //   searchValue,
-        //   searchValue,
-        // );
+        statusParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
 
         regionParams.push(
           searchValue,
@@ -1947,13 +1947,13 @@ const trainerPaymentModal = {
 
         getQuery += condition;
         countQuery += condition;
-        //  statusCountQuery += condition;
+        statusCountQuery += condition;
         regionCountQuery += condition;
         commercialTypeCountQuery += condition;
 
         queryParams.push(branch_id);
         countParams.push(branch_id);
-        //  statusParams.push(branch_id);
+        statusParams.push(branch_id);
         regionParams.push(branch_id);
         commercialTypeParams.push(branch_id);
       }
