@@ -181,6 +181,8 @@ const AdmissionModel = {
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
 
       let regionQuery = `SELECT
+                         COUNT(c.id) AS total_count,
+
                             SUM(CASE WHEN cm.name = 'Online' THEN 1 ELSE 0 END) AS online_mode,
                             SUM(CASE WHEN cm.name = 'Classroom' THEN 1 ELSE 0 END) AS classroom_mode,
                             SUM(CASE WHEN lm.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%' ${cmCondition} THEN 1 ELSE 0 END) AS chennai_region,
@@ -314,6 +316,7 @@ const AdmissionModel = {
       const chennai = regionResult[0]?.chennai_region || 0;
       const bangalore = regionResult[0]?.bangalore_region || 0;
       const hub = regionResult[0]?.hub_region || 0;
+      const total_count = regionResult[0]?.total_count || 0;
 
       // Return customer result
       return {
@@ -329,6 +332,7 @@ const AdmissionModel = {
         chennai_region: parseInt(chennai),
         bangalore_region: parseInt(bangalore),
         hub_region: parseInt(hub),
+        total_count: parseInt(total_count),
       };
     } catch (error) {
       throw new Error(error.message);
