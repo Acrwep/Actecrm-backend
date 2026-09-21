@@ -905,6 +905,7 @@ const CustomerModel = {
     map.trainer_confirmation,
     map.whatsapp_invite_link,
     map.attendance_sheet_link,
+    map.attendance_screenshot,
 
     c.class_schedule_id,
     cs.name AS class_schedule_name,
@@ -1219,11 +1220,12 @@ WHERE c.id = ?`;
     first_class_monitoring,
     trainer_confirmation,
     trainer_mapping_id,
+    attendance_screenshot,
   ) => {
     try {
       const [result] = await pool.query(
         `UPDATE trainer_mapping SET whatsapp_group_creation = ?, whatsapp_invite_link = ?, hr_welcome_message = ?, shared_attendance_link = ?, attendance_sheet_link = ?,
-         first_class_monitoring = ?, trainer_confirmation = ?  WHERE id = ?`,
+         first_class_monitoring = ?, trainer_confirmation = ?, attendance_screenshot = ?  WHERE id = ?`,
         [
           whatsapp_group_creation,
           whatsapp_invite_link,
@@ -1232,6 +1234,7 @@ WHERE c.id = ?`;
           attendance_sheet_link,
           first_class_monitoring,
           trainer_confirmation,
+          attendance_screenshot,
           trainer_mapping_id,
         ],
       );

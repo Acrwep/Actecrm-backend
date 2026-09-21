@@ -1711,7 +1711,7 @@ const trainerPaymentModal = {
 
           queryParams.push(status);
           countParams.push(status);
-          statusParams.push(status);
+          // statusParams.push(status);
           regionParams.push(status);
           commercialTypeParams.push(status);
         }

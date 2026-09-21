@@ -236,6 +236,7 @@ const updateTrainerCoordination = async (request, response) => {
     first_class_monitoring,
     trainer_confirmation,
     trainer_mapping_id,
+    attendance_screenshot,
   } = request.body;
   try {
     const result = await CustomerModel.updateTrainerCoordination(
@@ -247,6 +248,7 @@ const updateTrainerCoordination = async (request, response) => {
       first_class_monitoring,
       trainer_confirmation,
       trainer_mapping_id,
+      attendance_screenshot,
     );
     return response.status(200).send({
       message: "Trainer Coordination Updated Successfully",
