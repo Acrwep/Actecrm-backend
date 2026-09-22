@@ -46,6 +46,9 @@ const AdmissionModel = {
                         c.is_server_required,
                         smr.status as server_master_status,
                         smr.id as server_master_id,
+                        c.class_percentage,
+                        c.lms_access,
+
 
                          map.whatsapp_group_creation,
                          map.hr_welcome_message,
