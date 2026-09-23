@@ -33,10 +33,14 @@ const AdmissionModel = {
                         b.name as branch_name,
                         r.name as region_name,
                         su.user_name AS sale_executive,
-                        hu.user_id AS hr_user_id,
-                        hu.user_name AS hr_user_name,
-                        ra.user_id AS ra_user_id,
-                        ra.user_name AS ra_user_name,
+                       --  hu.user_id AS hr_user_id,
+                       --  hu.user_name AS hr_user_name,
+                       lm.hr_id AS hr_user_id, 
+                       hr_user.user_name AS hr_user_name,
+                       --  ra.user_id AS ra_user_id,
+                       --  ra.user_name AS ra_user_name,
+                       lm.ra_id AS ra_user_id, 
+                       ra_user.user_name AS ra_user_name,
                         c.welcome_call_status,
                         c.explained_next_process,
                         c.verified_contactdetails_and_expectation,
@@ -48,7 +52,11 @@ const AdmissionModel = {
                         smr.id as server_master_id,
                         c.class_percentage,
                         c.lms_access,
-
+                        ti.status as ticket_status,
+                        CASE
+    WHEN ti.ticket_id IS NOT NULL THEN 1
+    ELSE 0
+END AS ticket_raised, 
 
                          map.whatsapp_group_creation,
                          map.hr_welcome_message,
@@ -114,6 +122,10 @@ const AdmissionModel = {
                     INNER JOIN lead_master AS lm ON
                         lm.id = c.lead_id
                     left join server_master as smr on smr.customer_id = c.id
+                    LEFT JOIN users AS ra_user ON
+                        ra_user.user_id = lm.ra_id
+                    LEFT JOIN users AS hr_user ON
+                        hr_user.user_id = lm.hr_id 
                     LEFT JOIN users AS su ON
                         su.user_id = lm.assigned_to
                     LEFT JOIN(
@@ -142,6 +154,7 @@ const AdmissionModel = {
                         rt.id = latest_ra.latest_id
                     LEFT JOIN users AS ra ON
                         ra.user_id = rt.updated_by
+                    
                     LEFT JOIN class_mode AS cm ON
                         c.mode_of_class = cm.id
                     LEFT JOIN branches AS b ON
@@ -160,6 +173,16 @@ const AdmissionModel = {
     ON map.id = latest_map.trainer_map_id
     LEFT JOIN trainer AS tr
     ON tr.id = map.trainer_id
+LEFT JOIN (
+    SELECT
+        MAX(ticket_id) AS max_ticket_id,
+        raised_by_id
+    FROM tickets
+    where raised_by_role in ('Student', 'Customer') 
+    GROUP BY raised_by_id
+) AS latest_tickets on latest_tickets.raised_by_id = c.id
+LEFT JOIN tickets as ti on ti.ticket_id = latest_tickets.max_ticket_id
+
                     WHERE 1 = 1`;
 
       // Get pagination count query
