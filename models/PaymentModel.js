@@ -42,6 +42,7 @@ const PaymentModel = {
     state_code,
     gst_number,
     ra_id,
+    hr_id,
     date_of_joining,
     mode_of_class,
     place_of_service,
@@ -250,6 +251,13 @@ const PaymentModel = {
         await connection.query(
           `UPDATE lead_master SET ra_id = ? WHERE id = ?`,
           [ra_id, lead_id],
+        );
+      }
+
+      if (ra_id && hr_id) {
+        await connection.query(
+          `UPDATE lead_master SET hr_id = ? WHERE id = ?`,
+          [hr_id, lead_id],
         );
       }
 

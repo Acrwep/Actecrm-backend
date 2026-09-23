@@ -36,6 +36,7 @@ const updateCustomer = async (request, response) => {
     gst_number,
     lead_id,
     ra_id,
+    hr_id,
     mode_of_class,
     place_of_service,
     pincode,
@@ -73,6 +74,7 @@ const updateCustomer = async (request, response) => {
       gst_number,
       lead_id,
       ra_id,
+      hr_id,
       mode_of_class,
       place_of_service,
       pincode,
@@ -518,6 +520,7 @@ const getCustomersV1 = async (request, response) => {
     branch_id,
     bucket,
     class_going_sub_bucket,
+    logged_in_user_id,
   } = request.body;
   try {
     const result = await CustomerModel.getCustomersV1(
@@ -536,6 +539,7 @@ const getCustomersV1 = async (request, response) => {
       branch_id,
       bucket,
       class_going_sub_bucket,
+      logged_in_user_id,
     );
     return response.status(200).send({
       message: "Customers fetched successfully",

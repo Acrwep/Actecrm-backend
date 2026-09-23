@@ -34,6 +34,7 @@ const CustomerModel = {
     gst_number,
     lead_id,
     ra_id,
+    hr_id,
     mode_of_class,
     place_of_service,
     pincode,
@@ -135,6 +136,13 @@ const CustomerModel = {
 
       await pool.query(`UPDATE lead_master SET ra_id = ? WHERE id = ?`, [
         raId,
+        lead_id,
+      ]);
+
+      const hrId = hr_id != null ? hr_id : null;
+
+      await pool.query(`UPDATE lead_master SET hr_id = ? WHERE id = ?`, [
+        hrId,
         lead_id,
       ]);
 
@@ -953,7 +961,9 @@ const CustomerModel = {
 
     l.ra_id,
     ra.user_name AS ra_name,
-
+    l.hr_id,
+    hr.user_name AS hr_name,
+ 
     c.is_linkedin_verified,
     c.is_google_verified,
 
@@ -1000,6 +1010,8 @@ LEFT JOIN lead_master AS l
 
 LEFT JOIN users AS ra
     ON l.ra_id = ra.user_id
+LEFT JOIN users AS hr
+    ON l.hr_id = hr.user_id
 
 LEFT JOIN payment_master AS pm
     ON pm.lead_id = c.lead_id
@@ -1587,6 +1599,7 @@ WHERE c.id = ?`;
     branch_id,
     bucket,
     class_going_sub_bucket,
+    logged_in_user_id,
   ) => {
     try {
       const queryParams = [];
@@ -1597,6 +1610,13 @@ WHERE c.id = ?`;
       const paymentParams = [];
       const rejectedPaymentParams = [];
       const financeParams = [];
+
+      queryParams.push(
+        logged_in_user_id,
+        logged_in_user_id,
+        logged_in_user_id,
+        logged_in_user_id,
+      );
 
       // Get customers query   class_mode
       let getQuery = `SELECT
@@ -1648,7 +1668,50 @@ WHERE c.id = ?`;
                       pm.total_amount AS total_course_amount,
                       pm.discount_amount,
                       l.ra_id,
+                      l.hr_id,
+
+                     CASE
+    -- RA access
+    WHEN l.ra_id IS NOT NULL
+         AND (
+             l.ra_id = ?
+             OR EXISTS (
+                 SELECT 1
+                 FROM users AS parent_user
+                 WHERE parent_user.user_id = ?
+                   AND JSON_CONTAINS(
+                       parent_user.child_users,
+                       JSON_OBJECT('user_id', l.ra_id)
+                   )
+             )
+         )
+    THEN 'yes'
+
+    -- HR access
+    WHEN l.hr_id IS NOT NULL
+         AND (
+             l.hr_id = ?
+             OR EXISTS (
+                 SELECT 1
+                 FROM users AS parent_user
+                 WHERE parent_user.user_id = ?
+                   AND JSON_CONTAINS(
+                       parent_user.child_users,
+                       JSON_OBJECT('user_id', l.hr_id)
+                   )
+             )
+         )
+    THEN 'yes'
+
+    -- No RA and no HR assigned
+    WHEN l.ra_id IS NULL
+         AND l.hr_id IS NULL
+    THEN 'yes'
+
+    ELSE 'no'
+END AS user_edit_access,
                       ra_user.user_name AS ra_name,
+                      hr_user.user_name AS hr_name,
                       c.is_linkedin_verified,
                       c.is_google_verified
                       
@@ -1674,6 +1737,8 @@ WHERE c.id = ?`;
                         b.region_id = re.id
                     LEFT JOIN users AS ra_user ON
                         ra_user.user_id = l.ra_id
+                    LEFT JOIN users AS hr_user ON
+                        hr_user.user_id = l.hr_id
                     LEFT JOIN class_mode AS cm ON
                             c.mode_of_class = cm.id
                     LEFT JOIN(
@@ -2019,7 +2084,7 @@ WHERE 1 = 1
       // Handle user_ids parameter for both queries
       if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
         const placeholders = user_ids.map(() => "?").join(", ");
-        const userFilter = ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+        const userFilter = ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders})  OR l.hr_id IN (${placeholders}))`;
         getQuery += userFilter;
         countQuery += userFilter;
         getCountQuery += userFilter;
@@ -2029,7 +2094,7 @@ WHERE 1 = 1
         financeQuery += userFilter;
         classGoingSubBucketQuery += userFilter;
 
-        const doubleParams = [...user_ids, ...user_ids];
+        const doubleParams = [...user_ids, ...user_ids, ...user_ids];
         queryParams.push(...doubleParams);
         countQueryParams.push(...doubleParams);
         countParams.push(...doubleParams);
