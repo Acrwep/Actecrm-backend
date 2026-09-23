@@ -1611,12 +1611,12 @@ WHERE c.id = ?`;
       const rejectedPaymentParams = [];
       const financeParams = [];
 
-      queryParams.push(
-        logged_in_user_id,
-        logged_in_user_id,
-        logged_in_user_id,
-        logged_in_user_id,
-      );
+      // queryParams.push(
+      //   logged_in_user_id,
+      //   logged_in_user_id,
+      //   logged_in_user_id,
+      //   logged_in_user_id,
+      // );
 
       // Get customers query   class_mode
       let getQuery = `SELECT
@@ -1669,47 +1669,7 @@ WHERE c.id = ?`;
                       pm.discount_amount,
                       l.ra_id,
                       l.hr_id,
-
-                     CASE
-    -- RA access
-    WHEN l.ra_id IS NOT NULL
-         AND (
-             l.ra_id = ?
-             OR EXISTS (
-                 SELECT 1
-                 FROM users AS parent_user
-                 WHERE parent_user.user_id = ?
-                   AND JSON_CONTAINS(
-                       parent_user.child_users,
-                       JSON_OBJECT('user_id', l.ra_id)
-                   )
-             )
-         )
-    THEN 'yes'
-
-    -- HR access
-    WHEN l.hr_id IS NOT NULL
-         AND (
-             l.hr_id = ?
-             OR EXISTS (
-                 SELECT 1
-                 FROM users AS parent_user
-                 WHERE parent_user.user_id = ?
-                   AND JSON_CONTAINS(
-                       parent_user.child_users,
-                       JSON_OBJECT('user_id', l.hr_id)
-                   )
-             )
-         )
-    THEN 'yes'
-
-    -- No RA and no HR assigned
-    WHEN l.ra_id IS NULL
-         AND l.hr_id IS NULL
-    THEN 'yes'
-
-    ELSE 'no'
-END AS user_edit_access,
+                       'yes' AS user_edit_access,
                       ra_user.user_name AS ra_name,
                       hr_user.user_name AS hr_name,
                       c.is_linkedin_verified,
