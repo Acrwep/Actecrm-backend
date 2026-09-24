@@ -2530,7 +2530,7 @@ SUM(
                       WHERE 1 = 1`;
 
       if (search_filter) {
-        baseCondition += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR t.name LIKE '%${search_filter}%')`;
+        baseCondition += ` AND (c.name LIKE '%${search_filter}%' OR c.phone LIKE '%${search_filter}%' OR c.email LIKE '%${search_filter}%' OR t.name LIKE '%${search_filter}%' OR c.student_id LIKE '%${search_filter}%')`;
       }
 
       if (region_id) {
