@@ -478,7 +478,7 @@ const TrainerModel = {
                               COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
                               COUNT(CASE WHEN t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS verify_pending,
                               COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified,
-                              COUNT(CASE WHEN t.status = 'Rejected' THEN 1 END) AS rejected
+                              COUNT(CASE WHEN t.status = 'Rejected' and t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS rejected 
                             FROM
                               trainer AS t
                             LEFT JOIN technologies te ON
