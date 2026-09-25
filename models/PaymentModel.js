@@ -2628,7 +2628,11 @@ SUM(
                           t.installment_count
                       ${baseCondition}`;
 
-      getQuery += `ORDER BY c.date_of_joining DESC`;
+      if (date_type && date_type == "joining_date") {
+        getQuery += ` ORDER BY c.date_of_joining DESC`;
+      } else if (date_type && date_type == "last_payment_verified_date") {
+        getQuery += ` ORDER BY t.last_payment_verified_date DESC`;
+      }
 
       if (page && limit) {
         getQuery += ` LIMIT ? OFFSET ?`;

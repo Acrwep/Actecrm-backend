@@ -474,6 +474,7 @@ const TrainerModel = {
                       WHERE t.is_active = 1`;
 
       let getStatusQuery = `SELECT
+          COUNT(DISTINCT t.id) AS all_count,
                               COUNT(CASE WHEN (t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Verify Pending') THEN 1 END) AS total_count,
                               COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
                               COUNT(CASE WHEN t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS verify_pending,
