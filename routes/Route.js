@@ -15,14 +15,13 @@ const ServerController = require("../controller/ServerController");
 const NotificationController = require("../controller/NotificationController");
 const ReportController = require("../controller/ReportsController");
 const TemplateController = require("../controller/EmailTemplateController");
-const WhatsAppController = require("../controller/WhatsAppController");
 const trainerPaymentController = require("../controller/TrainerPaymentController");
 const BatchController = require("../controller/BatchController");
 const TicketController = require("../controller/TicketController");
 const upload = require("../validation/UploadMiddleware");
 const UploadController = require("../controller/UploadController");
 const AdmissionController = require("../controller/AdmissionController");
-
+const WhatsAppController = require("../controller/WhatsAppController");
 router.post("/login", LoginController.login);
 
 // User start
@@ -391,7 +390,12 @@ router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 router.post(
   "/sendWhatsAppMessage",
   verifyToken,
-  WhatsAppController.sendWhatsAppMessage,
+  WhatsAppController.sendWhatsApp,
+);
+router.post(
+  "/sendInvoiceWhatsApp",
+  verifyToken,
+  WhatsAppController.sendInvoiceWhatsApp,
 );
 router.post(
   "/getRegionWiseLeadCounts",

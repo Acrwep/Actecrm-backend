@@ -1,57 +1,57 @@
-// models/WhatsAppModel.js
-const axios = require("axios");
+const pool = require("../config/dbconfig");
 
 const WhatsAppModel = {
-  sendWhatsAppMessage: async (
-    to,
-    templateName,
-    bodyParams,
-    pdfLink,
-    pdfFileName
-  ) => {
-    console.log(to, templateName, bodyParams, pdfLink, pdfFileName);
+  createMessage: async (data) => {
     try {
-      const url = `https://graph.facebook.com/v22.0/${process.env.PHONE_NUMBER_ID}/messages`;
+      const {
+        lead_id,
+        customer_id,
+        mobile,
+        customer_name,
+        course_name,
+        campaign_name,
+        template_params,
+        status,
+        aisensy_response,
+        sent_by,
+      } = data;
 
-      const payload = {
-        messaging_product: "whatsapp",
-        to,
-        type: "template",
-        template: {
-          name: templateName,
-          language: { code: "en_US" },
-          components: [
-            // {
-            //   type: "body",
-            //   parameters: bodyParams.map((text) => ({ type: "text", text })),
-            // },
-            {
-              type: "header",
-              parameters: [
-                {
-                  type: "document",
-                  document: {
-                    link: pdfLink,
-                    filename: pdfFileName,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      };
+      const query = `
+        INSERT INTO whatsapp_messages
+        (
+          lead_id,
+          customer_id,
+          mobile,
+          customer_name,
+          course_name,
+          campaign_name,
+          template_params,
+          status,
+          aisensy_response,
+          sent_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
 
-      const headers = {
-        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      };
+      const values = [
+        lead_id || null,
+        customer_id || null,
+        mobile,
+        customer_name || null,
+        course_name || null,
+        campaign_name,
+        JSON.stringify(template_params || []),
+        status || "pending",
+        JSON.stringify(aisensy_response || {}),
+        sent_by || null,
+      ];
 
-      const response = await axios.post(url, payload, { headers });
-      console.log("whatsapp response", response);
-      return response.data;
+      const [result] = await pool.query(query, values);
+
+      return result;
     } catch (error) {
-      console.log("whatsapp error", error);
-      throw new Error(error.response?.data?.error?.message || error.message);
+      console.error("WhatsApp Model Error:", error);
+      throw error;
     }
   },
 };

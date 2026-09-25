@@ -709,7 +709,15 @@ const sendInvoicePdf = async (
   gst_number,
   invoice_type,
 ) => {
-  const pdfPath = path.join(process.cwd(), "invoice.pdf");
+  const invoiceDir = path.join(process.cwd(), "uploads", "invoices");
+
+  if (!fs.existsSync(invoiceDir)) {
+    fs.mkdirSync(invoiceDir, { recursive: true });
+  }
+
+  const pdfFileName = `invoice_${invoice_number}.pdf`;
+
+  const pdfPath = path.join(invoiceDir, pdfFileName);
 
   // Get gst amount from paid amount
   const getGST = splitGSTAmount(paid_amount, gst_percentage);
@@ -994,13 +1002,30 @@ const sendInvoicePdf = async (
   await browser.close();
 
   // 3. Send mail
-  return transporterBilling.sendMail({
+  const mailResult = await transporterBilling.sendMail({
     from: process.env.BILLING_MAIL,
     to: email,
     subject: "Acte Payment Invoice",
     text: "Please find your invoice attached.",
-    attachments: [{ filename: "invoice.pdf", path: pdfPath }],
+    attachments: [
+      {
+        filename: "invoice.pdf",
+        path: pdfPath,
+      },
+    ],
   });
+
+  // 4. Generate public invoice URL
+  const invoiceUrl = `${process.env.BACKEND_URL}/uploads/invoices/${encodeURIComponent(
+    pdfFileName,
+  )}`;
+
+  return {
+    mailResult,
+    pdfPath,
+    pdfFileName,
+    invoiceUrl,
+  };
 };
 
 const viewInvoicePdf = async (
