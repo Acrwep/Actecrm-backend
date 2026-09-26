@@ -1179,7 +1179,6 @@ WHERE c.id = ?`;
     proof_communication,
     comments,
     created_date,
-    trainer_mapping_id,
   ) => {
     try {
       const [isCusExists] = await pool.query(
@@ -1218,13 +1217,6 @@ WHERE c.id = ?`;
       ];
 
       const [result] = await pool.query(insertQuery, values);
-
-      if (trainer_mapping_id) {
-        await pool.query(
-          `UPDATE trainer_mapping SET is_escalated = 1  WHERE id = ?`,
-          [trainer_mapping_id],
-        );
-      }
 
       return result.affectedRows;
     } catch (error) {
@@ -1279,12 +1271,19 @@ WHERE c.id = ?`;
     }
   },
 
-  rejectTrainer: async (id, rejected_date, comments) => {
+  rejectTrainer: async (id, rejected_date, comments, is_escalated) => {
     try {
       const [result] = await pool.query(
         `UPDATE trainer_mapping SET is_rejected = 1, comments = ?, rejected_date = ? WHERE id = ?`,
         [comments, rejected_date, id],
       );
+
+      if (is_escalated) {
+        await pool.query(
+          `UPDATE trainer_mapping SET is_escalated = 1  WHERE id = ?`,
+          [id],
+        );
+      }
 
       return result.affectedRows;
     } catch (error) {

@@ -204,7 +204,6 @@ const trainerAssign = async (request, response) => {
     proof_communication,
     comments,
     created_date,
-    trainer_mapping_id,
   } = request.body;
   try {
     const result = await CustomerModel.trainerAssign(
@@ -216,7 +215,6 @@ const trainerAssign = async (request, response) => {
       proof_communication,
       comments,
       created_date,
-      trainer_mapping_id,
     );
     return response.status(200).send({
       message: "Trainer assigned successfully",
@@ -283,12 +281,13 @@ const verifyTrainer = async (request, response) => {
 };
 
 const rejectTrainer = async (request, response) => {
-  const { id, rejected_date, comments } = request.body;
+  const { id, rejected_date, comments, is_escalated } = request.body;
   try {
     const result = await CustomerModel.rejectTrainer(
       id,
       rejected_date,
       comments,
+      is_escalated,
     );
     return response.status(200).send({
       message: "Trainer has been rejected",
