@@ -204,6 +204,7 @@ const trainerAssign = async (request, response) => {
     proof_communication,
     comments,
     created_date,
+    trainer_mapping_id,
   } = request.body;
   try {
     const result = await CustomerModel.trainerAssign(
@@ -215,6 +216,7 @@ const trainerAssign = async (request, response) => {
       proof_communication,
       comments,
       created_date,
+      trainer_mapping_id,
     );
     return response.status(200).send({
       message: "Trainer assigned successfully",
