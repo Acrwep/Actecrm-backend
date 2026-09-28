@@ -2825,10 +2825,7 @@ const LeadModel = {
   },
 
   getWebsiteLead: async (
-    name,
-    phone,
-    email,
-    course,
+    search_filter,
     start_date,
     end_date,
     region_type,
@@ -2972,33 +2969,54 @@ const LeadModel = {
       // COMMON FILTER FUNCTION
       // =========================================================
 
-      const addCondition = (field, value) => {
-        getQuery += ` AND ${field} LIKE ?`;
-        countQuery += ` AND ${field} LIKE ?`;
-        bucketCountQuery += ` AND ${field} LIKE ?`;
+      // const addCondition = (field, value) => {
+      //   getQuery += ` AND ${field} LIKE ?`;
+      //   countQuery += ` AND ${field} LIKE ?`;
+      //   bucketCountQuery += ` AND ${field} LIKE ?`;
 
-        queryParams.push(`%${value}%`);
-        countParams.push(`%${value}%`);
-      };
+      //   queryParams.push(`%${value}%`);
+      //   countParams.push(`%${value}%`);
+      // };
 
       // =========================================================
       // SEARCH FILTERS
       // =========================================================
 
-      if (name) {
-        addCondition("wl.name", name);
-      }
+      // if (name) {
+      //   addCondition("wl.name", name);
+      // }
 
-      if (email) {
-        addCondition("wl.email", email);
-      }
+      // if (email) {
+      //   addCondition("wl.email", email);
+      // }
 
-      if (phone) {
-        addCondition("wl.phone", phone);
-      }
+      // if (phone) {
+      //   addCondition("wl.phone", phone);
+      // }
 
-      if (course) {
-        addCondition("wl.course", course);
+      // if (course) {
+      //   addCondition("wl.course", course);
+      // }
+
+      if (search_filter) {
+        const filterQuery = `
+    AND (
+      wl.name LIKE ?
+      OR wl.email LIKE ?
+      OR wl.phone LIKE ?
+      OR wl.course LIKE ?
+    )
+  `;
+
+        getQuery += filterQuery;
+        countQuery += filterQuery;
+        bucketCountQuery += filterQuery;
+
+        const searchValue = `%${search_filter}%`;
+
+        queryParams.push(searchValue, searchValue, searchValue, searchValue);
+
+        countParams.push(searchValue, searchValue, searchValue, searchValue);
       }
 
       // =========================================================
