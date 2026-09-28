@@ -990,12 +990,22 @@ const moveToTrash = async (request, response) => {
 };
 
 const assignLiveLead = async (request, response) => {
-  const { user_id, lead_id, is_assigned } = request.body;
+  const {
+    user_id,
+    lead_id,
+    is_assigned,
+    assigned_at,
+    last_activity_at,
+    is_converted = false,
+  } = request.body;
   try {
     const result = await LeadModel.assignLiveLead(
       user_id,
       lead_id,
       is_assigned,
+      assigned_at,
+      last_activity_at,
+      is_converted,
     );
     // Emit real-time update
     const updatedCount = await LeadModel.getWebsiteLeadCount();
@@ -1009,6 +1019,32 @@ const assignLiveLead = async (request, response) => {
     response.status(500).send({
       message: "Error while assigning lead",
       details: error.message,
+    });
+  }
+};
+
+const updateLeadActivity = async (req, res) => {
+  try {
+    const { user_id, lead_id, last_activity_at } = req.body;
+
+    if (!user_id || !lead_id || !last_activity_at) {
+      return res.status(400).json({
+        success: false,
+        message: "user_id, lead_id and last_activity_at are required",
+      });
+    }
+
+    const result = await LeadModel.updateLeadActivity(
+      user_id,
+      lead_id,
+      last_activity_at,
+    );
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.message,
     });
   }
 };
@@ -1419,6 +1455,7 @@ module.exports = {
   updateJunkValue,
   moveToTrash,
   assignLiveLead,
+  updateLeadActivity,
   getJunkLeads,
   manualAssign,
   getAssignedLeads,

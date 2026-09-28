@@ -68,6 +68,11 @@ router.post("/getWebsiteLead", LeadController.getWebsiteLead);
 router.put("/updateJunkValue", verifyToken, LeadController.updateJunkValue);
 router.put("/moveToTrash", verifyToken, LeadController.moveToTrash);
 router.put("/assignLiveLead", verifyToken, LeadController.assignLiveLead);
+router.put(
+  "/updateLeadActivity",
+  verifyToken,
+  LeadController.updateLeadActivity,
+);
 // Lead end
 
 // Payment start

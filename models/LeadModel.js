@@ -1743,8 +1743,25 @@ const LeadModel = {
 
       let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
 
-      let webLeadsCount = `SELECT COUNT(*) AS web_lead_count FROM website_leads WHERE is_junk = 0 AND is_deleted = 0 AND assigned_to IS NULL`;
-
+      let webLeadsCount = `
+  SELECT COUNT(*) AS web_lead_count
+  FROM website_leads
+  WHERE is_junk = 0
+    AND is_deleted = 0
+    AND is_converted = 0
+    AND (
+      assigned_to IS NULL
+      OR assigned_to = ''
+      OR (
+        assigned_to IS NOT NULL
+        AND last_activity_at IS NOT NULL
+        AND last_activity_at < DATE_SUB(
+          CONVERT_TZ(NOW(), '+00:00', '+05:30'),
+          INTERVAL 5 MINUTE
+        )
+      )
+    )
+`;
       let assignQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL`;
 
       let junkQuery = `SELECT COUNT(*) AS junk_lead_count FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
@@ -2823,254 +2840,530 @@ const LeadModel = {
       const queryParams = [];
       const countParams = [];
 
-      // MUST convert to IST for correct filtering
+      // Convert UTC datetime to IST for date filtering/display
       const dateColumn = "CONVERT_TZ(wl.created_date, '+00:00', '+05:30')";
 
-      // Removed if (bucket != "Trash") { to handle all buckets
-      let baseCondition = `
-          wl.is_deleted = 0 
-          AND (wl.assigned_to IS NULL OR wl.assigned_to = '')
-        `;
+      // =========================================================
+      // BASE CONDITION
+      // =========================================================
+      // Lead is available when:
+      // 1. Not deleted
+      // 2. Not converted
+      // 3. Never assigned
+      // OR
+      // 4. Assigned but inactive for more than 5 minutes
+      //
+      // NOTE:
+      // This assumes last_activity_at is stored in IST.
+      // =========================================================
 
-      let filterCondition =
+      const baseCondition = `
+      wl.is_deleted = 0
+      AND wl.is_converted = 0
+      AND (
+        wl.assigned_to IS NULL
+        OR wl.assigned_to = ''
+        OR (
+          wl.assigned_to IS NOT NULL
+          AND wl.last_activity_at IS NOT NULL
+          AND wl.last_activity_at < DATE_SUB(
+            CONVERT_TZ(NOW(), '+00:00', '+05:30'),
+            INTERVAL 5 MINUTE
+          )
+        )
+      )
+    `;
+
+      // =========================================================
+      // BUCKET CONDITION
+      // =========================================================
+
+      const filterCondition =
         baseCondition +
         (bucket === "Trash" ? " AND wl.is_junk = 1" : " AND wl.is_junk = 0");
 
+      // =========================================================
+      // GET LEADS QUERY
+      // =========================================================
+
       let getQuery = `
       SELECT
-	ROW_NUMBER() OVER (ORDER BY ${dateColumn} DESC) AS row_num,
-    wl.id,
-    wl.name,
-    wl.email,
-    wl.phone,
-    wl.course,
-    wl.comments,
-    IFNULL(wl.location, '') AS location,
-    wl.date,
-    wl.time,
-    wl.training,
-    wl.corporate_training,
-	  wl.status,
-    wl.is_junk,
-    wl.junk_reason,
-    wl.junk_by,
-    ju.user_name AS junk_by_user,
-    wl.is_deleted,
-    ${dateColumn} AS created_date_ist,
-    wl.lead_type,
-    wl.assigned_to,
-    wl.domain_origin,
-    wl.is_google_add
-FROM
-    website_leads AS wl
-LEFT JOIN users AS ju ON
-	wl.junk_by = ju.user_id
-WHERE ${filterCondition}`;
+        ROW_NUMBER() OVER (
+          ORDER BY ${dateColumn} DESC
+        ) AS row_num,
+
+        wl.id,
+        wl.name,
+        wl.email,
+        wl.phone,
+        wl.course,
+        wl.comments,
+
+        IFNULL(wl.location, '') AS location,
+
+        wl.date,
+        wl.time,
+        wl.training,
+        wl.corporate_training,
+        wl.status,
+
+        wl.is_junk,
+        wl.junk_reason,
+        wl.junk_by,
+
+        ju.user_name AS junk_by_user,
+
+        wl.is_deleted,
+
+        ${dateColumn} AS created_date_ist,
+
+        wl.lead_type,
+        wl.assigned_to,
+        wl.assigned_at,
+        wl.last_activity_at,
+        wl.domain_origin,
+        wl.is_google_add,
+        wl.is_converted
+
+      FROM website_leads AS wl
+
+      LEFT JOIN users AS ju
+        ON wl.junk_by = ju.user_id
+
+      WHERE ${filterCondition}
+    `;
+
+      // =========================================================
+      // TOTAL COUNT QUERY
+      // =========================================================
 
       let countQuery = `
-              SELECT COUNT(*) AS total
-              FROM website_leads AS wl
-              WHERE ${filterCondition}`;
+      SELECT COUNT(*) AS total
+      FROM website_leads AS wl
+      WHERE ${filterCondition}
+    `;
+
+      // =========================================================
+      // LIVE / TRASH BUCKET COUNT
+      // =========================================================
 
       let bucketCountQuery = `
-              SELECT 
-                SUM(CASE WHEN wl.is_junk = 0 THEN 1 ELSE 0 END) AS live_leads,
-                SUM(CASE WHEN wl.is_junk = 1 THEN 1 ELSE 0 END) AS trash_leads
-              FROM website_leads AS wl
-              WHERE ${baseCondition}
-            `;
+      SELECT
+        SUM(
+          CASE
+            WHEN wl.is_junk = 0 THEN 1
+            ELSE 0
+          END
+        ) AS live_leads,
+
+        SUM(
+          CASE
+            WHEN wl.is_junk = 1 THEN 1
+            ELSE 0
+          END
+        ) AS trash_leads
+
+      FROM website_leads AS wl
+
+      WHERE ${baseCondition}
+    `;
+
+      // =========================================================
+      // COMMON FILTER FUNCTION
+      // =========================================================
 
       const addCondition = (field, value) => {
         getQuery += ` AND ${field} LIKE ?`;
         countQuery += ` AND ${field} LIKE ?`;
         bucketCountQuery += ` AND ${field} LIKE ?`;
+
         queryParams.push(`%${value}%`);
         countParams.push(`%${value}%`);
       };
 
-      if (name) addCondition("wl.name", name);
-      if (email) addCondition("wl.email", email);
-      if (phone) addCondition("wl.phone", phone);
-      if (course) addCondition("wl.course", course);
+      // =========================================================
+      // SEARCH FILTERS
+      // =========================================================
+
+      if (name) {
+        addCondition("wl.name", name);
+      }
+
+      if (email) {
+        addCondition("wl.email", email);
+      }
+
+      if (phone) {
+        addCondition("wl.phone", phone);
+      }
+
+      if (course) {
+        addCondition("wl.course", course);
+      }
+
+      // =========================================================
+      // DATE FILTER
+      // =========================================================
 
       if (start_date && end_date) {
-        getQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        countQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        bucketCountQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
+        const dateCondition = `
+        CAST(${dateColumn} AS DATE) BETWEEN ? AND ?
+      `;
+
+        getQuery += ` AND ${dateCondition}`;
+        countQuery += ` AND ${dateCondition}`;
+        bucketCountQuery += ` AND ${dateCondition}`;
+
         queryParams.push(start_date, end_date);
         countParams.push(start_date, end_date);
       }
 
-      let prefix;
+      // =========================================================
+      // REGION PREFIX
+      // =========================================================
+
+      let prefix = "";
+
       if (region_type) {
         const match = region_type.match(/^[A-Za-z]+/);
         prefix = match ? match[0] : "";
       }
 
-      // if (prefix === CONSTANT_STATUS.CHENNAI) {
-      //   return {
-      //     data: [],
-      //     lead_count: {
-      //       online_count: "0 / 0",
-      //       classroom_count: "0 / 0",
-      //       corporate_count: "0 / 0",
-      //       total_count: "0 / 0",
-      //     },
-      //     bucket: {
-      //       live_leads: 0,
-      //       trash_leads: 0,
-      //     },
-      //     pagination: {
-      //       total: 0,
-      //       page: parseInt(page, 10) || 1,
-      //       limit: parseInt(limit, 10) || 10,
-      //       totalPages: 0,
-      //     },
-      //   };
-      // }
-
-      // const courseFilter = `
-      //                     (
-      //                       LOWER(course) LIKE '%data analytics%'
-      //                       OR LOWER(course) LIKE 'data science'
-      //                       OR LOWER(course) LIKE '%fullstack developer%'
-      //                       OR LOWER(course) LIKE '%software testing%'
-      //                       OR LOWER(course) LIKE '%cloud computing%'
-      //                       OR LOWER(course) LIKE '%digital marketing%'
-      //                       OR LOWER(course) LIKE '%machine learning%'
-      //                       OR LOWER(course) LIKE '%gen ai%'
-      //                       OR LOWER(course) LIKE '%sap fico%'
-      //                       OR LOWER(course) LIKE '%sap mm%'
-      //                     )`;
-
-      // if (prefix === CONSTANT_STATUS.ONLINE) {
-      //   getQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-
-      //   countQuery += `AND (LOWER(training) LIKE '%online%' OR LOWER(training) LIKE '%corporate%' OR (LOWER(training) LIKE '%class%' AND NOT ${courseFilter}))`;
-      // }
-
-      // if (prefix === CONSTANT_STATUS.BANGALORE || prefix === CONSTANT_STATUS.CHENNAI) {
-      //   getQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      //   countQuery += `AND LOWER(training) LIKE '%class%' AND ${courseFilter}`;
-      // }
+      // =========================================================
+      // REGION / TRAINING FILTER
+      // =========================================================
 
       if (prefix === CONSTANT_STATUS.ONLINE) {
-        getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
+        const onlineCondition = `
+        (
+          LOWER(wl.training) LIKE '%online%'
+          OR LOWER(wl.training) LIKE '%corporate%'
+        )
+      `;
 
-        countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
-        bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%' OR (LOWER(wl.training) LIKE '%class%'))`;
+        getQuery += ` AND ${onlineCondition}`;
+        countQuery += ` AND ${onlineCondition}`;
+        bucketCountQuery += ` AND ${onlineCondition}`;
       }
 
       if (
         prefix === CONSTANT_STATUS.BANGALORE ||
         prefix === CONSTANT_STATUS.CHENNAI
       ) {
-        getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
-        countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
-        bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
+        const classroomCondition = `
+        LOWER(wl.training) LIKE '%class%'
+      `;
+
+        getQuery += ` AND ${classroomCondition}`;
+        countQuery += ` AND ${classroomCondition}`;
+        bucketCountQuery += ` AND ${classroomCondition}`;
       }
 
-      if (prefix !== "" && prefix === CONSTANT_STATUS.ONLINE) {
-        getQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
-        countQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
-        bucketCountQuery += ` AND (LOWER(wl.training) LIKE '%online%' OR LOWER(wl.training) LIKE '%corporate%')`;
-      }
-
-      if (
-        prefix === CONSTANT_STATUS.BANGALORE ||
-        prefix === CONSTANT_STATUS.CHENNAI
-      ) {
-        getQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
-        countQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
-        bucketCountQuery += ` AND LOWER(wl.training) LIKE '%class%'`;
-      }
+      // =========================================================
+      // PAGINATION
+      // =========================================================
 
       const pageNumber = parseInt(page, 10) || 1;
       const limitNumber = parseInt(limit, 10) || 10;
+
       const offset = (pageNumber - 1) * limitNumber;
 
-      getQuery += ` ORDER BY ${dateColumn} DESC LIMIT ? OFFSET ?`;
+      getQuery += `
+      ORDER BY ${dateColumn} DESC
+      LIMIT ?
+      OFFSET ?
+    `;
+
       queryParams.push(limitNumber, offset);
 
+      // =========================================================
+      // EXECUTE MAIN COUNT
+      // =========================================================
+
       const [countResult] = await pool.query(countQuery, countParams);
+
       const total = countResult[0]?.total || 0;
+
+      // =========================================================
+      // EXECUTE BUCKET COUNT
+      // =========================================================
 
       const [bucketCountResult] = await pool.query(
         bucketCountQuery,
         countParams,
       );
-      const live_leads = bucketCountResult[0]?.live_leads || 0;
-      const trash_leads = bucketCountResult[0]?.trash_leads || 0;
+
+      const live_leads = parseInt(bucketCountResult[0]?.live_leads) || 0;
+
+      const trash_leads = parseInt(bucketCountResult[0]?.trash_leads) || 0;
+
+      // =========================================================
+      // GET LEADS
+      // =========================================================
 
       const [rows] = await pool.query(getQuery, queryParams);
+
+      // =========================================================
+      // FORMAT DATA
+      // =========================================================
 
       const formattedData = rows.map((item) => ({
         ...item,
         created_date: item.created_date_ist,
       }));
 
-      const today = new Date().toISOString().split("T")[0];
+      // =========================================================
+      // TODAY'S DATE - IST
+      // =========================================================
+
+      const today = new Date().toLocaleDateString("en-CA", {
+        timeZone: "Asia/Kolkata",
+      });
+
+      // =========================================================
+      // TODAY'S TOTAL LEADS
+      // =========================================================
+      // IMPORTANT:
+      // Do NOT use baseCondition here.
+      //
+      // This represents all leads received today.
+      // =========================================================
 
       const [getLeadCount] = await pool.query(
-        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+        `
+        SELECT
+          COUNT(id) AS total,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Online Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS online_count,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Classroom Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS classroom_count,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Corporate Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS corporate_count
+
+        FROM website_leads
+
+        WHERE DATE(
+          CONVERT_TZ(
+            created_date,
+            '+00:00',
+            '+05:30'
+          )
+        ) = ?
+      `,
         [today],
       );
+
+      // =========================================================
+      // TODAY'S ACQUIRED LEADS
+      // =========================================================
+      // Do NOT use baseCondition here.
+      //
+      // This represents leads that have been assigned/acquired.
+      // =========================================================
 
       const [getAcquiredLeadCount] = await pool.query(
-        `SELECT COUNT(id) AS total, IFNULL(SUM(CASE WHEN training = 'Online Training' THEN 1 END), 0) AS online_count, IFNULL(SUM(CASE WHEN training = 'Classroom Training' THEN 1 END), 0) AS classroom_count, IFNULL(SUM(CASE WHEN training = 'Corporate Training' THEN 1 END), 0) AS corporate_count FROM website_leads WHERE assigned_to IS NOT NULL AND DATE(CONVERT_TZ(created_date, '+00:00', '+05:30')) = ?`,
+        `
+        SELECT
+          COUNT(id) AS total,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Online Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS online_count,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Classroom Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS classroom_count,
+
+          IFNULL(
+            SUM(
+              CASE
+                WHEN training = 'Corporate Training'
+                THEN 1
+                ELSE 0
+              END
+            ),
+            0
+          ) AS corporate_count
+
+        FROM website_leads
+
+        WHERE assigned_to IS NOT NULL
+          AND assigned_to != ''
+          AND DATE(
+            CONVERT_TZ(
+              created_date,
+              '+00:00',
+              '+05:30'
+            )
+          ) = ?
+      `,
         [today],
       );
 
+      // =========================================================
+      // TRASH COUNT
+      // =========================================================
+
       const [trashCount] = await pool.query(
-        `SELECT
-                COUNT(wl.id) AS total,
-                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.ONLINE}%' THEN 1 ELSE 0 END) AS hub,
-                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.CHENNAI}%' THEN 1 ELSE 0 END) AS chennai,
-                SUM(CASE WHEN wl.junk_by LIKE '%${CONSTANT_STATUS.BANGALORE}%' THEN 1 ELSE 0 END) AS bangalore
-              FROM website_leads AS wl
-              WHERE
-          wl.is_deleted = 0
+        `
+        SELECT
+
+          COUNT(wl.id) AS total,
+
+          SUM(
+            CASE
+              WHEN wl.junk_by LIKE ?
+              THEN 1
+              ELSE 0
+            END
+          ) AS hub,
+
+          SUM(
+            CASE
+              WHEN wl.junk_by LIKE ?
+              THEN 1
+              ELSE 0
+            END
+          ) AS chennai,
+
+          SUM(
+            CASE
+              WHEN wl.junk_by LIKE ?
+              THEN 1
+              ELSE 0
+            END
+          ) AS bangalore
+
+        FROM website_leads AS wl
+
+        WHERE wl.is_deleted = 0
           AND wl.is_junk = 1
-          AND (wl.assigned_to IS NULL OR wl.assigned_to = '')`,
+          AND (
+            wl.assigned_to IS NULL
+            OR wl.assigned_to = ''
+          )
+      `,
+        [
+          `%${CONSTANT_STATUS.ONLINE}%`,
+          `%${CONSTANT_STATUS.CHENNAI}%`,
+          `%${CONSTANT_STATUS.BANGALORE}%`,
+        ],
       );
 
-      let onlineCount = 0;
-      let classroomCount = 0;
-      let corporateCount = 0;
-      let totalCount = 0;
-      let totalTrash = 0;
-      let hubCount = 0;
-      let chennaiCount = 0;
-      let bangaloreCount = 0;
+      // =========================================================
+      // COUNTS
+      // =========================================================
 
-      onlineCount = `${getAcquiredLeadCount[0].online_count} / ${getLeadCount[0].online_count}`;
-      classroomCount = `${getAcquiredLeadCount[0].classroom_count} / ${getLeadCount[0].classroom_count}`;
-      corporateCount = `${getAcquiredLeadCount[0].corporate_count} / ${getLeadCount[0].corporate_count}`;
-      totalCount = `${getAcquiredLeadCount[0].total} / ${getLeadCount[0].total}`;
+      const totalLeads = parseInt(getLeadCount[0]?.total) || 0;
 
-      totalTrash = `${trashCount[0].total} / ${getLeadCount[0].total}`;
-      hubCount = `${trashCount[0].hub} / ${getLeadCount[0].hub}`;
-      chennaiCount = `${trashCount[0].chennai} / ${getLeadCount[0].chennai}`;
-      bangaloreCount = `${trashCount[0].bangalore} / ${getLeadCount[0].bangalore}`;
+      const acquiredTotal = parseInt(getAcquiredLeadCount[0]?.total) || 0;
+
+      const totalOnline = parseInt(getLeadCount[0]?.online_count) || 0;
+
+      const acquiredOnline =
+        parseInt(getAcquiredLeadCount[0]?.online_count) || 0;
+
+      const totalClassroom = parseInt(getLeadCount[0]?.classroom_count) || 0;
+
+      const acquiredClassroom =
+        parseInt(getAcquiredLeadCount[0]?.classroom_count) || 0;
+
+      const totalCorporate = parseInt(getLeadCount[0]?.corporate_count) || 0;
+
+      const acquiredCorporate =
+        parseInt(getAcquiredLeadCount[0]?.corporate_count) || 0;
+
+      // =========================================================
+      // FORMAT LEAD COUNTS
+      // =========================================================
+
+      const onlineCount = `${acquiredOnline} / ${totalOnline}`;
+
+      const classroomCount = `${acquiredClassroom} / ${totalClassroom}`;
+
+      const corporateCount = `${acquiredCorporate} / ${totalCorporate}`;
+
+      const totalCount = `${acquiredTotal} / ${totalLeads}`;
+
+      // =========================================================
+      // TRASH COUNTS
+      // =========================================================
+
+      const totalTrash = parseInt(trashCount[0]?.total) || 0;
+
+      const hubCount = parseInt(trashCount[0]?.hub) || 0;
+
+      const chennaiCount = parseInt(trashCount[0]?.chennai) || 0;
+
+      const bangaloreCount = parseInt(trashCount[0]?.bangalore) || 0;
+
+      // =========================================================
+      // RETURN
+      // =========================================================
 
       return {
         data: formattedData,
+
         lead_count: {
           online_count: onlineCount,
           classroom_count: classroomCount,
           corporate_count: corporateCount,
           total_count: totalCount,
         },
+
         bucket: {
-          live_leads: parseInt(live_leads),
-          trash_leads: parseInt(trash_leads),
+          live_leads,
+          trash_leads,
         },
+
         trash_count: {
-          total: parseInt(totalTrash),
-          hub: parseInt(hubCount),
-          chennai: parseInt(chennaiCount),
-          bangalore: parseInt(bangaloreCount),
+          total: totalTrash,
+          hub: hubCount,
+          chennai: chennaiCount,
+          bangalore: bangaloreCount,
         },
+
         pagination: {
           total: parseInt(total),
           page: pageNumber,
@@ -3135,17 +3428,36 @@ WHERE ${filterCondition}`;
     }
   },
 
-  assignLiveLead: async (user_id, lead_id, is_assigned) => {
+  assignLiveLead: async (
+    user_id,
+    lead_id,
+    is_assigned,
+    assigned_at,
+    last_activity_at,
+    is_converted = false,
+  ) => {
     const conn = await pool.getConnection();
 
     try {
       await conn.beginTransaction();
 
-      // Lock the row (only ONE user can read/modify)
+      // Get current lead details and lock the row
       const [rows] = await conn.query(
-        `SELECT assigned_to 
-       FROM website_leads 
-       WHERE id = ? 
+        `SELECT
+        assigned_to,
+        assigned_at,
+        last_activity_at,
+        is_converted,
+        CASE
+        WHEN assigned_to IS NOT NULL
+          AND last_activity_at IS NOT NULL
+          AND CONVERT_TZ(last_activity_at, '+05:30', '+00:00')
+              < DATE_SUB(UTC_TIMESTAMP(), INTERVAL 5 MINUTE)
+        THEN 1
+        ELSE 0
+        END AS is_expired
+       FROM website_leads
+       WHERE id = ?
        FOR UPDATE`,
         [lead_id],
       );
@@ -3154,41 +3466,137 @@ WHERE ${filterCondition}`;
         throw new Error("Invalid lead id");
       }
 
-      const currentAssigned = rows[0].assigned_to;
+      const {
+        assigned_to: currentAssigned,
+        is_converted: currentIsConverted,
+        is_expired: isExpired,
+      } = rows[0];
 
-      if (is_assigned === true) {
-        if (currentAssigned !== null) {
-          throw new Error("The lead has already been chosen by someone.");
+      // --------------------------------------------------
+      // 1. MOVE TO LEAD MASTER / MARK AS CONVERTED
+      // --------------------------------------------------
+      if (is_converted === true) {
+        // Already converted
+        if (currentIsConverted === 1) {
+          throw new Error("Lead is already converted.");
         }
 
-        // Assign
+        // Only current assignee can convert the lead
+        if (currentAssigned !== user_id) {
+          throw new Error("Lead is not assigned to you.");
+        }
+
         const [result] = await conn.query(
-          `UPDATE website_leads 
-         SET assigned_to = ?
-         WHERE id = ?`,
-          [user_id, lead_id],
+          `UPDATE website_leads
+         SET
+           is_converted = 1,
+           assigned_at = NULL,
+           last_activity_at = NULL
+         WHERE id = ?
+           AND assigned_to = ?
+           AND is_converted = 0`,
+          [lead_id, user_id],
         );
 
         if (result.affectedRows === 0) {
-          throw new Error("Failed to assign lead");
+          throw new Error("Failed to convert lead.");
         }
-      } else if (is_assigned === false) {
-        // Unassign
-        await conn.query(
-          `UPDATE website_leads 
-         SET assigned_to = NULL 
-         WHERE id = ?`,
-          [lead_id],
+      }
+
+      // --------------------------------------------------
+      // 2. ASSIGN / ACQUIRE LEAD
+      // --------------------------------------------------
+      else if (is_assigned === true) {
+        // Converted lead can never be assigned again
+        if (currentIsConverted === 1) {
+          throw new Error("This lead has already been converted.");
+        }
+
+        // Already assigned and still active
+        if (currentAssigned && !isExpired) {
+          throw new Error("The lead has already been chosen by someone.");
+        }
+
+        // Assign / Reclaim expired lead
+        const [result] = await conn.query(
+          `UPDATE website_leads
+         SET
+           assigned_to = ?,
+           assigned_at = ?,
+           last_activity_at = ?
+         WHERE id = ?
+           AND is_converted = 0`,
+          [user_id, assigned_at, last_activity_at, lead_id],
         );
+
+        if (result.affectedRows === 0) {
+          throw new Error("Failed to assign lead.");
+        }
+      }
+
+      // --------------------------------------------------
+      // 3. MANUAL RELEASE
+      // --------------------------------------------------
+      else if (is_assigned === false) {
+        // Converted lead should not be released
+        if (currentIsConverted === 1) {
+          throw new Error("Converted lead cannot be released.");
+        }
+
+        // Release only by current assignee
+        const [result] = await conn.query(
+          `UPDATE website_leads
+         SET
+           assigned_to = NULL,
+           assigned_at = NULL,
+           last_activity_at = NULL
+         WHERE id = ?
+           AND assigned_to = ?
+           AND is_converted = 0`,
+          [lead_id, user_id],
+        );
+
+        if (result.affectedRows === 0) {
+          throw new Error("Lead is not assigned to you.");
+        }
+      } else {
+        throw new Error("Invalid lead action.");
       }
 
       await conn.commit();
-      return { success: true };
+
+      return {
+        success: true,
+        is_converted: is_converted === true,
+      };
     } catch (error) {
       await conn.rollback();
       throw new Error(error.message);
     } finally {
       conn.release();
+    }
+  },
+
+  updateLeadActivity: async (user_id, lead_id, last_activity_at) => {
+    try {
+      const [result] = await pool.query(
+        `UPDATE website_leads
+       SET last_activity_at = ?
+       WHERE id = ?
+         AND assigned_to = ?`,
+        [last_activity_at, lead_id, user_id],
+      );
+
+      if (result.affectedRows === 0) {
+        throw new Error("Lead is no longer assigned to you.");
+      }
+
+      return {
+        success: true,
+        message: "Lead activity updated successfully",
+      };
+    } catch (error) {
+      throw new Error(error.message);
     }
   },
 
