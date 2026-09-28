@@ -184,11 +184,11 @@ const sendMail = async (email, link, trainer_id) => {
     if (isTrainerExists.length <= 0) throw new Error("Trainer not exists");
 
     // Check link already send to trainer
-    const [isLinkSent] = await pool.query(
-      `SELECT id FROM trainer WHERE id = ? AND is_form_sent = 1`,
-      [trainer_id],
-    );
-    if (isLinkSent.length > 0) throw new Error("Link has already been sent");
+    // const [isLinkSent] = await pool.query(
+    //   `SELECT id FROM trainer WHERE id = ? AND is_form_sent = 1`,
+    //   [trainer_id],
+    // );
+    // if (isLinkSent.length > 0) throw new Error("Link has already been sent");
     const mailOptions = {
       from: process.env.ADMISSION_MAIL,
       to: email,
@@ -245,9 +245,9 @@ const sendMail = async (email, link, trainer_id) => {
       ],
     };
     // Update trainer table
-    await pool.query(`UPDATE trainer SET is_form_sent = 1 WHERE id = ?`, [
-      trainer_id,
-    ]);
+    // await pool.query(`UPDATE trainer SET is_form_sent = 1 WHERE id = ?`, [
+    //   trainer_id,
+    // ]);
 
     // Send mail
     await transporterAdmission.sendMail(mailOptions);

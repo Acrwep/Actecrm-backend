@@ -165,9 +165,10 @@ const TrainerModel = {
         notice_period,
         language_known,
         trainer_status,
-        additional_notes
+        additional_notes,
+        is_form_sent
       )
-      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
       const values = [
         trainer_name,
@@ -199,6 +200,7 @@ const TrainerModel = {
         JSON.stringify(language_known),
         trainer_status,
         additional_notes,
+        1,
       ];
 
       const [result] = await pool.query(insertQuery, values);
@@ -474,9 +476,9 @@ const TrainerModel = {
                       WHERE t.is_active = 1`;
 
       let getStatusQuery = `SELECT
-          COUNT(DISTINCT t.id) AS all_count,
-                              COUNT(CASE WHEN (t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Verify Pending') THEN 1 END) AS total_count,
-                              COUNT(CASE WHEN t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
+          COUNT(DISTINCT t.id) AS total_count,
+                              COUNT(CASE WHEN (t.status IN('Verify Pending') and t.is_form_sent = 1 AND t.is_bank_updated = 0) OR (t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1) THEN 1 END) AS total_pendig_count,
+                              COUNT(CASE WHEN t.status IN('Verify Pending') and t.is_form_sent = 1 AND t.is_bank_updated = 0 THEN 1 END) AS form_pending,
                               COUNT(CASE WHEN t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS verify_pending,
                               COUNT(CASE WHEN t.status = 'Verified' THEN 1 END) AS verified,
                               COUNT(CASE WHEN t.status = 'Rejected' and t.is_form_sent = 1 AND t.is_bank_updated = 1 THEN 1 END) AS rejected 
@@ -613,10 +615,10 @@ const TrainerModel = {
         }
       }
 
-      if (bucket && bucket === "All") {
+      if (bucket && bucket === "total_pending") {
         if (is_form_sent != null || is_form_sent != undefined) {
-          getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
-          countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0`;
+          getQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0 and t.status IN('Verify Pending')`;
+          countQuery += ` AND t.is_form_sent = ? AND t.is_bank_updated = 0 and t.status IN('Verify Pending')`;
           queryParams.push(is_form_sent);
           countQueryParams.push(is_form_sent);
         } else if (status) {
@@ -625,8 +627,8 @@ const TrainerModel = {
           queryParams.push(status);
           countQueryParams.push(status);
         } else {
-          getQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
-          countQuery += ` AND ((t.is_form_sent = 1 AND t.is_bank_updated = 0) OR t.status IN ('Form Pending', 'Verify Pending'))`;
+          getQuery += ` AND ((t.status IN('Verify Pending') and t.is_form_sent = 1 AND t.is_bank_updated = 0) OR (t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1))`;
+          countQuery += ` AND ((t.status IN('Verify Pending') and t.is_form_sent = 1 AND t.is_bank_updated = 0) OR (t.status IN('Verify Pending') AND t.is_form_sent = 1 AND t.is_bank_updated = 1))`;
         }
       }
 
