@@ -2728,13 +2728,21 @@ WHERE 1 = 1
     }
   },
 
-  checkUserByEmail: async (email) => {
+  checkUserByEmail: async (email, is_trainer) => {
     try {
-      const [isExists] = await pool.query(
-        `SELECT id, email FROM customers WHERE email = ?`,
-        [email],
-      );
-      return isExists[0];
+      if (is_trainer) {
+        const [isExists] = await pool.query(
+          `SELECT id, email FROM trainer WHERE email = ?`,
+          [email],
+        );
+        return isExists[0];
+      } else {
+        const [isExists] = await pool.query(
+          `SELECT id, email FROM customers WHERE email = ?`,
+          [email],
+        );
+        return isExists[0];
+      }
     } catch (error) {
       throw new Error(error.message);
     }

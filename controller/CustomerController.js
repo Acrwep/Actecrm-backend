@@ -591,9 +591,9 @@ const updateCertificate = async (request, response) => {
 };
 
 const otpSend = async (request, response) => {
-  const { email } = request.body;
+  const { email, is_trainer } = request.body;
   try {
-    const user = await CustomerModel.checkUserByEmail(email);
+    const user = await CustomerModel.checkUserByEmail(email, is_trainer);
     if (!user) {
       return response.status(404).send({ message: "Email not found" });
     }
