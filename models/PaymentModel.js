@@ -1646,8 +1646,8 @@ const PaymentModel = {
 
       if (start_date && end_date) {
         commonConditions += `
-        AND pt.invoice_date >= ?
-        AND pt.invoice_date < DATE_ADD(?, INTERVAL 1 DAY)
+        AND pt.created_date >= ?
+        AND pt.created_date < DATE_ADD(?, INTERVAL 1 DAY)
       `;
 
         queryParams.push(start_date, end_date);
