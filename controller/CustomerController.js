@@ -194,36 +194,69 @@ const verifyStudent = async (request, response) => {
   }
 };
 
-const trainerAssign = async (request, response) => {
-  const {
-    customer_id,
-    trainer_id,
-    commercial,
-    mode_of_class,
-    trainer_type,
-    proof_communication,
-    comments,
-    created_date,
-  } = request.body;
+// const trainerAssign = async (request, response) => {
+//   const {
+//     customer_id,
+//     trainer_id,
+//     commercial,
+//     mode_of_class,
+//     trainer_type,
+//     proof_communication,
+//     comments,
+//     created_date,
+//   } = request.body;
+//   try {
+//     const result = await CustomerModel.trainerAssign(
+//       customer_id,
+//       trainer_id,
+//       commercial,
+//       mode_of_class,
+//       trainer_type,
+//       proof_communication,
+//       comments,
+//       created_date,
+//     );
+//     return response.status(200).send({
+//       message: "Trainer assigned successfully",
+//       data: result,
+//     });
+//   } catch (error) {
+//     response.status(500).send({
+//       message: "Error while assigning trainer",
+//       details: error.message,
+//     });
+//   }
+// };
+
+const trainerAssign = async (req, res) => {
   try {
-    const result = await CustomerModel.trainerAssign(
-      customer_id,
-      trainer_id,
-      commercial,
-      mode_of_class,
-      trainer_type,
-      proof_communication,
-      comments,
-      created_date,
-    );
-    return response.status(200).send({
+    const { customer_id, trainers } = req.body;
+
+    if (!customer_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer ID is required",
+      });
+    }
+
+    if (!Array.isArray(trainers) || trainers.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one trainer is required",
+      });
+    }
+
+    const result = await CustomerModel.trainerAssign(customer_id, trainers);
+
+    return res.status(200).json({
+      success: true,
       message: "Trainer assigned successfully",
       data: result,
     });
   } catch (error) {
-    response.status(500).send({
-      message: "Error while assigning trainer",
-      details: error.message,
+    return res.status(400).json({
+      success: false,
+      message: error.message,
     });
   }
 };

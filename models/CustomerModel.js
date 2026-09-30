@@ -1170,60 +1170,155 @@ WHERE c.id = ?`;
     }
   },
 
-  trainerAssign: async (
-    customer_id,
-    trainer_id,
-    commercial,
-    mode_of_class,
-    trainer_type,
-    proof_communication,
-    comments,
-    created_date,
-  ) => {
+  // trainerAssign: async (
+  //   customer_id,
+  //   trainer_id,
+  //   commercial,
+  //   mode_of_class,
+  //   trainer_type,
+  //   proof_communication,
+  //   comments,
+  //   created_date,
+  // ) => {
+  //   try {
+  //     const [isCusExists] = await pool.query(
+  //       `SELECT id FROM customers WHERE id = ?`,
+  //       [customer_id],
+  //     );
+  //     if (isCusExists.length <= 0) throw new Error("Invalid customer");
+
+  //     const [isTrainerExists] = await pool.query(
+  //       `SELECT id FROM trainer_mapping WHERE customer_id = ? AND is_rejected = 0`,
+  //       [customer_id],
+  //     );
+
+  //     if (isTrainerExists.length > 0)
+  //       throw new Error("Trainer has already been assigned this customer");
+  //     const insertQuery = `INSERT INTO trainer_mapping(
+  //                             customer_id,
+  //                             trainer_id,
+  //                             commercial,
+  //                             mode_of_class,
+  //                             trainer_type,
+  //                             proof_communication,
+  //                             comments,
+  //                             created_date
+  //                         )
+  //                         VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+  //     const values = [
+  //       customer_id,
+  //       trainer_id,
+  //       commercial,
+  //       mode_of_class,
+  //       trainer_type,
+  //       proof_communication,
+  //       comments,
+  //       created_date,
+  //     ];
+
+  //     const [result] = await pool.query(insertQuery, values);
+
+  //     return result.affectedRows;
+  //   } catch (error) {
+  //     throw new Error(error.message);
+  //   }
+  // },
+
+  trainerAssign: async (customer_id, trainers) => {
+    const connection = await pool.getConnection();
+
     try {
-      const [isCusExists] = await pool.query(
-        `SELECT id FROM customers WHERE id = ?`,
-        [customer_id],
-      );
-      if (isCusExists.length <= 0) throw new Error("Invalid customer");
-
-      const [isTrainerExists] = await pool.query(
-        `SELECT id FROM trainer_mapping WHERE customer_id = ? AND is_rejected = 0`,
+      // 1. Check customer exists
+      const [isCusExists] = await connection.query(
+        `SELECT id
+       FROM customers
+       WHERE id = ?`,
         [customer_id],
       );
 
-      if (isTrainerExists.length > 0)
-        throw new Error("Trainer has already been assigned this customer");
-      const insertQuery = `INSERT INTO trainer_mapping(
-                              customer_id,
-                              trainer_id,
-                              commercial,
-                              mode_of_class,
-                              trainer_type,
-                              proof_communication,
-                              comments,
-                              created_date
-                          )
-                          VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
-      const values = [
+      if (isCusExists.length <= 0) {
+        throw new Error("Invalid customer");
+      }
+
+      await connection.beginTransaction();
+
+      // 2. Loop through every trainer
+      for (const trainer of trainers) {
+        const {
+          trainer_id,
+          commercial,
+          mode_of_class,
+          trainer_type,
+          proof_communication,
+          comments,
+          created_date,
+        } = trainer;
+
+        // Validate trainer_id
+        if (!trainer_id) {
+          throw new Error("Trainer ID is required");
+        }
+
+        // 3. Check duplicate active assignment
+        const [isTrainerExists] = await connection.query(
+          `SELECT id
+         FROM trainer_mapping
+         WHERE customer_id = ?
+           AND trainer_id = ?
+           AND is_rejected = 0`,
+          [customer_id, trainer_id],
+        );
+
+        if (isTrainerExists.length > 0) {
+          throw new Error(
+            `Trainer ${trainer_id} has already been assigned to this customer`,
+          );
+        }
+
+        // 4. Insert new trainer mapping
+        const insertQuery = `
+        INSERT INTO trainer_mapping (
+          customer_id,
+          trainer_id,
+          commercial,
+          mode_of_class,
+          trainer_type,
+          proof_communication,
+          comments,
+          created_date
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+        await connection.query(insertQuery, [
+          customer_id,
+          trainer_id,
+          commercial,
+          mode_of_class,
+          trainer_type,
+          proof_communication,
+          comments,
+          created_date,
+        ]);
+      }
+
+      // 5. Commit all trainer assignments
+      await connection.commit();
+
+      return {
         customer_id,
-        trainer_id,
-        commercial,
-        mode_of_class,
-        trainer_type,
-        proof_communication,
-        comments,
-        created_date,
-      ];
-
-      const [result] = await pool.query(insertQuery, values);
-
-      return result.affectedRows;
+        trainer_count: trainers.length,
+      };
     } catch (error) {
+      // If any trainer fails,
+      // rollback all previously inserted trainers
+      await connection.rollback();
+
       throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
-
   updateTrainerCoordination: async (
     whatsapp_group_creation,
     whatsapp_invite_link,
