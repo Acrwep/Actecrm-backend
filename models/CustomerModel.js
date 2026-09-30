@@ -884,37 +884,6 @@ const CustomerModel = {
 
     l.assigned_to AS lead_assigned_to_id,
     au.user_name AS lead_assigned_to_name,
-
-    tr.name AS trainer_name,
-    tr.trainer_id AS trainer_code,
-    tr.mobile_phone_code AS trainer_mobile_code,
-    tr.mobile AS trainer_mobile,
-    tr.email AS trainer_email,
-    tr.overall_exp_year,
-
-    tus.user_id AS trainer_hr_id,
-    tus.user_name AS trainer_hr_name,
-
-    map.id AS training_map_id,
-    map.trainer_id,
-    map.commercial,
-    map.mode_of_class as trainer_mode_of_class,
-    map.trainer_type,
-    map.proof_communication,
-    map.comments,
-    map.is_verified AS is_trainer_verified,
-    map.verified_date AS trainer_verified_date,
-    map.is_rejected AS is_trainer_rejected,
-    map.rejected_date AS trainer_rejected_date,
-    map.whatsapp_group_creation,
-    map.hr_welcome_message,
-    map.shared_attendance_link,
-    map.first_class_monitoring,
-    map.trainer_confirmation,
-    map.whatsapp_invite_link,
-    map.attendance_sheet_link,
-    map.attendance_screenshot,
-
     c.class_schedule_id,
     cs.name AS class_schedule_name,
     c.class_scheduled_at,
@@ -1031,24 +1000,6 @@ LEFT JOIN branches AS posb
 
 LEFT JOIN (
     SELECT
-        MAX(id) AS trainer_map_id,
-        customer_id
-    FROM trainer_mapping
-    GROUP BY customer_id
-) AS latest_map
-    ON latest_map.customer_id = c.id
-
-LEFT JOIN trainer_mapping AS map
-    ON map.id = latest_map.trainer_map_id
-
-LEFT JOIN trainer AS tr
-    ON tr.id = map.trainer_id
-
-LEFT JOIN users AS tus
-    ON tr.created_by = tus.user_id
-
-LEFT JOIN (
-    SELECT
         payment_master_id,
         MAX(id) AS latest_trans_id,
         SUM(amount) AS total_paid
@@ -1086,12 +1037,74 @@ WHERE c.id = ?`;
       }
 
       const row = result[0];
+      const [trainerMapData] = await pool.query(
+        `
+  SELECT
+    map.id AS training_map_id,
+    map.trainer_id,
+    map.commercial,
+    map.mode_of_class AS trainer_mode_of_class,
+    map.trainer_type,
+    map.proof_communication,
+    map.comments,
+    map.is_verified AS is_trainer_verified,
+    map.verified_date AS trainer_verified_date,
+    map.is_rejected AS is_trainer_rejected,
+    map.rejected_date AS trainer_rejected_date,
+    map.whatsapp_group_creation,
+    map.hr_welcome_message,
+    map.shared_attendance_link,
+    map.first_class_monitoring,
+    map.trainer_confirmation,
+    map.whatsapp_invite_link,
+    map.attendance_sheet_link,
+    map.attendance_screenshot,
+
+    tr.name AS trainer_name,
+    tr.trainer_id AS trainer_code,
+    tr.mobile_phone_code AS trainer_mobile_code,
+    tr.mobile AS trainer_mobile,
+    tr.email AS trainer_email,
+    tr.overall_exp_year,
+
+    tus.user_id AS trainer_hr_id,
+    tus.user_name AS trainer_hr_name
+
+  FROM trainer_mapping AS map
+
+  LEFT JOIN trainer AS tr
+    ON tr.id = map.trainer_id
+
+  LEFT JOIN users AS tus
+    ON tr.created_by = tus.user_id
+
+  WHERE map.customer_id = ?
+
+  ORDER BY map.id DESC
+  `,
+        [customer_id],
+      );
+
+      const trainers = trainerMapData.map((trainer) => ({
+        ...trainer,
+
+        commercial_percentage: row.primary_fees
+          ? parseFloat(
+              (
+                (parseFloat(trainer.commercial || 0) /
+                  parseFloat(row.primary_fees)) *
+                100
+              ).toFixed(2),
+            )
+          : 0,
+      }));
+
       const totalAmount = parseFloat(row.total_course_amount || 0);
       const paidAmount = parseFloat(row.paid_amount || 0);
 
-      const commercial_percentage = row.primary_fees
-        ? parseFloat(((row.commercial / row.primary_fees) * 100).toFixed(2))
-        : 0;
+      // const commercial_percentage = row.primary_fees
+      //   ? parseFloat(((row.commercial / row.primary_fees) * 100).toFixed(2))
+      //   : 0;
 
       const [studentResult] = await pool.query(
         `SELECT 
@@ -1108,11 +1121,12 @@ WHERE c.id = ?`;
 
       return {
         ...row,
+        trainer_data: trainers,
         preferred_language: preferred_language,
         total_amount: totalAmount,
         paid_amount: paidAmount,
         balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
-        commercial_percentage: commercial_percentage,
+        // commercial_percentage: commercial_percentage,
         ongoing_student_count: studentResult[0]?.on_going_student ?? 0,
         completed_student_count: studentResult[0]?.completed_student_count ?? 0,
       };
@@ -1747,19 +1761,6 @@ WHERE c.id = ?`;
                       c.created_date,
                       l.assigned_to AS lead_assigned_to_id,
                       au.user_name AS lead_assigned_to_name,
-                      tr.name AS trainer_name,
-                      tr.trainer_id AS trainer_code,
-                      tr.mobile_phone_code AS trainer_mobile_code,
-                      tr.mobile AS trainer_mobile,
-                      tr.email AS trainer_email,
-                      
-                      tus.user_id AS trainer_hr_id,
-                      tus.user_name AS trainer_hr_name,
-                      map.id AS training_map_id,
-                      map.trainer_id,
-                      map.commercial,
-                      map.comments as trainer_mapping_comments,
-                      map.approval_rejected_reason,
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,
@@ -1804,16 +1805,6 @@ WHERE c.id = ?`;
                         hr_user.user_id = l.hr_id
                     LEFT JOIN class_mode AS cm ON
                             c.mode_of_class = cm.id
-                    LEFT JOIN(
-                      SELECT MAX(id) AS trainer_map_id, customer_id FROM trainer_mapping
-                        GROUP BY customer_id
-                    ) AS latest_map ON latest_map.customer_id = c.id
-                    LEFT JOIN trainer_mapping map ON
-                      map.id = latest_map.trainer_map_id
-                    LEFT JOIN trainer AS tr ON
-                        tr.id = map.trainer_id
-                    LEFT JOIN users AS tus ON
-                        tr.created_by = tus.user_id
                     LEFT JOIN(
                       SELECT
                           payment_master_id,
@@ -2676,6 +2667,60 @@ WHERE 1 = 1
 
       [result] = await pool.query(getQuery, queryParams);
 
+      const customerIds = result.map((item) => item.id);
+
+      let trainerMapData = [];
+
+      if (customerIds.length > 0) {
+        const placeholders = customerIds.map(() => "?").join(", ");
+
+        [trainerMapData] = await pool.query(
+          `
+      SELECT
+        map.customer_id,
+
+        map.id AS training_map_id,
+        map.trainer_id,
+        map.commercial,
+        map.comments AS trainer_mapping_comments,
+        map.approval_rejected_reason,
+
+        tr.name AS trainer_name,
+        tr.trainer_id AS trainer_code,
+        tr.mobile_phone_code AS trainer_mobile_code,
+        tr.mobile AS trainer_mobile,
+        tr.email AS trainer_email,
+
+        tus.user_id AS trainer_hr_id,
+        tus.user_name AS trainer_hr_name
+
+      FROM trainer_mapping AS map
+
+      LEFT JOIN trainer AS tr
+        ON tr.id = map.trainer_id
+
+      LEFT JOIN users AS tus
+        ON tr.created_by = tus.user_id
+
+      WHERE map.customer_id IN (${placeholders})
+
+      ORDER BY map.customer_id, map.id
+    `,
+          customerIds,
+        );
+      }
+
+      // STEP 4: Group trainers by customer
+      const trainerMap = {};
+
+      trainerMapData.forEach((trainer) => {
+        if (!trainerMap[trainer.customer_id]) {
+          trainerMap[trainer.customer_id] = [];
+        }
+
+        trainerMap[trainer.customer_id].push(trainer);
+      });
+
       const [
         [countResult],
         [getStatus],
@@ -2707,17 +2752,32 @@ WHERE 1 = 1
       let res = result.map((item) => {
         const totalAmount = parseFloat(item.total_course_amount || 0);
         const paidAmount = parseFloat(item.paid_amount || 0);
+        const trainers = (trainerMap[item.id] || []).map((trainer) => ({
+          ...trainer,
+
+          commercial_percentage: item.primary_fees
+            ? parseFloat(
+                (
+                  (parseFloat(trainer.commercial || 0) /
+                    parseFloat(item.primary_fees)) *
+                  100
+                ).toFixed(2),
+              )
+            : 0,
+        }));
+
         // Format customer result
         return {
           ...item,
+          trainer_data: trainers,
           balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
           total_amount: totalAmount,
           paid_amount: paidAmount,
-          commercial_percentage: item.primary_fees
-            ? parseFloat(
-                ((item.commercial / item.primary_fees) * 100).toFixed(2),
-              )
-            : 0,
+          // commercial_percentage: item.primary_fees
+          //   ? parseFloat(
+          //       ((item.commercial / item.primary_fees) * 100).toFixed(2),
+          //     )
+          //   : 0,
         };
       });
 
