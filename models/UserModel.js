@@ -151,6 +151,7 @@ const UserModel = {
     limit,
     region_id,
     branch_id,
+    roles,
   ) => {
     try {
       const params = [];
@@ -213,6 +214,28 @@ const UserModel = {
         countParams.push(branch_id);
       }
 
+      // Multiple roles filter
+      if (roles && Array.isArray(roles) && roles.length > 0) {
+        const roleConditions = roles.map(
+          () => `
+        JSON_CONTAINS(
+          u.roles,
+          JSON_OBJECT('role_name', ?)
+        )
+      `,
+        );
+
+        const roleCondition = ` AND (${roleConditions.join(" OR ")})`;
+
+        getQuery += roleCondition;
+        countQuery += roleCondition;
+
+        roles.forEach((role) => {
+          params.push(role);
+          countParams.push(role);
+        });
+      }
+
       const [countResult] = await pool.query(countQuery, countParams);
       const total = countResult[0].total || 0;
 
@@ -245,6 +268,8 @@ const UserModel = {
           );
 
           child_users = JSON.parse(item.child_users);
+          const parsedRoles = item.roles ? JSON.parse(item.roles) : [];
+
           return {
             ...item,
             user_target_id: getTarget[0]?.user_target_id || 0,
@@ -256,7 +281,7 @@ const UserModel = {
                 getAllUsers.find((r) => r.user_id === child.user_id)
                   ?.user_name || "",
             })),
-            roles: JSON.parse(item.roles),
+            roles: parsedRoles,
           };
         }),
       );
@@ -655,8 +680,13 @@ const UserModel = {
       }
 
       if (role) {
-        query += ` AND u.roles LIKE ?`;
-        queryParams.push(`%${role}%`);
+        query += `
+        AND JSON_CONTAINS(
+          u.roles,
+          JSON_OBJECT('role_name', ?)
+        )
+      `;
+        queryParams.push(role);
       }
 
       if (branch_id) {

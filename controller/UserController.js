@@ -57,6 +57,7 @@ const getUsers = async (request, response) => {
     limit,
     region_id,
     branch_id,
+    roles,
   } = request.body;
 
   try {
@@ -67,6 +68,7 @@ const getUsers = async (request, response) => {
       limit,
       region_id,
       branch_id,
+      roles,
     );
 
     response.status(200).json({
