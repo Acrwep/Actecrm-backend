@@ -1078,7 +1078,7 @@ WHERE c.id = ?`;
   LEFT JOIN users AS tus
     ON tr.created_by = tus.user_id
 
-  WHERE map.customer_id = ?
+  WHERE map.customer_id = ? AND map.is_rejected = 0
 
   ORDER BY map.id DESC
   `,
@@ -2684,6 +2684,8 @@ WHERE 1 = 1
         map.commercial,
         map.comments AS trainer_mapping_comments,
         map.approval_rejected_reason,
+        map.is_verified,
+        map.is_rejected,
 
         tr.name AS trainer_name,
         tr.trainer_id AS trainer_code,
@@ -2702,7 +2704,7 @@ WHERE 1 = 1
       LEFT JOIN users AS tus
         ON tr.created_by = tus.user_id
 
-      WHERE map.customer_id IN (${placeholders})
+      WHERE map.customer_id IN (${placeholders}) AND map.is_rejected = 0 
 
       ORDER BY map.customer_id, map.id
     `,
