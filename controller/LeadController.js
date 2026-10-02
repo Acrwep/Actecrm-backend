@@ -1120,30 +1120,17 @@ const updateLeadStatus = async (request, response) => {
 };
 
 const getAssignedLeads = async (request, response) => {
-  const {
-    name,
-    phone,
-    email,
-    course,
-    user_ids,
-    page,
-    limit,
-    bucket,
-    start_date,
-    end_date,
-  } = request.body;
+  const { user_ids, page, limit, bucket, start_date, end_date, search_filter } =
+    request.body;
   try {
     const result = await LeadModel.getAssignedLeads(
-      name,
-      phone,
-      email,
-      course,
       user_ids,
       page,
       limit,
       bucket,
       start_date,
       end_date,
+      search_filter,
     );
     return response.status(200).send({
       message: "Assigned leads fetched successfully",

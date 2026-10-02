@@ -3810,16 +3810,13 @@ const LeadModel = {
   },
 
   getAssignedLeads: async (
-    name,
-    phone,
-    email,
-    course,
     user_ids,
     page,
     limit,
     bucket,
     start_date,
     end_date,
+    search_filter,
   ) => {
     try {
       const pageNumber = parseInt(page, 10) || 1;
@@ -3912,56 +3909,66 @@ const LeadModel = {
       const reassignedCountQueryParams = [];
       const awaitingCountQueryParams = [];
 
-      if (name) {
-        countLiveQuery += ` AND l.name LIKE ?`;
-        countLiveQueryParams.push(`%${name}%`);
-        countQuery += ` AND l.name LIKE ?`;
-        countQueryParams.push(`%${name}%`);
-        countQuery1 += ` AND l.name LIKE ?`;
-        countQueryParams1.push(`%${name}%`);
-        awaitingCountQuery += ` AND l.name LIKE ?`;
-        awaitingCountQueryParams.push(`%${name}%`);
-        reassignedCountQuery += ` AND l.name LIKE ?`;
-        reassignedCountQueryParams.push(`%${name}%`);
-      }
+      if (search_filter) {
+        const searchCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR t.name LIKE ?
+        )
+    `;
 
-      if (phone) {
-        countLiveQuery += ` AND l.phone LIKE ?`;
-        countLiveQueryParams.push(`%${phone}%`);
-        countQuery += ` AND l.phone LIKE ?`;
-        countQueryParams.push(`%${phone}%`);
-        countQuery1 += ` AND l.phone LIKE ?`;
-        countQueryParams1.push(`%${phone}%`);
-        awaitingCountQuery += ` AND l.phone LIKE ?`;
-        awaitingCountQueryParams.push(`%${phone}%`);
-        reassignedCountQuery += ` AND l.phone LIKE ?`;
-        reassignedCountQueryParams.push(`%${phone}%`);
-      }
+        const searchliveCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR l.course LIKE ?
+        )
+    `;
 
-      if (email) {
-        countLiveQuery += ` AND l.email LIKE ?`;
-        countLiveQueryParams.push(`%${email}%`);
-        countQuery += ` AND l.email LIKE ?`;
-        countQueryParams.push(`%${email}%`);
-        countQuery1 += ` AND l.email LIKE ?`;
-        countQueryParams1.push(`%${email}%`);
-        awaitingCountQuery += ` AND l.email LIKE ?`;
-        awaitingCountQueryParams.push(`%${email}%`);
-        reassignedCountQuery += ` AND l.email LIKE ?`;
-        reassignedCountQueryParams.push(`%${email}%`);
-      }
+        countLiveQuery += searchliveCondition;
+        countQuery += searchCondition;
+        countQuery1 += searchCondition;
+        awaitingCountQuery += searchCondition;
+        reassignedCountQuery += searchCondition;
 
-      if (course) {
-        countLiveQuery += ` AND l.course LIKE ?`;
-        countLiveQueryParams.push(`%${course}%`);
-        countQuery += ` AND t.name LIKE ?`;
-        countQueryParams.push(`%${course}%`);
-        countQuery1 += ` AND t.name LIKE ?`;
-        countQueryParams1.push(`%${course}%`);
-        awaitingCountQuery += ` AND t.name LIKE ?`;
-        awaitingCountQueryParams.push(`%${course}%`);
-        reassignedCountQuery += ` AND t.name LIKE ?`;
-        reassignedCountQueryParams.push(`%${course}%`);
+        const searchValue = `%${search_filter}%`;
+
+        countLiveQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        countQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        countQueryParams1.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        awaitingCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+        reassignedCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
       }
 
       if (user_ids) {
@@ -4106,32 +4113,38 @@ const LeadModel = {
 
         const params = [];
 
-        if (name) {
-          getLiveQuery += ` AND l.name LIKE ?`;
-          liveQueryParams.push(`%${name}%`);
-          query += ` AND l.name LIKE ?`;
-          params.push(`%${name}%`);
-        }
+        if (search_filter) {
+          const searchCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR t.name LIKE ?
+        )
+    `;
 
-        if (phone) {
-          getLiveQuery += ` AND l.phone LIKE ?`;
-          liveQueryParams.push(`%${phone}%`);
-          query += ` AND l.phone LIKE ?`;
-          params.push(`%${phone}%`);
-        }
+          const searchliveCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR l.course LIKE ?
+        )
+    `;
 
-        if (email) {
-          getLiveQuery += ` AND l.email LIKE ?`;
-          liveQueryParams.push(`%${email}%`);
-          query += ` AND l.email LIKE ?`;
-          params.push(`%${email}%`);
-        }
+          getLiveQuery += searchliveCondition;
+          query += searchCondition;
 
-        if (course) {
-          getLiveQuery += ` AND l.course LIKE ?`;
-          liveQueryParams.push(`%${course}%`);
-          query += ` AND t.name LIKE ?`;
-          params.push(`%${course}%`);
+          const searchValue = `%${search_filter}%`;
+
+          liveQueryParams.push(
+            searchValue,
+            searchValue,
+            searchValue,
+            searchValue,
+          );
+
+          params.push(searchValue, searchValue, searchValue, searchValue);
         }
 
         if (user_ids) {
@@ -4262,24 +4275,21 @@ const LeadModel = {
           }
         }
 
-        if (name) {
-          query += ` AND l.name LIKE ?`;
-          params.push(`%${name}%`);
-        }
+        if (search_filter) {
+          const searchCondition = `
+        AND (
+            l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?
+            OR t.name LIKE ?
+        )
+    `;
 
-        if (phone) {
-          query += ` AND l.phone LIKE ?`;
-          params.push(`%${phone}%`);
-        }
+          query += searchCondition;
 
-        if (email) {
-          query += ` AND l.email LIKE ?`;
-          params.push(`%${email}%`);
-        }
+          const searchValue = `%${search_filter}%`;
 
-        if (course) {
-          query += ` AND t.name LIKE ?`;
-          params.push(`%${course}%`);
+          params.push(searchValue, searchValue, searchValue, searchValue);
         }
 
         if (start_date && end_date) {
