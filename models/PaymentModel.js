@@ -222,7 +222,7 @@ const PaymentModel = {
       const statuses = [
         ["Customer created", created_date, updated_by],
         ["Down Payment", created_date, updated_by],
-        ["Awaiting Finance", created_date, updated_by],
+        ["Awaiting Form Submission", created_date, updated_by],
       ];
 
       const values = statuses.map((s) => [insertCustomer.insertId, ...s]);
