@@ -220,7 +220,7 @@ const UserModel = {
           () => `
         JSON_CONTAINS(
           u.roles,
-          JSON_OBJECT('role_name', ?)
+          JSON_OBJECT('role_id', ?)
         )
       `,
         );
