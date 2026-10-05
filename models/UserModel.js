@@ -306,6 +306,7 @@ const UserModel = {
   updateUser: async (
     id,
     user_id,
+    view_user_id,
     branch_id,
     user_name,
     phone,
@@ -327,9 +328,9 @@ const UserModel = {
         throw new Error("Invalid Id");
       }
 
-      const updateQuery = `UPDATE users SET user_id = ?, branch_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
+      const updateQuery = `UPDATE users SET view_user_id = ?, branch_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
       const values = [
-        user_id,
+        view_user_id,
         branch_id,
         user_name,
         phone,

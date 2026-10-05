@@ -2909,6 +2909,7 @@ const LeadModel = {
         wl.junk_by,
 
         ju.user_name AS junk_by_user,
+        ju.view_user_id as junk_by_view_user_id,
 
         wl.is_deleted,
 

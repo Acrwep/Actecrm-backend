@@ -87,6 +87,7 @@ const updateUser = async (request, response) => {
   const {
     id,
     user_id,
+    view_user_id,
     branch_id,
     user_name,
     phone,
@@ -104,6 +105,7 @@ const updateUser = async (request, response) => {
     const users = await userModel.updateUser(
       id,
       user_id,
+      view_user_id,
       branch_id,
       user_name,
       phone,
