@@ -543,9 +543,9 @@ const DashboardModel = {
       FROM users AS u
       LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to`;
 
-      let followupQuery = `SELECT u.user_id, u.user_name, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM users AS u LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id`;
+      let followupQuery = `SELECT u.user_id, u.user_name, u.view_user_id, COUNT(lfh.id) AS lead_followup_count, SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) AS followup_handled, SUM(CASE WHEN lfh.is_updated = 0 THEN 1 ELSE 0 END) AS followup_unhandled, ROUND(((SUM(CASE WHEN lfh.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lfh.id)) * 100), 2) AS percentage FROM users AS u LEFT JOIN lead_master AS l ON u.user_id = l.assigned_to LEFT JOIN customers AS c ON c.lead_id = l.id LEFT JOIN lead_follow_up_history AS lfh ON lfh.lead_id = l.id`;
 
-      let joiningQuery = `SELECT u.user_id, u.user_name, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM users AS u LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
+      let joiningQuery = `SELECT u.user_id, u.user_name, u.view_user_id, IFNULL(COUNT(DISTINCT c.id), 0) AS customer_count FROM users AS u LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id LEFT JOIN customers AS c ON l.id = c.lead_id`;
 
       // Filter by date range
       if (start_date && end_date) {

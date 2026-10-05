@@ -580,7 +580,7 @@ const PageAccessModel = {
 
       // Get all users
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`,
+        `SELECT id, user_id, view_user_id, user_name FROM users WHERE is_active = 1`,
       );
 
       // Create downline_users as an array
@@ -588,13 +588,17 @@ const PageAccessModel = {
         {
           user_id: getUser[0].user_id,
           user_name: getUser[0].user_name,
+          view_user_id: getUser[0].view_user_id || null,
         },
-        ...childUsers.map((child) => ({
-          user_id: child.user_id,
-          user_name:
-            getAllUsers.find((r) => r.user_id === child.user_id)?.user_name ||
-            "",
-        })),
+        ...childUsers.map((child) => {
+          const user = getAllUsers.find((r) => r.user_id === child.user_id);
+
+          return {
+            user_id: child.user_id,
+            user_name: user?.user_name || "",
+            view_user_id: user?.view_user_id || null,
+          };
+        }),
       ];
 
       return {

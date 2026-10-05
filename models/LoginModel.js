@@ -13,6 +13,7 @@ const LoginModel = {
                             u.id,
                             u.user_id,
                             u.user_name,
+                            u.view_user_id,
                             u.child_users,
                             u.roles,
                             u.phone,

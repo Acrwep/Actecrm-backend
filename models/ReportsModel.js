@@ -3344,6 +3344,7 @@ const ReportModel = {
       let query = `SELECT 
                         u.user_name,
                         u.user_id,
+                        u.view_user_id,
                         COUNT(t.ticket_id) AS total_tickets,
                         SUM(CASE WHEN t.status = 'Awaiting Employee' THEN 1 ELSE 0 END) AS open_count,
                         SUM(CASE WHEN t.status = 'Closed' THEN 1 ELSE 0 END) AS closed_count,
@@ -3402,6 +3403,7 @@ const ReportModel = {
                       c.email,
                       lm.assigned_to AS sale_id,
                       u.user_name AS sale_name,
+                      u.view_user_id as sale_view_user_id,
                       t.name AS course_name,
                       lm.primary_fees,
                       pm.gst_amount,
@@ -4121,7 +4123,7 @@ const ReportModel = {
                         FROM date_series
                     ),
                     sales_users AS (
-                        SELECT user_id, user_name
+                        SELECT user_id, user_name, view_user_id
                         FROM users
                         WHERE roles LIKE '%Sale%'
                           AND (
@@ -4303,6 +4305,7 @@ const ReportModel = {
                     SELECT
                         su.user_id,
                         su.user_name,
+                        su.view_user_id,
                         l.month,
                         l.label,
                         ROUND(IFNULL(sd.sale_volume, 0), 2) AS sale_volume,
