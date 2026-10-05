@@ -328,6 +328,7 @@ const DashboardModel = {
       SELECT 
         u.user_id, 
         u.user_name, 
+        u.view_user_id,
         IFNULL(SUM(pm.total_amount), 0) AS sale_volume
       FROM users AS u
       LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
@@ -337,6 +338,7 @@ const DashboardModel = {
       SELECT 
         u.user_id, 
         u.user_name, 
+        u.view_user_id,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection
       FROM users AS u
       LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
@@ -345,7 +347,8 @@ const DashboardModel = {
       let totalCollectionQuery = `
       SELECT 
         u.user_id, 
-        u.user_name, 
+        u.user_name,
+        u.view_user_id,
         (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS total_collection
       FROM users AS u
       LEFT JOIN lead_master AS l ON l.assigned_to = u.user_id
@@ -448,6 +451,7 @@ const DashboardModel = {
         return {
           user_id: saleUser.user_id,
           user_name: saleUser.user_name,
+          view_user_id: saleUser.view_user_id,
           sale_volume: saleUser.sale_volume,
           total_collection: totalUser.total_collection,
           pending: pending < 0 ? 0 : pending,
@@ -460,6 +464,7 @@ const DashboardModel = {
         return result.map((r) => ({
           user_id: r.user_id,
           user_name: r.user_name,
+          view_user_id: r.view_user_id,
           sale_volume: parseFloat(r.sale_volume).toFixed(2),
         }));
       }
@@ -484,6 +489,7 @@ const DashboardModel = {
             return {
               user_id: r.user_id,
               user_name: r.user_name,
+              view_user_id: r.view_user_id,
               total_collection: parseFloat(r.total_collection).toFixed(2),
               target_month: target_month,
               target_value: target_value,
@@ -499,6 +505,7 @@ const DashboardModel = {
         return result.map((r) => ({
           user_id: r.user_id,
           user_name: r.user_name,
+          view_user_id: r.view_user_id,
           pending: parseFloat(r.pending).toFixed(2),
         }));
       }
@@ -526,6 +533,7 @@ const DashboardModel = {
       SELECT 
         u.user_id, 
         u.user_name, 
+        u.view_user_id,
         COUNT(l.id) AS total_leads,
         SUM(CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END) AS customer_count,
         ROUND(

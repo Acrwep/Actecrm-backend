@@ -1400,6 +1400,7 @@ const trainerPaymentModal = {
         tpm.verified_by,
 
         vu.user_name AS verified_user,
+        vu.view_user_id  as verified_by_view_user_id,
 
         tpm.verified_date,
         tpm.approved_date,
@@ -1407,6 +1408,7 @@ const trainerPaymentModal = {
 
         tpm.created_by,
         cu.user_name AS created_user,
+        cu.view_user_id AS created_by_view_user_id,
 
         tpm.created_date,
         tpm.bank_id,
@@ -2142,13 +2144,16 @@ const trainerPaymentModal = {
 
         ra.user_id AS ra_user_id,
         ra.user_name AS ra_user_name,
+        ra.view_user_id  as ra_view_user_id,
 
         hu.user_id AS hr_user_id,
         hu.user_name AS hr_user_name,
+        hu.view_user_id as hr_view_user_id,
 
         l.assigned_to AS lead_assigned_to_id,
 
         se.user_name AS lead_assigned_to_name,
+        se.view_user_id  as lead_assigned_to_view_user_id, 
 
         sb.name AS std_place_of_sale_name,
 
@@ -3433,10 +3438,12 @@ GROUP BY
           tm.is_verified,
           tm.verified_by,
           vu.user_name AS verified_user,
+          vu.view_user_id as verified_by_view_user_id,
           tm.verified_date,
           tm.fully_paid_date,
           tm.created_by,
           cu.user_name AS created_user,
+          cu.view_user_id as created_by_view_user_id,
           tm.created_date,
           tm.bank_id,
           tm.commercial_type,
@@ -3519,8 +3526,10 @@ GROUP BY
                 tp.coordinator_rating,
                 l.ra_id AS ra_user_id,
                 ru.user_name AS ra_user_name,
+                ru.view_user_id as ra_view_user_id,
                 tr.created_by AS hr_user_id,
                 hu.user_name AS hr_user_name,
+                hu.view_user_id as hr_view_user_id,
                 cm.name AS mode_of_training
             FROM
                 trainer_payment_trans AS tp
@@ -3573,6 +3582,7 @@ GROUP BY
               tp.paid_date,
               tp.paid_by,
               tp.payment_type,
+              u.view_user_id as paid_by_view_user_id,
               u.user_name AS paid_user
           FROM
               trainer_payment AS tp

@@ -868,6 +868,7 @@ const PaymentModel = {
           c.enrolled_course, t.name AS course_name, c.status, c.created_date,
           lm.assigned_to AS lead_assigned_to_id, c.is_customer_updated, 
           au.user_name AS lead_assigned_to_name,
+          au.view_user_id  as lead_assigned_to_view_user_id, 
           tr.name AS trainer_name, tr.mobile AS trainer_mobile, tr.email AS trainer_email,
           c.class_percentage,
           pm.id AS payment_master_id, pm.total_amount AS course_fees,
@@ -2615,6 +2616,7 @@ SUM(
                           lm.assigned_to,
                           t.last_payment_verified_date , 
                           su.user_name AS assigned_to_name,
+                          su.view_user_id  as assigned_to_view_user_id,
                           DATEDIFF(
                             CASE
                               WHEN IFNULL(t.paid_amount, 0) >= pm.total_amount

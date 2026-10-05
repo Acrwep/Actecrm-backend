@@ -429,6 +429,7 @@ const TrainerModel = {
                           tb.ifsc_code,
                           tb.signature_image,
                           t.created_by,
+                          u.view_user_id as created_by_view_user_id,
                           u.user_name AS hr_head,
                           t.created_date,
                           IFNULL(cc.completed_count, 0) AS completed_count,

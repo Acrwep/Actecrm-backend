@@ -32,7 +32,7 @@ const PageAccessModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT role_id FROM roles WHERE role_name = ? AND is_active = 1`,
-        [role_name]
+        [role_name],
       );
       if (isExists.length > 0) throw new Error("The role name already exists");
       const sql = `INSERT INTO roles(role_name, background_color, text_color) VALUES(?, ?, ?)`;
@@ -48,13 +48,13 @@ const PageAccessModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT role_id FROM roles WHERE role_id = ? AND is_active = 1`,
-        [role_id]
+        [role_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid role Id");
 
       const [isNameExists] = await pool.query(
         `SELECT role_id FROM roles WHERE role_name = ? AND role_id <> ?`,
-        [role_name, role_id]
+        [role_name, role_id],
       );
 
       if (isNameExists.length > 0) throw new Error("Role name already exists");
@@ -76,17 +76,17 @@ const PageAccessModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT role_id FROM roles WHERE role_id = ? AND is_active = 1`,
-        [role_id]
+        [role_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid role Id");
 
       const [isRoleMapped] = await pool.query(
         `SELECT COUNT(id) AS count FROM role_permissions WHERE role_id = ?`,
-        [role_id]
+        [role_id],
       );
       if (isRoleMapped[0].count > 0)
         throw new Error(
-          "Before delete, remove the all permissions from this role."
+          "Before delete, remove the all permissions from this role.",
         );
 
       const [result] = await pool.query(`DELETE FROM roles WHERE role_id = ?`, [
@@ -119,12 +119,12 @@ const PageAccessModel = {
     group_name,
     description,
     background_color,
-    text_color
+    text_color,
   ) => {
     try {
       const [isExists] = await pool.query(
         `SELECT group_id FROM groups WHERE group_name = ? AND is_active = 1`,
-        [group_name]
+        [group_name],
       );
       if (isExists.length > 0) throw new Error("The group name already exists");
       const sql = `INSERT INTO groups(group_name, description, background_color, text_color) VALUES(?, ?, ?, ?)`;
@@ -140,13 +140,13 @@ const PageAccessModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT group_id FROM groups WHERE group_id = ? AND is_active = 1`,
-        [group_id]
+        [group_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid group Id");
 
       const [isNameExists] = await pool.query(
         `SELECT group_id FROM groups WHERE group_name = ? AND group_id <> ?`,
-        [group_name, group_id]
+        [group_name, group_id],
       );
 
       if (isNameExists.length > 0) throw new Error("Role name already exists");
@@ -169,22 +169,22 @@ const PageAccessModel = {
     try {
       const [isExists] = await pool.query(
         `SELECT group_id FROM groups WHERE group_id  = ? AND is_active = 1`,
-        [group_id]
+        [group_id],
       );
       if (isExists.length <= 0) throw new Error("Invalid geoup Id");
 
       const [isGroupMapped] = await pool.query(
         `SELECT COUNT(user_group_id) AS count FROM user_group_roles WHERE group_id = ?`,
-        [group_id]
+        [group_id],
       );
       if (isGroupMapped[0].count > 0)
         throw new Error(
-          "Can't be able to delete this group, kindly un-map from user_group_roles table"
+          "Can't be able to delete this group, kindly un-map from user_group_roles table",
         );
 
       const [result] = await pool.query(
         `DELETE FROM groups WHERE group_id  = ?`,
-        [group_id]
+        [group_id],
       );
       return result.affectedRows;
     } catch (error) {
@@ -195,21 +195,21 @@ const PageAccessModel = {
   getRolePermissions: async () => {
     try {
       const [getRoles] = await pool.query(
-        `SELECT role_id, role_name FROM roles WHERE is_active = 1 ORDER BY role_id ASC`
+        `SELECT role_id, role_name FROM roles WHERE is_active = 1 ORDER BY role_id ASC`,
       );
 
       const formattedResult = await Promise.all(
         getRoles.map(async (item) => {
           const [getPermissions] = await pool.query(
             `SELECT rp.id, rp.permission_id, p.permission_name, p.section FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 WHERE rp.role_id = ? ORDER BY rp.id`,
-            [item.role_id]
+            [item.role_id],
           );
 
           return {
             ...item,
             permissions: getPermissions,
           };
-        })
+        }),
       );
 
       return formattedResult;
@@ -222,12 +222,12 @@ const PageAccessModel = {
     try {
       const [getRole] = await pool.query(
         `SELECT role_id, role_name FROM roles WHERE is_active = 1 AND role_id = ?`,
-        [role_id]
+        [role_id],
       );
 
       const [getPermissions] = await pool.query(
         `SELECT rp.id, rp.permission_id, p.permission_name, p.section FROM role_permissions AS rp INNER JOIN permissions AS p ON rp.permission_id = p.permission_id AND p.is_active = 1 AND rp.role_id = ? ORDER BY rp.id`,
-        [getRole[0].role_id]
+        [getRole[0].role_id],
       );
 
       return {
@@ -248,21 +248,21 @@ const PageAccessModel = {
       // Step 1: Get current permissions for this role
       const [currentPermissions] = await connection.query(
         `SELECT permission_id FROM role_permissions WHERE role_id = ?`,
-        [role_id]
+        [role_id],
       );
 
       const currentPermissionIds = currentPermissions.map(
-        (cp) => cp.permission_id
+        (cp) => cp.permission_id,
       );
 
       // Step 2: Find permissions to DELETE (exist in DB but not in new input)
       const permissionsToDelete = currentPermissionIds.filter(
-        (id) => !permission_ids.includes(id)
+        (id) => !permission_ids.includes(id),
       );
 
       // Step 3: Find permissions to INSERT (exist in new input but not in DB)
       const permissionsToInsert = permission_ids.filter(
-        (id) => !currentPermissionIds.includes(id)
+        (id) => !currentPermissionIds.includes(id),
       );
 
       // Step 4: Delete permissions that are no longer needed
@@ -271,7 +271,7 @@ const PageAccessModel = {
         await connection.query(
           `DELETE FROM role_permissions 
                  WHERE role_id = ? AND permission_id IN (${deletePlaceholders})`,
-          [role_id, ...permissionsToDelete]
+          [role_id, ...permissionsToDelete],
         );
       }
 
@@ -288,7 +288,7 @@ const PageAccessModel = {
 
         const [insertResult] = await connection.query(
           `INSERT INTO role_permissions (role_id, permission_id) VALUES ${insertPlaceholders}`,
-          insertValues
+          insertValues,
         );
         insertedRows = insertResult.affectedRows;
       }
@@ -337,7 +337,7 @@ const PageAccessModel = {
 
         const [existingInOtherGroups] = await connection.query(
           checkOtherGroupsQuery,
-          [userIds, group_id]
+          [userIds, group_id],
         );
 
         if (existingInOtherGroups.length > 0) {
@@ -345,7 +345,7 @@ const PageAccessModel = {
             .map((row) => row.user_id)
             .join(", ");
           throw new Error(
-            `Users [${conflictingUsers}] already exist in other groups`
+            `Users [${conflictingUsers}] already exist in other groups`,
           );
         }
       }
@@ -411,7 +411,7 @@ const PageAccessModel = {
 
       // Find users to DELETE completely (exist in DB but not in input)
       const usersToDelete = Array.from(currentUserSet).filter(
-        (userId) => !inputUserIds.has(userId)
+        (userId) => !inputUserIds.has(userId),
       );
 
       // Delete roles that are no longer needed
@@ -476,7 +476,7 @@ const PageAccessModel = {
       // Get group details
       const [getGroup] = await pool.query(
         `SELECT group_id, group_name FROM groups WHERE group_id = ? AND is_active = 1`,
-        [group_id]
+        [group_id],
       );
 
       // Check if group exists
@@ -491,7 +491,7 @@ const PageAccessModel = {
        INNER JOIN users AS u ON ug.user_id = u.user_id 
        WHERE ug.group_id = ? AND ug.is_active = 1 
        GROUP BY ug.user_id, u.user_name`,
-        [group_id]
+        [group_id],
       );
 
       // Get roles for all users in parallel using Promise.all
@@ -502,7 +502,7 @@ const PageAccessModel = {
            FROM user_group_roles AS ug 
            INNER JOIN roles AS r ON ug.role_id = r.role_id 
            WHERE ug.user_id = ? AND ug.group_id = ? AND ug.is_active = 1`,
-            [item.user_id, group_id] // Added group_id to ensure we get roles only for this group
+            [item.user_id, group_id], // Added group_id to ensure we get roles only for this group
           );
 
           return {
@@ -510,7 +510,7 @@ const PageAccessModel = {
             user_name: item.user_name,
             roles: getRoles,
           };
-        })
+        }),
       );
 
       return {
@@ -557,6 +557,7 @@ const PageAccessModel = {
                             u.id,
                             u.user_id,
                             u.user_name,
+                            u.view_user_id,
                             u.child_users,
                             u.roles
                         FROM
@@ -579,7 +580,7 @@ const PageAccessModel = {
 
       // Get all users
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`
+        `SELECT id, user_id, user_name FROM users WHERE is_active = 1`,
       );
 
       // Create downline_users as an array
@@ -612,7 +613,7 @@ const PageAccessModel = {
       // Checks page exists for the user_id
       const [isPageExists] = await pool.query(
         `SELECT id FROM page_columns WHERE user_id = ? AND page_name = ? AND is_active = 1`,
-        [user_id, page_name]
+        [user_id, page_name],
       );
 
       let affectedRows = 0;
@@ -620,14 +621,14 @@ const PageAccessModel = {
         // Update page if already exists
         const [updatePage] = await pool.query(
           `UPDATE page_columns SET page_name = ?, column_names = ? WHERE id = ?`,
-          [page_name, JSON.stringify(column_names), id]
+          [page_name, JSON.stringify(column_names), id],
         );
         affectedRows += updatePage.affectedRows;
       } else {
         // Insert page if already not exists
         const [insertPage] = await pool.query(
           `INSERT INTO page_columns(user_id, page_name, column_names) VALUES(?, ?, ?)`,
-          [user_id, page_name, JSON.stringify(column_names)]
+          [user_id, page_name, JSON.stringify(column_names)],
         );
         affectedRows += insertPage.affectedRows;
       }
@@ -642,7 +643,7 @@ const PageAccessModel = {
     try {
       const [getPages] = await pool.query(
         `SELECT id, user_id, page_name, column_names FROM page_columns WHERE user_id = ? AND is_active = 1`,
-        [user_id]
+        [user_id],
       );
 
       const formattedResult = getPages.map((item) => {
@@ -663,7 +664,7 @@ const PageAccessModel = {
       // Checks compound exists for the user_id
       const [isCompoundExists] = await pool.query(
         `SELECT id FROM dashboard_settings WHERE user_id = ? AND card_name = ? AND is_active = 1`,
-        [user_id, card_name]
+        [user_id, card_name],
       );
 
       let affectedRows = 0;
@@ -671,14 +672,14 @@ const PageAccessModel = {
         // Update compound if already exists
         const [updateCompound] = await pool.query(
           `UPDATE dashboard_settings SET card_name = ?, card_settings = ? WHERE id = ?`,
-          [card_name, JSON.stringify(card_settings), id]
+          [card_name, JSON.stringify(card_settings), id],
         );
         affectedRows += updateCompound.affectedRows;
       } else {
         // Insert compound if already not exists
         const [insertCompound] = await pool.query(
           `INSERT INTO dashboard_settings(user_id, card_name, card_settings) VALUES(?, ?, ?)`,
-          [user_id, card_name, JSON.stringify(card_settings)]
+          [user_id, card_name, JSON.stringify(card_settings)],
         );
         affectedRows += insertCompound.affectedRows;
       }
@@ -693,7 +694,7 @@ const PageAccessModel = {
     try {
       const [getCompounds] = await pool.query(
         `SELECT id, user_id, card_name, card_settings FROM dashboard_settings WHERE user_id = ? AND is_active = 1`,
-        [user_id]
+        [user_id],
       );
 
       const formattedResult = getCompounds.map((item) => {

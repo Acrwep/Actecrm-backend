@@ -26,6 +26,7 @@ const UserModel = {
 
       const insertQuery = `INSERT INTO users(
                             user_id,
+                            view_user_id,
                             branch_id,
                             user_name,
                             phone,
@@ -34,8 +35,9 @@ const UserModel = {
                             roles,
                             profile_image
                         )
-                        VALUES(?, ?, ?, ?, ?, ?, ?, ?)`;
+                        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`;
       const values = [
+        user_id,
         user_id,
         branch_id,
         user_name,
@@ -162,6 +164,7 @@ const UserModel = {
                         u.id,
                         u.user_id,
                         u.user_name,
+                        u.view_user_id,
                         u.phone,
                       ${profileImageQuery}
                         u.password,
@@ -257,7 +260,7 @@ const UserModel = {
         : "";
 
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, user_name, phone, ${allUsersProfileImageQuery} last_login_date FROM users WHERE is_active = 1`,
+        `SELECT id, user_id, view_user_id, user_name, phone, ${allUsersProfileImageQuery} last_login_date FROM users WHERE is_active = 1`,
       );
 
       const formattedResult = await Promise.all(
@@ -657,6 +660,7 @@ const UserModel = {
       let query = `SELECT
                       u.id,
                       u.user_name,
+                      u.view_user_id,
                       u.user_id,
                       u.branch_id,
                       b.name AS branch_name,
@@ -713,6 +717,7 @@ const UserModel = {
         return {
           id: user.id,
           user_id: user.user_id,
+          view_user_id: user.view_user_id,
           user_name: user.user_name,
           role_name: role || "User",
           branch_id: user.branch_id,
@@ -795,8 +800,10 @@ const UserModel = {
             r.name AS region_name,
             bm.regional_manager_id,
             ru.user_name AS regional_manager_name,
+            ru.view_user_id as regional_manager_view_user_id,
             bm.branch_manager_id,
             bu.user_name AS branch_manager_name,
+            bu.view_user_id as branch_manager_view_user_id,
             bm.id
         FROM
             branches AS b

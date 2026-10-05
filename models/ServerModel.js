@@ -44,6 +44,7 @@ const ServerModel = {
                           s.created_date,
                           l.assigned_to AS created_by_id,
                           u.user_name AS created_by,
+                          u.view_user_id  as created_by_view_user_id,
                           s.status,
                           s.requested_duration,
                           st.id AS server_trans_id,

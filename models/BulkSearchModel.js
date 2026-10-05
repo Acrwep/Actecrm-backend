@@ -7,7 +7,7 @@ const BulkSearchModel = {
       const searchPromises = users_data.map(async (item) => {
         const [results] = await pool.query(
           `SELECT l.id AS lead_id, c.id AS customer_id, l.name, l.phone, l.email, lt.name AS lead_type, 
-                u.user_id, u.user_name, l.created_date 
+                u.user_id, u.user_name,u.view_user_id, l.created_date 
          FROM lead_master AS l 
          LEFT JOIN customers AS c ON c.lead_id = l.id 
          LEFT JOIN users AS u ON u.user_id = l.assigned_to 
@@ -37,6 +37,7 @@ const BulkSearchModel = {
           lead_type: result?.lead_type || "",
           lead_by_id: result?.user_id || "",
           lead_by: result?.user_name || "",
+          lead_by_view_user_id: result?.view_user_id || "",
           created_on: result?.created_date || "",
         };
       });

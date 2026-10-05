@@ -384,8 +384,10 @@ const TicketModel = {
                           t.raised_by_course AS raised_course,
                           t.manager_id AS manager_user_id,
                           mu.user_name AS manager_name,
+                          mu.view_user_id as manager_view_user_id,
                           t.ra_id AS ra_user_id,
                           ru.user_name AS ra_name,
+                          ru.view_user_id as ra_view_user_id,
                           CASE 
                             WHEN t.raised_by_role = 'Customer' THEN cu.name
                             WHEN t.raised_by_role = 'Trainer' THEN tr.name
@@ -398,10 +400,12 @@ const TicketModel = {
                           END AS raised_by_email,
                           t.created_by,
                           u.user_name AS created_by_name,
+                          u.view_user_id as created_by_view_user_id,
                           t.created_at,
                           t.closed_at,
                           t.updated_at,
                           latest_tt.assigned_to,
+                          au.view_user_id as assigned_to_view_user_id,
                           au.user_name AS assigned_to_name
                       FROM tickets AS t
                       INNER JOIN ticket_categories AS c ON c.category_id = t.category_id
