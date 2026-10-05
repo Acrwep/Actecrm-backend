@@ -2087,6 +2087,7 @@ SUM(
         x.region_name,
         x.branch_name,
         x.closed_by,
+        x.closed_by_view_user_id,
         x.closed_by_id,
         x.customer_id,
         x.cus_name,
@@ -2111,6 +2112,7 @@ SUM(
         x.transacted_to,
         x.bank_name,
         x.collected_by,
+        x.collected_by_view_user_id,
         x.collected_user_id,
         x.payment_status,
         x.verified_date,
@@ -2166,6 +2168,7 @@ SUM(
           b.name AS branch_name,
 
           u.user_name AS closed_by,
+          u.view_user_id as closed_by_view_user_id,
 
           u.user_id AS closed_by_id,
 
@@ -2215,6 +2218,7 @@ SUM(
           bnk.bank_name,
 
           cu.user_name AS collected_by,
+          cu.view_user_id as collected_by_view_user_id,
 
           cu.user_id AS collected_user_id,
 

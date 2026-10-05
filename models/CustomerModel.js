@@ -881,9 +881,11 @@ const CustomerModel = {
 
     l.user_id AS lead_by_id,
     u.user_name AS lead_by,
+    u.view_user_id as lead_by_view_user_id,
 
     l.assigned_to AS lead_assigned_to_id,
     au.user_name AS lead_assigned_to_name,
+    au.view_user_id as lead_assigned_to_view_user_id,
     c.class_schedule_id,
     cs.name AS class_schedule_name,
     c.class_scheduled_at,
@@ -930,8 +932,10 @@ const CustomerModel = {
 
     l.ra_id,
     ra.user_name AS ra_name,
+    ra.view_user_id as ra_view_user_id,
     l.hr_id,
     hr.user_name AS hr_name,
+    hr.view_user_id as hr_view_user_id,
  
     c.is_linkedin_verified,
     c.is_google_verified,
@@ -1761,6 +1765,7 @@ WHERE c.id = ?`;
                       c.created_date,
                       l.assigned_to AS lead_assigned_to_id,
                       au.user_name AS lead_assigned_to_name,
+                      au.view_user_id as lead_assigned_to_view_user_id,
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,
@@ -1775,7 +1780,9 @@ WHERE c.id = ?`;
                       l.hr_id,
                        'yes' AS user_edit_access,
                       ra_user.user_name AS ra_name,
+                      ra_user.view_user_id as ra_view_user_id,
                       hr_user.user_name AS hr_name,
+                      hr_user.view_user_id as hr_view_user_id,
                       c.is_linkedin_verified,
                       c.is_google_verified
                       
