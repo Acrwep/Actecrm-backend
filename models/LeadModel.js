@@ -5377,7 +5377,15 @@ const LeadModel = {
             cm.name AS communication_status_name,
             lh.contact_mode,
             cm1.name AS contact_mode_name,
-            lh.next_follow_up_date,
+             (
+          SELECT lh2.next_follow_up_date
+          FROM lead_follow_up_history AS lh2
+          WHERE lh2.lead_id = lh.lead_id
+            AND lh2.id > lh.id
+            AND lh2.next_follow_up_date IS NOT NULL
+          ORDER BY lh2.id ASC
+          LIMIT 1
+      ) AS next_follow_up_date,
             lh.next_followup_time,
             lh.interest_rate,
             lh.response_status
