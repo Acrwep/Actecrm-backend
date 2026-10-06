@@ -1667,7 +1667,8 @@ WHERE c.id = ?`;
                       ct.status_date,
                       ct.details,
                       ct.updated_by AS updated_by_id,
-                      u.user_name AS updated_by
+                      u.user_name AS updated_by,
+                      u.view_user_id as updated_by_view_user_id
                   FROM
                       customer_track AS ct
                   INNER JOIN customers AS c ON
@@ -2701,7 +2702,8 @@ WHERE 1 = 1
         tr.email AS trainer_email,
 
         tus.user_id AS trainer_hr_id,
-        tus.user_name AS trainer_hr_name
+        tus.user_name AS trainer_hr_name,
+        tus.view_user_id AS trainer_hr_view_user_id
 
       FROM trainer_mapping AS map
 
