@@ -4,7 +4,7 @@ const LoginModel = {
   login: async (user_id, password, last_login_date) => {
     try {
       const [isExists] = await pool.query(
-        `SELECT id, user_id, password FROM users WHERE user_id = ? AND password = ? AND is_active = 1`,
+        `SELECT id, user_id, password FROM users WHERE view_user_id = ? AND password = ? AND is_active = 1`,
         [user_id, password],
       );
       if (isExists.length <= 0) throw new Error("Invalid user Id or password");
@@ -38,7 +38,7 @@ const LoginModel = {
 
       if (last_login_date) {
         await pool.query(
-          `UPDATE users SET last_login_date = ? WHERE user_id = ?`,
+          `UPDATE users SET last_login_date = ? WHERE view_user_id = ?`,
           [last_login_date, user_id],
         );
       }
