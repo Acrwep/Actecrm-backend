@@ -2000,7 +2000,7 @@ WHERE 1 = 1
                           COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
                           COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
                           COUNT(CASE WHEN c.status = 'Hold' THEN 1 END) AS hold,
-                          COUNT(CASE WHEN c.status = 'Refund' THEN 1 END) AS refund,
+                          COUNT(CASE WHEN c.status in('Refund Request','Refund Ready to Pay','Refunded') THEN 1 END) AS refund, 
                           COUNT(CASE WHEN c.status = 'Demo Completed' THEN 1 END) AS demo_completed,
                           COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
                           COUNT(CASE WHEN c.status IN(
@@ -2040,7 +2040,7 @@ WHERE 1 = 1
     THEN 1 END) AS course_completion_count,
 
   COUNT(CASE WHEN c.status in ( 'Completed', 'Demo Completed',
-    'Videos Given','Partially Closed','Discontinued','Refund')
+    'Videos Given','Partially Closed','Discontinued','Refund Request','Refund Ready to Pay','Refunded')
     THEN 1 END) AS reviews_certification_count
                         FROM customers AS c
                         LEFT JOIN lead_master AS l ON
@@ -2430,7 +2430,7 @@ WHERE 1 = 1
       'Videos Given',
       'Partially Closed',
       'Discontinued',
-      'Refund'
+       'Refund Request','Refund Ready to Pay','Refunded'
     )
   `;
 
@@ -2441,7 +2441,7 @@ WHERE 1 = 1
       'Videos Given',
       'Partially Closed',
       'Discontinued',
-      'Refund'
+      'Refund Request','Refund Ready to Pay','Refunded'
     )
   `;
         getCountQuery += `
@@ -2451,7 +2451,7 @@ WHERE 1 = 1
             'Videos Given',
             'Partially Closed',
             'Discontinued',
-            'Refund'
+            'Refund Request','Refund Ready to Pay','Refunded'
           )
         `;
       }
@@ -2475,7 +2475,11 @@ WHERE 1 = 1
           queryParams.push(...status);
           countQueryParams.push(...status);
           countParams.push(...status);
-        } else if (status !== "Others" && status !== "assign_trainer") {
+        } else if (
+          status !== "Others" &&
+          status !== "assign_trainer" &&
+          status !== "Refund"
+        ) {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
           getCountQuery += ` AND c.status = ?`;
@@ -2561,7 +2565,11 @@ WHERE 1 = 1
           )
         `;
       }
-
+      if (status == "Refund") {
+        getQuery += ` AND c.status IN ( 'Refund Request','Refund Ready to Pay','Refunded')`;
+        countQuery += ` AND c.status IN ( 'Refund Request','Refund Ready to Pay','Refunded')`;
+        getCountQuery += ` AND c.status IN ( 'Refund Request','Refund Ready to Pay','Refunded')`;
+      }
       if (search_filter) {
         const filterQuery = `
     AND (
