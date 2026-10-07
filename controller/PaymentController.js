@@ -458,6 +458,42 @@ const feeHistory = async (request, response) => {
   }
 };
 
+const refundList = async (request, response) => {
+  const {
+    start_date,
+    end_date,
+    status,
+    search_filter,
+    user_ids,
+    page,
+    limit,
+    region_id,
+    branch_id,
+  } = request.body;
+  try {
+    const result = await PaymentModel.refundList(
+      start_date,
+      end_date,
+      status,
+      search_filter,
+      user_ids,
+      page,
+      limit,
+      region_id,
+      branch_id,
+    );
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      ...result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 const getBanks = async (request, response) => {
   const { region_id, payment_mode } = request.query;
   try {
@@ -510,6 +546,7 @@ module.exports = {
   pendingFeesListV1,
   recievedList,
   feeHistory,
+  refundList,
   getBanks,
   revertCustomerPaymentTrans,
 };

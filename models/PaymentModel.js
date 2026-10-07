@@ -2677,6 +2677,462 @@ SUM(
       throw new Error(error.message);
     }
   },
+
+  refundList: async (
+    start_date,
+    end_date,
+    status,
+    search_filter,
+    user_ids,
+    page,
+    limit,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const countQueryParams = [];
+      const refundQueryParams = [];
+
+      let getQuery = `SELECT
+                      c.id,
+                      c.lead_id,
+                      c.student_id,
+                      c.name,
+                      c.email,
+                      c.phonecode,
+                      cm.name as mode_of_class,
+                      c.phone,
+                      cshy.status_date as last_updated_at, 
+                      re.id AS region_id,
+                      b.id AS branch_id,
+                      re.name AS region_name,
+                      b.name AS branch_name,
+                      c.date_of_joining,
+                      c.is_certificate_generated,
+                      CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE l.primary_course_id END AS enrolled_course,
+                      CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
+                      l.primary_fees,
+                      c.status,
+                      c.is_form_sent,
+                      c.is_customer_updated,
+                      c.created_date,
+                      l.assigned_to AS lead_assigned_to_id,
+                      au.user_name AS lead_assigned_to_name,
+                      au.view_user_id as lead_assigned_to_view_user_id,
+                      c.linkedin_review,
+                      c.google_review,
+                      c.payment_date AS last_payment_date,
+                      c.class_percentage,
+                      c.class_scheduled_at,
+                      pt1.is_second_due AS is_second_due,
+                      pt1.is_last_pay_rejected,
+                      COALESCE(ps.total_paid, 0) AS paid_amount,
+                      pm.total_amount AS total_course_amount,
+                      pm.discount_amount,
+                      l.ra_id,
+                      l.hr_id,
+                       'yes' AS user_edit_access,
+                      ra_user.user_name AS ra_name,
+                      ra_user.view_user_id as ra_view_user_id,
+                      hr_user.user_name AS hr_name,
+                      hr_user.view_user_id as hr_view_user_id,
+                      c.is_linkedin_verified,
+                      c.is_google_verified
+                      
+                    FROM
+                        customers AS c
+                    LEFT JOIN customer_status_history AS csh
+                        ON csh.id = c.latest_status_history_id
+                    LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                    LEFT JOIN region AS r ON
+                        r.id = c.region_id
+                    LEFT JOIN lead_master AS l ON
+                        l.id = c.lead_id
+                    LEFT JOIN payment_master AS pm ON
+                      pm.lead_id = c.lead_id
+                    LEFT JOIN technologies AS tg ON
+                        l.primary_course_id = tg.id
+                    LEFT JOIN users AS au ON
+                        au.user_id = l.assigned_to
+                    LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                    LEFT JOIN users AS ra_user ON
+                        ra_user.user_id = l.ra_id
+                    LEFT JOIN users AS hr_user ON
+                        hr_user.user_id = l.hr_id
+                    LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                    LEFT JOIN(
+                      SELECT
+                          payment_master_id,
+                          MAX(id) AS latest_trans_id,
+                          SUM(amount) AS total_paid
+                        FROM payment_trans
+                        WHERE payment_status IN ('Verified', 'Verify Pending')
+                        GROUP BY payment_master_id
+                    ) AS ps ON ps.payment_master_id = pm.id
+                    LEFT JOIN payment_trans AS pt ON
+                      pt.id = ps.latest_trans_id
+                    LEFT JOIN(
+                      SELECT
+                          payment_master_id,
+                          MAX(id) AS latest_trans_id
+                        FROM payment_trans
+                        GROUP BY payment_master_id
+                    ) AS ps1 ON ps1.payment_master_id = pm.id
+                    LEFT JOIN payment_trans AS pt1 ON
+                      pt1.id = ps1.latest_trans_id
+                    left join(
+                    select  customer_id, max(id) as latest_status_history_id  from customer_track
+                    group by customer_id) as latest_status on latest_status.customer_id = c.id
+                    LEFT JOIN customer_track AS cshy ON cshy.id = latest_status.latest_status_history_id
+                    WHERE 1 = 1 and c.status in ('Refund Request','Refund Ready to Pay','Refunded') `;
+
+      // Get pagination count query
+      let countQuery = `SELECT
+                            COUNT(c.id) AS total
+                        FROM customers AS c
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t
+                            ON c.enrolled_course = t.id
+                        LEFT JOIN region AS r
+                            ON r.id = c.region_id
+                        LEFT JOIN lead_master AS l
+                            ON l.id = c.lead_id
+                        LEFT JOIN payment_master AS pm
+                            ON pm.lead_id = c.lead_id
+                        LEFT JOIN technologies AS tg
+                            ON l.primary_course_id = tg.id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN users AS au
+                            ON au.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN (
+                            SELECT
+                                MAX(id) AS trainer_map_id,
+                                customer_id
+                            FROM trainer_mapping
+                            GROUP BY customer_id
+                        ) AS latest_map
+                            ON latest_map.customer_id = c.id
+                        LEFT JOIN trainer_mapping map
+                            ON map.id = latest_map.trainer_map_id
+                        LEFT JOIN trainer AS tr
+                            ON tr.id = map.trainer_id
+                        LEFT JOIN users AS tus
+                            ON tr.created_by = tus.user_id
+                        LEFT JOIN (
+                            SELECT
+                                payment_master_id,
+                                MAX(id) AS latest_trans_id,
+                                SUM(amount) AS total_paid
+                            FROM payment_trans
+                            WHERE payment_status IN ('Verified', 'Verify Pending')
+                            GROUP BY payment_master_id
+                        ) AS ps
+                            ON ps.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt
+                            ON pt.id = ps.latest_trans_id
+                        LEFT JOIN(
+                          SELECT
+                            payment_master_id,
+                            MAX(id) AS latest_trans_id
+                            FROM payment_trans
+                            GROUP BY payment_master_id
+                        ) AS ps1 ON ps1.payment_master_id = pm.id
+                        LEFT JOIN payment_trans AS pt1 ON
+                          pt1.id = ps1.latest_trans_id
+                        WHERE 1 = 1 and c.status in ('Refund Request','Refund Ready to Pay','Refunded') `;
+
+      // All your existing count queries remain unchanged
+      let getCountQuery = `SELECT
+ 
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'  THEN 1 ELSE 0 END) AS chennai_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'  THEN 1 ELSE 0 END) AS bangalore_region,
+                            SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'  THEN 1 ELSE 0 END) AS hub_region
+
+                             
+                        FROM customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN payment_master AS pm ON
+                            c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                        WHERE
+                            1 = 1 and c.status in ('Refund Request','Refund Ready to Pay','Refunded') `;
+
+      let refundquery = `SELECT
+      count(c.id) as overall_refund_count,
+                          COUNT(CASE WHEN c.status IN('Refund Request') THEN 1 END) AS total_refund_request_count,
+                          COUNT(CASE WHEN c.status IN('Refund Ready to Pay') THEN 1 END) AS total_refund_ready_to_pay_count,
+                          COUNT(CASE WHEN c.status IN('Refunded') THEN 1 END) AS total_refunded_count
+
+                             
+                        FROM customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN payment_master AS pm ON
+                            c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                        WHERE
+                            1 = 1 and c.status in ('Refund Request','Refund Ready to Pay','Refunded') `;
+
+      // Handle user_ids parameter for both queries
+      // Handle user_ids parameter for both queries
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+
+        const userFilter = `
+    AND (
+      l.assigned_to IN (${placeholders})
+      OR l.ra_id IN (${placeholders})
+      OR l.hr_id IN (${placeholders})
+    )
+  `;
+
+        getQuery += userFilter;
+        countQuery += userFilter;
+        getCountQuery += userFilter;
+        refundquery += userFilter;
+
+        // IMPORTANT:
+        // userFilter contains 3 IN (...) sections,
+        // therefore user_ids must be supplied 3 times.
+        const userFilterParams = [...user_ids, ...user_ids, ...user_ids];
+
+        queryParams.push(...userFilterParams);
+        countQueryParams.push(...userFilterParams);
+        countParams.push(...userFilterParams);
+        refundQueryParams.push(...userFilterParams);
+      }
+
+      if (region_id) {
+        getQuery += `
+        AND re.id = ?
+      `;
+        countQuery += `  AND re.id = ?
+      `;
+        getCountQuery += `  AND re.id = ?
+      `;
+        refundquery += `  AND re.id = ?
+      `;
+
+        queryParams.push(region_id);
+        countQueryParams.push(region_id);
+        countParams.push(region_id);
+        refundQueryParams.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += `
+        AND b.id = ?
+      `;
+        countQuery += `  AND b.id = ?
+      `;
+        getCountQuery += `  AND b.id = ?
+      `;
+        refundquery += `  AND b.id = ?
+      `;
+
+        queryParams.push(branch_id);
+        countQueryParams.push(branch_id);
+        countParams.push(branch_id);
+        refundQueryParams.push(branch_id);
+      }
+
+      // Add region filter
+      let commonConditions = "";
+      // Add date range filter
+      if (start_date && end_date) {
+        commonConditions += ` 
+    AND COALESCE(c.date_of_joining, c.created_date) >= ?
+    AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+        getQuery += commonConditions;
+        countQuery += commonConditions;
+        getCountQuery += commonConditions;
+        refundquery += commonConditions;
+
+        queryParams.push(start_date, end_date);
+        countQueryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        refundQueryParams.push(start_date, end_date);
+      }
+
+      // Add status filter
+
+      if (status) {
+        // Special handling for Awaiting Finance status
+        getQuery += ` AND (c.status = ?)`;
+        countQuery += ` AND (c.status = ?)`;
+        getCountQuery += ` AND (c.status = ?)`;
+        queryParams.push(status);
+        countQueryParams.push(status);
+        countParams.push(status);
+      }
+
+      if (search_filter) {
+        const filterQuery = `
+    AND (
+      c.student_id LIKE ?
+      OR c.name LIKE ?
+      OR c.phone LIKE ?
+      OR c.email LIKE ?
+      OR t.name LIKE ?
+    )
+  `;
+
+        getQuery += filterQuery;
+        countQuery += filterQuery;
+        getCountQuery += filterQuery;
+        refundquery += filterQuery;
+
+        const searchValue = `%${search_filter}%`;
+
+        queryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        countQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        countParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+        refundQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+      }
+
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+      const offset =
+        pageNumber && limitNumber ? (pageNumber - 1) * limitNumber : 0;
+
+      let result;
+
+      getQuery += `
+  ORDER BY COALESCE(c.date_of_joining, c.created_date) DESC, c.id DESC
+`;
+
+      if (page && limit) {
+        getQuery += `
+    LIMIT ? OFFSET ?
+  `;
+
+        queryParams.push(limitNumber, offset);
+      }
+
+      [result] = await pool.query(getQuery, queryParams);
+
+      const [[countResult], [getStatus], [refundResult]] = await Promise.all([
+        pool.query(countQuery, countQueryParams),
+        pool.query(getCountQuery, countParams),
+        pool.query(refundquery, refundQueryParams),
+      ]);
+
+      // Get total count
+      const total = countResult[0]?.total || 0;
+
+      let res = result.map((item) => {
+        const totalAmount = parseFloat(item.total_course_amount || 0);
+        const paidAmount = parseFloat(item.paid_amount || 0);
+
+        // Format customer result
+        return {
+          ...item,
+          balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+          total_amount: totalAmount,
+          paid_amount: paidAmount,
+          // commercial_percentage: item.primary_fees
+          //   ? parseFloat(
+          //       ((item.commercial / item.primary_fees) * 100).toFixed(2),
+          //     )
+          //   : 0,
+        };
+      });
+      const refund_counts = {
+        refund_request_count: refundResult[0].total_refund_request_count ?? 0,
+        refund_ready_to_pay_count:
+          refundResult[0].total_refund_ready_to_pay_count ?? 0,
+        refunded_count: refundResult[0].total_refunded_count ?? 0,
+        overall_refund_count: refundResult[0].overall_refund_count ?? 0,
+      };
+
+      const regoinstatuscount = {
+        chennai_region: getStatus[0].chennai_region ?? 0,
+        bangalore_region: getStatus[0].bangalore_region ?? 0,
+        hub_region: getStatus[0].hub_region ?? 0,
+      };
+
+      return {
+        customers: res,
+        region_counts: regoinstatuscount,
+        refund_counts: refund_counts,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
   revertCustomerPaymentTrans: async (
     payment_trans_id,
     customer_id,
