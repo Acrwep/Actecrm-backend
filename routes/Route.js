@@ -682,6 +682,11 @@ router.post("/getAdmissions", verifyToken, AdmissionController.getAdmissions);
 router.post("/recievedList", verifyToken, PaymentController.recievedList);
 router.post("/feeHistory", verifyToken, PaymentController.feeHistory);
 router.post("/refundList", verifyToken, PaymentController.refundList);
+router.post(
+  "/addRefundCustomers",
+  verifyToken,
+  PaymentController.addRefundCustomers,
+);
 router.get("/getBanks", verifyToken, PaymentController.getBanks);
 router.post(
   "/revertCustomerPaymentTrans",
