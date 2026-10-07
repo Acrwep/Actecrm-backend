@@ -3133,6 +3133,35 @@ SUM(
       throw new Error(error.message);
     }
   },
+  addRefundCustomers: async (
+    customer_id,
+    payment_type,
+    transaction_id,
+    paid_date,
+    created_date,
+  ) => {
+    try {
+      let affectedRows = 0;
+
+      const [getCustomer] = await pool.query(
+        `SELECT * FROM refund_customers WHERE customer_id = ?`,
+        [customer_id],
+      );
+
+      if (getCustomer.length > 0) {
+        throw new Error("Customer already exists in refund list");
+      }
+      const [inserrefunds] = await pool.query(
+        `INSERT INTO refund_customers (customer_id, payment_type, transaction_id, paid_date, created_date) VALUES (?, ?, ?, ?, ?)`,
+        [customer_id, payment_type, transaction_id, paid_date, created_date],
+      );
+
+      affectedRows += inserrefunds.affectedRows;
+      return affectedRows > 0 ? true : false;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
   revertCustomerPaymentTrans: async (
     payment_trans_id,
     customer_id,

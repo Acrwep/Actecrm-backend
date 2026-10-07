@@ -493,6 +493,28 @@ const refundList = async (request, response) => {
     });
   }
 };
+const addRefundCustomers = async (request, response) => {
+  const { customer_id, payment_type, transaction_id, paid_date, created_date } =
+    request.body;
+  try {
+    const result = await PaymentModel.addRefundCustomers(
+      customer_id,
+      payment_type,
+      transaction_id,
+      paid_date,
+      created_date,
+    );
+    return response.status(200).send({
+      messages: "Data added successfully",
+      ...result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
 
 const getBanks = async (request, response) => {
   const { region_id, payment_mode } = request.query;
@@ -547,6 +569,7 @@ module.exports = {
   recievedList,
   feeHistory,
   refundList,
+  addRefundCustomers,
   getBanks,
   revertCustomerPaymentTrans,
 };
