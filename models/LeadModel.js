@@ -4536,7 +4536,7 @@ const LeadModel = {
     }
   },
 
-  getLeadsV1: async (
+  getLeadsV1old: async (
     search_filter,
     start_date,
     end_date,
@@ -5198,6 +5198,1723 @@ const LeadModel = {
           total: parseInt(total),
           page: pageNumber,
           limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  getLeadsV1: async (
+    search_filter,
+    start_date,
+    end_date,
+    lead_status_id,
+    user_ids,
+    page,
+    limit,
+    lead_type,
+    bucket,
+    lead_action,
+    sub_source_id,
+    domain,
+    region,
+    preferred_mode,
+    branch,
+  ) => {
+    try {
+      // =========================================================
+      // COMMON VALUES
+      // =========================================================
+
+      const actionStr = lead_action
+        ? lead_action.toLowerCase().replace(/_/g, " ")
+        : "";
+
+      // =========================================================
+      // 1. MAIN DATA QUERY
+      // Keep existing data/response logic
+      // =========================================================
+
+      const queryParams = [];
+
+      let getQuery = `
+      SELECT
+        l.id,
+        l.user_id,
+        u.user_name,
+        u.view_user_id,
+        l.assigned_to AS lead_assigned_to_id,
+        au.user_name AS lead_assigned_to_name,
+        au.view_user_id AS lead_assigned_to_view_user_id,
+        l.name,
+        l.phone_code,
+        l.phone,
+        l.whatsapp_phone_code,
+        l.whatsapp,
+        l.email,
+        l.country,
+        l.state,
+        l.domain_origin,
+        l.district AS area_id,
+        a.name AS district,
+        l.primary_course_id,
+        pt.name AS primary_course,
+        l.primary_fees,
+        l.price_category,
+        l.secondary_course_id,
+        st.name AS secondary_course,
+        l.secondary_fees,
+        l.lead_type_id,
+        lt.name AS lead_type,
+        l.lead_status_id,
+        ls.name AS lead_status,
+        l.next_follow_up_date,
+        l.expected_join_date,
+        l.branch_id,
+        b.name AS branch_name,
+        aub.name AS place_of_sale_name,
+        l.batch_track_id,
+        bt.name AS batch_track,
+        l.comments,
+        l.created_date,
+        CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END AS is_customer_reg,
+        c.id AS customer_id,
+        r.name AS region_name,
+        r.id AS region_id,
+        lh.id AS lead_history_id,
+        lh.lead_action_id,
+        ula.name AS lead_action_name,
+        l.re_assigned_date,
+        l.is_reassigned,
+        l.assigned_manager,
+        m.user_name AS assigned_regional_manager,
+        m.view_user_id AS assigned_regional_manager_view_user_id,
+        l.branch_manager_id,
+        bm.user_name AS assigned_branch_manager,
+        bm.view_user_id AS assigned_branch_manager_view_user_id,
+        l.lead_sub_source,
+        lss.sub_category AS lead_sub_source_name,
+        l.referral_name,
+        rn.user_name AS referral_user_name,
+        rn.view_user_id AS referral_name_view_user_id,
+        l.preferred_mode,
+        cmo.name AS preferred_mode_name,
+        l.preferred_batch,
+        ba.name AS preferred_batch_name,
+        l.counsel,
+        lsm.total_score AS lead_score,
+        IFNULL(max_lh.completed_followup_count, 0) AS completed_followup_count,
+        l.assigned_branch_id
+
+      FROM lead_master AS l
+
+      LEFT JOIN lead_score_master AS lsm
+        ON lsm.lead_id = l.id
+
+      LEFT JOIN users AS u
+        ON u.user_id = l.user_id
+
+      LEFT JOIN users AS au
+        ON au.user_id = l.assigned_to
+
+      LEFT JOIN branches AS aub
+        ON aub.id = au.branch_id
+
+      LEFT JOIN region AS aur
+        ON aur.id = aub.region_id
+
+      LEFT JOIN technologies AS pt
+        ON pt.id = l.primary_course_id
+
+      LEFT JOIN technologies AS st
+        ON st.id = l.secondary_course_id
+
+      LEFT JOIN lead_type AS lt
+        ON lt.id = l.lead_type_id
+
+      LEFT JOIN lead_status AS ls
+        ON ls.id = l.lead_status_id
+
+      LEFT JOIN region AS r
+        ON r.id = l.region_id
+
+      LEFT JOIN branches AS b
+        ON b.id = l.branch_id
+
+      LEFT JOIN batch_track AS bt
+        ON bt.id = l.batch_track_id
+
+      LEFT JOIN customers AS c
+        ON c.lead_id = l.id
+
+      LEFT JOIN areas AS a
+        ON a.id = l.district
+
+      LEFT JOIN (
+        SELECT
+          lead_id,
+          MAX(id) AS max_id,
+          MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id,
+          SUM(CASE WHEN is_updated = 1 THEN 1 ELSE 0 END) AS completed_followup_count
+        FROM lead_follow_up_history
+        GROUP BY lead_id
+      ) AS max_lh
+        ON max_lh.lead_id = l.id
+
+      LEFT JOIN lead_follow_up_history AS lh
+        ON lh.id = max_lh.max_id
+
+      LEFT JOIN lead_follow_up_history AS luh
+        ON luh.id = max_lh.max_updated_id
+
+      LEFT JOIN communication_master AS cm
+        ON luh.communication_status = cm.id
+
+      LEFT JOIN contact_mode AS cm1
+        ON luh.contact_mode = cm1.id
+
+      LEFT JOIN lead_action AS ula
+        ON luh.lead_action_id = ula.id
+
+      LEFT JOIN users AS m
+        ON m.user_id = l.assigned_manager
+
+      LEFT JOIN users AS bm
+        ON bm.user_id = l.branch_manager_id
+
+      LEFT JOIN lead_sub_category AS lss
+        ON lss.id = l.lead_sub_source
+
+      LEFT JOIN users AS rn
+        ON rn.user_id = l.referral_name
+
+      LEFT JOIN class_mode AS cmo
+        ON cmo.id = l.preferred_mode
+
+      LEFT JOIN batch_track AS ba
+        ON ba.id = l.preferred_batch
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // 2. OPTIMIZED COUNT QUERY
+      // Only required joins are loaded
+      // =========================================================
+
+      const countQueryParams = [];
+
+      const countNeedsUserJoin = !!region || !!branch;
+      const countNeedsRegionJoin = !!region;
+      const countNeedsTechJoin = !!search_filter;
+
+      const countNeedsStatusJoin =
+        bucket === "Valid Leads" ||
+        bucket === "Eligible Leads" ||
+        bucket === "Interested Leads" ||
+        bucket === "Open Leads";
+
+      const countNeedsLatestHistory =
+        bucket === "Interested Leads" || bucket === "Followup Leads";
+
+      const countNeedsUpdatedHistory =
+        bucket === "Eligible Leads" ||
+        (bucket === "Valid Leads" && actionStr === "need screening") ||
+        (bucket === "Followup Leads" && !!lead_action);
+
+      const countNeedsCommunication =
+        bucket === "Eligible Leads" &&
+        (actionStr === "communicated" ||
+          actionStr === "not communicated" ||
+          actionStr === "data correct but no response" ||
+          actionStr === "no response");
+
+      const countNeedsContactMode =
+        bucket === "Eligible Leads" ||
+        (bucket === "Valid Leads" && actionStr === "need screening");
+
+      const countNeedsLeadAction = bucket === "Followup Leads" && !!lead_action;
+
+      let countQuery = `
+      SELECT COUNT(*) AS total
+
+      FROM lead_master AS l
+
+      ${
+        countNeedsUserJoin
+          ? `
+        LEFT JOIN users AS au
+          ON au.user_id = l.assigned_to
+
+        LEFT JOIN branches AS aub
+          ON aub.id = au.branch_id
+        `
+          : ""
+      }
+
+      ${
+        countNeedsRegionJoin
+          ? `
+        LEFT JOIN region AS aur
+          ON aur.id = aub.region_id
+        `
+          : ""
+      }
+
+      LEFT JOIN customers AS c
+        ON c.lead_id = l.id
+
+      ${
+        countNeedsTechJoin
+          ? `
+        LEFT JOIN technologies AS pt
+          ON pt.id = l.primary_course_id
+        `
+          : ""
+      }
+
+      ${
+        countNeedsStatusJoin
+          ? `
+        LEFT JOIN lead_status AS ls
+          ON ls.id = l.lead_status_id
+        `
+          : ""
+      }
+
+      ${
+        countNeedsLatestHistory || countNeedsUpdatedHistory
+          ? `
+        LEFT JOIN (
+          SELECT
+            lead_id
+            ${
+              countNeedsLatestHistory
+                ? `,
+            MAX(id) AS max_id`
+                : ""
+            }
+            ${
+              countNeedsUpdatedHistory
+                ? `,
+            MAX(
+              CASE
+                WHEN is_updated = 1 THEN id
+              END
+            ) AS max_updated_id`
+                : ""
+            }
+
+          FROM lead_follow_up_history
+          GROUP BY lead_id
+        ) AS max_lh
+          ON max_lh.lead_id = l.id
+
+        ${
+          countNeedsLatestHistory
+            ? `
+        LEFT JOIN lead_follow_up_history AS lh
+          ON lh.id = max_lh.max_id
+        `
+            : ""
+        }
+
+        ${
+          countNeedsUpdatedHistory
+            ? `
+        LEFT JOIN lead_follow_up_history AS luh
+          ON luh.id = max_lh.max_updated_id
+        `
+            : ""
+        }
+
+        ${
+          countNeedsCommunication
+            ? `
+        LEFT JOIN communication_master AS cm
+          ON luh.communication_status = cm.id
+        `
+            : ""
+        }
+
+        ${
+          countNeedsContactMode
+            ? `
+        LEFT JOIN contact_mode AS cm1
+          ON luh.contact_mode = cm1.id
+        `
+            : ""
+        }
+
+        ${
+          countNeedsLeadAction
+            ? `
+        LEFT JOIN lead_action AS ula
+          ON luh.lead_action_id = ula.id
+        `
+            : ""
+        }
+        `
+          : ""
+      }
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // 3. BUCKET COUNT QUERY
+      // Same bucket output
+      // =========================================================
+
+      const bucketCountQueryParams = [];
+
+      let dateFilterAll = "1 = 1";
+
+      let dateFilterInterested = "1 = 1";
+
+      if (start_date && end_date) {
+        dateFilterAll =
+          "l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)";
+
+        dateFilterInterested = `
+        (
+          lh.next_follow_up_date >= ?
+          AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
+
+          OR
+
+          lh.today_followup_date >= ?
+          AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
+        )
+      `;
+
+        // all_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // hub_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // chennai_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // bangalore_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // valid_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // validated_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // need_screening
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // junk_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // eligible_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // communicated_eligible_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // not_communicated_eligible_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // no_response_eligible_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // interested_leads
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // joinings
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // super_hot
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // hot
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // warm
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // cold
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // dormant
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // not_interested
+        bucketCountQueryParams.push(start_date, end_date);
+
+        // follow_up
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Sales Ready
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Highly Interested
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Interested
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Exploring
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Not Responding
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // Not Interested
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+
+        // open_leads
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
+      const bucketNeedsUserJoin = !!region || !!branch;
+      const bucketNeedsRegionJoin = !!region;
+      const bucketNeedsTechJoin = !!search_filter;
+
+      let bucketCountQuery = `
+SELECT
+
+  SUM(${dateFilterAll}) AS all_leads,
+
+  SUM(${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%')
+    AS hub_leads,
+
+  SUM(${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%')
+    AS chennai_leads,
+
+  SUM(${dateFilterAll} AND l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%')
+    AS bangalore_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+  ) AS valid_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+  ) AS validated_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+    AND (
+      cm1.name = 'Data Incorrect'
+      OR l.primary_course_id IS NULL
+      OR l.lead_type_id IS NULL
+    )
+  ) AS need_screening,
+
+  SUM(
+    ${dateFilterAll}
+    AND ls.name = 'Dormant'
+  ) AS junk_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+    AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect')
+    AND l.primary_course_id IS NOT NULL
+    AND l.lead_type_id IS NOT NULL
+  ) AS eligible_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+    AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect')
+    AND l.primary_course_id IS NOT NULL
+    AND l.lead_type_id IS NOT NULL
+    AND (cm.name = 'Communicated' OR cm.name IS NULL)
+  ) AS communicated_eligible_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name = 'Dormant' OR l.lead_status_id IS NULL)
+    AND (
+      cm1.name IS NULL
+      OR cm1.name NOT IN (
+        'Data Incorrect',
+        'Data Correct But No Response'
+      )
+    )
+    AND l.primary_course_id IS NOT NULL
+    AND l.lead_type_id IS NOT NULL
+    AND (cm.name = 'Not Communicated' OR cm.name IS NULL)
+  ) AS not_communicated_eligible_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+    AND (
+      cm1.name IS NULL
+      OR cm1.name NOT IN (
+        'Data Incorrect',
+        'Incorrect Data'
+      )
+    )
+    AND l.primary_course_id IS NOT NULL
+    AND l.lead_type_id IS NOT NULL
+    AND (cm.name = 'Not Communicated' OR cm.name IS NULL)
+    AND cm1.name = 'Data Correct But No Response'
+  ) AS no_response_eligible_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+  ) AS interested_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Super Hot'
+  ) AS super_hot,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Hot'
+  ) AS hot,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Warm'
+  ) AS warm,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Cold'
+  ) AS cold,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Dormant'
+  ) AS dormant,
+
+  SUM(
+    ${dateFilterAll}
+    AND lh.id IS NOT NULL
+    AND ls.name = 'Not Interested'
+  ) AS not_interested,
+
+  SUM(
+    ${dateFilterAll}
+    AND (
+      (
+        DATEDIFF(
+          NOW(),
+          COALESCE(l.re_assigned_date, l.created_date)
+        ) > 45
+        AND DATEDIFF(NOW(), l.next_follow_up_date) > 14
+      )
+      OR ls.name IN ('Dormant', 'Not Interested')
+    )
+    AND c.id IS NULL
+  ) AS open_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+  ) AS followup_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Sales Ready'
+  ) AS sales_ready_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Highly Interested'
+  ) AS highly_interested_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Interested'
+  ) AS followup_interested_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Exploring'
+  ) AS exploring_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Not Responding'
+  ) AS not_responding_leads,
+
+  SUM(
+    ${dateFilterInterested}
+    AND lh.is_updated = 0
+    AND c.id IS NULL
+    AND ula.name = 'Not Interested'
+  ) AS not_interested_leads,
+
+  SUM(
+    ${dateFilterAll}
+    AND c.id IS NOT NULL
+  ) AS joinings
+
+FROM lead_master AS l
+
+${
+  bucketNeedsUserJoin
+    ? `
+LEFT JOIN users AS au
+  ON au.user_id = l.assigned_to
+
+LEFT JOIN branches AS aub
+  ON aub.id = au.branch_id
+`
+    : ""
+}
+
+${
+  bucketNeedsRegionJoin
+    ? `
+LEFT JOIN region AS aur
+  ON aur.id = aub.region_id
+`
+    : ""
+}
+
+LEFT JOIN customers AS c
+  ON c.lead_id = l.id
+
+LEFT JOIN (
+  SELECT
+    lead_id,
+    MAX(id) AS max_id,
+    MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
+  FROM lead_follow_up_history
+  GROUP BY lead_id
+) AS max_lh
+  ON max_lh.lead_id = l.id
+
+LEFT JOIN lead_follow_up_history AS lh
+  ON lh.id = max_lh.max_id
+
+LEFT JOIN lead_follow_up_history AS luh
+  ON luh.id = max_lh.max_updated_id
+
+LEFT JOIN lead_action AS ula
+  ON ula.id = luh.lead_action_id
+
+LEFT JOIN communication_master AS cm
+  ON cm.id = luh.communication_status
+
+LEFT JOIN contact_mode AS cm1
+  ON cm1.id = luh.contact_mode
+
+LEFT JOIN lead_status AS ls
+  ON ls.id = l.lead_status_id
+
+${
+  bucketNeedsTechJoin
+    ? `
+LEFT JOIN technologies AS pt
+  ON pt.id = l.primary_course_id
+`
+    : ""
+}
+
+WHERE 1 = 1
+`;
+
+      // =========================================================
+      // 4. OPEN LEADS COUNT QUERY
+      // =========================================================
+
+      const openLeadsCountQueryParams = [];
+
+      if (start_date && end_date) {
+        openLeadsCountQueryParams.push(start_date, end_date);
+      }
+
+      const openNeedsUserJoin = !!region || !!branch;
+      const openNeedsRegionJoin = !!region;
+      const openNeedsTechJoin = !!search_filter;
+
+      let openLeadsCountQuery = `
+      SELECT
+        IFNULL(
+          SUM(
+            CASE
+              WHEN
+                (
+                  (
+                    DATEDIFF(
+                      NOW(),
+                      COALESCE(
+                        l.re_assigned_date,
+                        l.created_date
+                      )
+                    ) > 45
+                    AND
+                    DATEDIFF(
+                      NOW(),
+                      l.next_follow_up_date
+                    ) > 14
+                  )
+                  OR
+                  ls.name IN (
+                    'Dormant',
+                    'Not Interested'
+                  )
+                )
+                AND c.id IS NULL
+                AND ${dateFilterAll}
+              THEN 1 ELSE 0
+            END
+          ),
+          0
+        ) AS open_leads
+
+      FROM lead_master AS l
+
+      ${
+        openNeedsUserJoin
+          ? `
+      LEFT JOIN users AS au
+        ON au.user_id = l.assigned_to
+
+      LEFT JOIN branches AS aub
+        ON aub.id = au.branch_id
+      `
+          : ""
+      }
+
+      ${
+        openNeedsRegionJoin
+          ? `
+      LEFT JOIN region AS aur
+        ON aur.id = aub.region_id
+      `
+          : ""
+      }
+
+      LEFT JOIN customers AS c
+        ON c.lead_id = l.id
+
+      LEFT JOIN lead_status AS ls
+        ON ls.id = l.lead_status_id
+
+      ${
+        openNeedsTechJoin
+          ? `
+      LEFT JOIN technologies AS pt
+        ON pt.id = l.primary_course_id
+      `
+          : ""
+      }
+
+      WHERE 1 = 1
+    `;
+
+      // =========================================================
+      // 5. BUCKET FILTERS
+      // Existing logic
+      // =========================================================
+
+      if (bucket) {
+        if (bucket === "Valid Leads") {
+          if (lead_action) {
+            if (actionStr === "junk") {
+              getQuery += ` AND ls.name = 'Dormant'`;
+              countQuery += ` AND ls.name = 'Dormant'`;
+            } else if (actionStr === "need screening") {
+              getQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm1.name = 'Data Incorrect'
+                OR l.primary_course_id IS NULL
+                OR l.lead_type_id IS NULL
+              )
+            `;
+
+              countQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm1.name = 'Data Incorrect'
+                OR l.primary_course_id IS NULL
+                OR l.lead_type_id IS NULL
+              )
+            `;
+            } else if (actionStr === "validated") {
+              getQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+            `;
+
+              countQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+            `;
+            } else {
+              getQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+            `;
+
+              countQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+            `;
+            }
+          } else {
+            getQuery += `
+            AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+          `;
+
+            countQuery += `
+            AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+          `;
+          }
+        }
+
+        if (bucket === "Eligible Leads") {
+          getQuery += `
+          AND (
+            cm1.name IS NULL
+            OR cm1.name NOT IN ('Data Incorrect')
+          )
+          AND l.primary_course_id IS NOT NULL
+          AND l.lead_type_id IS NOT NULL
+        `;
+
+          countQuery += `
+          AND (
+            cm1.name IS NULL
+            OR cm1.name NOT IN ('Data Incorrect')
+          )
+          AND l.primary_course_id IS NOT NULL
+          AND l.lead_type_id IS NOT NULL
+        `;
+
+          if (lead_action) {
+            if (actionStr === "communicated") {
+              getQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm.name = 'Communicated'
+                OR cm.name IS NULL
+              )
+            `;
+
+              countQuery += `
+              AND (ls.name != 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm.name = 'Communicated'
+                OR cm.name IS NULL
+              )
+            `;
+            } else if (actionStr === "not communicated") {
+              getQuery += `
+              AND (ls.name = 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm.name = 'Not Communicated'
+                OR cm.name IS NULL
+              )
+              AND (
+                cm1.name IS NULL
+                OR cm1.name != 'Data Correct But No Response'
+              )
+            `;
+
+              countQuery += `
+              AND (ls.name = 'Dormant' OR l.lead_status_id IS NULL)
+              AND (
+                cm.name = 'Not Communicated'
+                OR cm.name IS NULL
+              )
+              AND (
+                cm1.name IS NULL
+                OR cm1.name != 'Data Correct But No Response'
+              )
+            `;
+            } else if (
+              actionStr === "data correct but no response" ||
+              actionStr === "no response"
+            ) {
+              getQuery += `
+              AND (
+                cm.name = 'Not Communicated'
+                OR cm.name IS NULL
+              )
+              AND cm1.name = 'Data Correct But No Response'
+            `;
+
+              countQuery += `
+              AND (
+                cm.name = 'Not Communicated'
+                OR cm.name IS NULL
+              )
+              AND cm1.name = 'Data Correct But No Response'
+            `;
+            }
+          }
+        }
+
+        if (bucket === "Followup Leads") {
+          getQuery += `
+          AND lh.is_updated = 0
+          AND c.id IS NULL
+        `;
+
+          countQuery += `
+          AND lh.is_updated = 0
+          AND c.id IS NULL
+        `;
+        }
+
+        if (bucket === "Interested Leads") {
+          getQuery += `
+          AND lh.id IS NOT NULL
+        `;
+
+          countQuery += `
+          AND lh.id IS NOT NULL
+        `;
+        }
+
+        if (bucket === "Joinings") {
+          getQuery += `
+          AND c.id IS NOT NULL
+        `;
+
+          countQuery += `
+          AND c.id IS NOT NULL
+        `;
+        }
+
+        if (bucket === "Open Leads") {
+          getQuery += `
+          AND (
+            (
+              DATEDIFF(
+                NOW(),
+                COALESCE(
+                  l.re_assigned_date,
+                  l.created_date
+                )
+              ) > 45
+              AND
+              DATEDIFF(
+                NOW(),
+                l.next_follow_up_date
+              ) > 14
+            )
+            OR
+            ls.name IN (
+              'Dormant',
+              'Not Interested'
+            )
+          )
+          AND c.id IS NULL
+          AND l.is_self_assigned = 0
+        `;
+
+          countQuery += `
+          AND (
+            (
+              DATEDIFF(
+                NOW(),
+                COALESCE(
+                  l.re_assigned_date,
+                  l.created_date
+                )
+              ) > 45
+              AND
+              DATEDIFF(
+                NOW(),
+                l.next_follow_up_date
+              ) > 14
+            )
+            OR
+            ls.name IN (
+              'Dormant',
+              'Not Interested'
+            )
+          )
+          AND c.id IS NULL
+          AND l.is_self_assigned = 0
+        `;
+        }
+      }
+
+      // =========================================================
+      // 6. REGION
+      // =========================================================
+
+      if (region) {
+        getQuery += ` AND aur.id = ?`;
+        countQuery += ` AND aur.id = ?`;
+        bucketCountQuery += ` AND aur.id = ?`;
+        openLeadsCountQuery += ` AND aur.id = ?`;
+
+        queryParams.push(region);
+        countQueryParams.push(region);
+        bucketCountQueryParams.push(region);
+        openLeadsCountQueryParams.push(region);
+      }
+
+      // =========================================================
+      // 7. PREFERRED MODE
+      // =========================================================
+
+      if (preferred_mode) {
+        getQuery += ` AND l.preferred_mode = ?`;
+        countQuery += ` AND l.preferred_mode = ?`;
+        bucketCountQuery += ` AND l.preferred_mode = ?`;
+        openLeadsCountQuery += ` AND l.preferred_mode = ?`;
+
+        queryParams.push(preferred_mode);
+        countQueryParams.push(preferred_mode);
+        bucketCountQueryParams.push(preferred_mode);
+        openLeadsCountQueryParams.push(preferred_mode);
+      }
+
+      // =========================================================
+      // 8. BRANCH
+      // =========================================================
+
+      if (branch) {
+        getQuery += ` AND aub.id = ?`;
+        countQuery += ` AND aub.id = ?`;
+        bucketCountQuery += ` AND aub.id = ?`;
+        openLeadsCountQuery += ` AND aub.id = ?`;
+
+        queryParams.push(branch);
+        countQueryParams.push(branch);
+        bucketCountQueryParams.push(branch);
+        openLeadsCountQueryParams.push(branch);
+      }
+
+      // =========================================================
+      // 9. USER IDS
+      // =========================================================
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          if (!bucket) {
+            getQuery += `
+            AND l.assigned_to IN (${placeholders})
+            AND (
+              IFNULL(l.is_reassigned, 0) = 0
+              OR (
+                l.is_reassigned = 1
+                AND l.is_acknowledged = 1
+              )
+            )
+          `;
+
+            countQuery += `
+            AND l.assigned_to IN (${placeholders})
+            AND (
+              IFNULL(l.is_reassigned, 0) = 0
+              OR (
+                l.is_reassigned = 1
+                AND l.is_acknowledged = 1
+              )
+            )
+          `;
+
+            queryParams.push(...user_ids);
+            countQueryParams.push(...user_ids);
+          } else if (bucket !== "Open Leads") {
+            getQuery += `
+            AND l.assigned_to IN (${placeholders})
+            AND (
+              IFNULL(l.is_reassigned, 0) = 0
+              OR (
+                l.is_reassigned = 1
+                AND l.is_acknowledged = 1
+              )
+            )
+          `;
+
+            countQuery += `
+            AND l.assigned_to IN (${placeholders})
+            AND (
+              IFNULL(l.is_reassigned, 0) = 0
+              OR (
+                l.is_reassigned = 1
+                AND l.is_acknowledged = 1
+              )
+            )
+          `;
+
+            queryParams.push(...user_ids);
+            countQueryParams.push(...user_ids);
+          }
+
+          bucketCountQuery += `
+          AND l.assigned_to IN (${placeholders})
+          AND (
+            IFNULL(l.is_reassigned, 0) = 0
+            OR (
+              l.is_reassigned = 1
+              AND l.is_acknowledged = 1
+            )
+          )
+        `;
+
+          bucketCountQueryParams.push(...user_ids);
+        } else if (!Array.isArray(user_ids)) {
+          getQuery += `
+          AND l.assigned_to = ?
+          AND (
+            IFNULL(l.is_reassigned, 0) = 0
+            OR (
+              l.is_reassigned = 1
+              AND l.is_acknowledged = 1
+            )
+          )
+        `;
+
+          countQuery += `
+          AND l.assigned_to = ?
+          AND (
+            IFNULL(l.is_reassigned, 0) = 0
+            OR (
+              l.is_reassigned = 1
+              AND l.is_acknowledged = 1
+            )
+          )
+        `;
+
+          queryParams.push(user_ids);
+          countQueryParams.push(user_ids);
+
+          bucketCountQuery += `
+          AND l.assigned_to = ?
+          AND (
+            IFNULL(l.is_reassigned, 0) = 0
+            OR (
+              l.is_reassigned = 1
+              AND l.is_acknowledged = 1
+            )
+          )
+        `;
+
+          bucketCountQueryParams.push(user_ids);
+        }
+      }
+
+      // =========================================================
+      // 10. SEARCH
+      // =========================================================
+
+      if (search_filter) {
+        const searchCondition = `
+        AND (
+          l.name LIKE ?
+          OR l.phone LIKE ?
+          OR l.email LIKE ?
+          OR pt.name LIKE ?
+        )
+      `;
+
+        getQuery += searchCondition;
+        countQuery += searchCondition;
+        bucketCountQuery += searchCondition;
+        openLeadsCountQuery += searchCondition;
+
+        const searchValue = `%${search_filter}%`;
+
+        queryParams.push(searchValue, searchValue, searchValue, searchValue);
+
+        countQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        bucketCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+
+        openLeadsCountQueryParams.push(
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        );
+      }
+
+      // =========================================================
+      // 11. LEAD TYPE
+      // =========================================================
+
+      if (lead_type) {
+        getQuery += ` AND l.lead_type_id = ?`;
+        countQuery += ` AND l.lead_type_id = ?`;
+        bucketCountQuery += ` AND l.lead_type_id = ?`;
+        openLeadsCountQuery += ` AND l.lead_type_id = ?`;
+
+        queryParams.push(lead_type);
+        countQueryParams.push(lead_type);
+        bucketCountQueryParams.push(lead_type);
+        openLeadsCountQueryParams.push(lead_type);
+      }
+
+      // =========================================================
+      // 12. DOMAIN
+      // Keep existing behavior
+      // =========================================================
+
+      if (domain) {
+        getQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+        countQuery += ` AND l.domain_origin LIKE '%${domain}%'`;
+      }
+
+      // =========================================================
+      // 13. SUB SOURCE
+      // =========================================================
+
+      if (sub_source_id) {
+        getQuery += ` AND l.lead_sub_source = ?`;
+        countQuery += ` AND l.lead_sub_source = ?`;
+        bucketCountQuery += ` AND l.lead_sub_source = ?`;
+        openLeadsCountQuery += ` AND l.lead_sub_source = ?`;
+
+        queryParams.push(sub_source_id);
+        countQueryParams.push(sub_source_id);
+        bucketCountQueryParams.push(sub_source_id);
+        openLeadsCountQueryParams.push(sub_source_id);
+      }
+
+      // =========================================================
+      // 14. LEAD STATUS
+      // =========================================================
+
+      if (lead_status_id) {
+        getQuery += ` AND l.lead_status_id = ?`;
+        countQuery += ` AND l.lead_status_id = ?`;
+        bucketCountQuery += ` AND l.lead_status_id = ?`;
+        openLeadsCountQuery += ` AND l.lead_status_id = ?`;
+
+        queryParams.push(lead_status_id);
+        countQueryParams.push(lead_status_id);
+        bucketCountQueryParams.push(lead_status_id);
+        openLeadsCountQueryParams.push(lead_status_id);
+      }
+
+      // =========================================================
+      // 15. LEAD ACTION
+      // =========================================================
+
+      if (lead_action) {
+        if (bucket === "Interested Leads") {
+          getQuery += ` AND LOWER(ls.name) = ?`;
+          countQuery += ` AND LOWER(ls.name) = ?`;
+
+          queryParams.push(actionStr);
+          countQueryParams.push(actionStr);
+        } else if (bucket === "Followup Leads") {
+          getQuery += ` AND LOWER(ula.name) = ?`;
+          countQuery += ` AND LOWER(ula.name) = ?`;
+
+          queryParams.push(actionStr);
+          countQueryParams.push(actionStr);
+        }
+      }
+
+      // =========================================================
+      // 16. DATE FILTER
+      // =========================================================
+
+      if (start_date && end_date) {
+        if (bucket === "Followup Leads") {
+          const followupDateCondition = `
+          AND (
+            lh.next_follow_up_date >= ?
+            AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY)
+
+            OR
+
+            lh.today_followup_date >= ?
+            AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY)
+          )
+        `;
+
+          getQuery += followupDateCondition;
+          countQuery += followupDateCondition;
+
+          queryParams.push(start_date, end_date, start_date, end_date);
+
+          countQueryParams.push(start_date, end_date, start_date, end_date);
+        } else {
+          const createdDateCondition = `
+          AND l.created_date >= ?
+          AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+
+          getQuery += createdDateCondition;
+          countQuery += createdDateCondition;
+
+          queryParams.push(start_date, end_date);
+          countQueryParams.push(start_date, end_date);
+        }
+
+        bucketCountQuery += `
+        AND (
+          ${dateFilterAll}
+          OR
+          ${dateFilterInterested}
+        )
+      `;
+
+        bucketCountQueryParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
+
+        openLeadsCountQuery += `
+        AND ${dateFilterAll}
+      `;
+
+        openLeadsCountQueryParams.push(start_date, end_date);
+      }
+
+      // =========================================================
+      // 17. PAGINATION
+      // =========================================================
+
+      const pageNumber = parseInt(page, 10) || 1;
+
+      const limitNumber = parseInt(limit, 10) || 10;
+
+      const offset = (pageNumber - 1) * limitNumber;
+
+      if (bucket === "Followup Leads") {
+        getQuery += `
+        ORDER BY luh.next_follow_up_date ASC
+      `;
+      } else {
+        getQuery += `
+        ORDER BY l.created_date DESC
+      `;
+      }
+
+      getQuery += `
+      LIMIT ?
+      OFFSET ?
+    `;
+
+      queryParams.push(limitNumber, offset);
+
+      // =========================================================
+      // 18. CACHE
+      // Keep existing bucket/open cache behavior
+      // =========================================================
+
+      const cacheKey = JSON.stringify({
+        start_date,
+        end_date,
+        region,
+        preferred_mode,
+        branch,
+        user_ids,
+        lead_status_id,
+        lead_type,
+        sub_source_id,
+        search_filter,
+      });
+
+      let bucketCountResult;
+      let openLeadsCountResult;
+      let countResult;
+      let result;
+
+      // =========================================================
+      // 19. EXECUTION
+      // IMPORTANT:
+      // Run independent queries in parallel
+      // =========================================================
+
+      // if (
+      //   leadBucketCountsCache.has(cacheKey) &&
+      //   openLeadsCountsCache.has(cacheKey)
+      // ) {
+      //   bucketCountResult = leadBucketCountsCache.get(cacheKey);
+
+      //   openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
+
+      //   const [countRes, queryRes] = await Promise.all([
+      //     pool.query(countQuery, countQueryParams),
+
+      //     pool.query(getQuery, queryParams),
+      //   ]);
+
+      //   countResult = countRes[0];
+      //   result = queryRes[0];
+      // } else {
+      //   const [countRes, queryRes, bucketRes, openRes] = await Promise.all([
+      //     pool.query(countQuery, countQueryParams),
+
+      //     pool.query(getQuery, queryParams),
+
+      //     pool.query(bucketCountQuery, bucketCountQueryParams),
+
+      //     pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
+      //   ]);
+
+      //   countResult = countRes[0];
+
+      //   result = queryRes[0];
+
+      //   bucketCountResult = bucketRes[0];
+
+      //   openLeadsCountResult = openRes[0];
+
+      //   leadBucketCountsCache.set(cacheKey, bucketCountResult);
+
+      //   openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
+      // }
+
+      if (
+        leadBucketCountsCache.has(cacheKey) &&
+        openLeadsCountsCache.has(cacheKey)
+      ) {
+        bucketCountResult = leadBucketCountsCache.get(cacheKey);
+        openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
+
+        const startCount = Date.now();
+        const startGet = Date.now();
+
+        const [countRes, queryRes] = await Promise.all([
+          pool.query(countQuery, countQueryParams).then((res) => {
+            console.log(
+              `countQuery: ${Date.now() - startCount} ms (${(
+                (Date.now() - startCount) /
+                1000
+              ).toFixed(3)} sec)`,
+            );
+
+            return res;
+          }),
+
+          pool.query(getQuery, queryParams).then((res) => {
+            console.log(
+              `getQuery: ${Date.now() - startGet} ms (${(
+                (Date.now() - startGet) /
+                1000
+              ).toFixed(3)} sec)`,
+            );
+
+            return res;
+          }),
+        ]);
+
+        countResult = countRes[0];
+        result = queryRes[0];
+      } else {
+        const startAll = Date.now();
+
+        const startCount = Date.now();
+        const startGet = Date.now();
+        const startBucket = Date.now();
+        const startOpen = Date.now();
+
+        const [countRes, queryRes, bucketRes, openRes] = await Promise.all([
+          pool.query(countQuery, countQueryParams).then((res) => {
+            console.log(
+              `countQuery: ${Date.now() - startCount} ms (${(
+                (Date.now() - startCount) /
+                1000
+              ).toFixed(3)} sec)`,
+            );
+
+            return res;
+          }),
+
+          pool.query(getQuery, queryParams).then((res) => {
+            console.log(
+              `getQuery: ${Date.now() - startGet} ms (${(
+                (Date.now() - startGet) /
+                1000
+              ).toFixed(3)} sec)`,
+            );
+
+            return res;
+          }),
+
+          pool.query(bucketCountQuery, bucketCountQueryParams).then((res) => {
+            console.log(
+              `bucketCountQuery: ${Date.now() - startBucket} ms (${(
+                (Date.now() - startBucket) /
+                1000
+              ).toFixed(3)} sec)`,
+            );
+
+            return res;
+          }),
+
+          pool
+            .query(openLeadsCountQuery, openLeadsCountQueryParams)
+            .then((res) => {
+              console.log(
+                `openLeadsCountQuery: ${Date.now() - startOpen} ms (${(
+                  (Date.now() - startOpen) /
+                  1000
+                ).toFixed(3)} sec)`,
+              );
+
+              return res;
+            }),
+        ]);
+
+        console.log(
+          `TOTAL Promise.all: ${Date.now() - startAll} ms (${(
+            (Date.now() - startAll) /
+            1000
+          ).toFixed(3)} sec)`,
+        );
+
+        countResult = countRes[0];
+        result = queryRes[0];
+        bucketCountResult = bucketRes[0];
+        openLeadsCountResult = openRes[0];
+
+        leadBucketCountsCache.set(cacheKey, bucketCountResult);
+
+        openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
+      }
+
+      // =========================================================
+      // 20. TOTAL
+      // =========================================================
+
+      const total = countResult[0]?.total || 0;
+
+      // =========================================================
+      // 21. SAME RESPONSE
+      // =========================================================
+
+      return {
+        data: result,
+
+        bucket_counts: {
+          all: parseInt(bucketCountResult[0]?.all_leads || 0),
+
+          hub_leads: parseInt(bucketCountResult[0]?.hub_leads || 0),
+
+          chennai_leads: parseInt(bucketCountResult[0]?.chennai_leads || 0),
+
+          bangalore_leads: parseInt(bucketCountResult[0]?.bangalore_leads || 0),
+
+          valid_leads: parseInt(bucketCountResult[0]?.valid_leads || 0),
+
+          eligible_leads: parseInt(bucketCountResult[0]?.eligible_leads || 0),
+
+          interested_leads: parseInt(
+            bucketCountResult[0]?.interested_leads || 0,
+          ),
+
+          sales_ready: parseInt(bucketCountResult[0]?.sale_ready || 0),
+
+          followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
+
+          joinings: parseInt(bucketCountResult[0]?.joinings || 0),
+
+          open_leads: parseInt(openLeadsCountResult[0]?.open_leads || 0),
+        },
+
+        valid_lead_actions: {
+          validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
+
+          need_screening: parseInt(bucketCountResult[0]?.need_screening || 0),
+
+          junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
+        },
+
+        eligible_lead_actions: {
+          communicated: parseInt(
+            bucketCountResult[0]?.communicated_eligible_leads || 0,
+          ),
+
+          not_communicated: parseInt(
+            bucketCountResult[0]?.not_communicated_eligible_leads || 0,
+          ),
+
+          no_response: parseInt(
+            bucketCountResult[0]?.no_response_eligible_leads || 0,
+          ),
+        },
+
+        interested_lead_actions: {
+          all: parseInt(bucketCountResult[0]?.interested_leads || 0),
+
+          super_hot: parseInt(bucketCountResult[0]?.super_hot || 0),
+
+          hot: parseInt(bucketCountResult[0]?.hot || 0),
+
+          warm: parseInt(bucketCountResult[0]?.warm || 0),
+
+          cold: parseInt(bucketCountResult[0]?.cold || 0),
+
+          dormant: parseInt(bucketCountResult[0]?.dormant || 0),
+
+          not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
+        },
+
+        followup_actions: {
+          sales_ready_leads: parseInt(
+            bucketCountResult[0]?.sales_ready_leads || 0,
+          ),
+
+          highly_interested_leads: parseInt(
+            bucketCountResult[0]?.highly_interested_leads || 0,
+          ),
+
+          interested_leads: parseInt(
+            bucketCountResult[0]?.followup_interested_leads || 0,
+          ),
+
+          exploring_leads: parseInt(bucketCountResult[0]?.exploring_leads || 0),
+
+          not_responding_leads: parseInt(
+            bucketCountResult[0]?.not_responding_leads || 0,
+          ),
+
+          not_interested_leads: parseInt(
+            bucketCountResult[0]?.not_interested_leads || 0,
+          ),
+        },
+
+        pagination: {
+          total: parseInt(total),
+
+          page: pageNumber,
+
+          limit: limitNumber,
+
           totalPages: Math.ceil(total / limitNumber),
         },
       };
