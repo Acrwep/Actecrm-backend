@@ -4536,7 +4536,7 @@ const LeadModel = {
     }
   },
 
-  getLeadsV1old: async (
+  getLeadsV1: async (
     search_filter,
     start_date,
     end_date,
@@ -5205,7 +5205,7 @@ const LeadModel = {
       throw new Error(error.message);
     }
   },
-  getLeadsV1: async (
+  getLeadsV1new: async (
     search_filter,
     start_date,
     end_date,
