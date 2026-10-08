@@ -3133,6 +3133,334 @@ SUM(
       throw new Error(error.message);
     }
   },
+
+  accountsOverallCounts: async (start_date, end_date, user_ids) => {
+    try {
+      // =========================================================
+      // 1. PENDING FEES TOTAL
+      // Same logic as pendingFeesListV1
+      // =========================================================
+
+      const pendingParams = [];
+      const pendingConditions = [];
+
+      // user_ids filter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          pendingConditions.push(`lm.assigned_to IN (${placeholders})`);
+
+          pendingParams.push(...user_ids);
+        } else {
+          pendingConditions.push(`lm.assigned_to = ?`);
+
+          pendingParams.push(user_ids);
+        }
+      }
+
+      // Same mandatory condition
+      pendingConditions.push(`c.status <> 'Demo Completed'`);
+
+      // Same Pending Fees condition
+      pendingConditions.push(`(pm.total_amount - ps.total_paid) > 0`);
+
+      // Same date logic as pendingFeesListV1
+      if (start_date && end_date) {
+        pendingConditions.push(`
+        pt_latest.next_due_date >= ?
+        AND pt_latest.next_due_date < DATE_ADD(?, INTERVAL 1 DAY)
+      `);
+
+        pendingParams.push(start_date, end_date);
+      }
+
+      // Same payment summary logic
+      const pendingSummarySubquery = `
+      SELECT
+        pt.payment_master_id,
+        SUM(pt.amount) AS total_paid,
+        MAX(pt.id) AS latest_trans_id
+      FROM payment_trans pt
+      WHERE pt.payment_status IN ('Verified', 'Verify Pending')
+      GROUP BY pt.payment_master_id
+    `;
+
+      // Same latest transaction logic
+      const pendingLatestSubquery = `
+      SELECT
+        payment_master_id,
+        MAX(id) AS latest_trans_id
+      FROM payment_trans
+      WHERE payment_status <> 'Rejected'
+      GROUP BY payment_master_id
+    `;
+
+      // Same next due logic
+      const pendingNextDueSubquery = `
+      SELECT
+        pt2.id,
+        pt2.next_due_date
+      FROM payment_trans pt2
+    `;
+
+      const pendingQuery = `
+      SELECT COUNT(DISTINCT c.id) AS total
+
+      FROM customers AS c
+
+      INNER JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      INNER JOIN lead_master AS lm
+        ON c.lead_id = lm.id
+
+      LEFT JOIN technologies AS t
+        ON c.enrolled_course = t.id
+
+      LEFT JOIN (${pendingSummarySubquery}) AS ps
+        ON ps.payment_master_id = pm.id
+
+      LEFT JOIN (${pendingLatestSubquery}) AS latest
+        ON latest.payment_master_id = pm.id
+
+      LEFT JOIN (${pendingNextDueSubquery}) AS pt_latest
+        ON pt_latest.id = latest.latest_trans_id
+
+      LEFT JOIN trainer_mapping AS tm
+        ON tm.customer_id = c.id
+        AND tm.is_rejected = 0
+
+      LEFT JOIN trainer AS tr
+        ON tr.id = tm.trainer_id
+
+      WHERE ${pendingConditions.join(" AND ")}
+    `;
+
+      // =========================================================
+      // 2. FEE HISTORY TOTAL
+      // Same logic as feeHistory
+      // date_type = joining_date
+      // =========================================================
+
+      const historyParams = [];
+      const historyConditions = [];
+
+      // user_ids filter
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          historyConditions.push(`lm.assigned_to IN (${placeholders})`);
+
+          historyParams.push(...user_ids);
+        } else {
+          historyConditions.push(`lm.assigned_to = ?`);
+
+          historyParams.push(user_ids);
+        }
+      }
+
+      // Default feeHistory date_type = joining_date
+      if (start_date && end_date) {
+        historyConditions.push(`
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date)
+            < DATE_ADD(?, INTERVAL 1 DAY)
+      `);
+
+        historyParams.push(start_date, end_date);
+      }
+
+      // Same payment history logic as feeHistory
+      const historyPaymentSubquery = `
+      SELECT
+        payment_master_id,
+        SUM(amount) AS paid_amount,
+        MIN(invoice_date) AS first_payment_date,
+        MAX(invoice_date) AS last_payment_date,
+
+        (
+          SELECT pt2.verified_date
+          FROM payment_trans pt2
+          WHERE pt2.payment_master_id = pt.payment_master_id
+            AND pt2.payment_status <> 'Rejected'
+          ORDER BY pt2.id DESC
+          LIMIT 1
+        ) AS last_payment_verified_date,
+
+        COUNT(id) AS installment_count
+
+      FROM payment_trans pt
+
+      WHERE payment_status <> 'Rejected'
+
+      GROUP BY payment_master_id
+    `;
+
+      const historyQuery = `
+      SELECT COUNT(*) AS total
+
+      FROM lead_master AS lm
+
+      LEFT JOIN customers AS c
+        ON c.lead_id = lm.id
+
+      LEFT JOIN class_mode AS cm
+        ON cm.id = c.mode_of_class
+
+      LEFT JOIN branches AS ps
+        ON ps.id = c.place_of_service
+
+      LEFT JOIN technologies AS t
+        ON t.id = c.enrolled_course
+
+      LEFT JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      LEFT JOIN (${historyPaymentSubquery}) AS payment_history
+        ON payment_history.payment_master_id = pm.id
+
+      LEFT JOIN users AS su
+        ON su.user_id = lm.assigned_to
+
+      WHERE ${historyConditions.join(" AND ")}
+    `;
+
+      // =========================================================
+      // 3. REFUND TOTAL
+      // Same refundList logic
+      //
+      // Request parameters ONLY:
+      // start_date
+      // end_date
+      // user_ids
+      // =========================================================
+
+      const refundParams = [];
+      const refundConditions = [];
+
+      // Same mandatory refund statuses
+      refundConditions.push(`
+      c.status IN (
+        'Refund Request',
+        'Refund Ready to Pay',
+        'Refunded'
+      )
+    `);
+
+      // Same user_ids logic as refundList
+      //
+      // refundList checks:
+      // assigned_to
+      // OR ra_id
+      // OR hr_id
+      //
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          refundConditions.push(`
+          (
+            l.assigned_to IN (${placeholders})
+            OR l.ra_id IN (${placeholders})
+            OR l.hr_id IN (${placeholders})
+          )
+        `);
+
+          // Three IN (...) sections
+          refundParams.push(...user_ids, ...user_ids, ...user_ids);
+        } else {
+          refundConditions.push(`
+          (
+            l.assigned_to = ?
+            OR l.ra_id = ?
+            OR l.hr_id = ?
+          )
+        `);
+
+          refundParams.push(user_ids, user_ids, user_ids);
+        }
+      }
+
+      // Same date logic as refundList
+      if (start_date && end_date) {
+        refundConditions.push(`
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date)
+            < DATE_ADD(?, INTERVAL 1 DAY)
+      `);
+
+        refundParams.push(start_date, end_date);
+      }
+
+      const refundQuery = `
+      SELECT COUNT(DISTINCT c.id) AS total
+
+      FROM customers AS c
+
+      LEFT JOIN customer_status_history AS csh
+        ON csh.id = c.latest_status_history_id
+
+      LEFT JOIN technologies AS t
+        ON c.enrolled_course = t.id
+
+      LEFT JOIN region AS r
+        ON r.id = c.region_id
+
+      LEFT JOIN lead_master AS l
+        ON l.id = c.lead_id
+
+      LEFT JOIN payment_master AS pm
+        ON pm.lead_id = c.lead_id
+
+      LEFT JOIN technologies AS tg
+        ON l.primary_course_id = tg.id
+
+      LEFT JOIN users AS au
+        ON au.user_id = l.assigned_to
+
+      LEFT JOIN branches AS b
+        ON au.branch_id = b.id
+
+      LEFT JOIN region AS re
+        ON b.region_id = re.id
+
+      LEFT JOIN class_mode AS cm
+        ON c.mode_of_class = cm.id
+
+      WHERE ${refundConditions.join(" AND ")}
+    `;
+
+      // =========================================================
+      // 4. EXECUTE ALL THREE QUERIES
+      // =========================================================
+
+      const [[pendingResult], [historyResult], [refundResult]] =
+        await Promise.all([
+          pool.query(pendingQuery, pendingParams),
+
+          pool.query(historyQuery, historyParams),
+
+          pool.query(refundQuery, refundParams),
+        ]);
+
+      // =========================================================
+      // 5. RETURN ONLY THREE TOTALS
+      // =========================================================
+
+      return {
+        pending_fees_total: parseInt(pendingResult[0]?.total || 0, 10),
+
+        fee_history_total: parseInt(historyResult[0]?.total || 0, 10),
+
+        refund_total: parseInt(refundResult[0]?.total || 0, 10),
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   addRefundCustomers: async (
     customer_id,
     payment_type,

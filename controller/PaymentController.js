@@ -515,6 +515,25 @@ const addRefundCustomers = async (request, response) => {
     });
   }
 };
+const accountsOverallCounts = async (request, response) => {
+  const { start_date, end_date, user_ids } = request.body;
+  try {
+    const result = await PaymentModel.accountsOverallCounts(
+      start_date,
+      end_date,
+      user_ids,
+    );
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      ...result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      messages: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
 
 const getBanks = async (request, response) => {
   const { region_id, payment_mode } = request.query;
@@ -570,6 +589,7 @@ module.exports = {
   feeHistory,
   refundList,
   addRefundCustomers,
+  accountsOverallCounts,
   getBanks,
   revertCustomerPaymentTrans,
 };
