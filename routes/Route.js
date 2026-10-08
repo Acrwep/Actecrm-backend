@@ -692,6 +692,11 @@ router.post(
   verifyToken,
   PaymentController.addRefundCustomers,
 );
+router.get(
+  "/getRefundCustomer",
+  verifyToken,
+  PaymentController.getRefundCustomer,
+);
 router.get("/getBanks", verifyToken, PaymentController.getBanks);
 router.post(
   "/revertCustomerPaymentTrans",

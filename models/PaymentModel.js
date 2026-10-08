@@ -3463,9 +3463,11 @@ SUM(
 
   addRefundCustomers: async (
     customer_id,
-    payment_type,
+    payment_mode,
     transaction_id,
     paid_date,
+    refund_amount,
+    paid_by,
     created_date,
   ) => {
     try {
@@ -3480,8 +3482,16 @@ SUM(
         throw new Error("Customer already exists in refund list");
       }
       const [inserrefunds] = await pool.query(
-        `INSERT INTO refund_customers (customer_id, payment_type, transaction_id, paid_date, created_date) VALUES (?, ?, ?, ?, ?)`,
-        [customer_id, payment_type, transaction_id, paid_date, created_date],
+        `INSERT INTO refund_customers (customer_id, payment_mode, transaction_id, paid_date, refund_amount,  paid_by, created_date) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customer_id,
+          payment_mode,
+          transaction_id,
+          paid_date,
+          refund_amount,
+          paid_by,
+          created_date,
+        ],
       );
 
       affectedRows += inserrefunds.affectedRows;
@@ -3490,6 +3500,34 @@ SUM(
       throw new Error(error.message);
     }
   },
+
+  getRefundCustomer: async (customer_id) => {
+    try {
+      const [result] = await pool.query(
+        `SELECT 
+    rc.customer_id,
+    rc.payment_mode,
+    rc.transaction_id,
+    rc.paid_date,
+    rc.refund_amount,
+    rc.paid_by AS paid_by_user_id,
+    u.user_name AS paid_by_name,
+    u.view_user_id AS paid_by_view_user_id,
+    rc.created_date
+   FROM refund_customers rc
+   LEFT JOIN users u 
+     ON u.user_id = rc.paid_by
+   WHERE rc.customer_id = ?
+   LIMIT 1`,
+        [customer_id],
+      );
+
+      return result[0] || null;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   revertCustomerPaymentTrans: async (
     payment_trans_id,
     customer_id,

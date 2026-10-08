@@ -1425,7 +1425,7 @@ WHERE c.id = ?`;
           if (customer.status === "Escalated" || customer.status === "Hold") {
             console.log("Escalated===>", customer.status);
             const [result] = await pool.query(
-              `UPDATE customers SET class_percentage = 0, status = ? WHERE id = ?`,
+              `UPDATE customers SET class_percentage = 0, trainer_fixation_call = 0, status = ? WHERE id = ?`,
               [customer.status, customer.customer_id],
             );
 
@@ -1767,6 +1767,7 @@ WHERE c.id = ?`;
                       l.assigned_to AS lead_assigned_to_id,
                       au.user_name AS lead_assigned_to_name,
                       au.view_user_id as lead_assigned_to_view_user_id,
+                      c.trainer_fixation_call,
                       c.linkedin_review,
                       c.google_review,
                       c.payment_date AS last_payment_date,

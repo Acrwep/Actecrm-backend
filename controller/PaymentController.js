@@ -494,14 +494,23 @@ const refundList = async (request, response) => {
   }
 };
 const addRefundCustomers = async (request, response) => {
-  const { customer_id, payment_type, transaction_id, paid_date, created_date } =
-    request.body;
+  const {
+    customer_id,
+    payment_mode,
+    transaction_id,
+    paid_date,
+    refund_amount,
+    paid_by,
+    created_date,
+  } = request.body;
   try {
     const result = await PaymentModel.addRefundCustomers(
       customer_id,
-      payment_type,
+      payment_mode,
       transaction_id,
       paid_date,
+      refund_amount,
+      paid_by,
       created_date,
     );
     return response.status(200).send({
@@ -515,6 +524,31 @@ const addRefundCustomers = async (request, response) => {
     });
   }
 };
+
+const getRefundCustomer = async (request, response) => {
+  const { customer_id } = request.query;
+
+  try {
+    if (!customer_id) {
+      return response.status(400).send({
+        messages: "Customer ID is required",
+      });
+    }
+
+    const result = await PaymentModel.getRefundCustomer(customer_id);
+
+    return response.status(200).send({
+      messages: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    return response.status(500).send({
+      messages: "Error while fetching refund customer data",
+      details: error.message,
+    });
+  }
+};
+
 const accountsOverallCounts = async (request, response) => {
   const { start_date, end_date, user_ids } = request.body;
   try {
@@ -589,6 +623,7 @@ module.exports = {
   feeHistory,
   refundList,
   addRefundCustomers,
+  getRefundCustomer,
   accountsOverallCounts,
   getBanks,
   revertCustomerPaymentTrans,
