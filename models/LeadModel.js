@@ -1731,18 +1731,8 @@ const LeadModel = {
     }
   },
 
-  getLeadCount: async (user_ids, start_date, end_date, login_by) => {
+  getLeadCount: async () => {
     try {
-      const dateColumn = "CONVERT_TZ(created_date, '+00:00', '+05:30')";
-      const followUpParams = [];
-      const leadParams = [];
-      // const webParams = [];
-      const junkParams = [];
-      const assignParams = [];
-      let followUpQuery = `SELECT COUNT(lf.id) AS follow_up_count FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON lf.lead_id = l.id LEFT JOIN customers AS c ON c.lead_id = l.id WHERE lf.is_updated = 0 AND c.id IS NULL`;
-
-      let leadCountQuery = `SELECT COUNT(*) AS total_lead_count FROM lead_master AS l WHERE 1 = 1`;
-
       let webLeadsCount = `
   SELECT COUNT(*) AS web_lead_count
   FROM website_leads
@@ -1762,63 +1752,9 @@ const LeadModel = {
       )
     )
 `;
-      let assignQuery = `SELECT COUNT(*) AS total FROM website_leads AS l LEFT JOIN users AS u ON u.user_id = l.assigned_to LEFT JOIN users AS ab ON ab.id = l.assigned_by WHERE l.status = 'Pending' AND l.is_junk = 0 AND l.is_deleted = 0 AND l.assigned_by IS NOT NULL AND l.assigned_to IS NOT NULL`;
-
-      let junkQuery = `SELECT COUNT(*) AS junk_lead_count FROM website_leads WHERE is_junk = 1 AND is_deleted = 0`;
-
-      if (login_by) {
-        assignQuery += ` AND (u.user_id = ? OR ab.user_id = ?)`;
-        assignParams.push(login_by, login_by);
-      }
-
-      if (start_date && end_date) {
-        followUpQuery += ` AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
-        leadCountQuery += ` AND CAST(l.created_date AS DATE) BETWEEN ? AND ?`;
-        // webLeadsCount += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        junkQuery += ` AND CAST(${dateColumn} AS DATE) BETWEEN ? AND ?`;
-        assignQuery += ` AND CAST(l.assigned_date AS DATE) BETWEEN ? AND ?`;
-        followUpParams.push(start_date, end_date);
-        leadParams.push(start_date, end_date);
-        // webParams.push(start_date, end_date);
-        junkParams.push(start_date, end_date);
-        assignParams.push(start_date, end_date);
-      }
-
-      if (user_ids) {
-        if (Array.isArray(user_ids) && user_ids.length > 0) {
-          const placeholders = user_ids.map(() => "?").join(", ");
-          followUpQuery += ` AND l.assigned_to IN (${placeholders})`;
-          leadCountQuery += ` AND l.assigned_to IN (${placeholders})`;
-          followUpParams.push(...user_ids);
-          leadParams.push(...user_ids);
-        } else if (!Array.isArray(user_ids)) {
-          followUpQuery += ` AND l.assigned_to = ?`;
-          leadCountQuery += ` AND l.assigned_to = ?`;
-          followUpParams.push(user_ids);
-          leadParams.push(user_ids);
-        }
-      }
-
-      const [
-        [getFollowupCount],
-        [getLeadCount],
-        [webResult],
-        [junkResult],
-        [assignLeads],
-      ] = await Promise.all([
-        await pool.query(followUpQuery, followUpParams),
-        await pool.query(leadCountQuery, leadParams),
-        await pool.query(webLeadsCount),
-        await pool.query(junkQuery, junkParams),
-        await pool.query(assignQuery, assignParams),
-      ]);
-
+      const [webResult] = await pool.query(webLeadsCount);
       return {
-        follow_up_count: getFollowupCount[0].follow_up_count,
-        total_lead_count: getLeadCount[0].total_lead_count,
         web_lead_count: webResult[0].web_lead_count,
-        junk_lead_count: junkResult[0].junk_lead_count,
-        assign_lead_count: assignLeads[0].total,
       };
     } catch (error) {
       throw new Error(error.message);
