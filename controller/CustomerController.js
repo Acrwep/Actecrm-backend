@@ -194,6 +194,42 @@ const verifyStudent = async (request, response) => {
   }
 };
 
+const getPlacementSupport = async (request, response) => {
+  const {
+    from_date,
+    to_date,
+    search_filter,
+    user_ids,
+    page,
+    limit,
+    bucket,
+    region_id,
+    branch_id,
+  } = request.body;
+  try {
+    const result = await CustomerModel.getPlacementSupport(
+      from_date,
+      to_date,
+      search_filter,
+      user_ids,
+      page,
+      limit,
+      bucket,
+      region_id,
+      branch_id,
+    );
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while verifying",
+      details: error.message,
+    });
+  }
+};
+
 // const trainerAssign = async (request, response) => {
 //   const {
 //     customer_id,
@@ -820,6 +856,7 @@ module.exports = {
   getCustomers,
   getCustomerById,
   verifyStudent,
+  getPlacementSupport,
   trainerAssign,
   updateTrainerCoordination,
   verifyTrainer,
