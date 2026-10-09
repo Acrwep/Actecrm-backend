@@ -2795,10 +2795,13 @@ SUM(
 
       // Get pagination count query
       let countQuery = `SELECT
-                            COUNT(c.id) AS total
+                            COUNT(c.id) AS total,
+                           SUM(rc.refund_amount) as overall_refunded_amount 
                         FROM customers AS c
                         LEFT JOIN customer_status_history AS csh
                             ON csh.id = c.latest_status_history_id
+                        left join refund_customers as rc 
+                        on rc.customer_id = c.id 
                         LEFT JOIN technologies AS t
                             ON c.enrolled_course = t.id
                         LEFT JOIN region AS r
@@ -3086,6 +3089,8 @@ SUM(
 
       // Get total count
       const total = countResult[0]?.total || 0;
+      const overallRefundedAmount =
+        countResult[0]?.overall_refunded_amount || 0;
 
       let res = result.map((item) => {
         const totalAmount = parseFloat(item.total_course_amount || 0);
@@ -3127,6 +3132,7 @@ SUM(
           page: pageNumber,
           limit: limitNumber,
           totalPages: Math.ceil(total / limitNumber),
+          overall_refunded_amount: overallRefundedAmount,
         },
       };
     } catch (error) {
