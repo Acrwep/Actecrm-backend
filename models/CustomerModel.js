@@ -1303,7 +1303,7 @@ WHERE c.id = ?`;
                     select  customer_id, max(id) as latest_status_history_id  from customer_track
                     group by customer_id) as latest_status on latest_status.customer_id = c.id
                     LEFT JOIN customer_track AS cshy ON cshy.id = latest_status.latest_status_history_id
-                    WHERE 1 = 1 and c.placement_support = 'Need' `;
+                    WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
 
       // Get pagination count query
       let countQuery = `SELECT
@@ -1367,7 +1367,7 @@ WHERE c.id = ?`;
                         ) AS ps1 ON ps1.payment_master_id = pm.id
                         LEFT JOIN payment_trans AS pt1 ON
                           pt1.id = ps1.latest_trans_id
-                        WHERE 1 = 1 and c.placement_support = 'Need'  `;
+                        WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
 
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
 
@@ -1393,7 +1393,7 @@ WHERE c.id = ?`;
                           b.region_id = re.id
                           LEFT JOIN class_mode AS cm ON
                               c.mode_of_class = cm.id
-                          WHERE 1 = 1 and c.placement_support = 'Need' `;
+                          WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
 
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
