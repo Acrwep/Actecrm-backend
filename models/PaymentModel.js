@@ -782,7 +782,7 @@ const PaymentModel = {
       const allConditions = [
         ...baseConditions,
         ...searchConditions,
-        "c.status <> 'Demo Completed'",
+        "c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded')",
       ];
 
       const summarySubquery = `
