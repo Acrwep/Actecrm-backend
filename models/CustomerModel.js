@@ -1510,8 +1510,26 @@ WHERE c.id = ?`;
       const total_count = regionResult[0]?.total_count || 0;
 
       // Return customer result
+
+      let res = result.map((item) => {
+        const totalAmount = parseFloat(item.total_course_amount || 0);
+        const paidAmount = parseFloat(item.paid_amount || 0);
+
+        // Format customer result
+        return {
+          ...item,
+          balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+          total_amount: totalAmount,
+          paid_amount: paidAmount,
+          // commercial_percentage: item.primary_fees
+          //   ? parseFloat(
+          //       ((item.commercial / item.primary_fees) * 100).toFixed(2),
+          //     )
+          //   : 0,
+        };
+      });
       return {
-        customers: result,
+        customers: res,
         pagination: {
           total: parseInt(total),
           page: pageNumber,
