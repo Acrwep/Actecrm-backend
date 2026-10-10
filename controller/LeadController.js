@@ -1226,6 +1226,40 @@ const getLeadsV1 = async (request, response) => {
   }
 };
 
+const getLeadsOnly = async (request, response) => {
+  const {
+    start_date,
+    end_date,
+    search_filter,
+    user_ids,
+    page,
+    limit,
+    region,
+    branch,
+  } = request.body;
+  try {
+    const leads = await LeadModel.getLeadsOnly(
+      start_date,
+      end_date,
+      search_filter,
+      user_ids,
+      page,
+      limit,
+      region,
+      branch,
+    );
+    return response.status(200).send({
+      message: "Leads fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching leads",
+      details: error.message,
+    });
+  }
+};
+
 const getCommunicationStatus = async (request, response) => {
   try {
     const result = await LeadModel.getCommunicationStatus();
@@ -1437,6 +1471,7 @@ module.exports = {
   updateLeadStatus,
   leadReEntry,
   getLeadsV1,
+  getLeadsOnly,
   getCommunicationStatus,
   getContactMode,
   getLeadSubCategory,

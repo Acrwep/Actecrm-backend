@@ -6858,6 +6858,219 @@ WHERE 1 = 1
       throw new Error(error.message);
     }
   },
+  getLeadsOnly: async (
+    start_date,
+    end_date,
+    search_filter,
+    user_ids,
+    page,
+    limit,
+    region,
+    branch,
+  ) => {
+    try {
+      const queryParams = [];
+      const countParams = [];
+      const regionParams = [];
+
+      // Get customers query
+      let getQuery = `SELECT
+                        l.id,
+                        l.user_id,
+                        l.assigned_to AS lead_assigned_to_id,
+                        au.user_name AS lead_assigned_to_name,
+                        au.view_user_id as lead_assigned_to_view_user_id,
+                        l.name,
+                        l.phone_code,
+                        l.phone,
+                        l.whatsapp_phone_code,
+                        l.whatsapp,
+                        l.email,
+                        l.country,
+                        l.state,
+                        l.domain_origin,
+                        l.district AS area_id,
+                        l.primary_course_id,
+                        l.primary_fees,
+                        l.price_category,
+                        l.secondary_course_id,  
+                        l.secondary_fees,
+                        l.lead_type_id,
+                        l.lead_status_id,
+                        l.next_follow_up_date,
+                        l.expected_join_date,
+                        aub.id as branch_id,
+                        aub.name as 'place_of_sale_name',
+                        l.batch_track_id,
+                        l.comments,
+                        l.created_date,
+                        l.re_assigned_date,
+                        l.is_reassigned,
+                        l.assigned_manager,
+                        l.branch_manager_id,
+                        l.lead_sub_source,
+                        
+                        l.referral_name,
+                      
+                        l.preferred_mode,
+                       
+                        l.preferred_batch,
+                      
+                        l.counsel,
+                        
+                        l.assigned_branch_id
+                    FROM lead_master AS l
+                     LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+                    WHERE 1 = 1 AND NOT EXISTS (
+    SELECT 1
+    FROM customers AS c
+    WHERE c.lead_id = l.id
+)`;
+      // Get pagination count query
+      let countQuery = `SELECT
+                              COUNT(l.id) AS total
+                                           FROM lead_master AS l
+                     LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+                    WHERE 1 = 1 AND NOT EXISTS (
+    SELECT 1
+    FROM customers AS c
+    WHERE c.lead_id = l.id
+)`;
+
+      let regionQuery = `SELECT
+                             COUNT(l.id) AS total_count,
+    
+                  
+                                SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'  THEN 1 ELSE 0 END) AS chennai_region,
+                                SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'  THEN 1 ELSE 0 END) AS bangalore_region,
+                                SUM(CASE WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'  THEN 1 ELSE 0 END) AS hub_region
+                                        FROM lead_master AS l
+                     LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+                    WHERE 1 = 1 AND NOT EXISTS (
+    SELECT 1
+    FROM customers AS c
+    WHERE c.lead_id = l.id
+)`;
+
+      // Handle user_ids parameter for both queries
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+        const userFilter = ` AND l.assigned_to IN (${placeholders})`;
+        getQuery += userFilter;
+        countQuery += userFilter;
+        regionQuery += userFilter;
+        queryParams.push(...user_ids);
+        countParams.push(...user_ids);
+        regionParams.push(...user_ids);
+      }
+
+      // Add date range filter
+      if (start_date && end_date) {
+        const dateFilter = `
+    AND l.created_date >= ?
+    AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        getQuery += dateFilter;
+        countQuery += dateFilter;
+        regionQuery += dateFilter;
+
+        queryParams.push(start_date, end_date);
+        countParams.push(start_date, end_date);
+        regionParams.push(start_date, end_date);
+      }
+
+      if (region) {
+        getQuery += ` AND aur.id = ?`;
+        countQuery += ` AND aur.id = ?`;
+        regionQuery += ` AND aur.id = ?`;
+        queryParams.push(region);
+        countParams.push(region);
+        regionParams.push(region);
+      }
+
+      if (branch) {
+        getQuery += ` AND aub.id = ?`;
+        countQuery += ` AND aub.id = ?`;
+        regionQuery += ` AND aub.id = ?`;
+        queryParams.push(branch);
+        countParams.push(branch);
+        regionParams.push(branch);
+      }
+
+      // search filter
+      if (search_filter) {
+        const filterQuery = ` AND ( l.name LIKE ?
+            OR l.phone LIKE ?
+            OR l.email LIKE ?)`;
+        getQuery += filterQuery;
+        countQuery += filterQuery;
+        regionQuery += filterQuery;
+        queryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        countParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        regionParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+      }
+
+      // Apply pagination
+      const pageNumber = parseInt(page, 10) || 1;
+      const limitNumber = parseInt(limit, 10) || 10;
+      const offset = (pageNumber - 1) * limitNumber;
+
+      // Add pagination to main query
+      getQuery += ` ORDER BY l.id DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limitNumber, offset);
+
+      // Fetch all required data concurrently
+      const [[countResult], [result], [regionResult]] = await Promise.all([
+        pool.query(countQuery, countParams),
+        pool.query(getQuery, queryParams),
+        pool.query(regionQuery, regionParams),
+      ]);
+
+      // Get total count
+      const total = countResult[0]?.total || 0;
+      const chennai = regionResult[0]?.chennai_region || 0;
+      const bangalore = regionResult[0]?.bangalore_region || 0;
+      const hub = regionResult[0]?.hub_region || 0;
+      const total_count = regionResult[0]?.total_count || 0;
+
+      // Return customer result
+
+      return {
+        customers: result,
+        pagination: {
+          total: parseInt(total),
+          page: pageNumber,
+          limit: limitNumber,
+          totalPages: Math.ceil(total / limitNumber),
+        },
+        chennai_region: parseInt(chennai),
+        bangalore_region: parseInt(bangalore),
+        hub_region: parseInt(hub),
+        total_count: parseInt(total_count),
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   getCommunicationStatus: async () => {
     try {

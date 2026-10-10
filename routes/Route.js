@@ -619,6 +619,7 @@ router.post(
   DashboardController.getMobileDashboard,
 );
 router.post("/getLeadsV1", verifyToken, LeadController.getLeadsV1);
+router.post("/getLeadsOnly", verifyToken, LeadController.getLeadsOnly);
 router.get(
   "/getCommunicationStatus",
   verifyToken,
