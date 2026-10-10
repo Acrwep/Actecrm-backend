@@ -4567,7 +4567,7 @@ const LeadModel = {
                     LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
                     LEFT JOIN technologies AS st ON st.id = l.secondary_course_id
                     LEFT JOIN lead_type AS lt ON lt.id = l.lead_type_id
-                    LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+                    LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id 
                     LEFT JOIN region AS r ON r.id = l.region_id
                     LEFT JOIN branches AS b ON b.id = l.branch_id
                     LEFT JOIN batch_track AS bt ON bt.id = l.batch_track_id
@@ -6917,12 +6917,14 @@ WHERE 1 = 1
                         l.preferred_batch,
                       
                         l.counsel,
+                        ls.name AS lead_status,
                         
                         l.assigned_branch_id
                     FROM lead_master AS l
                      LEFT JOIN users AS au ON au.user_id = l.assigned_to
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
+        LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
                     WHERE 1 = 1 AND NOT EXISTS (
     SELECT 1
     FROM customers AS c
