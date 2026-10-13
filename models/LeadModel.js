@@ -5017,8 +5017,10 @@ const LeadModel = {
         getQuery += ` ORDER BY l.created_date DESC `;
       }
 
-      getQuery += ` LIMIT ? OFFSET ?`;
-      queryParams.push(limitNumber, offset);
+      if (page && limit) {
+        getQuery += ` LIMIT ? OFFSET ?`;
+        queryParams.push(limitNumber, offset);
+      }
 
       let bucketCountResult;
       let openLeadsCountResult;
