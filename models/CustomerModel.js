@@ -1198,11 +1198,15 @@ WHERE c.id = ?`;
     bucket,
     region_id,
     branch_id,
+    status,
+    class_going_sub_bucket,
   ) => {
     try {
       const queryParams = [];
       const countParams = [];
       const regionParams = [];
+      const bucketsCountQueryParams = [];
+      const classGoingSubBucketParams = [];
 
       // Get customers query
       let getQuery = `SELECT
@@ -1395,14 +1399,115 @@ WHERE c.id = ?`;
                               c.mode_of_class = cm.id
                           WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
 
+      let classGoingSubBucketQuery = `SELECT
+COUNT(
+    CASE
+        WHEN (c.class_percentage >= 0 AND c.class_percentage <= 25)
+             OR c.class_percentage IS NULL
+        THEN 1
+    END
+) AS under_25,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 25
+        AND c.class_percentage <= 50
+        THEN 1
+    END) AS under_50,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 50
+        AND c.class_percentage <= 75
+        THEN 1
+    END) AS under_75,
+
+    COUNT(CASE
+        WHEN c.class_percentage > 75
+        AND c.class_percentage <= 99
+        THEN 1
+    END) AS under_99
+
+FROM customers AS c
+LEFT JOIN customer_status_history AS csh
+    ON csh.id = c.latest_status_history_id
+LEFT JOIN lead_master AS l
+    ON c.lead_id = l.id
+LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+LEFT JOIN region AS re
+    ON b.region_id = re.id
+LEFT JOIN region AS r
+    ON r.id = c.region_id
+LEFT JOIN class_mode AS cm
+    ON c.mode_of_class = cm.id
+LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+WHERE 1 = 1
+    AND c.status = 'Class Going' and  c.placement_support = 'Need' 
+`;
+
+      let bucketsCountQuery = `SELECT
+      COUNT(c.id) AS total_count,
+                          COUNT(CASE WHEN c.status IN('Form Pending') THEN 1 END) AS form_pending,
+                          COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify,
+                          COUNT(CASE WHEN c.status in ('Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+                          )  THEN 1 END) AS assign_trainer,
+                        COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
+                          COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,
+                          COUNT(CASE WHEN c.status = 'Payment Rejected' THEN 1 END) AS payment_rejected,
+                          COUNT(CASE WHEN c.status = 'Awaiting Finance' THEN 1 END) AS awaiting_finance,
+                          COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify,
+                          COUNT(CASE WHEN c.status = 'Approval Rejected' THEN 1 END) AS approval_rejected,
+                          COUNT(CASE WHEN c.status = 'Trainer Approval' THEN 1 END) AS trainer_approval,
+                          COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class,
+                          COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going,
+                          COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled,
+                          COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
+                          COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
+                          COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
+                          COUNT(CASE WHEN c.status = 'Hold' THEN 1 END) AS hold,
+                          COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
+                          COUNT(CASE WHEN c.status IN(
+                                'Partially Closed',
+                                'Discontinued'
+                            ) THEN 1 END) AS Others
+                          
+                        FROM customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN payment_master AS pm ON
+                            c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                        WHERE
+                            1 = 1  and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
+
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
         countQuery += ` AND cm.name = 'Online'`;
+        bucketsCountQuery += ` AND cm.name = 'Online'`;
+        classGoingSubBucketQuery += ` AND cm.name = 'Online'`;
       }
 
       if (bucket && bucket === "Classroom") {
         getQuery += ` AND cm.name = 'Classroom'`;
         countQuery += ` AND cm.name = 'Classroom'`;
+        bucketsCountQuery += ` AND cm.name = 'Classroom'`;
+        classGoingSubBucketQuery += ` AND cm.name = 'Classroom'`;
       }
 
       // Handle user_ids parameter for both queries
@@ -1412,9 +1517,13 @@ WHERE c.id = ?`;
         getQuery += userFilter;
         countQuery += userFilter;
         regionQuery += userFilter;
+        bucketsCountQuery += userFilter;
+        classGoingSubBucketQuery += userFilter;
         queryParams.push(...user_ids);
         countParams.push(...user_ids);
         regionParams.push(...user_ids);
+        bucketsCountQueryParams.push(...user_ids);
+        classGoingSubBucketParams.push(...user_ids);
       }
 
       // Add date range filter
@@ -1422,9 +1531,13 @@ WHERE c.id = ?`;
         getQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         countQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         regionQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        bucketsCountQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        classGoingSubBucketQuery += ` AND COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         queryParams.push(from_date, to_date);
         countParams.push(from_date, to_date);
         regionParams.push(from_date, to_date);
+        bucketsCountQueryParams.push(from_date, to_date);
+        classGoingSubBucketParams.push(from_date, to_date);
       }
 
       if (region_id) {
@@ -1435,10 +1548,16 @@ WHERE c.id = ?`;
         `;
         regionQuery += `  AND re.id = ?
         `;
+        bucketsCountQuery += `  AND re.id = ?
+        `;
+        classGoingSubBucketQuery += `  AND re.id = ?
+        `;
 
         queryParams.push(region_id);
         countParams.push(region_id);
         regionParams.push(region_id);
+        bucketsCountQueryParams.push(region_id);
+        classGoingSubBucketParams.push(region_id);
       }
 
       if (branch_id) {
@@ -1449,10 +1568,16 @@ WHERE c.id = ?`;
         `;
         regionQuery += `  AND b.id = ?
         `;
+        bucketsCountQuery += `  AND b.id = ?
+        `;
+        classGoingSubBucketQuery += `  AND b.id = ?
+        `;
 
         queryParams.push(branch_id);
         countParams.push(branch_id);
         regionParams.push(branch_id);
+        bucketsCountQueryParams.push(branch_id);
+        classGoingSubBucketParams.push(branch_id);
       }
 
       // search filter
@@ -1461,6 +1586,7 @@ WHERE c.id = ?`;
         getQuery += filterQuery;
         countQuery += filterQuery;
         regionQuery += filterQuery;
+        bucketsCountQuery += filterQuery;
         queryParams.push(
           `%${search_filter}%`,
           `%${search_filter}%`,
@@ -1482,6 +1608,106 @@ WHERE c.id = ?`;
           `%${search_filter}%`,
           `%${search_filter}%`,
         );
+        bucketsCountQueryParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+      }
+      if (status && status.length > 0) {
+        // if (status === "Awaiting Finance") {
+        //   // Special handling for Awaiting Finance status
+        //   getQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   countQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   getCountQuery += ` AND (c.status = ? OR pt1.is_second_due = 1) AND pt1.is_last_pay_rejected = 0`;
+        //   queryParams.push(status);
+        //   countQueryParams.push(status);
+        //   countParams.push(status);
+        // } else
+        if (Array.isArray(status)) {
+          const placeholders = status.map(() => "?").join(", ");
+          getQuery += ` AND c.status IN (${placeholders})`;
+          countQuery += ` AND c.status IN (${placeholders})`;
+          regionQuery += ` AND c.status IN (${placeholders})`;
+          queryParams.push(...status);
+          regionParams.push(...status);
+          countParams.push(...status);
+        } else if (status !== "Others" && status !== "assign_trainer") {
+          getQuery += ` AND c.status = ?`;
+          countQuery += ` AND c.status = ?`;
+          regionQuery += ` AND c.status = ?`;
+          queryParams.push(status);
+          countParams.push(status);
+          regionParams.push(status);
+        }
+      }
+      if (status === "Others") {
+        getQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
+        countQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
+        regionQuery += ` AND c.status IN ('Partially Closed', 'Discontinued')`;
+      }
+      if (status === "Class Going" && class_going_sub_bucket) {
+        if (class_going_sub_bucket === "under_25") {
+          const condition = `
+      AND (
+        (c.class_percentage >= 0 AND c.class_percentage <= 25)
+        OR c.class_percentage IS NULL
+      )
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+          regionQuery += condition;
+        } else if (class_going_sub_bucket === "under_50") {
+          const condition = `
+      AND c.class_percentage > 25
+      AND c.class_percentage <= 50
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+          regionQuery += condition;
+        } else if (class_going_sub_bucket === "under_75") {
+          const condition = `
+      AND c.class_percentage > 50
+      AND c.class_percentage <= 75
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+          regionQuery += condition;
+        } else if (class_going_sub_bucket === "under_99") {
+          const condition = `
+      AND c.class_percentage > 75
+      AND c.class_percentage <= 99
+    `;
+
+          getQuery += condition;
+          countQuery += condition;
+          regionQuery += condition;
+        }
+      }
+      if (status === "assign_trainer") {
+        getQuery += `
+    AND c.status IN (
+    'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+ )
+  `;
+        countQuery += `
+    AND c.status IN (
+      'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+    )
+  `;
+        regionQuery += `
+          AND c.status IN (
+            'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
+                          'Trainer Approval', 'Approval Rejected'
+          )
+        `;
       }
 
       // Apply pagination
@@ -1494,11 +1720,35 @@ WHERE c.id = ?`;
       queryParams.push(limitNumber, offset);
 
       // Fetch all required data concurrently
-      const [[countResult], [result], [regionResult]] = await Promise.all([
+      const [
+        [countResult],
+        [result],
+        [regionResult],
+        [classGoingSubBucketResult],
+        [bucketsCountResult],
+      ] = await Promise.all([
         pool.query(countQuery, countParams),
         pool.query(getQuery, queryParams),
         pool.query(regionQuery, regionParams),
+        pool.query(classGoingSubBucketQuery, classGoingSubBucketParams),
+        pool.query(bucketsCountQuery, bucketsCountQueryParams),
       ]);
+
+      const classGoingSubBucketCount = {
+        under_25: classGoingSubBucketResult[0]?.under_25 ?? 0,
+        under_50: classGoingSubBucketResult[0]?.under_50 ?? 0,
+        under_75: classGoingSubBucketResult[0]?.under_75 ?? 0,
+        under_99: classGoingSubBucketResult[0]?.under_99 ?? 0,
+      };
+
+      const cusStatusCount = {
+        ...bucketsCountResult[0],
+        // awaiting_finance:
+        //   financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
+        // rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
+        awaiting_finance: bucketsCountResult[0].awaiting_finance ?? 0,
+        payment_rejected: bucketsCountResult[0].payment_rejected ?? 0,
+      };
 
       // Get total count
       const total = countResult[0]?.total || 0;
@@ -1530,6 +1780,8 @@ WHERE c.id = ?`;
       });
       return {
         customers: res,
+        class_going_sub_bucket: classGoingSubBucketCount,
+        customer_status_count: cusStatusCount,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

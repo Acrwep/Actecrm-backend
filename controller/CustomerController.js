@@ -205,6 +205,8 @@ const getPlacementSupport = async (request, response) => {
     bucket,
     region_id,
     branch_id,
+    status,
+    class_going_sub_bucket,
   } = request.body;
   try {
     const result = await CustomerModel.getPlacementSupport(
@@ -217,6 +219,8 @@ const getPlacementSupport = async (request, response) => {
       bucket,
       region_id,
       branch_id,
+      status,
+      class_going_sub_bucket,
     );
     return response.status(200).send({
       message: "Data fetched successfully",
