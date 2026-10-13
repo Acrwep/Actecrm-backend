@@ -7057,7 +7057,7 @@ WHERE 1 = 1
       // Return customer result
 
       return {
-        customers: result,
+        leads: result,
         pagination: {
           total: parseInt(total),
           page: pageNumber,

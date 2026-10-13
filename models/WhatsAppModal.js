@@ -14,6 +14,7 @@ const WhatsAppModel = {
         status,
         aisensy_response,
         sent_by,
+        created_at,
       } = data;
 
       const query = `
@@ -28,9 +29,10 @@ const WhatsAppModel = {
           template_params,
           status,
           aisensy_response,
-          sent_by
+          sent_by,
+          created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const values = [
@@ -44,6 +46,7 @@ const WhatsAppModel = {
         status || "pending",
         JSON.stringify(aisensy_response || {}),
         sent_by || null,
+        created_at,
       ];
 
       const [result] = await pool.query(query, values);

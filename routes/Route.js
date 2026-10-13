@@ -22,6 +22,14 @@ const upload = require("../validation/UploadMiddleware");
 const UploadController = require("../controller/UploadController");
 const AdmissionController = require("../controller/AdmissionController");
 const WhatsAppController = require("../controller/WhatsAppController");
+const {
+  createTemplateConfig,
+  getTemplateConfigs,
+  updateTemplateConfig,
+  deleteTemplateConfig,
+  sendTemplateWhatsApp,
+  sendBulkTemplateWhatsApp,
+} = require("../controller/WhatsAppController");
 router.post("/login", LoginController.login);
 
 // User start
@@ -396,17 +404,20 @@ router.post(
 
 router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 
-//whatsapp
-router.post(
-  "/sendWhatsAppMessage",
-  verifyToken,
-  WhatsAppController.sendWhatsApp,
-);
-router.post(
-  "/sendInvoiceWhatsApp",
-  verifyToken,
-  WhatsAppController.sendInvoiceWhatsApp,
-);
+//whatsapp start
+// Admin-only routes:
+// Apply your existing authentication and permission middleware.
+router.post("/createWhatsAppTemplate", createTemplateConfig);
+router.put("/updateWhatsAppTemplate/:id", updateTemplateConfig);
+router.delete("/deleteWhatsAppTemplate/:id", deleteTemplateConfig);
+
+// User routes
+router.get("/templates", getTemplateConfigs);
+router.post("/sendSingleWhatsappMessage", sendTemplateWhatsApp);
+router.post("/sendBulkWhatsappMessage", sendBulkTemplateWhatsApp);
+
+//whatsapp end
+
 router.post(
   "/getRegionWiseLeadCounts",
   verifyToken,
