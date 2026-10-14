@@ -200,8 +200,8 @@ const UserModel = {
                     WHERE
                         u.is_active = 1`;
       if (keyword) {
-        getQuery += ` AND (u.user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
-        countQuery += ` AND (u.user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
+        getQuery += ` AND (u.view_user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
+        countQuery += ` AND (u.view_user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
       }
 
       if (region_id) {
