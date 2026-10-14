@@ -22,14 +22,6 @@ const upload = require("../validation/UploadMiddleware");
 const UploadController = require("../controller/UploadController");
 const AdmissionController = require("../controller/AdmissionController");
 const WhatsAppController = require("../controller/WhatsAppController");
-const {
-  createTemplateConfig,
-  getTemplateConfigs,
-  updateTemplateConfig,
-  deleteTemplateConfig,
-  sendTemplateWhatsApp,
-  sendBulkTemplateWhatsApp,
-} = require("../controller/WhatsAppController");
 router.post("/login", LoginController.login);
 
 // User start
@@ -405,16 +397,58 @@ router.post(
 router.post("/reportPostSale", verifyToken, ReportController.reportPostSale);
 
 //whatsapp start
-// Admin-only routes:
-// Apply your existing authentication and permission middleware.
-router.post("/createWhatsAppTemplate", createTemplateConfig);
-router.put("/updateWhatsAppTemplate/:id", updateTemplateConfig);
-router.delete("/deleteWhatsAppTemplate/:id", deleteTemplateConfig);
+router.post(
+  "/createWhatsAppTemplate",
+  verifyToken,
+  WhatsAppController.createTemplateConfig,
+);
+router.put(
+  "/updateWhatsAppTemplate/:id",
+  verifyToken,
+  WhatsAppController.updateTemplateConfig,
+);
+router.delete(
+  "/deleteWhatsAppTemplate/:id",
+  verifyToken,
+  WhatsAppController.deleteTemplateConfig,
+);
 
-// User routes
-router.get("/templates", getTemplateConfigs);
-router.post("/sendSingleWhatsappMessage", sendTemplateWhatsApp);
-router.post("/sendBulkWhatsappMessage", sendBulkTemplateWhatsApp);
+router.get("/templates", verifyToken, WhatsAppController.getTemplateConfigs);
+router.post(
+  "/sendSingleWhatsappMessage",
+  verifyToken,
+  WhatsAppController.sendTemplateWhatsApp,
+);
+router.post(
+  "/sendBulkWhatsappMessage",
+  verifyToken,
+  WhatsAppController.sendBulkTemplateWhatsApp,
+);
+
+// WhatsApp Campaign Tracking routes
+router.get(
+  "/whatsapp/campaigns/statistics",
+  verifyToken,
+  WhatsAppController.getCampaignStatistics,
+);
+router.get("/whatsapp/campaigns", verifyToken, WhatsAppController.getCampaigns);
+router.get(
+  "/whatsapp/campaigns/:id",
+  verifyToken,
+  WhatsAppController.getCampaignById,
+);
+router.get(
+  "/whatsapp/campaigns/:id/messages",
+  verifyToken,
+  WhatsAppController.getCampaignMessages,
+);
+router.post(
+  "/whatsapp/campaigns/simulate-status",
+  verifyToken,
+  WhatsAppController.simulateMessageStatus,
+);
+router.get("/whatsapp/webhook", WhatsAppController.verifyAiSensyWebhook);
+router.post("/whatsapp/webhook", WhatsAppController.handleAiSensyWebhook);
 
 //whatsapp end
 

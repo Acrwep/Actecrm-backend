@@ -1,8 +1,7 @@
 const axios = require("axios");
 
 const WhatsAppTemplateConfigModal = require("../models/WhatsAppTemplateConfigModal");
-
-const WhatsAppModel = require("../models/WhatsAppModal");
+const WhatsAppCampaignModel = require("../models/WhatsAppCampaignModel");
 
 const createTemplateConfig = async (req, res) => {
   try {
@@ -229,6 +228,8 @@ const deleteTemplateConfig = async (req, res) => {
 
 const sendTemplateWhatsApp = async (req, res) => {
   let template;
+  let campaign_id = null;
+  const nowIST = WhatsAppCampaignModel.formatToBackendIST();
 
   try {
     const {
@@ -236,12 +237,15 @@ const sendTemplateWhatsApp = async (req, res) => {
       mobile,
       customer_name,
       lead_id,
-      customer_id,
+      region_id,
+      branch_id,
+      course_id,
       values = {},
       media_url,
       media_filename,
       sent_by,
       created_at,
+      campaign_name: customCampaignName,
     } = req.body;
 
     if (!template_id || !mobile) {
@@ -301,7 +305,7 @@ const sendTemplateWhatsApp = async (req, res) => {
       });
     }
 
-    // Only allow URLs from your trusted invoice/file domain.
+    // Only allow URLs from trusted invoice/file domain.
     if (media_url) {
       let parsedUrl;
 
@@ -333,6 +337,47 @@ const sendTemplateWhatsApp = async (req, res) => {
       }
     }
 
+    // Generate unique Campaign ID for tracking (e.g. CAMP-S-OCT132026-001)
+    campaign_id = await WhatsAppCampaignModel.generateCampaignId("Single");
+    const userSender = sent_by || req.user?.user_id || "CRM User";
+    const campName =
+      customCampaignName ||
+      `${template.template_label || template.campaign_name} - Single to ${mobile}`;
+
+    // 1. Create campaign record before sending
+    await WhatsAppCampaignModel.createCampaign({
+      campaign_id,
+      campaign_name: campName,
+      campaign_type: "Single",
+      template_id: template.id,
+      template_name: template.template_label || template.campaign_name,
+      region_id: region_id || null,
+      branch_id: branch_id || null,
+      course_id: course_id || null,
+      created_by: userSender,
+      total_recipients: 1,
+      pending_count: 1,
+      success_count: 0,
+      failed_count: 0,
+      campaign_status: "Processing",
+      started_at: nowIST,
+      created_at: created_at || nowIST,
+    });
+
+    // 2. Create recipient record in pending state
+    await WhatsAppCampaignModel.createCampaignMessages([
+      {
+        campaign_id,
+        lead_id: lead_id || null,
+        recipient_name: customer_name || null,
+        mobile_number: mobile,
+        message_status: "Pending",
+        template_params: templateParams,
+        media_url: media_url || null,
+        created_at: created_at || nowIST,
+      },
+    ]);
+
     const payload = {
       apiKey: process.env.AISENSY_API_KEY,
       campaignName: template.campaign_name,
@@ -353,59 +398,67 @@ const sendTemplateWhatsApp = async (req, res) => {
       timeout: 20000,
     });
 
-    // Keep existing WhatsApp history integration.
-    await WhatsAppModel.createMessage({
-      lead_id,
-      customer_id,
-      mobile,
-      customer_name,
-      course_name: values.course_name || null,
-      campaign_name: template.campaign_name,
-      template_params: templateParams,
-      status: "sent",
-      aisensy_response: response.data,
-      sent_by: sent_by,
-      created_at: created_at,
-    });
+    const submittedMessageId =
+      response.data?.submitted_message_id ||
+      response.data?.messageId ||
+      response.data?.id ||
+      null;
+
+    const completedIST = WhatsAppCampaignModel.formatToBackendIST();
+
+    // 3. Update recipient message to Sent
+    await WhatsAppCampaignModel.updateMessageStatus(
+      { campaign_id, mobile_number: mobile },
+      {
+        message_status: "Sent",
+        aisensy_message_id: submittedMessageId,
+        sent_at: completedIST,
+      },
+    );
+
+    // 4. Update campaign summary counts to Completed
+    await WhatsAppCampaignModel.recalculateCampaignCounts(campaign_id);
 
     return res.status(200).json({
       success: true,
       message: "WhatsApp request accepted by AiSensy",
+      campaign_id,
       data: response.data,
     });
   } catch (error) {
-    console.error(
-      "Generic WhatsApp send error:",
-      error.response?.data || error.message,
-    );
+    const errorMsg =
+      error.response?.data?.message ||
+      error.response?.data?.errorMessage ||
+      error.response?.data ||
+      error.message;
 
-    // Record a failed attempt when the template was resolved.
-    // A network error may still mean AiSensy received the request.
-    if (template) {
+    console.error("Generic WhatsApp send error:", errorMsg);
+
+    const failedIST = WhatsAppCampaignModel.formatToBackendIST();
+
+    if (campaign_id) {
       try {
-        await WhatsAppModel.createMessage({
-          lead_id: req.body.lead_id,
-          customer_id: req.body.customer_id,
-          mobile: req.body.mobile,
-          customer_name: req.body.customer_name,
-          course_name: req.body.values?.course_name || null,
-          campaign_name: template.campaign_name,
-          template_params: [],
-          status: "failed",
-          aisensy_response: {
-            message: error.response?.data || error.message,
+        await WhatsAppCampaignModel.updateMessageStatus(
+          { campaign_id, mobile_number: req.body.mobile },
+          {
+            message_status: "Failed",
+            error_message:
+              typeof errorMsg === "object"
+                ? JSON.stringify(errorMsg)
+                : String(errorMsg),
+            failed_at: failedIST,
           },
-          sent_by: req.body.sent_by,
-          created_at: req.body.created_at,
-        });
-      } catch (historyError) {
-        console.error("WhatsApp history error:", historyError.message);
+        );
+        await WhatsAppCampaignModel.recalculateCampaignCounts(campaign_id);
+      } catch (campErr) {
+        console.error("Campaign update error during failure:", campErr.message);
       }
     }
 
     return res.status(error.response ? 502 : 500).json({
       success: false,
       message: "Failed to send WhatsApp message",
+      campaign_id,
       error: error.response?.data || error.message,
     });
   }
@@ -413,7 +466,14 @@ const sendTemplateWhatsApp = async (req, res) => {
 
 const sendBulkTemplateWhatsApp = async (req, res) => {
   try {
-    const { template_id, leads } = req.body;
+    const {
+      template_id,
+      leads,
+      campaign_name: customCampaignName,
+      region_id,
+      branch_id,
+      course_id,
+    } = req.body;
 
     if (!template_id || !Array.isArray(leads) || leads.length === 0) {
       return res.status(400).json({
@@ -437,17 +497,61 @@ const sendBulkTemplateWhatsApp = async (req, res) => {
       });
     }
 
-    // Send response instantly so frontend doesn't hang or timeout
-    res.status(200).json({
-      success: true,
-      message: `Initiated bulk sending for ${leads.length} contacts. This will run in the background.`,
+    // Generate Campaign ID (e.g. CAMP-B-OCT132026-001)
+    const campaign_id = await WhatsAppCampaignModel.generateCampaignId("Bulk");
+    const nowIST = WhatsAppCampaignModel.formatToBackendIST();
+    const createdBy = leads[0]?.sent_by || req.user?.user_id || "CRM User";
+    const campName =
+      customCampaignName ||
+      `${template.template_label || template.campaign_name} - Bulk (${leads.length} recipients)`;
+
+    // 1. Create campaign record before sending
+    await WhatsAppCampaignModel.createCampaign({
+      campaign_id,
+      campaign_name: campName,
+      campaign_type: "Bulk",
+      template_id: template.id,
+      template_name: template.template_label || template.campaign_name,
+      region_id: region_id || null,
+      branch_id: branch_id || null,
+      course_id: course_id || null,
+      created_by: createdBy,
+      total_recipients: leads.length,
+      pending_count: leads.length,
+      success_count: 0,
+      failed_count: 0,
+      campaign_status: "Processing",
+      started_at: nowIST,
+      created_at: nowIST,
     });
 
-    // Run the loop in an async background function (IIFE)
+    // 2. Batch insert recipient message records in Pending state
+    const recipientRecords = leads.map((lead) => ({
+      campaign_id,
+      lead_id: lead.lead_id || lead.id || null,
+      recipient_name: lead.customer_name || lead.name || null,
+      mobile_number: String(
+        lead.mobile || lead.whatsapp || lead.phone || "",
+      ).trim(),
+      message_status: "Pending",
+      template_params: lead.values || null,
+      media_url: lead.media_url || null,
+      created_at: lead.created_at || nowIST,
+    }));
+
+    await WhatsAppCampaignModel.createCampaignMessages(recipientRecords);
+
+    // 3. Send response instantly so frontend doesn't hang or timeout
+    res.status(200).json({
+      success: true,
+      campaign_id,
+      message: `Initiated bulk sending for ${leads.length} contacts under campaign ${campaign_id}. This will run in the background.`,
+    });
+
+    // 4. Run the loop in an async background function (IIFE)
     (async () => {
       let successCount = 0;
       let failedCount = 0;
-      let errors = [];
 
       const allowedHosts = (
         process.env.WHATSAPP_MEDIA_ALLOWED_HOSTS || "actecrm.com"
@@ -456,19 +560,22 @@ const sendBulkTemplateWhatsApp = async (req, res) => {
         .map((host) => host.trim().toLowerCase());
 
       for (const lead of leads) {
+        const destMobile = String(
+          lead.mobile || lead.whatsapp || lead.phone || "",
+        ).trim();
+
         try {
           const {
-            mobile,
             customer_name,
             lead_id,
-            customer_id,
             values = {},
             media_url,
             media_filename,
           } = lead;
 
-          if (!mobile)
+          if (!destMobile) {
             throw new Error("Mobile number is required for this lead");
+          }
 
           if (!values || typeof values !== "object" || Array.isArray(values)) {
             throw new Error("Template values must be an object");
@@ -518,7 +625,7 @@ const sendBulkTemplateWhatsApp = async (req, res) => {
           const payload = {
             apiKey: process.env.AISENSY_API_KEY,
             campaignName: template.campaign_name,
-            destination: mobile,
+            destination: destMobile,
             userName: customer_name || "Customer",
             source: "ACTE CRM",
             templateParams,
@@ -539,55 +646,63 @@ const sendBulkTemplateWhatsApp = async (req, res) => {
             },
           );
 
-          await WhatsAppModel.createMessage({
-            lead_id,
-            customer_id,
-            mobile,
-            customer_name,
-            course_name: values.course_name || null,
-            campaign_name: template.campaign_name,
-            template_params: templateParams,
-            status: "sent",
-            aisensy_response: response.data,
-            sent_by: lead.sent_by,
-            created_at: lead.created_at,
-          });
+          const submittedMessageId =
+            response.data?.submitted_message_id ||
+            response.data?.messageId ||
+            response.data?.id ||
+            null;
+
+          const sentIST = WhatsAppCampaignModel.formatToBackendIST();
+
+          // Update recipient message
+          await WhatsAppCampaignModel.updateMessageStatus(
+            { campaign_id, mobile_number: destMobile },
+            {
+              message_status: "Sent",
+              aisensy_message_id: submittedMessageId,
+              sent_at: sentIST,
+            },
+          );
 
           successCount++;
           // Add a small delay to avoid rate limiting
           await new Promise((resolve) => setTimeout(resolve, 200));
         } catch (err) {
           failedCount++;
-          errors.push({
-            mobile: lead.mobile,
-            error: err.response?.data || err.message,
-          });
+          const errorMsg =
+            err.response?.data?.message ||
+            err.response?.data?.errorMessage ||
+            err.response?.data ||
+            err.message;
+
+          const failedIST = WhatsAppCampaignModel.formatToBackendIST();
 
           try {
-            await WhatsAppModel.createMessage({
-              lead_id: lead.lead_id,
-              customer_id: lead.customer_id,
-              mobile: lead.mobile,
-              customer_name: lead.customer_name,
-              course_name: lead.values?.course_name || null,
-              campaign_name: template.campaign_name,
-              template_params: [],
-              status: "failed",
-              aisensy_response: { message: err.response?.data || err.message },
-              sent_by: lead.sent_by,
-              created_at: lead.created_at,
-            });
-          } catch (historyError) {
+            await WhatsAppCampaignModel.updateMessageStatus(
+              { campaign_id, mobile_number: destMobile },
+              {
+                message_status: "Failed",
+                error_message:
+                  typeof errorMsg === "object"
+                    ? JSON.stringify(errorMsg)
+                    : String(errorMsg),
+                failed_at: failedIST,
+              },
+            );
+          } catch (updateErr) {
             console.error(
-              "WhatsApp history error during bulk failure log:",
-              historyError.message,
+              "Error updating message status on failure:",
+              updateErr.message,
             );
           }
         }
       }
 
+      // Recalculate campaign summary counts for absolute accuracy
+      await WhatsAppCampaignModel.recalculateCampaignCounts(campaign_id);
+
       console.log(
-        `[Bulk WhatsApp Complete] Sent: ${successCount}, Failed: ${failedCount}`,
+        `[Bulk WhatsApp Complete] Campaign: ${campaign_id}, Sent: ${successCount}, Failed: ${failedCount}`,
       );
     })();
   } catch (error) {
@@ -600,6 +715,281 @@ const sendBulkTemplateWhatsApp = async (req, res) => {
   }
 };
 
+const getCampaigns = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      campaignType = "",
+      status = "",
+      fromDate = "",
+      toDate = "",
+      createdBy = "",
+      region_id = "",
+      branch_id = "",
+      course_id = "",
+    } = req.query;
+
+    const result = await WhatsAppCampaignModel.getCampaigns({
+      page,
+      limit,
+      search,
+      campaignType,
+      status,
+      fromDate,
+      toDate,
+      createdBy,
+      region_id,
+      branch_id,
+      course_id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Get campaigns error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch campaigns",
+      error: error.message,
+    });
+  }
+};
+
+const getCampaignById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campaign = await WhatsAppCampaignModel.getCampaignById(id);
+
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: "Campaign not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: campaign,
+    });
+  } catch (error) {
+    console.error("Get campaign by ID error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch campaign details",
+      error: error.message,
+    });
+  }
+};
+
+const getCampaignMessages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20, search = "", status = "" } = req.query;
+
+    const result = await WhatsAppCampaignModel.getCampaignMessages(id, {
+      page,
+      limit,
+      search,
+      status,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Get campaign messages error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch campaign messages",
+      error: error.message,
+    });
+  }
+};
+
+const getCampaignStatistics = async (req, res) => {
+  try {
+    const { fromDate = "", toDate = "" } = req.query;
+    const stats = await WhatsAppCampaignModel.getStatistics({
+      fromDate,
+      toDate,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Get campaign statistics error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch campaign statistics",
+      error: error.message,
+    });
+  }
+};
+
+const verifyAiSensyWebhook = async (req, res) => {
+  try {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"] || req.query.challenge;
+
+    if (challenge) {
+      console.log("[AiSensy Webhook Verified Handshake]: challenge responded");
+      return res.status(200).send(challenge);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "AiSensy WhatsApp Webhook endpoint is active and healthy",
+      timestamp: WhatsAppCampaignModel.formatToBackendIST(),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+const handleAiSensyWebhook = async (req, res) => {
+  try {
+    const body = req.body;
+    console.log("[AiSensy Webhook Received]:", JSON.stringify(body));
+
+    // Handle Meta WhatsApp Cloud format: entry[].changes[].value.statuses[]
+    if (Array.isArray(body?.entry)) {
+      for (const entry of body.entry) {
+        for (const change of entry.changes || []) {
+          for (const st of change.value?.statuses || []) {
+            await WhatsAppCampaignModel.updateMessageByAisensyId(st.id, {
+              status: st.status,
+              error: st.errors?.[0] || null,
+              timestamp: st.timestamp,
+              destination: st.recipient_id,
+            });
+          }
+        }
+      }
+    }
+    // Handle AiSensy standard event format: { event: "message_status", data: { id, status, recipient_id, destination, timestamp, errors } }
+    else if (body?.event === "message_status" && body?.data) {
+      await WhatsAppCampaignModel.updateMessageByAisensyId(
+        body.data.id || body.data.message_id || body.data.submitted_message_id,
+        {
+          status: body.data.status,
+          error: body.data.errors?.[0] || body.data.error,
+          timestamp: body.data.timestamp,
+          destination:
+            body.data.recipient_id ||
+            body.data.destination ||
+            body.data.mobile ||
+            body.data.recipient,
+        },
+      );
+    }
+    // Handle flat payload format: { message_id / submitted_message_id, destination, status }
+    else if (
+      body?.submitted_message_id ||
+      body?.message_id ||
+      body?.id ||
+      body?.destination ||
+      body?.mobile
+    ) {
+      const msgId =
+        body.submitted_message_id || body.message_id || body.id || null;
+      await WhatsAppCampaignModel.updateMessageByAisensyId(msgId, {
+        status: body.status,
+        error: body.error || body.errors,
+        timestamp: body.timestamp,
+        destination:
+          body.destination ||
+          body.recipient_id ||
+          body.mobile ||
+          body.recipient,
+      });
+    }
+
+    // Always respond 200 to acknowledge webhook
+    return res.status(200).json({
+      success: true,
+      message: "Webhook processed successfully",
+    });
+  } catch (error) {
+    console.error("Error processing AiSensy webhook:", error);
+    return res.status(200).json({
+      success: false,
+      message: "Webhook received with errors",
+      error: error.message,
+    });
+  }
+};
+
+const simulateMessageStatus = async (req, res) => {
+  try {
+    const { message_id, aisensy_message_id, mobile, status } = req.body;
+
+    if (!status || !["Delivered", "Read", "Failed", "Sent"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be one of: Delivered, Read, Failed, Sent",
+      });
+    }
+
+    let updated = null;
+    if (message_id) {
+      const nowIST = WhatsAppCampaignModel.formatToBackendIST();
+      const updateData = { message_status: status };
+      if (status === "Delivered") updateData.delivered_at = nowIST;
+      if (status === "Read") {
+        updateData.read_at = nowIST;
+        updateData.delivered_at = nowIST;
+      }
+      if (status === "Failed") updateData.failed_at = nowIST;
+
+      await WhatsAppCampaignModel.updateMessageStatus(
+        { id: message_id },
+        updateData,
+      );
+      const [rows] = await require("../config/dbconfig").query(
+        "SELECT campaign_id FROM whatsapp_campaign_messages WHERE id = ? LIMIT 1",
+        [message_id],
+      );
+      if (rows.length) {
+        await WhatsAppCampaignModel.recalculateCampaignCounts(
+          rows[0].campaign_id,
+        );
+      }
+      updated = { messageId: message_id, newStatus: status };
+    } else {
+      updated = await WhatsAppCampaignModel.updateMessageByAisensyId(
+        aisensy_message_id,
+        {
+          status,
+          destination: mobile,
+        },
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Status updated to ${status} successfully`,
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Simulate status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to simulate message status",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createTemplateConfig,
   getTemplateConfigs,
@@ -607,4 +997,11 @@ module.exports = {
   deleteTemplateConfig,
   sendTemplateWhatsApp,
   sendBulkTemplateWhatsApp,
+  getCampaigns,
+  getCampaignById,
+  getCampaignMessages,
+  getCampaignStatistics,
+  handleAiSensyWebhook,
+  verifyAiSensyWebhook,
+  simulateMessageStatus,
 };
