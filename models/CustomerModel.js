@@ -1220,6 +1220,8 @@ WHERE c.id = ?`;
                       c.phonecode,
                       cm.name as mode_of_class,
                       c.phone,
+                      c.whatsapp,
+                      c.whatsapp_phone_code,
                       cshy.status_date as last_updated_at, 
                       re.id AS region_id,
                       b.id AS branch_id,

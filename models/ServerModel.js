@@ -34,6 +34,8 @@ const ServerModel = {
                           c.name,
                           c.phonecode,
                           c.phone,
+                          c.whatsapp,
+                          c.whatsapp_phone_code,
                           c.email,
                           t.name AS server_name,
                           st.vendor_id,
