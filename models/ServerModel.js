@@ -37,7 +37,21 @@ const ServerModel = {
                           c.whatsapp,
                           c.whatsapp_phone_code,
                           c.email,
+                          c.date_of_joining,
                           t.name AS server_name,
+                          CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
+                           pm.total_amount AS total_course_amount,
+                      pm.discount_amount,
+                      COALESCE(ps.total_paid, 0) AS paid_amount,
+                      hr_user.user_name AS hr_name,
+                      hr_user.view_user_id as hr_view_user_id,
+                       ra_user.user_name AS ra_name,
+                      ra_user.view_user_id as ra_view_user_id,
+                       l.ra_id,
+                      l.hr_id,
+                      cshy.status_date as last_updated_at,
+                      c.status as customer_status,
+                      c.class_percentage,
                           st.vendor_id,
                           st.server_cost,
                           st.duration,
@@ -63,10 +77,19 @@ const ServerModel = {
                           c.id = s.customer_id
                       INNER JOIN technologies AS t ON
                           t.id = c.enrolled_course
+                   
+                    LEFT JOIN payment_master AS pm ON 
+                      pm.lead_id = c.lead_id
                       INNER JOIN lead_master AS l ON
                           l.id = c.lead_id
+                       LEFT JOIN technologies AS tg ON
+                        l.primary_course_id = tg.id
                       INNER JOIN users AS u ON
                           u.user_id = l.assigned_to
+                      LEFT JOIN users AS hr_user ON
+                        hr_user.user_id = l.hr_id
+                      LEFT JOIN users AS ra_user ON
+                        ra_user.user_id = l.ra_id
                         LEFT JOIN branches AS b ON
                       u.branch_id = b.id
                     LEFT JOIN region AS r ON
@@ -79,6 +102,21 @@ const ServerModel = {
                       	latest.server_id = s.id
                       LEFT JOIN server_trans AS st ON
                       	st.id = latest.trans_id
+                      LEFT JOIN(
+                      SELECT
+                          payment_master_id,
+                          MAX(id) AS latest_trans_id,
+                          SUM(amount) AS total_paid
+                        FROM payment_trans
+                        WHERE payment_status IN ('Verified', 'Verify Pending')
+                        GROUP BY payment_master_id
+                    ) AS ps ON ps.payment_master_id = pm.id
+                    LEFT JOIN payment_trans AS pt ON
+                      pt.id = ps.latest_trans_id
+                    left join(
+                    select  customer_id, max(id) as latest_status_history_id  from customer_track
+                    group by customer_id) as latest_status on latest_status.customer_id = c.id
+                    LEFT JOIN customer_track AS cshy ON cshy.id = latest_status.latest_status_history_id 
                       WHERE 1 = 1`;
 
       let regionquery = `SELECT
@@ -325,12 +363,17 @@ SUM(
 
         // Format result with history
         const formattedResult = result.map((item) => {
+          const totalAmount = parseFloat(item.total_course_amount || 0);
+          const paidAmount = parseFloat(item.paid_amount || 0);
           const serverHistories = historyMap[item.id] || [];
 
           const history = serverHistories.sort((a, b) => b.id - a.id);
 
           return {
             ...item,
+            balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
+            total_amount: totalAmount,
+            paid_amount: paidAmount,
             server_history: history,
           };
         });
