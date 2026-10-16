@@ -964,7 +964,7 @@ const TrainerModel = {
       const result = await Promise.all(
         history.map(async (item) => {
           const [student_count] = await pool.query(
-            `SELECT SUM(CASE WHEN c.class_percentage < 100 AND c.status = 'Class Going' THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
+            `SELECT SUM(CASE WHEN IFNULL(c.class_percentage, 0) < 100 AND c.status = 'Class Going' THEN 1 ELSE 0 END) AS on_going_student, SUM(CASE WHEN c.class_percentage = 100 THEN 1 ELSE 0 END) AS completed_student_count FROM trainer_mapping AS tm INNER JOIN customers AS c ON tm.customer_id = c.id WHERE tm.trainer_id = ? AND tm.is_rejected = 0`,
             [item.trainer_id],
           );
           return {
