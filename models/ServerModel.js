@@ -670,7 +670,7 @@ SUM(
       await connection.beginTransaction();
 
       const [isAcknowledged] = await connection.query(
-        `SELECT is_acknowledged FROM server_trans WHERE id = ?`,
+        `SELECT is_acknowledged, server_id FROM server_trans WHERE id = ?`,
         [server_trans_id],
       );
 
@@ -688,7 +688,7 @@ SUM(
 
       await connection.query(
         `UPDATE server_master SET status = 'Awaiting Approval' WHERE id = ?`,
-        [server_trans_id],
+        [isAcknowledged[0].server_id],
       );
 
       await connection.query(
