@@ -263,6 +263,16 @@ router.post(
   ServerController.getServerRequest,
 );
 router.post("/awatingVerify", verifyToken, ServerController.awatingVerify);
+router.post(
+  "/reServerPurchased",
+  verifyToken,
+  ServerController.reServerPurchased,
+);
+router.put(
+  "/addAcknowledgeServer",
+  verifyToken,
+  ServerController.addAcknowledgeServer,
+);
 router.put(
   "/updateServerStatus",
   verifyToken,

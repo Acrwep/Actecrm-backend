@@ -96,6 +96,46 @@ const awatingVerify = async (request, response) => {
   }
 };
 
+const reServerPurchased = async (request, response) => {
+  const { server_id, vendor_id, duration, server_cost } = request.body;
+  try {
+    const result = await ServerModel.reServerPurchased(
+      server_id,
+      vendor_id,
+      duration,
+      server_cost,
+    );
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
+const addAcknowledgeServer = async (request, response) => {
+  const { server_trans_id, is_acknowledged } = request.body;
+  try {
+    const result = await ServerModel.addAcknowledgeServer(
+      server_trans_id,
+      is_acknowledged,
+    );
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 const serverIssued = async (request, response) => {
   const { server_id, email_subject, email_content } = request.body;
   try {
@@ -157,6 +197,8 @@ const getServerHistory = async (request, response) => {
 module.exports = {
   getServerRequest,
   awatingVerify,
+  reServerPurchased,
+  addAcknowledgeServer,
   updateServerStatus,
   serverIssued,
   insertServerTrack,

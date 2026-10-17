@@ -52,21 +52,16 @@ const ServerModel = {
                       cshy.status_date as last_updated_at,
                       c.status as customer_status,
                       c.class_percentage,
-                          st.vendor_id,
-                          st.server_cost,
-                          st.duration,
-                          st.start_date,
-                          st.end_date,
+                          
                           s.created_date,
                           l.assigned_to AS created_by_id,
                           u.user_name AS created_by,
                           u.view_user_id  as created_by_view_user_id,
                           s.status,
                           s.requested_duration,
-                          st.id AS server_trans_id,
-                          st.status AS server_status,
+                          
                           s.server_raise_date,
-                          st.screenshot,
+                          
                           r.name as region_name,
                           b.name as branch_name,
                           r.id as region_id,
@@ -95,13 +90,7 @@ const ServerModel = {
                     LEFT JOIN region AS r ON
                         b.region_id = r.id
 
-                      LEFT JOIN (
-                      	SELECT server_id, MAX(id) AS trans_id FROM server_trans
-                        GROUP BY server_id
-                      ) AS latest ON
-                      	latest.server_id = s.id
-                      LEFT JOIN server_trans AS st ON
-                      	st.id = latest.trans_id
+      
                       LEFT JOIN(
                       SELECT
                           payment_master_id,
@@ -330,6 +319,47 @@ SUM(
       }
 
       const [result] = await pool.query(getQuery, queryParams);
+
+      const serverIds = result.map((item) => item.id);
+
+      let transMap = new Map();
+
+      if (serverIds.length > 0) {
+        const [transResult] = await pool.query(
+          `SELECT
+        id,
+        server_id,
+        vendor_id,
+        server_cost,
+        duration,
+        start_date,
+        end_date,
+        status,
+        is_acknowledged,
+        screenshot
+     FROM server_trans
+     WHERE server_id IN (?) order by id desc `,
+          [serverIds],
+        );
+
+        for (const trans of transResult) {
+          if (!transMap.has(trans.server_id)) {
+            transMap.set(trans.server_id, []);
+          }
+
+          transMap.get(trans.server_id).push({
+            server_trans_id: trans.id,
+            vendor_id: trans.vendor_id,
+            server_cost: trans.server_cost,
+            server_trans_duration: trans.duration,
+            start_date: trans.start_date,
+            end_date: trans.end_date,
+            server_trans_status: trans.status,
+            screenshot: trans.screenshot,
+            is_acknowledged: trans.is_acknowledged,
+          });
+        }
+      }
       const [regionResult] = await pool.query(regionquery, regionParams);
 
       const chennai = regionResult[0]?.chennai_region || 0;
@@ -362,7 +392,7 @@ SUM(
         }, {});
 
         // Format result with history
-        const formattedResult = result.map((item) => {
+        const finalresult = result.map((item) => {
           const totalAmount = parseFloat(item.total_course_amount || 0);
           const paidAmount = parseFloat(item.paid_amount || 0);
           const serverHistories = historyMap[item.id] || [];
@@ -375,6 +405,7 @@ SUM(
             total_amount: totalAmount,
             paid_amount: paidAmount,
             server_history: history,
+            trans_details: transMap.get(item.id) || [],
           };
         });
 
@@ -382,7 +413,7 @@ SUM(
         const [statusResult] = await pool.query(statusQuery, statusParams);
 
         return {
-          data: formattedResult,
+          data: finalresult,
           statusCount: statusResult[0],
           pagination: {
             total: parseInt(total),
@@ -565,6 +596,60 @@ SUM(
 
       affectedRows += updateMaster.affectedRows;
       return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  reServerPurchased: async (server_id, vendor_id, duration, server_cost) => {
+    try {
+      let affectedRows = 0;
+      const [isServerExists] = await pool.query(
+        `SELECT id FROM server_master WHERE id = ?`,
+        server_id,
+      );
+
+      if (isServerExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+
+      const [insertTrans] = await pool.query(
+        `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status) VALUES(?, ?, ?, ?, ?)`,
+        [server_id, vendor_id, server_cost, duration, "Pending"],
+      );
+
+      if (insertTrans.affectedRows <= 0)
+        throw new Error("Something went wrong");
+
+      affectedRows += insertTrans.affectedRows;
+
+      const [updateMaster] = await pool.query(
+        `UPDATE server_master SET status = 'Awaiting Verify' WHERE id = ?`,
+        [server_id],
+      );
+
+      affectedRows += updateMaster.affectedRows;
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  addAcknowledgeServer: async (server_trans_id, is_acknowledged) => {
+    try {
+      const [isServerExists] = await pool.query(
+        `SELECT id FROM server_trans WHERE id = ?`,
+        server_trans_id,
+      );
+
+      if (isServerExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+
+      const [updateMaster] = await pool.query(
+        `UPDATE server_trans SET is_acknowledged = ? WHERE id = ?`,
+        [is_acknowledged, server_trans_id],
+      );
+
+      return updateMaster;
     } catch (error) {
       throw new Error(error.message);
     }
