@@ -74,8 +74,15 @@ const updateServerStatus = async (request, response) => {
 };
 
 const awatingVerify = async (request, response) => {
-  const { server_id, vendor_id, duration, server_cost, server_trans_id } =
-    request.body;
+  const {
+    server_id,
+    vendor_id,
+    duration,
+    server_cost,
+    server_trans_id,
+    email,
+    email_link,
+  } = request.body;
   try {
     const result = await ServerModel.awatingVerify(
       server_id,
@@ -83,6 +90,8 @@ const awatingVerify = async (request, response) => {
       duration,
       server_cost,
       server_trans_id,
+      email,
+      email_link,
     );
     return response.status(200).send({
       message: "Data updated successfully",
@@ -97,13 +106,16 @@ const awatingVerify = async (request, response) => {
 };
 
 const reServerPurchased = async (request, response) => {
-  const { server_id, vendor_id, duration, server_cost } = request.body;
+  const { server_id, vendor_id, duration, server_cost, email, email_link } =
+    request.body;
   try {
     const result = await ServerModel.reServerPurchased(
       server_id,
       vendor_id,
       duration,
       server_cost,
+      email,
+      email_link,
     );
     return response.status(200).send({
       message: "Data updated successfully",

@@ -1649,6 +1649,171 @@ const sendStudentAcknowledgementMail = async (
     connection.release();
   }
 };
+const sendServerRequestAcknowledgementMail = async (
+  email,
+  email_link,
+  server_trans_id,
+) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Check the trainer already exists
+    const [isCustomerExists] = await connection.query(
+      `SELECT c.id, c.name FROM customers c
+      JOIN server_master sm on sm.customer_id = c.id
+      JOIN server_trans st on st.server_id = sm.id
+       WHERE st.id = ?`,
+      [server_trans_id],
+    );
+    if (isCustomerExists.length <= 0) throw new Error("Customer not exists");
+
+    // Check acknowledge link already send to customer
+    const [isLinkSent] = await connection.query(
+      `SELECT id FROM server_trans  WHERE id = ? AND acknowledge_sent = 1`,
+      [server_trans_id],
+    );
+    if (isLinkSent.length > 0)
+      throw new Error("Acknowledge link has already been sent");
+    const mailOptions = {
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Course Syllabus Completion Acknowledgement",
+      text: `Please confirm whether your trainer completed the full course syllabus.`,
+      html: `
+  <table align="center" width="600" cellpadding="0" cellspacing="0" 
+    style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px; font-family: Arial, sans-serif;">
+
+    <!-- Header -->
+    <tr>
+      <td style="padding: 18px 12px 12px 12px; text-align: center;">
+        <img src="cid:companyLogo" alt="Company Logo" width="100" 
+          style="display: block; margin: 0 auto;" />
+      </td>
+    </tr>
+
+    <!-- Divider -->
+    <tr>
+      <td style="padding: 0 10px;">
+        <div style="border-bottom: 1px solid #e0e0e0; margin: 10px 0;"></div>
+      </td>
+    </tr>
+
+    <!-- Content -->
+    <tr>
+      <td style="padding: 10px 20px 25px 20px; color: #333333; font-size: 15px; line-height: 1.7;">
+
+        <p>Hi ${isCustomerExists[0].name},</p>
+
+        <p>
+          We hope you are doing well.
+        </p>
+
+        <p>
+          This is to inform you that your trainer has successfully completed the full course syllabus as scheduled.
+        </p>
+
+        <p>
+          Kindly confirm your Server acknowledgement by clicking one of the options below:
+        </p>
+
+        <!-- Completed Button -->
+        <p style="text-align: center; margin: 25px 0 15px 0;">
+          <a 
+            href="${email_link}/${server_trans_id}/1" 
+            target="_blank"
+            style="
+              background: #28a745;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 24px;
+              font-size: 15px;
+              font-weight: bold;
+              border-radius: 6px;
+              display: inline-block;
+              min-width: 240px;
+            "
+          >
+            100% Class Completed
+          </a>
+        </p>
+
+        <!-- Not Yet Completed Button -->
+        <p style="text-align: center; margin: 0 0 25px 0;">
+          <a 
+            href="${email_link}/${server_trans_id}/0" 
+            target="_blank"
+            style="
+              background: #dc3545;
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 24px;
+              font-size: 15px;
+              font-weight: bold;
+              border-radius: 6px;
+              display: inline-block;
+              min-width: 240px;
+            "
+          >
+            Not Yet Completed
+          </a>
+        </p>
+
+        <p>
+          If you have any feedback or pending topics to discuss, please feel free to contact us.
+        </p>
+
+        <p style="margin-top: 30px;">
+          Best Regards,<br/>
+          Acte Technologies
+        </p>
+
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="
+        padding: 15px;
+        text-align: center;
+        background: #f0f0f0;
+        font-size: 12px;
+        color: #777777;
+        border-bottom-left-radius: 6px;
+        border-bottom-right-radius: 6px;
+      ">
+        © ${getCurrentYear()} Acte Technologies. All rights reserved.
+      </td>
+    </tr>
+
+  </table>
+  `,
+      attachments: [
+        {
+          filename: "logo.png",
+          path: "./acte-logo.png",
+          cid: "companyLogo",
+        },
+      ],
+    };
+    // Update trainer table
+    await connection.query(
+      `UPDATE server_trans SET acknowledge_sent = 1 WHERE id = ?`,
+      [server_trans_id],
+    );
+
+    // Send mail
+    await transporterNotify.sendMail(mailOptions);
+
+    await connection.commit();
+    return { success: true, message: "Mail sent successfully" };
+  } catch (error) {
+    await connection.rollback();
+    throw new Error(error.message);
+  } finally {
+    connection.release();
+  }
+};
 
 const sendPayslip = async (
   email,
@@ -2997,6 +3162,7 @@ module.exports = {
   sendLoginLink,
   sendTrainerPaymentMail,
   sendStudentAcknowledgementMail,
+  sendServerRequestAcknowledgementMail,
   sendPayslip,
   viewPayslip,
 };

@@ -1,6 +1,7 @@
 const pool = require("../config/dbconfig");
 const nodemailer = require("nodemailer");
 const { CONSTANT_STATUS } = require("../constants/constant");
+const EmailModel = require("./EmailModel");
 
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_HOST,
@@ -559,6 +560,8 @@ SUM(
     duration,
     server_cost,
     server_trans_id,
+    email,
+    email_link,
   ) => {
     try {
       let affectedRows = 0;
@@ -587,6 +590,12 @@ SUM(
           [server_id, vendor_id, server_cost, duration, "Pending"],
         );
 
+        await EmailModel.sendServerRequestAcknowledgementMail(
+          email,
+          email_link,
+          insertTrans.insertId,
+        );
+
         if (insertTrans.affectedRows <= 0)
           throw new Error("Something went wrong");
 
@@ -604,7 +613,14 @@ SUM(
       throw new Error(error.message);
     }
   },
-  reServerPurchased: async (server_id, vendor_id, duration, server_cost) => {
+  reServerPurchased: async (
+    server_id,
+    vendor_id,
+    duration,
+    server_cost,
+    email,
+    email_link,
+  ) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
@@ -619,6 +635,12 @@ SUM(
       const [insertTrans] = await pool.query(
         `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status) VALUES(?, ?, ?, ?, ?)`,
         [server_id, vendor_id, server_cost, duration, "Pending"],
+      );
+
+      await EmailModel.sendServerRequestAcknowledgementMail(
+        email,
+        email_link,
+        insertTrans.insertId,
       );
 
       if (insertTrans.affectedRows <= 0)
@@ -662,7 +684,7 @@ SUM(
         isAcknowledged.length > 0 &&
         isAcknowledged[0].is_acknowledged === 1
       ) {
-        throw new Error("Server has already been acknowledged.");
+        throw new Error("Server request has already been acknowledged.");
       }
 
       await connection.query(
