@@ -1653,6 +1653,8 @@ const sendServerRequestAcknowledgementMail = async (
   email,
   email_link,
   server_trans_id,
+  status_date,
+  created_by,
 ) => {
   const connection = await pool.getConnection();
   try {
@@ -1800,6 +1802,24 @@ const sendServerRequestAcknowledgementMail = async (
     await connection.query(
       `UPDATE server_trans SET acknowledge_sent = 1 WHERE id = ?`,
       [server_trans_id],
+    );
+
+    await connection.query(
+      `
+              INSERT INTO customer_track (
+                customer_id,
+                status,
+                status_date,
+                updated_by
+              )
+              VALUES (?, ?, ?, ?)
+            `,
+      [
+        isCustomerExists[0].id,
+        "Server Request Acknowledgement Sent",
+        status_date,
+        created_by,
+      ],
     );
 
     // Send mail

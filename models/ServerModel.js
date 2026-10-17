@@ -562,6 +562,8 @@ SUM(
     server_trans_id,
     email,
     email_link,
+    status_date,
+    created_by,
   ) => {
     try {
       let affectedRows = 0;
@@ -594,6 +596,8 @@ SUM(
           email,
           email_link,
           insertTrans.insertId,
+          status_date,
+          created_by,
         );
 
         if (insertTrans.affectedRows <= 0)
@@ -620,6 +624,8 @@ SUM(
     server_cost,
     email,
     email_link,
+    status_date,
+    created_by,
   ) => {
     try {
       let affectedRows = 0;
@@ -641,6 +647,8 @@ SUM(
         email,
         email_link,
         insertTrans.insertId,
+        status_date,
+        created_by,
       );
 
       if (insertTrans.affectedRows <= 0)
