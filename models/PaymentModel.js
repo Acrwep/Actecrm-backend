@@ -3440,18 +3440,71 @@ SUM(
       WHERE ${refundConditions.join(" AND ")}
     `;
 
+      const approveParams = [];
+      const approveConditions = [];
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          approveConditions.push(`
+          (
+            l.assigned_to IN (${placeholders})
+            OR l.ra_id IN (${placeholders})
+           
+          )
+        `);
+
+          // Three IN (...) sections
+          approveParams.push(...user_ids, ...user_ids);
+        } else {
+          approveConditions.push(`
+          (
+            l.assigned_to = ?
+            OR l.ra_id = ?
+            
+          )
+        `);
+
+          approveParams.push(user_ids, user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        approveConditions.push(`
+          CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?
+      `);
+
+        approveParams.push(start_date, end_date);
+      }
+
+      const statusQuery = ` SELECT 
+              IFNULL(SUM(CASE WHEN s.status in ( 'Approved', 'Awaiting Approval') THEN 1 ELSE 0 END), 0) AS server_approved_counts
+                FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id
+                INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
+                         LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
+                         WHERE ${approveConditions.join(" AND ")} `;
+
       // =========================================================
       // 4. EXECUTE ALL THREE QUERIES
       // =========================================================
 
-      const [[pendingResult], [historyResult], [refundResult]] =
-        await Promise.all([
-          pool.query(pendingQuery, pendingParams),
+      const [
+        [pendingResult],
+        [historyResult],
+        [refundResult],
+        [approveResult],
+      ] = await Promise.all([
+        pool.query(pendingQuery, pendingParams),
 
-          pool.query(historyQuery, historyParams),
+        pool.query(historyQuery, historyParams),
 
-          pool.query(refundQuery, refundParams),
-        ]);
+        pool.query(refundQuery, refundParams),
+        pool.query(statusQuery, approveParams),
+      ]);
 
       // =========================================================
       // 5. RETURN ONLY THREE TOTALS
@@ -3463,6 +3516,10 @@ SUM(
         fee_history_total: parseInt(historyResult[0]?.total || 0, 10),
 
         refund_total: parseInt(refundResult[0]?.total || 0, 10),
+        server_approved_counts: parseInt(
+          approveResult[0]?.server_approved_counts || 0,
+          10,
+        ),
       };
     } catch (error) {
       throw new Error(error.message);
