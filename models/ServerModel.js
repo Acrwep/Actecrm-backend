@@ -336,6 +336,8 @@ SUM(
         end_date,
         status,
         is_acknowledged,
+        acknowledged_date,
+        acknowledge_sent,
         screenshot
      FROM server_trans
      WHERE server_id IN (?) order by id desc `,
@@ -357,6 +359,8 @@ SUM(
             server_trans_status: trans.status,
             screenshot: trans.screenshot,
             is_acknowledged: trans.is_acknowledged,
+            acknowledged_date: trans.acknowledged_date,
+            acknowledge_sent: trans.acknowledge_sent,
           });
         }
       }
@@ -633,25 +637,54 @@ SUM(
       throw new Error(error.message);
     }
   },
-  addAcknowledgeServer: async (server_trans_id, is_acknowledged) => {
+  addAcknowledgeServer: async (
+    server_trans_id,
+    acknowledged_date,
+    is_acknowledged,
+  ) => {
+    const connection = await pool.getConnection();
     try {
-      const [isServerExists] = await pool.query(
-        `SELECT id FROM server_trans WHERE id = ?`,
-        server_trans_id,
+      await connection.beginTransaction();
+
+      const [iscustomer] = await connection.query(
+        ` SELECT sm.customer_id FROM server_trans st
+         INNER JOIN server_master sm on sm.id = st.server_id
+         WHERE st.id = ? `,
+        [server_trans_id],
       );
 
-      if (isServerExists.length <= 0) {
-        throw new Error("Invalid Id");
+      const [isAcknowledged] = await connection.query(
+        `SELECT is_acknowledged FROM server_trans WHERE id = ?`,
+        [server_trans_id],
+      );
+
+      if (
+        isAcknowledged.length > 0 &&
+        isAcknowledged[0].is_acknowledged === 1
+      ) {
+        throw new Error("Server has already been acknowledged.");
       }
 
-      const [updateMaster] = await pool.query(
-        `UPDATE server_trans SET is_acknowledged = ? WHERE id = ?`,
-        [is_acknowledged, server_trans_id],
+      await connection.query(
+        `UPDATE server_trans SET is_acknowledged = ?, acknowledged_date = ? WHERE id = ?`,
+        [is_acknowledged, acknowledged_date, server_trans_id],
       );
 
-      return updateMaster;
+      await connection.query(
+        `INSERT INTO customer_track(customer_id, status, status_date) VALUES(?, ?, ?)`,
+        [
+          iscustomer[0].customer_id,
+          "Server Request Acknowledged",
+          acknowledged_date,
+        ],
+      );
+      await connection.commit();
+      return { status: true };
     } catch (error) {
+      await connection.rollback();
       throw new Error(error.message);
+    } finally {
+      connection.release();
     }
   },
 

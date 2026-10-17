@@ -118,10 +118,11 @@ const reServerPurchased = async (request, response) => {
 };
 
 const addAcknowledgeServer = async (request, response) => {
-  const { server_trans_id, is_acknowledged } = request.body;
+  const { server_trans_id, acknowledged_date, is_acknowledged } = request.body;
   try {
     const result = await ServerModel.addAcknowledgeServer(
       server_trans_id,
+      acknowledged_date,
       is_acknowledged,
     );
     return response.status(200).send({
