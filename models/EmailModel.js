@@ -1678,8 +1678,8 @@ const sendServerRequestAcknowledgementMail = async (
     const mailOptions = {
       from: process.env.SMTP_FROM,
       to: email,
-      subject: "Course Syllabus Completion Acknowledgement",
-      text: `Please confirm whether your trainer completed the full course syllabus.`,
+      subject: "Server Request Acknowledgement",
+      text: `Please confirm whether you have requested the server for your course. Your confirmation will help us verify and process the request.`,
       html: `
   <table align="center" width="600" cellpadding="0" cellspacing="0" 
     style="background: #ffffff; border: 1px solid #ddd; border-radius: 6px; font-family: Arial, sans-serif;">
@@ -1710,17 +1710,17 @@ const sendServerRequestAcknowledgementMail = async (
         </p>
 
         <p>
-          This is to inform you that your trainer has successfully completed the full course syllabus as scheduled.
+          This is to confirm that a server request has been raised for your course.
         </p>
 
         <p>
-          Kindly confirm your Server acknowledgement by clicking one of the options below:
+          Kindly acknowledge whether you have requested a server for your training purposes by selecting one of the options below.
         </p>
 
         <!-- Completed Button -->
         <p style="text-align: center; margin: 25px 0 15px 0;">
           <a 
-            href="${email_link}/${server_trans_id}/1" 
+            href="${email_link}/${server_trans_id}/${isCustomerExists[0].id}/1" 
             target="_blank"
             style="
               background: #28a745;
@@ -1734,14 +1734,14 @@ const sendServerRequestAcknowledgementMail = async (
               min-width: 240px;
             "
           >
-            100% Class Completed
+            Yes, I Requested the Server
           </a>
         </p>
 
         <!-- Not Yet Completed Button -->
         <p style="text-align: center; margin: 0 0 25px 0;">
           <a 
-            href="${email_link}/${server_trans_id}/0" 
+            href="${email_link}/${server_trans_id}/${isCustomerExists[0].id}/0" 
             target="_blank"
             style="
               background: #dc3545;
@@ -1755,7 +1755,7 @@ const sendServerRequestAcknowledgementMail = async (
               min-width: 240px;
             "
           >
-            Not Yet Completed
+            No, I Did Not Request the Server
           </a>
         </p>
 

@@ -661,19 +661,13 @@ SUM(
   },
   addAcknowledgeServer: async (
     server_trans_id,
+    customer_id,
     acknowledged_date,
     is_acknowledged,
   ) => {
     const connection = await pool.getConnection();
     try {
       await connection.beginTransaction();
-
-      const [iscustomer] = await connection.query(
-        ` SELECT sm.customer_id FROM server_trans st
-         INNER JOIN server_master sm on sm.id = st.server_id
-         WHERE st.id = ? `,
-        [server_trans_id],
-      );
 
       const [isAcknowledged] = await connection.query(
         `SELECT is_acknowledged FROM server_trans WHERE id = ?`,
@@ -693,12 +687,13 @@ SUM(
       );
 
       await connection.query(
+        `UPDATE server_master SET status = 'Awaiting Approval' WHERE id = ?`,
+        [server_trans_id],
+      );
+
+      await connection.query(
         `INSERT INTO customer_track(customer_id, status, status_date) VALUES(?, ?, ?)`,
-        [
-          iscustomer[0].customer_id,
-          "Server Request Acknowledged",
-          acknowledged_date,
-        ],
+        [customer_id, "Server Request Acknowledged", acknowledged_date],
       );
       await connection.commit();
       return { status: true };
