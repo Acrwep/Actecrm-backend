@@ -339,7 +339,13 @@ SUM(
         is_acknowledged,
         acknowledged_date,
         acknowledge_sent,
-        screenshot
+        screenshot,
+        approval_status,
+        verified_by,
+        verified_date,
+        rejected_by,
+        rejected_date,
+        comments
      FROM server_trans
      WHERE server_id IN (?) order by id desc `,
           [serverIds],
@@ -362,6 +368,12 @@ SUM(
             is_acknowledged: trans.is_acknowledged,
             acknowledged_date: trans.acknowledged_date,
             acknowledge_sent: trans.acknowledge_sent,
+            approval_status: trans.approval_status,
+            verified_by: trans.verified_by,
+            verified_date: trans.verified_date,
+            rejected_by: trans.rejected_by,
+            rejected_date: trans.rejected_date,
+            comments: trans.comments,
           });
         }
       }
