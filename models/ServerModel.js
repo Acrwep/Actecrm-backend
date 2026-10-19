@@ -462,10 +462,13 @@ SUM(
     status,
     comments,
     rejected_by,
+    rejected_date,
     server_raise_date,
     requested_duration,
     server_trans_id,
     screenshot,
+    verified_by,
+    verified_date,
   ) => {
     try {
       let affectedRows = 0;
@@ -530,19 +533,23 @@ SUM(
       affectedRows += result.affectedRows;
 
       if (status === "Approved") {
-        await pool.query(`UPDATE server_trans SET status = ? WHERE id = ?`, [
-          "Approved",
-          server_trans_id,
-        ]);
+        await pool.query(
+          `UPDATE server_trans SET status = ?, verified_by = ?, verified_date = ? WHERE id = ?`,
+          ["Approved", verified_by, verified_date, server_trans_id],
+        );
       }
 
       if (
         status === "Verification Rejected" ||
         status === "Approval Rejected"
       ) {
-        const [history] = await pool.query(
-          `INSERT INTO server_rejected_history(server_id, status, comments, rejected_by, rejected_date) VALUES (?, ?, ?, ?, CURRENT_DATE)`,
-          [server_id, status, comments, rejected_by],
+        // const [history] = await pool.query(
+        //   `INSERT INTO server_rejected_history(server_id, status, comments, rejected_by, rejected_date) VALUES (?, ?, ?, ?, CURRENT_DATE)`,
+        //   [server_id, status, comments, rejected_by],
+        // );
+        await pool.query(
+          `UPDATE server_trans SET approval_status = ?, comments = ?, rejected_by = ?, rejected_date = ?  WHERE id = ?`,
+          [status, comments, rejected_by, rejected_date, server_trans_id],
         );
 
         affectedRows += history.affectedRows;

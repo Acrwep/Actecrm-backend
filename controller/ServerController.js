@@ -45,10 +45,13 @@ const updateServerStatus = async (request, response) => {
     status,
     comments,
     rejected_by,
+    rejected_date,
     server_raise_date,
     requested_duration,
     server_trans_id,
     screenshot,
+    verified_by,
+    verified_date,
   } = request.body;
   try {
     const result = await ServerModel.updateServerStatus(
@@ -56,10 +59,13 @@ const updateServerStatus = async (request, response) => {
       status,
       comments,
       rejected_by,
+      rejected_date,
       server_raise_date,
       requested_duration,
       server_trans_id,
       screenshot,
+      verified_by,
+      verified_date,
     );
     return response.status(200).send({
       message: "Data updated successfully",
