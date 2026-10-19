@@ -1193,6 +1193,7 @@ WHERE c.id = ?`;
     to_date,
     search_filter,
     user_ids,
+    course_ids,
     page,
     limit,
     bucket,
@@ -1527,6 +1528,19 @@ WHERE 1 = 1
         bucketsCountQueryParams.push(...user_ids);
         classGoingSubBucketParams.push(...user_ids);
       }
+      if (course_ids && Array.isArray(course_ids) && course_ids.length > 0) {
+        const placeholders = course_ids.map(() => "?").join(", ");
+        const userFilter = ` AND c.enrolled_course IN (${placeholders})`;
+        getQuery += userFilter;
+        countQuery += userFilter;
+        regionQuery += userFilter;
+        bucketsCountQuery += userFilter;
+
+        queryParams.push(...course_ids);
+        countParams.push(...course_ids);
+        regionParams.push(...course_ids);
+        bucketsCountQueryParams.push(...course_ids);
+      }
 
       // Add date range filter
       if (from_date && to_date) {
@@ -1584,13 +1598,12 @@ WHERE 1 = 1
 
       // search filter
       if (search_filter) {
-        const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR t.name LIKE ? OR c.student_id LIKE ?)`;
+        const filterQuery = ` AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.student_id LIKE ?)`;
         getQuery += filterQuery;
         countQuery += filterQuery;
         regionQuery += filterQuery;
         bucketsCountQuery += filterQuery;
         queryParams.push(
-          `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
@@ -1601,17 +1614,14 @@ WHERE 1 = 1
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
-          `%${search_filter}%`,
         );
         regionParams.push(
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
-          `%${search_filter}%`,
         );
         bucketsCountQueryParams.push(
-          `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,
           `%${search_filter}%`,

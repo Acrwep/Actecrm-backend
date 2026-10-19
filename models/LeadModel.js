@@ -6865,6 +6865,7 @@ WHERE 1 = 1
     end_date,
     search_filter,
     user_ids,
+    course_ids,
     page,
     limit,
     region,
@@ -6893,6 +6894,8 @@ WHERE 1 = 1
                         l.domain_origin,
                         l.district AS area_id,
                         l.primary_course_id,
+                        t.name as course_name,
+                        t.id as course_id,
                         l.primary_fees,
                         l.price_category,
                         l.secondary_course_id,  
@@ -6925,6 +6928,7 @@ WHERE 1 = 1
                     FROM lead_master AS l
                      LEFT JOIN users AS au ON au.user_id = l.assigned_to
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        left join technologies as t on t.id = l.primary_course_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
                     WHERE 1 = 1 AND NOT EXISTS (
@@ -6938,6 +6942,7 @@ WHERE 1 = 1
                                            FROM lead_master AS l
                      LEFT JOIN users AS au ON au.user_id = l.assigned_to
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        left join technologies as t on t.id = l.primary_course_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
                     WHERE 1 = 1 AND NOT EXISTS (
     SELECT 1
@@ -6955,6 +6960,7 @@ WHERE 1 = 1
                                         FROM lead_master AS l
                      LEFT JOIN users AS au ON au.user_id = l.assigned_to
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        left join technologies as t on t.id = l.primary_course_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
                     WHERE 1 = 1 AND NOT EXISTS (
     SELECT 1
@@ -6972,6 +6978,17 @@ WHERE 1 = 1
         queryParams.push(...user_ids);
         countParams.push(...user_ids);
         regionParams.push(...user_ids);
+      }
+
+      if (course_ids && Array.isArray(course_ids) && course_ids.length > 0) {
+        const placeholders = course_ids.map(() => "?").join(", ");
+        const userFilter = ` AND l.primary_course_id IN (${placeholders})`;
+        getQuery += userFilter;
+        countQuery += userFilter;
+        regionQuery += userFilter;
+        queryParams.push(...course_ids);
+        countParams.push(...course_ids);
+        regionParams.push(...course_ids);
       }
 
       // Add date range filter
