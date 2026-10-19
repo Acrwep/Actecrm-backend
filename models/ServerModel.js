@@ -559,12 +559,12 @@ SUM(
         //   `INSERT INTO server_rejected_history(server_id, status, comments, rejected_by, rejected_date) VALUES (?, ?, ?, ?, CURRENT_DATE)`,
         //   [server_id, status, comments, rejected_by],
         // );
-        await pool.query(
+        const [updateTrans] = await pool.query(
           `UPDATE server_trans SET approval_status = ?, comments = ?, rejected_by = ?, rejected_date = ?  WHERE id = ?`,
           [status, comments, rejected_by, rejected_date, server_trans_id],
         );
 
-        affectedRows += history.affectedRows;
+        affectedRows += updateTrans.affectedRows;
       }
 
       return affectedRows;
