@@ -341,7 +341,6 @@ SUM(
         acknowledged_date,
         acknowledge_sent,
         screenshot,
-        approval_status,
         verified_by,
         verified_date,
         rejected_by,
@@ -369,7 +368,6 @@ SUM(
             is_acknowledged: trans.is_acknowledged,
             acknowledged_date: trans.acknowledged_date,
             acknowledge_sent: trans.acknowledge_sent,
-            approval_status: trans.approval_status,
             verified_by: trans.verified_by,
             verified_date: trans.verified_date,
             rejected_by: trans.rejected_by,
@@ -547,7 +545,7 @@ SUM(
 
       if (status === "Approved") {
         await pool.query(
-          `UPDATE server_trans SET approval_status = ?, verified_by = ?, verified_date = ? WHERE id = ?`,
+          `UPDATE server_trans SET status = ?, verified_by = ?, verified_date = ? WHERE id = ?`,
           ["Approved", verified_by, verified_date, server_trans_id],
         );
       }
@@ -561,7 +559,7 @@ SUM(
         //   [server_id, status, comments, rejected_by],
         // );
         const [updateTrans] = await pool.query(
-          `UPDATE server_trans SET approval_status = ?, comments = ?, rejected_by = ?, rejected_date = ?  WHERE id = ?`,
+          `UPDATE server_trans SET status = ?, comments = ?, rejected_by = ?, rejected_date = ?  WHERE id = ?`,
           [
             status === "Approval Rejected" ? "Rejected" : status,
             comments,
@@ -604,7 +602,7 @@ SUM(
 
       if (server_trans_id) {
         const [updateTrans] = await pool.query(
-          `UPDATE server_trans SET vendor_id = ?, server_cost = ?, duration = ?, approval_status = 'Pending' WHERE id = ?`,
+          `UPDATE server_trans SET vendor_id = ?, server_cost = ?, duration = ?, status = 'Pending' WHERE id = ?`,
           [vendor_id, server_cost, duration, server_trans_id],
         );
 
