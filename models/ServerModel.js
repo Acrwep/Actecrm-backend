@@ -777,7 +777,7 @@ SUM(
       }
 
       const [getDuration] = await pool.query(
-        `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Pending' ORDER BY id DESC LIMIT 1`,
+        `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Approved' ORDER BY id DESC LIMIT 1`,
         [server_id],
       );
 

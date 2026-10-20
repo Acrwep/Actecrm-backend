@@ -15,7 +15,7 @@ if (!admin.apps.length) {
   });
 }
 
-let scheduleTime = "0 * * * *"; // Schedule: Runs every hour
+let scheduleTime = " */30 * * * *"; // Schedule: Runs every hour
 let nextFollowupTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let nextDueDateTime = "*/30 * * * *"; // Schedule: Runs every 30 minutes
 let liveLeadTime = "*/30 * * * * *"; // Schedule: Runs every 30 seconds
@@ -60,15 +60,15 @@ const expireServerTrans = async () => {
       // 2) update server_master only when ALL its server_trans rows are now 'Expired'
       const [updateMasterResult] = await conn.query(
         `UPDATE server_master sm
-        JOIN (
-            SELECT st.server_id
-            FROM server_trans st
-            GROUP BY st.server_id
-            HAVING COUNT(*) > 0
-            AND SUM(st.status <> 'Expired') = 0
-        ) AS t ON sm.id = t.server_id
-        SET sm.status = 'Expired'
-        WHERE sm.status = 'Issued'`,
+          JOIN (
+              SELECT st.server_id
+              FROM server_trans st
+              GROUP BY st.server_id
+              HAVING COUNT(*) > 0
+              AND SUM(st.status <> 'Expired') = 0
+          ) AS t ON sm.id = t.server_id
+          SET sm.status = 'Expired'
+          WHERE sm.status = 'Issued'`,
       );
 
       await logToFile(
