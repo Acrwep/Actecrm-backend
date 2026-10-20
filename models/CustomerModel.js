@@ -1894,6 +1894,7 @@ WHERE 1 = 1
           proof_communication,
           comments,
           created_date,
+          updated_by,
         } = trainer;
 
         // Validate trainer_id
@@ -1927,9 +1928,10 @@ WHERE 1 = 1
           trainer_type,
           proof_communication,
           comments,
-          created_date
+          created_date,
+          updated_by
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
         await connection.query(insertQuery, [
@@ -1941,6 +1943,7 @@ WHERE 1 = 1
           proof_communication,
           comments,
           created_date,
+          updated_by,
         ]);
       }
 
@@ -3653,8 +3656,8 @@ WHERE 1 = 1
       let isUpdated = false;
       if (isTrainerExists.length > 0) {
         await pool.query(
-          `UPDATE trainer_mapping SET is_rejected = 1, rejected_date = ? WHERE id = ?`,
-          [created_date, isTrainerExists[0].id],
+          `UPDATE trainer_mapping SET is_rejected = 1, rejected_date = ?, updated_by WHERE id = ?`,
+          [created_date, isTrainerExists[0].id, updated_by],
         );
 
         const insertQuery = `INSERT INTO trainer_mapping(
@@ -3667,9 +3670,10 @@ WHERE 1 = 1
                               comments,
                               created_date,
                               is_verified,
-                              verified_date
+                              verified_date,
+                              updated_by
                           )
-                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                          VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
         const values = [
           customer_id,
           trainer_id,
@@ -3681,6 +3685,7 @@ WHERE 1 = 1
           created_date,
           1,
           created_date,
+          updated_by,
         ];
 
         const [result] = await pool.query(insertQuery, values);
