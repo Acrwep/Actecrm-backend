@@ -172,12 +172,13 @@ const addAcknowledgeServer = async (request, response) => {
 };
 
 const serverIssued = async (request, response) => {
-  const { server_id, email_subject, email_content } = request.body;
+  const { server_id, email_subject, email_content, send_email } = request.body;
   try {
     const result = await ServerModel.serverIssued(
       server_id,
       email_subject,
       email_content,
+      send_email,
     );
     return response.status(200).send({
       message: "Data updated successfully",

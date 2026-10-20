@@ -742,7 +742,7 @@ SUM(
     }
   },
 
-  serverIssued: async (server_id, email_subject, email_content) => {
+  serverIssued: async (server_id, email_subject, email_content, send_email) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
@@ -754,26 +754,29 @@ SUM(
         throw new Error("Invalid Id");
       }
 
-      const [getEmail] = await pool.query(
-        `SELECT c.email FROM server_master AS s INNER JOIN customers AS c ON s.customer_id = c.id WHERE s.id = ?`,
-        [server_id],
-      );
+      // Send email only when send_email is true
+      if (send_email) {
+        const [getEmail] = await pool.query(
+          `SELECT c.email FROM server_master AS s INNER JOIN customers AS c ON s.customer_id = c.id WHERE s.id = ?`,
+          [server_id],
+        );
 
-      if (getEmail.length <= 0)
-        throw new Error("Email Id not found for this customer");
+        if (getEmail.length <= 0)
+          throw new Error("Email Id not found for this customer");
 
-      try {
-        const mailOptions = {
-          from: process.env.SMTP_FROM,
-          to: getEmail[0].email,
-          subject: email_subject,
-          // text: "Please find your server credential below.",
-          html: email_content,
-        };
+        try {
+          const mailOptions = {
+            from: process.env.SMTP_FROM,
+            to: getEmail[0].email,
+            subject: email_subject,
+            // text: "Please find your server credential below.",
+            html: email_content,
+          };
 
-        await transporter.sendMail(mailOptions);
-      } catch (error) {
-        throw new Error("Error while send mail!");
+          await transporter.sendMail(mailOptions);
+        } catch (error) {
+          throw new Error("Error while send mail!");
+        }
       }
 
       const [getDuration] = await pool.query(
