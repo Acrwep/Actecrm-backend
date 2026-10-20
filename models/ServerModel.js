@@ -547,7 +547,7 @@ SUM(
 
       if (status === "Approved") {
         await pool.query(
-          `UPDATE server_trans SET status = ?, verified_by = ?, verified_date = ? WHERE id = ?`,
+          `UPDATE server_trans SET approval_status = ?, verified_by = ?, verified_date = ? WHERE id = ?`,
           ["Approved", verified_by, verified_date, server_trans_id],
         );
       }
@@ -562,7 +562,13 @@ SUM(
         // );
         const [updateTrans] = await pool.query(
           `UPDATE server_trans SET approval_status = ?, comments = ?, rejected_by = ?, rejected_date = ?  WHERE id = ?`,
-          [status, comments, rejected_by, rejected_date, server_trans_id],
+          [
+            status === "Approval Rejected" ? "Rejected" : status,
+            comments,
+            rejected_by,
+            rejected_date,
+            server_trans_id,
+          ],
         );
 
         affectedRows += updateTrans.affectedRows;
@@ -598,7 +604,7 @@ SUM(
 
       if (server_trans_id) {
         const [updateTrans] = await pool.query(
-          `UPDATE server_trans SET vendor_id = ?, server_cost = ?, duration = ? WHERE id = ?`,
+          `UPDATE server_trans SET vendor_id = ?, server_cost = ?, duration = ?, approval_status = 'Pending' WHERE id = ?`,
           [vendor_id, server_cost, duration, server_trans_id],
         );
 
@@ -626,9 +632,13 @@ SUM(
         affectedRows += insertTrans.affectedRows;
       }
 
+      const server_status_update = server_trans_id
+        ? "Awaiting Approval"
+        : "Awaiting Verify";
+
       const [updateMaster] = await pool.query(
-        `UPDATE server_master SET status = 'Awaiting Verify' WHERE id = ?`,
-        [server_id],
+        `UPDATE server_master SET status = ? WHERE id = ?`,
+        [server_status_update, server_id],
       );
 
       affectedRows += updateMaster.affectedRows;
@@ -637,6 +647,7 @@ SUM(
       throw new Error(error.message);
     }
   },
+
   reServerPurchased: async (
     server_id,
     vendor_id,
