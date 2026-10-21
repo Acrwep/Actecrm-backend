@@ -15,6 +15,8 @@ const ServerModel = {
   getServerRequest: async (
     start_date,
     end_date,
+    raised_at,
+    raised_end,
     search_filter,
     status,
     type,
@@ -182,24 +184,46 @@ SUM(
       }
 
       if (start_date && end_date) {
+        getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        queryParams.push(start_date, end_date);
+        paginationParams.push(start_date, end_date);
+        statusParams.push(start_date, end_date);
+        regionParams.push(start_date, end_date);
+      }
+
+      if (raised_at && raised_end) {
         if (type === "Raise Date") {
           getQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
-          queryParams.push(start_date, end_date);
-          paginationParams.push(start_date, end_date);
-          statusParams.push(start_date, end_date);
-          regionParams.push(start_date, end_date);
+          queryParams.push(raised_at, raised_end);
+          paginationParams.push(raised_at, raised_end);
+          statusParams.push(raised_at, raised_end);
+          regionParams.push(raised_at, raised_end);
         } else {
-          getQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
-          queryParams.push(start_date, end_date);
-          paginationParams.push(start_date, end_date);
-          statusParams.push(start_date, end_date);
-          regionParams.push(start_date, end_date);
+          const expiredDateCondition = `
+    AND s.status = 'Expired'
+    AND EXISTS (
+      SELECT 1
+      FROM server_trans st_exp
+      WHERE st_exp.server_id = s.id
+        AND CAST(st_exp.end_date AS DATE) BETWEEN ? AND ?
+    )
+  `;
+
+          getQuery += expiredDateCondition;
+          paginationQuery += expiredDateCondition;
+          statusQuery += expiredDateCondition;
+          regionquery += expiredDateCondition;
+
+          queryParams.push(raised_at, raised_end);
+          paginationParams.push(raised_at, raised_end);
+          statusParams.push(raised_at, raised_end);
+          regionParams.push(raised_at, raised_end);
         }
       }
 
