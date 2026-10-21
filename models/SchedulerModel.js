@@ -68,7 +68,7 @@ const expireServerTrans = async () => {
               AND SUM(st.status <> 'Expired') = 0
           ) AS t ON sm.id = t.server_id
           SET sm.status = 'Expired'
-          WHERE sm.status = 'Issued'`,
+          WHERE sm.status IN ('Issued', 'Purchased') `,
       );
 
       await logToFile(

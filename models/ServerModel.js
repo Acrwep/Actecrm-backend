@@ -153,7 +153,7 @@ SUM(
                         b.region_id = r.id
                          WHERE 1 = 1`;
 
-      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested, IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status IN ('Approval Rejected') THEN 1 ELSE 0 END), 0) AS approval_rejected,  IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
+      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested, IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status IN ('Approval Rejected') THEN 1 ELSE 0 END), 0) AS approval_rejected,  IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'purchased' THEN 1 ELSE 0 END), 0) AS Purchased, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
                          LEFT JOIN branches AS b ON
                       u.branch_id = b.id
                     LEFT JOIN region AS r ON
@@ -766,6 +766,65 @@ SUM(
     }
   },
 
+  serverPurchased: async (
+    server_id,
+    payment_mode,
+    transaction_id,
+    paid_date,
+  ) => {
+    try {
+      let affectedRows = 0;
+      const [isServerExists] = await pool.query(
+        `SELECT id FROM server_master WHERE id = ?`,
+        [server_id],
+      );
+
+      if (isServerExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+
+      const [getDuration] = await pool.query(
+        `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Approved' ORDER BY id DESC LIMIT 1`,
+        [server_id],
+      );
+
+      if (getDuration.length <= 0) throw new Error("Invalid data");
+
+      const [getDate] = await pool.query(
+        `SELECT CONCAT(CURRENT_DATE(), ' 00:00:00') AS start_date, DATE_SUB(CONCAT(DATE_ADD(CURDATE(), INTERVAL ${getDuration[0].duration} DAY), ' 00:00:00'), INTERVAL 1 SECOND) AS end_date`,
+      );
+
+      const [result] = await pool.query(
+        `UPDATE server_trans SET start_date = ?, end_date = ?, payment_mode = ?, transaction_id = ?, paid_date = ?, status = 'Active' WHERE id = ?`,
+        [
+          getDate[0].start_date,
+          getDate[0].end_date,
+          payment_mode,
+          transaction_id,
+          paid_date,
+          getDuration[0].id,
+        ],
+      );
+
+      affectedRows += result.affectedRows;
+
+      if (affectedRows > 0) {
+        const [updateMaster] = await pool.query(
+          `UPDATE server_master SET status = 'Purchased' WHERE id = ?`,
+          [server_id],
+        );
+
+        affectedRows += updateMaster.affectedRows;
+      } else {
+        throw new Error("Couldn't approve server");
+      }
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   serverIssued: async (server_id, email_subject, email_content, send_email) => {
     try {
       let affectedRows = 0;
@@ -803,25 +862,7 @@ SUM(
         }
       }
 
-      const [getDuration] = await pool.query(
-        `SELECT id, duration FROM server_trans WHERE server_id = ? AND status = 'Approved' ORDER BY id DESC LIMIT 1`,
-        [server_id],
-      );
-
-      if (getDuration.length <= 0) throw new Error("Invalid data");
-
-      const [getDate] = await pool.query(
-        `SELECT CONCAT(CURRENT_DATE(), ' 00:00:00') AS start_date, DATE_SUB(CONCAT(DATE_ADD(CURDATE(), INTERVAL ${getDuration[0].duration} DAY), ' 00:00:00'), INTERVAL 1 SECOND) AS end_date`,
-      );
-
-      const [result] = await pool.query(
-        `UPDATE server_trans SET start_date = ?, end_date = ?, status = 'Active' WHERE id = ?`,
-        [getDate[0].start_date, getDate[0].end_date, getDuration[0].id],
-      );
-
-      affectedRows += result.affectedRows;
-
-      if (affectedRows > 0) {
+      if (isServerExists.length > 0) {
         const [updateMaster] = await pool.query(
           `UPDATE server_master SET status = 'Issued' WHERE id = ?`,
           [server_id],

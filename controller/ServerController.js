@@ -175,6 +175,27 @@ const addAcknowledgeServer = async (request, response) => {
   }
 };
 
+const serverPurchased = async (request, response) => {
+  const { server_id, payment_mode, transaction_id, paid_date } = request.body;
+  try {
+    const result = await ServerModel.serverPurchased(
+      server_id,
+      payment_mode,
+      transaction_id,
+      paid_date,
+    );
+    return response.status(200).send({
+      message: "Data updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while updating data",
+      details: error.message,
+    });
+  }
+};
+
 const serverIssued = async (request, response) => {
   const { server_id, email_subject, email_content, send_email } = request.body;
   try {
@@ -240,6 +261,7 @@ module.exports = {
   reServerPurchased,
   addAcknowledgeServer,
   updateServerStatus,
+  serverPurchased,
   serverIssued,
   insertServerTrack,
   getServerHistory,
