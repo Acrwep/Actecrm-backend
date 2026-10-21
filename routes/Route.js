@@ -268,11 +268,7 @@ router.post(
   verifyToken,
   ServerController.reServerPurchased,
 );
-router.put(
-  "/addAcknowledgeServer",
-  verifyToken,
-  ServerController.addAcknowledgeServer,
-);
+router.put("/addAcknowledgeServer", ServerController.addAcknowledgeServer);
 router.put(
   "/updateServerStatus",
   verifyToken,
