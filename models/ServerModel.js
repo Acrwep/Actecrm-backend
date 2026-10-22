@@ -44,6 +44,7 @@ const ServerModel = {
                           c.date_of_joining,
                           t.name AS server_name,
                           CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
+                          CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE tg.id END AS course_id,
                            pm.total_amount AS total_course_amount,
                       pm.discount_amount,
                       COALESCE(ps.total_paid, 0) AS paid_amount,
@@ -897,7 +898,7 @@ SUM(
   serverSummary: async (course_id) => {
     try {
       const [summary] = await pool.query(
-        ` select st.id as server_trans_id,c.id as customer_id,c.name,c.email,c.phone,c.enrolled_course,tg.name as course_name,sm.id as server_master_id,st.server_cost,st.vendor_id,st.duration 
+        ` select st.id as server_trans_id,c.id as customer_id,c.name,c.email,c.phone,c.enrolled_course,tg.name as course_name,sm.id as server_master_id,st.server_cost,st.vendor_id,st.duration
         from server_master sm
         join customers c on c.id=sm.customer_id
         inner join(
