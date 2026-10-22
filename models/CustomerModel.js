@@ -3656,8 +3656,8 @@ WHERE 1 = 1
       let isUpdated = false;
       if (isTrainerExists.length > 0) {
         await pool.query(
-          `UPDATE trainer_mapping SET is_rejected = 1, rejected_date = ?, updated_by WHERE id = ?`,
-          [created_date, isTrainerExists[0].id, updated_by],
+          `UPDATE trainer_mapping SET is_rejected = 1, rejected_date = ?, updated_by = ? WHERE id = ?`,
+          [created_date, updated_by, isTrainerExists[0].id],
         );
 
         const insertQuery = `INSERT INTO trainer_mapping(
