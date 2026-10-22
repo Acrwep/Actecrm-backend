@@ -30,6 +30,7 @@ const ServerModel = {
       const queryParams = [];
       const paginationParams = [];
       const statusParams = [];
+      const statusParamsMini = [];
       const regionParams = [];
       let getQuery = `SELECT
                           s.id,
@@ -153,7 +154,14 @@ SUM(
                         b.region_id = r.id
                          WHERE 1 = 1`;
 
-      let statusQuery = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested, IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status IN ('Approval Rejected') THEN 1 ELSE 0 END), 0) AS approval_rejected,  IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'purchased' THEN 1 ELSE 0 END), 0) AS Purchased, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
+      let statusQuery = `SELECT IFNULL(SUM(CASE WHEN s.status IN ('Server Raised', 'Verification Rejected') THEN 1 ELSE 0 END), 0) AS server_raised, IFNULL(SUM(CASE WHEN s.status IN ('Approval Rejected') THEN 1 ELSE 0 END), 0) AS approval_rejected,  IFNULL(SUM(CASE WHEN s.status = 'Awaiting Verify' THEN 1 ELSE 0 END), 0) AS awaiting_verify, IFNULL(SUM(CASE WHEN s.status = 'Awaiting Approval' THEN 1 ELSE 0 END), 0) AS awaiting_approval, IFNULL(SUM(CASE WHEN s.status = 'Issued' THEN 1 ELSE 0 END), 0) AS issued, IFNULL(SUM(CASE WHEN s.status = 'purchased' THEN 1 ELSE 0 END), 0) AS Purchased, IFNULL(SUM(CASE WHEN s.status = 'Approved' THEN 1 ELSE 0 END), 0) AS server_approved, IFNULL(SUM(CASE WHEN s.status = 'Expired' THEN 1 ELSE 0 END), 0) AS expired, IFNULL(SUM(CASE WHEN s.status = 'Hold' THEN 1 ELSE 0 END), 0) AS hold, IFNULL(SUM(CASE WHEN s.status = 'Support' THEN 1 ELSE 0 END), 0) AS support FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
+                         LEFT JOIN branches AS b ON
+                      u.branch_id = b.id
+                    LEFT JOIN region AS r ON
+                        b.region_id = r.id
+                         WHERE 1 = 1`;
+
+      let statusQueryMini = `SELECT IFNULL(COUNT(s.id), 0) AS total, IFNULL(SUM(CASE WHEN s.status = 'Requested' THEN 1 ELSE 0 END), 0) AS requested  FROM server_master AS s INNER JOIN customers AS c ON c.id = s.customer_id INNER JOIN technologies AS t ON t.id = c.enrolled_course INNER JOIN lead_master AS l ON l.id = c.lead_id INNER JOIN users AS u ON u.user_id = l.assigned_to
                          LEFT JOIN branches AS b ON
                       u.branch_id = b.id
                     LEFT JOIN region AS r ON
@@ -167,19 +175,23 @@ SUM(
           paginationQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           statusQuery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           regionquery += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
+          statusQueryMini += ` AND (l.assigned_to IN (${placeholders}) OR l.ra_id IN (${placeholders}))`;
           queryParams.push(...user_ids, ...user_ids);
           paginationParams.push(...user_ids, ...user_ids);
           statusParams.push(...user_ids, ...user_ids);
           regionParams.push(...user_ids, ...user_ids);
+          statusParamsMini.push(...user_ids, ...user_ids);
         } else if (!Array.isArray(user_ids)) {
           getQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           paginationQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           statusQuery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           regionquery += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
+          statusQueryMini += ` AND (l.assigned_to = ? OR l.ra_id = ?)`;
           queryParams.push(user_ids, user_ids);
           paginationParams.push(user_ids, user_ids);
           statusParams.push(user_ids, user_ids);
           regionParams.push(user_ids, user_ids);
+          statusParamsMini.push(user_ids, user_ids);
         }
       }
 
@@ -188,10 +200,12 @@ SUM(
         paginationQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
         statusQuery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
         regionquery += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
+        statusQueryMini += ` AND CAST(s.created_date AS DATE) BETWEEN ? AND ?`;
         queryParams.push(start_date, end_date);
         paginationParams.push(start_date, end_date);
         statusParams.push(start_date, end_date);
         regionParams.push(start_date, end_date);
+        statusParamsMini.push(start_date, end_date);
       }
 
       if (raised_at && raised_end) {
@@ -200,10 +214,12 @@ SUM(
           paginationQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           statusQuery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           regionquery += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
+          //statusQueryMini += ` AND CAST(s.server_raise_date AS DATE) BETWEEN ? AND ?`;
           queryParams.push(raised_at, raised_end);
           paginationParams.push(raised_at, raised_end);
           statusParams.push(raised_at, raised_end);
           regionParams.push(raised_at, raised_end);
+          //statusParamsMini.push(raised_at, raised_end);
         } else {
           const expiredDateCondition = `
     AND s.status = 'Expired'
@@ -219,11 +235,13 @@ SUM(
           paginationQuery += expiredDateCondition;
           statusQuery += expiredDateCondition;
           regionquery += expiredDateCondition;
+          // statusQueryMini += expiredDateCondition;
 
           queryParams.push(raised_at, raised_end);
           paginationParams.push(raised_at, raised_end);
           statusParams.push(raised_at, raised_end);
           regionParams.push(raised_at, raised_end);
+          // statusParamsMini.push(raised_at, raised_end);
         }
       }
 
@@ -256,6 +274,8 @@ SUM(
         getQuery += filterQuery;
         paginationQuery += filterQuery;
         regionquery += filterQuery;
+        statusQuery += filterQuery;
+        statusQueryMini += filterQuery;
         queryParams.push(
           `%${search_filter}%`,
           `%${search_filter}%`,
@@ -274,6 +294,18 @@ SUM(
           `%${search_filter}%`,
           `%${search_filter}%`,
         );
+        statusParams.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
+        statusParamsMini.push(
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+          `%${search_filter}%`,
+        );
       }
 
       if (status && status.length > 0) {
@@ -282,6 +314,7 @@ SUM(
           getQuery += ` AND s.status IN (${placeholders})`;
           paginationQuery += ` AND s.status IN (${placeholders})`;
           regionquery += ` AND s.status IN (${placeholders})`;
+
           queryParams.push(...status);
           paginationParams.push(...status);
           regionParams.push(...status);
@@ -289,6 +322,7 @@ SUM(
           getQuery += ` AND s.status = ?`;
           paginationQuery += ` AND s.status = ?`;
           regionquery += ` AND s.status = ?`;
+
           queryParams.push(status);
           paginationParams.push(status);
           regionParams.push(status);
@@ -306,10 +340,13 @@ SUM(
         regionquery += `  AND r.id = ?
       `;
 
+        statusQueryMini += `  AND r.id = ?
+      `;
         queryParams.push(region_id);
         paginationParams.push(region_id);
         statusParams.push(region_id);
         regionParams.push(region_id);
+        statusParamsMini.push(region_id);
       }
 
       if (branch_id) {
@@ -322,10 +359,13 @@ SUM(
       `;
         regionquery += `  AND b.id = ?
       `;
+        statusQueryMini += `  AND b.id = ?
+      `;
         queryParams.push(branch_id);
         paginationParams.push(branch_id);
         statusParams.push(branch_id);
         regionParams.push(branch_id);
+        statusParamsMini.push(branch_id);
       }
 
       const [pageResult] = await pool.query(paginationQuery, paginationParams);
@@ -451,10 +491,17 @@ SUM(
 
         // Execute status count query
         const [statusResult] = await pool.query(statusQuery, statusParams);
+        const [statusResultMini] = await pool.query(
+          statusQueryMini,
+          statusParamsMini,
+        );
 
         return {
           data: finalresult,
-          statusCount: statusResult[0],
+          statusCount: {
+            ...statusResultMini[0],
+            ...statusResult[0],
+          },
           pagination: {
             total: parseInt(total),
             page: pageNumber,
@@ -470,10 +517,17 @@ SUM(
       } else {
         // No results case
         const [statusResult] = await pool.query(statusQuery, statusParams);
+        const [statusResultMini] = await pool.query(
+          statusQueryMini,
+          statusParamsMini,
+        );
 
         return {
           data: [],
-          statusCount: statusResult[0],
+          statusCount: {
+            ...statusResultMini[0],
+            ...statusResult[0],
+          },
           pagination: {
             total: 0,
             page: pageNumber,
