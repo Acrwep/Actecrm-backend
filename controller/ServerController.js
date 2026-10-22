@@ -196,6 +196,22 @@ const serverPurchased = async (request, response) => {
   }
 };
 
+const serverSummary = async (request, response) => {
+  const { course_id } = request.body;
+  try {
+    const result = await ServerModel.serverSummary(course_id);
+    return response.status(200).send({
+      message: "Data fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching data",
+      details: error.message,
+    });
+  }
+};
+
 const serverIssued = async (request, response) => {
   const { server_id, email_subject, email_content, send_email } = request.body;
   try {
@@ -262,6 +278,7 @@ module.exports = {
   addAcknowledgeServer,
   updateServerStatus,
   serverPurchased,
+  serverSummary,
   serverIssued,
   insertServerTrack,
   getServerHistory,

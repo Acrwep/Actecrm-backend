@@ -894,6 +894,26 @@ SUM(
       throw new Error(error.message);
     }
   },
+  serverSummary: async (course_id) => {
+    try {
+      const [summary] = await pool.query(
+        ` select st.id as server_trans_id,c.id as customer_id,c.name,c.email,c.phone,c.enrolled_course,tg.name as course_name,sm.id as server_master_id,st.server_cost,st.vendor_id,st.duration 
+        from server_master sm
+        join customers c on c.id=sm.customer_id
+        inner join(
+            select server_id, max(id) as latest_transId from server_trans group by server_id) as latest_trans
+            on latest_trans.server_id = sm.id
+              join server_trans st on st.id = latest_trans.latest_transId
+              join technologies tg on tg.id = c.enrolled_course
+            where c.enrolled_course = ? order by sm.id desc `,
+        [course_id],
+      );
+
+      return summary;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 
   serverIssued: async (server_id, email_subject, email_content, send_email) => {
     try {

@@ -275,6 +275,7 @@ router.put(
   ServerController.updateServerStatus,
 );
 router.put("/serverPurchased", verifyToken, ServerController.serverPurchased);
+router.post("/serverSummary", verifyToken, ServerController.serverSummary);
 router.put("/serverIssued", verifyToken, ServerController.serverIssued);
 router.post(
   "/insertServerTrack",
