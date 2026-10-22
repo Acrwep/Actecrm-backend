@@ -898,7 +898,7 @@ SUM(
   serverSummary: async (course_id) => {
     try {
       const [summary] = await pool.query(
-        ` select st.id as server_trans_id,c.id as customer_id,c.name,c.email,c.phone,c.enrolled_course,tg.name as course_name,sm.id as server_master_id,st.server_cost,st.vendor_id,st.duration
+        ` select st.id as server_trans_id,c.id as customer_id,c.name,c.email,c.phone,c.enrolled_course,tg.name as course_name,sm.id as server_master_id,st.server_cost,st.vendor_id,st.duration,st.start_date,st.end_date
         from server_master sm
         join customers c on c.id=sm.customer_id
         inner join(

@@ -1310,7 +1310,8 @@ WHERE c.id = ?`;
                     select  customer_id, max(id) as latest_status_history_id  from customer_track
                     group by customer_id) as latest_status on latest_status.customer_id = c.id
                     LEFT JOIN customer_track AS cshy ON cshy.id = latest_status.latest_status_history_id
-                    WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
+                    WHERE 1 = 1 and c.placement_support = 'Need' and c.status in ( 'Class Going', 'Passedout process', 'Completed','Escalated', 'Hold', 'Partially Closed',
+                                'Discontinued' ) `;
 
       // Get pagination count query
       let countQuery = `SELECT
@@ -1374,7 +1375,8 @@ WHERE c.id = ?`;
                         ) AS ps1 ON ps1.payment_master_id = pm.id
                         LEFT JOIN payment_trans AS pt1 ON
                           pt1.id = ps1.latest_trans_id
-                        WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
+                        WHERE 1 = 1 and c.placement_support = 'Need' and c.status in ( 'Class Going', 'Passedout process', 'Completed','Escalated', 'Hold', 'Partially Closed',
+                                'Discontinued' ) `;
 
       let cmCondition = bucket ? ` AND cm.name = '${bucket}'` : "";
 
@@ -1400,7 +1402,8 @@ WHERE c.id = ?`;
                           b.region_id = re.id
                           LEFT JOIN class_mode AS cm ON
                               c.mode_of_class = cm.id
-                          WHERE 1 = 1 and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
+                          WHERE 1 = 1 and c.placement_support = 'Need' and c.status in ( 'Class Going', 'Passedout process', 'Completed','Escalated', 'Hold', 'Partially Closed',
+                                'Discontinued' ) `;
 
       let classGoingSubBucketQuery = `SELECT
 COUNT(
@@ -1452,26 +1455,12 @@ WHERE 1 = 1
 
       let bucketsCountQuery = `SELECT
       COUNT(c.id) AS total_count,
-                          COUNT(CASE WHEN c.status IN('Form Pending') THEN 1 END) AS form_pending,
-                          COUNT(CASE WHEN c.status = 'Awaiting Verify' THEN 1 END) AS awaiting_verify,
-                          COUNT(CASE WHEN c.status in ('Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
-                          'Trainer Approval', 'Approval Rejected'
-                          )  THEN 1 END) AS assign_trainer,
-                        COUNT(CASE WHEN c.status = 'Awaiting Trainer' THEN 1 END) AS awaiting_trainer,
-                          COUNT(CASE WHEN c.status = 'Trainer Rejected' THEN 1 END) AS trainer_rejected,
-                          COUNT(CASE WHEN c.status = 'Payment Rejected' THEN 1 END) AS payment_rejected,
-                          COUNT(CASE WHEN c.status = 'Awaiting Finance' THEN 1 END) AS awaiting_finance,
-                          COUNT(CASE WHEN c.status = 'Awaiting Trainer Verify' THEN 1 END) AS awaiting_trainer_verify,
-                          COUNT(CASE WHEN c.status = 'Approval Rejected' THEN 1 END) AS approval_rejected,
-                          COUNT(CASE WHEN c.status = 'Trainer Approval' THEN 1 END) AS trainer_approval,
-                          COUNT(CASE WHEN c.status = 'Awaiting Class' THEN 1 END) AS awaiting_class,
+                        
                           COUNT(CASE WHEN c.status = 'Class Going' THEN 1 END) AS class_going,
-                          COUNT(CASE WHEN c.status = 'Class Scheduled' THEN 1 END) AS class_scheduled,
                           COUNT(CASE WHEN c.status = 'Passedout process' THEN 1 END) AS passedout_process,
                           COUNT(CASE WHEN c.status = 'Completed' THEN 1 END) AS completed,
                           COUNT(CASE WHEN c.status = 'Escalated' THEN 1 END) AS escalated,
                           COUNT(CASE WHEN c.status = 'Hold' THEN 1 END) AS hold,
-                          COUNT(CASE WHEN c.status = 'Videos Given' THEN 1 END) AS videos_given,
                           COUNT(CASE WHEN c.status IN(
                                 'Partially Closed',
                                 'Discontinued'
@@ -1497,7 +1486,8 @@ WHERE 1 = 1
                         LEFT JOIN technologies AS t ON
                         c.enrolled_course = t.id
                         WHERE
-                            1 = 1  and c.placement_support = 'Need' and c.status not in ( 'Demo Completed', 'Refund Request', 'Refund Ready to Pay','Refunded') `;
+                            1 = 1  and c.placement_support = 'Need' and c.status in ( 'Class Going', 'Passedout process', 'Completed','Escalated', 'Hold', 'Partially Closed',
+                                'Discontinued' ) `;
 
       if (bucket && bucket === "Online") {
         getQuery += ` AND cm.name = 'Online'`;
@@ -1646,7 +1636,7 @@ WHERE 1 = 1
           queryParams.push(...status);
           regionParams.push(...status);
           countParams.push(...status);
-        } else if (status !== "Others" && status !== "assign_trainer") {
+        } else if (status !== "Others") {
           getQuery += ` AND c.status = ?`;
           countQuery += ` AND c.status = ?`;
           regionQuery += ` AND c.status = ?`;
@@ -1701,26 +1691,6 @@ WHERE 1 = 1
           regionQuery += condition;
         }
       }
-      if (status === "assign_trainer") {
-        getQuery += `
-    AND c.status IN (
-    'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
-                          'Trainer Approval', 'Approval Rejected'
- )
-  `;
-        countQuery += `
-    AND c.status IN (
-      'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
-                          'Trainer Approval', 'Approval Rejected'
-    )
-  `;
-        regionQuery += `
-          AND c.status IN (
-            'Awaiting Trainer', 'Trainer Rejected', 'Awaiting Trainer Verify',
-                          'Trainer Approval', 'Approval Rejected'
-          )
-        `;
-      }
 
       // Apply pagination
       const pageNumber = parseInt(page, 10) || 1;
@@ -1758,8 +1728,8 @@ WHERE 1 = 1
         // awaiting_finance:
         //   financeResult[0].awaiting_finance + paymentStatus[0].awaiting_finance,
         // rejected_payment: rejectedPaymentCount[0]?.payment_rejected ?? 0,
-        awaiting_finance: bucketsCountResult[0].awaiting_finance ?? 0,
-        payment_rejected: bucketsCountResult[0].payment_rejected ?? 0,
+        // awaiting_finance: bucketsCountResult[0].awaiting_finance ?? 0,
+        // payment_rejected: bucketsCountResult[0].payment_rejected ?? 0,
       };
 
       // Get total count
