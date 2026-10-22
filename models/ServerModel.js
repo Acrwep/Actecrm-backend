@@ -58,6 +58,7 @@ const ServerModel = {
                       c.class_percentage,
                           
                           s.created_date,
+                          tmp.commercial as trainer_commercial,
                           l.assigned_to AS created_by_id,
                           l.primary_fees,
                           u.user_name AS created_by,
@@ -94,6 +95,12 @@ const ServerModel = {
                       u.branch_id = b.id
                     LEFT JOIN region AS r ON
                         b.region_id = r.id
+                    left join(
+                    select  customer_id, max(id) as lates_map_id from trainer_mapping group by customer_id
+                    ) as latest_mapping ON
+                    latest_mapping.customer_id = c.id
+                    left join trainer_mapping as tmp ON
+                    tmp.id = latest_mapping.lates_map_id
 
       
                       LEFT JOIN(
@@ -486,6 +493,15 @@ SUM(
             paid_amount: paidAmount,
             server_history: history,
             trans_details: transMap.get(item.id) || [],
+            trainer_commercial_percentage: item.primary_fees
+              ? parseFloat(
+                  (
+                    (parseFloat(item.trainer_commercial || 0) /
+                      parseFloat(item.primary_fees)) *
+                    100
+                  ).toFixed(2),
+                )
+              : 0,
           };
         });
 
