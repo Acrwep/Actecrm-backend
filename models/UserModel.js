@@ -185,7 +185,7 @@ const UserModel = {
                     	r.id = b.region_id
                         AND r.is_active = 1
                     WHERE
-                        u.is_active = 1`;
+                        1 = 1`;
 
       let countQuery = `SELECT 
                         COUNT(u.id) AS total
@@ -198,7 +198,7 @@ const UserModel = {
                     	r.id = b.region_id
                         AND r.is_active = 1
                     WHERE
-                        u.is_active = 1`;
+                        1 = 1`;
       if (keyword) {
         getQuery += ` AND (u.view_user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
         countQuery += ` AND (u.view_user_id LIKE '%${keyword}%' OR u.user_name LIKE '%${keyword}%')`;
@@ -260,7 +260,7 @@ const UserModel = {
         : "";
 
       const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, view_user_id, user_name, phone, ${allUsersProfileImageQuery} last_login_date FROM users WHERE is_active = 1`,
+        `SELECT id, user_id, view_user_id, user_name, phone, ${allUsersProfileImageQuery} last_login_date FROM users WHERE 1 = 1`,
       );
 
       const formattedResult = await Promise.all(
