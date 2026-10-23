@@ -98,6 +98,7 @@ const updateUser = async (request, response) => {
     target_start,
     target_end,
     target_value,
+    is_active,
   } = request.body;
   const formattedUsers = Array.isArray(users) ? users : [users];
   const formattedRoles = Array.isArray(roles) ? roles : [roles];
@@ -116,6 +117,7 @@ const updateUser = async (request, response) => {
       target_start,
       target_end,
       target_value,
+      is_active,
     );
     response.status(200).json({
       message: "User updated successfully",

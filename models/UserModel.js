@@ -317,6 +317,7 @@ const UserModel = {
     target_start,
     target_end,
     target_value,
+    is_active,
   ) => {
     try {
       let affectedRows = 0;
@@ -328,7 +329,7 @@ const UserModel = {
         throw new Error("Invalid Id");
       }
 
-      const updateQuery = `UPDATE users SET view_user_id = ?, branch_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ? WHERE id = ?`;
+      const updateQuery = `UPDATE users SET view_user_id = ?, branch_id = ?, user_name = ?, phone = ?, profile_image = ?, password = ?, child_users = ?, roles = ?, is_active = ? WHERE id = ?`;
       const values = [
         view_user_id,
         branch_id,
@@ -338,6 +339,7 @@ const UserModel = {
         password,
         JSON.stringify(users),
         JSON.stringify(roles),
+        is_active,
         id,
       ];
       const [result] = await pool.query(updateQuery, values);
