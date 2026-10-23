@@ -1,5 +1,6 @@
 const { request, response } = require("express");
 const userModel = require("../models/UserModel");
+const socketService = require("../services/SocketService");
 
 const addUser = async (request, response) => {
   const {
@@ -119,6 +120,12 @@ const updateUser = async (request, response) => {
       target_value,
       is_active,
     );
+
+    // Automatically logout all connected sessions when user is inactive
+    if (Number(is_active) === 0) {
+      socketService.emitForceLogout(user_id);
+    }
+
     response.status(200).json({
       message: "User updated successfully",
       data: users,

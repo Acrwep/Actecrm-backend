@@ -51,16 +51,21 @@ const emitLeadUpdate = (data) => {
   }
 };
 
-const emitForceLogout = (userId, platform) => {
+const emitForceLogout = (userId, platform = null) => {
   if (!io || !userId) return;
 
   const sockets = io.sockets.sockets;
 
   sockets.forEach((socket) => {
-    if (socket.userId == userId && socket.platform === platform) {
+    if (
+      String(socket.userId) === String(userId) &&
+      (!platform || socket.platform === platform)
+    ) {
       socket.emit("force_logout", {
-        message:
-          "You have been logged out because of a new login on another system.",
+        reason: platform ? "NEW_LOGIN" : "ACCOUNT_INACTIVE",
+        message: platform
+          ? "You have been logged out because a new login was detected on another system."
+          : "Your account has been deactivated.",
       });
     }
   });

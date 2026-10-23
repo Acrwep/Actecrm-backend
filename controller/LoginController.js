@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const loginModel = require("../models/LoginModel");
+const pool = require("../config/dbconfig");
 
 const login = async (request, response) => {
   const { user_id, password, last_login_date, platform } = request.body;
@@ -14,8 +15,23 @@ const login = async (request, response) => {
     if (validateUser) {
       const socketService = require("../services/SocketService");
 
+      const [isIdExists] = await pool.query(
+        `SELECT user_id AS original_user_id
+         FROM users
+         WHERE view_user_id = ?`,
+        [user_id],
+      );
+
+      if (isIdExists.length <= 0) {
+        throw new Error("Invalid Id");
+      }
+
+      const originalUserId = isIdExists[0].original_user_id;
+
+      console.log("originalUserId", originalUserId);
+
       // same platform users மட்டும் logout
-      socketService.emitForceLogout(user_id, platform);
+      socketService.emitForceLogout(originalUserId, platform);
 
       const token = generateToken(validateUser);
 
