@@ -451,6 +451,16 @@ router.get(
   WhatsAppController.getCampaignMessages,
 );
 router.post(
+  "/whatsapp/campaigns/:id/send-template",
+  verifyToken,
+  WhatsAppController.sendTemplateToCampaignMembers,
+);
+router.post(
+  "/whatsapp/campaigns/send-followup",
+  verifyToken,
+  WhatsAppController.sendTemplateToCampaignMembers,
+);
+router.post(
   "/whatsapp/campaigns/simulate-status",
   verifyToken,
   WhatsAppController.simulateMessageStatus,

@@ -806,10 +806,7 @@ SUM(
         [server_trans_id],
       );
 
-      if (
-        isAcknowledged.length > 0 &&
-        isAcknowledged[0].is_acknowledged === 1
-      ) {
+      if (isAcknowledged.length > 0 && isAcknowledged[0].is_acknowledged == 1) {
         throw new Error("Server request has already been acknowledged.");
       }
 
@@ -818,15 +815,17 @@ SUM(
         [is_acknowledged, acknowledged_date, server_trans_id],
       );
 
-      await connection.query(
-        `UPDATE server_master SET status = 'Awaiting Approval' WHERE id = ?`,
-        [isAcknowledged[0].server_id],
-      );
+      if (is_acknowledged == 1) {
+        await connection.query(
+          `UPDATE server_master SET status = 'Awaiting Approval' WHERE id = ?`,
+          [isAcknowledged[0].server_id],
+        );
 
-      await connection.query(
-        `INSERT INTO customer_track(customer_id, status, status_date) VALUES(?, ?, ?)`,
-        [customer_id, "Server Request Acknowledged", acknowledged_date],
-      );
+        await connection.query(
+          `INSERT INTO customer_track(customer_id, status, status_date) VALUES(?, ?, ?)`,
+          [customer_id, "Server Request Acknowledged", acknowledged_date],
+        );
+      }
       await connection.commit();
       return { status: true };
     } catch (error) {

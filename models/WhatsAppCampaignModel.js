@@ -752,11 +752,11 @@ const WhatsAppCampaignModel = {
       LEFT JOIN branches b ON c.branch_id = b.id
       LEFT JOIN technologies t ON c.course_id = t.id
       LEFT JOIN users u ON c.created_by COLLATE utf8mb4_general_ci = u.user_id
-      WHERE c.campaign_id = ?
+      WHERE c.campaign_id = ? OR c.id = ?
       LIMIT 1
     `;
 
-    const [rows] = await pool.query(query, [campaign_id]);
+    const [rows] = await pool.query(query, [campaign_id, campaign_id]);
     return rows.length ? rows[0] : null;
   },
 
@@ -842,6 +842,71 @@ const WhatsAppCampaignModel = {
         totalPages,
       },
     };
+  },
+
+  /**
+   * Get recipients from an existing campaign for follow-up / retargeting
+   */
+  getCampaignRecipientsForFollowUp: async ({
+    campaign_id,
+    status_filter = null,
+    selected_mobiles = null,
+  }) => {
+    const conditions = ["campaign_id = ?"];
+    const params = [campaign_id];
+
+    // Status filter: e.g. ["Sent", "Delivered", "Read"], "Delivered", or "all"
+    if (status_filter && status_filter !== "all" && status_filter !== "All") {
+      if (Array.isArray(status_filter) && status_filter.length > 0) {
+        const placeholders = status_filter.map(() => "?").join(", ");
+        conditions.push(`message_status IN (${placeholders})`);
+        params.push(...status_filter);
+      } else if (typeof status_filter === "string") {
+        conditions.push(`message_status = ?`);
+        params.push(status_filter);
+      }
+    }
+
+    if (Array.isArray(selected_mobiles) && selected_mobiles.length > 0) {
+      const placeholders = selected_mobiles.map(() => "?").join(", ");
+      conditions.push(`mobile_number IN (${placeholders})`);
+      params.push(...selected_mobiles);
+    }
+
+    const whereClause = conditions.join(" AND ");
+
+    // Fetch distinct mobile numbers so each recipient gets only 1 message
+    const query = `
+      SELECT
+        mobile_number,
+        MAX(id) AS message_id,
+        MAX(lead_id) AS lead_id,
+        MAX(recipient_name) AS recipient_name,
+        MAX(message_status) AS last_status,
+        MAX(media_url) AS media_url,
+        MAX(template_params) AS last_template_params
+      FROM whatsapp_campaign_messages
+      WHERE ${whereClause}
+      GROUP BY mobile_number
+      ORDER BY message_id ASC
+    `;
+
+    const [rows] = await pool.query(query, params);
+    return rows.map((r) => {
+      let parsedParams = null;
+      try {
+        parsedParams =
+          typeof r.last_template_params === "string"
+            ? JSON.parse(r.last_template_params)
+            : r.last_template_params;
+      } catch {
+        parsedParams = null;
+      }
+      return {
+        ...r,
+        last_template_params: parsedParams,
+      };
+    });
   },
 
   /**
