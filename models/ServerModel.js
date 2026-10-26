@@ -42,6 +42,7 @@ const ServerModel = {
                           c.whatsapp_phone_code,
                           c.email,
                           c.date_of_joining,
+                          c.student_id,
                           t.name AS server_name,
                           CASE WHEN c.enrolled_course IS NOT NULL THEN t.name ELSE tg.name END AS course_name,
                           CASE WHEN c.enrolled_course IS NOT NULL THEN c.enrolled_course ELSE tg.id END AS course_id,
