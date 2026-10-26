@@ -915,7 +915,14 @@ SUM(
     }
   },
 
-  serverIssued: async (server_id, email_subject, email_content, send_email) => {
+  serverIssued: async (
+    server_id,
+    email_subject,
+    email_content,
+    send_email,
+    issued_date,
+    server_trans_id,
+  ) => {
     try {
       let affectedRows = 0;
       const [isServerExists] = await pool.query(
@@ -956,6 +963,11 @@ SUM(
         const [updateMaster] = await pool.query(
           `UPDATE server_master SET status = 'Issued' WHERE id = ?`,
           [server_id],
+        );
+
+        await pool.query(
+          `UPDATE server_trans SET issued_date = ? WHERE id = ?`,
+          [issued_date, server_trans_id],
         );
 
         affectedRows += updateMaster.affectedRows;
