@@ -418,7 +418,8 @@ SUM(
         verified_date,
         rejected_by,
         rejected_date,
-        comments
+        comments,
+        issued_date
      FROM server_trans
      WHERE server_id IN (?) order by id desc `,
           [serverIds],
@@ -446,6 +447,7 @@ SUM(
             rejected_by: trans.rejected_by,
             rejected_date: trans.rejected_date,
             comments: trans.comments,
+            issued_date: trans.issued_date,
           });
         }
       }
