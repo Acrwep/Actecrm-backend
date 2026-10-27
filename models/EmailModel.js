@@ -1441,7 +1441,7 @@ const sendTrainerPaymentMail = async (
             Please click the button below to access the payment form:
           </p>
           <p style="text-align: center; margin: 20px 0;">
-            <a href=${link} target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
+            <a href="${link}/${trainer_id}/${payment_master_id}"  target="_blank" style="background: #5b69ca; color: #ffffff; text-decoration: none; padding: 6px 12px; font-size: 14px; font-weight: bold; border-radius: 6px; display: inline-block;">
               Complete Payment
             </a>
           </p>
@@ -1449,7 +1449,7 @@ const sendTrainerPaymentMail = async (
             If the button above does not work, please copy and paste the following link into your browser:
           </p>
           <p style="word-break: break-all; color: #5b69ca; font-size: 14px;">
-            ${link}
+            ${link}/${trainer_id}/${payment_master_id}
           </p>
           <p style="margin-top: 30px;">Best Regards,<br/>Acte Technologies</p>
         </td>

@@ -204,6 +204,7 @@ const trainerPaymentModal = {
     students,
     email_link,
     batch_id,
+    trainer_payment_link,
   ) => {
     const connection = await pool.getConnection();
 
@@ -213,6 +214,7 @@ const trainerPaymentModal = {
       let affectedRows = 0;
       let lastInsertId = null;
       const emailTasks = [];
+      const paymentMasterIds = [];
 
       //validation
       if (!students || students.length <= 0) {
@@ -380,6 +382,8 @@ const trainerPaymentModal = {
         affectedRows += insertMaster.affectedRows;
         lastInsertId = insertMaster.insertId;
 
+        paymentMasterIds.push(insertMaster.insertId);
+
         // Insert transaction for every student
         for (const student of students) {
           const perStudentAmount =
@@ -512,6 +516,7 @@ const trainerPaymentModal = {
 
           affectedRows += insertMaster.affectedRows;
           lastInsertId = insertMaster.insertId;
+          paymentMasterIds.push(insertMaster.insertId);
 
           // Transaction
           const transValues = [
@@ -607,6 +612,40 @@ const trainerPaymentModal = {
       }
 
       await connection.commit();
+
+      // Send trainer payment emails for Pay Per Head
+      if (commercial_type) {
+        const [trainerDetails] = await pool.query(
+          `SELECT email FROM trainer WHERE id = ?`,
+          [trainer_id],
+        );
+
+        if (trainerDetails.length === 0) {
+          throw new Error("Trainer not exists");
+        }
+
+        const trainerEmail = trainerDetails[0].email;
+
+        for (const payment_master_id of paymentMasterIds) {
+          try {
+            await EmailModel.sendTrainerPaymentMail(
+              trainerEmail,
+              trainer_payment_link,
+              payment_master_id,
+              trainer_id,
+            );
+
+            console.log(
+              `Trainer payment email sent for payment_master_id: ${payment_master_id}`,
+            );
+          } catch (emailError) {
+            console.error(
+              `Trainer payment email failed for payment_master_id ${payment_master_id}:`,
+              emailError.message,
+            );
+          }
+        }
+      }
       // send email
       for (const task of emailTasks) {
         try {

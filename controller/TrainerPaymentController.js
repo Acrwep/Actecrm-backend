@@ -67,6 +67,7 @@ const requestPaymentV1 = async (req, res) => {
     students,
     email_link,
     batch_id,
+    trainer_payment_link,
   } = req.body;
   try {
     const result = await trainerPaymentModal.requestPaymentV1(
@@ -80,6 +81,7 @@ const requestPaymentV1 = async (req, res) => {
       students,
       email_link,
       batch_id,
+      trainer_payment_link,
     );
 
     return res.status(201).send({
