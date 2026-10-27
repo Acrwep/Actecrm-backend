@@ -613,62 +613,74 @@ const trainerPaymentModal = {
 
       await connection.commit();
 
-      // Send trainer payment emails for Pay Per Head
-      if (commercial_type) {
-        const [trainerDetails] = await pool.query(
-          `SELECT email FROM trainer WHERE id = ?`,
-          [trainer_id],
-        );
-
-        if (trainerDetails.length === 0) {
-          throw new Error("Trainer not exists");
-        }
-
-        const trainerEmail = trainerDetails[0].email;
-
-        for (const payment_master_id of paymentMasterIds) {
-          try {
-            await EmailModel.sendTrainerPaymentMail(
-              trainerEmail,
-              trainer_payment_link,
-              payment_master_id,
-              trainer_id,
-            );
-
-            console.log(
-              `Trainer payment email sent for payment_master_id: ${payment_master_id}`,
-            );
-          } catch (emailError) {
-            console.error(
-              `Trainer payment email failed for payment_master_id ${payment_master_id}:`,
-              emailError.message,
-            );
-          }
-        }
-      }
-      // send email
-      for (const task of emailTasks) {
+      // Send emails asynchronously in the background so API responds immediately
+      setImmediate(async () => {
         try {
-          if (!task.email) {
-            continue;
+          if (commercial_type) {
+            const [trainerDetails] = await pool.query(
+              `SELECT email FROM trainer WHERE id = ?`,
+              [trainer_id],
+            );
+
+            if (trainerDetails.length > 0) {
+              const trainerEmail = trainerDetails[0].email;
+
+              for (const payment_master_id of paymentMasterIds) {
+                try {
+                  await EmailModel.sendTrainerPaymentMail(
+                    trainerEmail,
+                    trainer_payment_link,
+                    payment_master_id,
+                    trainer_id,
+                  );
+
+                  console.log(
+                    `Trainer payment email sent for payment_master_id: ${payment_master_id}`,
+                  );
+                } catch (emailError) {
+                  console.error(
+                    `Trainer payment email failed for payment_master_id ${payment_master_id}:`,
+                    emailError.message,
+                  );
+                }
+              }
+            } else {
+              console.warn(
+                `Trainer not found for email notification, trainer_id: ${trainer_id}`,
+              );
+            }
           }
 
-          await EmailModel.sendStudentAcknowledgementMail(
-            task.email,
-            email_link,
-            task.customer_id,
-          );
+          // Send student acknowledgement emails
+          for (const task of emailTasks) {
+            try {
+              if (!task.email) {
+                continue;
+              }
 
-          console.log(
-            `Student acknowledgement email sent successfully to customer ${task.customer_id}`,
-          );
-        } catch (emailError) {
+              await EmailModel.sendStudentAcknowledgementMail(
+                task.email,
+                email_link,
+                task.customer_id,
+              );
+
+              console.log(
+                `Student acknowledgement email sent successfully to customer ${task.customer_id}`,
+              );
+            } catch (emailError) {
+              console.error(
+                `Error sending student acknowledgement email to customer ${task.customer_id}:`,
+                emailError.message,
+              );
+            }
+          }
+        } catch (bgError) {
           console.error(
-            `Error sending student acknowledgement email to customer ${task.customer_id}:`,
-            emailError.message,
+            "Background email sending error in requestPaymentV1:",
+            bgError.message,
           );
         }
-      }
+      });
 
       return {
         trainer_id: trainer_id,
