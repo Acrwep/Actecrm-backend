@@ -56,6 +56,7 @@ const createPayment = async (request, response) => {
     gst_address,
     location,
     lms_access,
+    is_videos_only,
   } = request.body;
   try {
     const result = await PaymentModel.createPayment(
@@ -96,6 +97,7 @@ const createPayment = async (request, response) => {
       gst_address,
       location,
       lms_access,
+      is_videos_only,
     );
     return response.status(201).send({
       messages: "Payment successfull",

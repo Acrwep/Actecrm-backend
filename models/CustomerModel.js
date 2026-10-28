@@ -829,6 +829,7 @@ const CustomerModel = {
     c.proof_communication as customer_proof_communication,
     c.comments as customer_comments,
     c.lms_access,
+    c.is_videos_only,
    
 
     CASE
@@ -2385,7 +2386,8 @@ WHERE 1 = 1
                       hr_user.user_name AS hr_name,
                       hr_user.view_user_id as hr_view_user_id,
                       c.is_linkedin_verified,
-                      c.is_google_verified
+                      c.is_google_verified,
+                      c.is_videos_only
                       
                     FROM
                         customers AS c
