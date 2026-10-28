@@ -34,13 +34,11 @@ const AdmissionModel = {
                         r.name as region_name,
                         su.user_name AS sale_executive,
                         su.view_user_id as assigned_to_view_user_id,
-                       --  hu.user_id AS hr_user_id,
-                       --  hu.user_name AS hr_user_name,
+                      
                        lm.hr_id AS hr_user_id, 
                        hr_user.user_name AS hr_user_name,
                        hr_user.view_user_id as hr_view_user_id,
-                       --  ra.user_id AS ra_user_id,
-                       --  ra.user_name AS ra_user_name,
+      
                        lm.ra_id AS ra_user_id, 
                        ra_user.user_name AS ra_user_name,
                        ra_user.view_user_id as ra_view_user_id,
@@ -56,10 +54,7 @@ const AdmissionModel = {
                         c.class_percentage,
                         c.lms_access,
                         ti.status as ticket_status,
-                        CASE
-    WHEN ti.ticket_id IS NOT NULL THEN 1
-    ELSE 0
-END AS ticket_raised, 
+ IFNULL(ti.ticket_id IS NOT NULL, 0) AS ticket_raised,
 
                          map.whatsapp_group_creation,
                          map.hr_welcome_message,
@@ -68,55 +63,45 @@ END AS ticket_raised,
                          map.trainer_confirmation,
                          map.id as trainer_mapping_id,
 
-                        CASE 
-                        WHEN c.class_percentage >=100
-                        AND c.status IN ('Passedout process', 'Completed')
-                        THEN 1 
-                        ELSE 0
-                        END AS class_completion_confirmation,
 
-                        CASE
-                            WHEN EXISTS (
-                                 SELECT 1
-                                 FROM trainer_payment_trans AS tpt
-                                WHERE tpt.trainer_mapping_id = latest_map.trainer_map_id
-                            )
-                            THEN 1
-                            ELSE 0
-                        END AS trainer_completion_report,
-                        c.is_acknowledged AS student_completion_report,
+                         IFNULL(
+        c.class_percentage >= 100
+        AND c.status IN ('Passedout process', 'Completed'),
+        0
+    ) AS class_completion_confirmation,
 
-                        CASE
-                           WHEN c.google_review IS NOT NULL
-                           THEN 1
-                           ELSE 0
-                        END AS google_review_collection,
+    IFNULL(
+        EXISTS (
+            SELECT 1
+            FROM trainer_payment_trans AS tpt
+            WHERE tpt.trainer_mapping_id = latest_map.trainer_map_id
+        ),
+        0
+    ) AS trainer_completion_report,
 
-                        CASE
-                           WHEN c.linkedin_review IS NOT NULL
-                           THEN 1
-                           ELSE 0
-                        END AS linkedin_review_collection,
+    c.is_acknowledged AS student_completion_report,
 
-                        CASE
-                           WHEN c.is_google_verified = 1 AND c.is_linkedin_verified = 1
-                           THEN 1
-                           ELSE 0
-                        END AS review_verification_status,
+    IFNULL(c.google_review IS NOT NULL, 0)
+        AS google_review_collection,
 
-                        c.is_certificate_generated AS course_completion_certificate,
+    IFNULL(c.linkedin_review IS NOT NULL, 0)
+        AS linkedin_review_collection,
 
-                        CASE 
-                        WHEN c.status = 'Completed'
-                        THEN 1
-                        ELSE 0
-                        END AS is_course_completed,
+    IFNULL(
+        c.is_google_verified = 1
+        AND c.is_linkedin_verified = 1,
+        0
+    ) AS review_verification_status,
 
-                        case 
-                        when c.status in ('Class Going', 'Completed', 'Passedout process')
-                        then 1
-                        else 0
-                        end as class_progress_monitoring
+    c.is_certificate_generated AS course_completion_certificate,
+
+    IFNULL(c.status = 'Completed', 0)
+        AS is_course_completed,
+
+    IFNULL(
+        c.status IN ('Class Going', 'Completed', 'Passedout process'),
+        0
+    ) AS class_progress_monitoring
 
                     FROM
                         customers AS c
