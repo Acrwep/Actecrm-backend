@@ -22,6 +22,7 @@ const upload = require("../validation/UploadMiddleware");
 const UploadController = require("../controller/UploadController");
 const AdmissionController = require("../controller/AdmissionController");
 const WhatsAppController = require("../controller/WhatsAppController");
+const WhatsAppPlacementController = require("../controller/WhatsAppPlacementController");
 router.post("/login", LoginController.login);
 
 // User start
@@ -469,6 +470,72 @@ router.get("/whatsapp/webhook", WhatsAppController.verifyAiSensyWebhook);
 router.post("/whatsapp/webhook", WhatsAppController.handleAiSensyWebhook);
 
 //whatsapp end
+
+// WhatsApp Placement Campaign Routes
+router.post(
+  "/whatsapp/placement/eligible-customers",
+  verifyToken,
+  WhatsAppPlacementController.getEligiblePlacementCustomers,
+);
+router.post(
+  "/whatsapp/placement/send-single",
+  verifyToken,
+  WhatsAppPlacementController.sendSinglePlacementTemplateWhatsApp,
+);
+router.post(
+  "/whatsapp/placement/send-bulk",
+  verifyToken,
+  WhatsAppPlacementController.sendBulkPlacementTemplateWhatsApp,
+);
+router.get(
+  "/whatsapp/placement/campaigns/statistics",
+  verifyToken,
+  WhatsAppPlacementController.getPlacementCampaignStatistics,
+);
+router.get(
+  "/whatsapp/placement/campaigns",
+  verifyToken,
+  WhatsAppPlacementController.getPlacementCampaigns,
+);
+router.get(
+  "/whatsapp/placement/campaigns/:id",
+  verifyToken,
+  WhatsAppPlacementController.getPlacementCampaignById,
+);
+router.get(
+  "/whatsapp/placement/campaigns/:id/messages",
+  verifyToken,
+  WhatsAppPlacementController.getPlacementCampaignMessages,
+);
+router.post(
+  "/whatsapp/placement/campaigns/:id/send-template",
+  verifyToken,
+  WhatsAppPlacementController.sendTemplateToPlacementCampaignMembers,
+);
+router.post(
+  "/whatsapp/placement/campaigns/send-followup",
+  verifyToken,
+  WhatsAppPlacementController.sendTemplateToPlacementCampaignMembers,
+);
+router.post(
+  "/whatsapp/placement/campaigns/simulate-status",
+  verifyToken,
+  WhatsAppPlacementController.simulatePlacementMessageStatus,
+);
+router.get(
+  "/whatsapp/placement/customers/:customer_id/template-status",
+  verifyToken,
+  WhatsAppPlacementController.getCustomerPlacementTemplateStatus,
+);
+router.get(
+  "/whatsapp/placement/webhook",
+  WhatsAppPlacementController.verifyAiSensyWebhook,
+);
+router.post(
+  "/whatsapp/placement/webhook",
+  WhatsAppPlacementController.handleAiSensyWebhook,
+);
+// WhatsApp Placement Campaign Routes end
 
 router.post(
   "/getRegionWiseLeadCounts",

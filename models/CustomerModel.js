@@ -747,6 +747,13 @@ const CustomerModel = {
         // Format customer result
         return {
           ...item,
+          placement_welcome_message: Number(item.placement_welcome_message || 0),
+          placement_registration_link: Number(item.placement_registration_link || 0),
+          add_on_course: Number(item.add_on_course || 0),
+          placement_add_on_course: Number(item.placement_add_on_course || item.add_on_course || 0),
+          welcome_message_sent_at: item.welcome_message_sent_at || null,
+          registration_link_sent_at: item.registration_link_sent_at || null,
+          add_on_course_sent_at: item.add_on_course_sent_at || null,
           balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
           total_amount: totalAmount,
           paid_amount: paidAmount,
@@ -1259,10 +1266,19 @@ WHERE c.id = ?`;
                       hr_user.user_name AS hr_name,
                       hr_user.view_user_id as hr_view_user_id,
                       c.is_linkedin_verified,
-                      c.is_google_verified
+                      c.is_google_verified,
+                      COALESCE(cpts.placement_welcome_message, 0) AS placement_welcome_message,
+                      COALESCE(cpts.placement_registration_link, 0) AS placement_registration_link,
+                      COALESCE(cpts.add_on_course, 0) AS add_on_course,
+                      COALESCE(cpts.placement_add_on_course, 0) AS placement_add_on_course,
+                      cpts.welcome_message_sent_at,
+                      cpts.registration_link_sent_at,
+                      cpts.add_on_course_sent_at
                       
                     FROM
                         customers AS c
+                    LEFT JOIN customer_placement_template_status AS cpts
+                        ON cpts.customer_id = c.id
                     LEFT JOIN customer_status_history AS csh
                         ON csh.id = c.latest_status_history_id
                     LEFT JOIN technologies AS t ON
