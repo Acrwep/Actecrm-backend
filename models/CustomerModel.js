@@ -747,10 +747,16 @@ const CustomerModel = {
         // Format customer result
         return {
           ...item,
-          placement_welcome_message: Number(item.placement_welcome_message || 0),
-          placement_registration_link: Number(item.placement_registration_link || 0),
+          placement_welcome_message: Number(
+            item.placement_welcome_message || 0,
+          ),
+          placement_registration_link: Number(
+            item.placement_registration_link || 0,
+          ),
           add_on_course: Number(item.add_on_course || 0),
-          placement_add_on_course: Number(item.placement_add_on_course || item.add_on_course || 0),
+          placement_add_on_course: Number(
+            item.placement_add_on_course || item.add_on_course || 0,
+          ),
           welcome_message_sent_at: item.welcome_message_sent_at || null,
           registration_link_sent_at: item.registration_link_sent_at || null,
           add_on_course_sent_at: item.add_on_course_sent_at || null,
@@ -2403,7 +2409,8 @@ WHERE 1 = 1
                       hr_user.view_user_id as hr_view_user_id,
                       c.is_linkedin_verified,
                       c.is_google_verified,
-                      c.is_videos_only
+                      c.is_videos_only,
+                      tmg.comments as last_trainer_rejected_reason
                       
                     FROM
                         customers AS c
@@ -2431,6 +2438,10 @@ WHERE 1 = 1
                         hr_user.user_id = l.hr_id
                     LEFT JOIN class_mode AS cm ON
                             c.mode_of_class = cm.id
+                    left join (
+                    select customer_id, MAX(id) as latest_mapId from trainer_mapping
+                     where is_rejected =1 group by customer_id) as latest_maps on latest_maps.customer_id = c.id
+                    left join trainer_mapping as tmg on tmg.id = latest_maps.latest_mapId
                     LEFT JOIN(
                       SELECT
                           payment_master_id,
