@@ -2007,8 +2007,12 @@ WHERE 1 = 1
   rejectTrainer: async (id, rejected_date, comments, is_escalated) => {
     try {
       const [result] = await pool.query(
-        `UPDATE trainer_mapping SET is_rejected = 1, comments = ?, rejected_date = ? WHERE id = ?`,
-        [comments, rejected_date, id],
+        `UPDATE trainer_mapping 
+   SET is_rejected = 1, 
+       comments = COALESCE(?, comments),
+       rejected_date = ? 
+   WHERE id = ?`,
+        [comments ?? null, rejected_date, id],
       );
 
       if (is_escalated) {
@@ -2410,7 +2414,9 @@ WHERE 1 = 1
                       c.is_linkedin_verified,
                       c.is_google_verified,
                       c.is_videos_only,
-                      tmg.comments as last_trainer_rejected_reason
+                      tmg.comments as last_trainer_rejected_reason,
+                      trn.name as last_rejected_trainer_name,
+                      tmg.commercial as last_rejected_trainer_commercial
                       
                     FROM
                         customers AS c
@@ -2442,6 +2448,7 @@ WHERE 1 = 1
                     select customer_id, MAX(id) as latest_mapId from trainer_mapping
                      where is_rejected =1 group by customer_id) as latest_maps on latest_maps.customer_id = c.id
                     left join trainer_mapping as tmg on tmg.id = latest_maps.latest_mapId
+                    left join trainer trn on trn.id = tmg.trainer_id
                     LEFT JOIN(
                       SELECT
                           payment_master_id,
@@ -3421,11 +3428,15 @@ WHERE 1 = 1
           balance_amount: parseFloat((totalAmount - paidAmount).toFixed(2)),
           total_amount: totalAmount,
           paid_amount: paidAmount,
-          // commercial_percentage: item.primary_fees
-          //   ? parseFloat(
-          //       ((item.commercial / item.primary_fees) * 100).toFixed(2),
-          //     )
-          //   : 0,
+          last_rejected_trainer_commercial_percentage: item.primary_fees
+            ? parseFloat(
+                (
+                  (parseFloat(item.last_rejected_trainer_commercial || 0) /
+                    parseFloat(item.primary_fees)) *
+                  100
+                ).toFixed(2),
+              )
+            : 0,
         };
       });
 
