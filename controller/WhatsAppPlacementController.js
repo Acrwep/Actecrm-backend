@@ -3,6 +3,7 @@ const pool = require("../config/dbconfig");
 
 const WhatsAppTemplateConfigModal = require("../models/WhatsAppTemplateConfigModal");
 const WhatsAppPlacementCampaignModel = require("../models/WhatsAppPlacementCampaignModel");
+const WhatsAppCampaignModel = require("../models/WhatsAppCampaignModel");
 const CustomerModel = require("../models/CustomerModel");
 
 /**
@@ -92,7 +93,9 @@ const getEligiblePlacementCustomers = async (req, res) => {
         class_percentage: item.class_percentage || 0,
         date_of_joining: item.date_of_joining || null,
         placement_welcome_message: Number(item.placement_welcome_message || 0),
-        placement_registration_link: Number(item.placement_registration_link || 0),
+        placement_registration_link: Number(
+          item.placement_registration_link || 0,
+        ),
         add_on_course: Number(item.add_on_course || 0),
         placement_add_on_course: Number(
           item.placement_add_on_course || item.add_on_course || 0,
@@ -213,7 +216,9 @@ const sendSinglePlacementTemplateWhatsApp = async (req, res) => {
 
       // Smart fallback: recipient name
       if (
-        (value === undefined || value === null || String(value).trim() === "") &&
+        (value === undefined ||
+          value === null ||
+          String(value).trim() === "") &&
         ["name", "customer_name", "student_name", "recipient_name"].includes(
           parameter.key.toLowerCase(),
         )
@@ -360,7 +365,10 @@ const sendSinglePlacementTemplateWhatsApp = async (req, res) => {
       const failedIST = WhatsAppPlacementCampaignModel.formatToBackendIST();
       try {
         await WhatsAppPlacementCampaignModel.updateMessageStatus(
-          { campaign_id, mobile_number: req.body?.mobile_number || req.body?.mobile },
+          {
+            campaign_id,
+            mobile_number: req.body?.mobile_number || req.body?.mobile,
+          },
           {
             message_status: "Failed",
             error_message:
@@ -370,7 +378,9 @@ const sendSinglePlacementTemplateWhatsApp = async (req, res) => {
             failed_at: failedIST,
           },
         );
-        await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(campaign_id);
+        await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(
+          campaign_id,
+        );
       } catch (dbErr) {
         console.error("Error updating campaign on failure:", dbErr);
       }
@@ -506,7 +516,9 @@ const sendBulkPlacementTemplateWhatsApp = async (req, res) => {
       created_at: cust.created_at || nowIST,
     }));
 
-    await WhatsAppPlacementCampaignModel.createCampaignMessages(recipientRecords);
+    await WhatsAppPlacementCampaignModel.createCampaignMessages(
+      recipientRecords,
+    );
 
     // 3. Respond immediately so frontend doesn't hang or timeout
     res.status(200).json({
@@ -523,7 +535,11 @@ const sendBulkPlacementTemplateWhatsApp = async (req, res) => {
 
       for (const cust of customerList) {
         const destMobile = String(
-          cust.mobile || cust.whatsapp || cust.phone || cust.mobile_number || "",
+          cust.mobile ||
+            cust.whatsapp ||
+            cust.phone ||
+            cust.mobile_number ||
+            "",
         ).trim();
 
         try {
@@ -552,17 +568,24 @@ const sendBulkPlacementTemplateWhatsApp = async (req, res) => {
 
             // Smart fallback for customer name
             if (
-              (value === undefined || value === null || String(value).trim() === "") &&
-              ["name", "customer_name", "student_name", "recipient_name"].includes(
-                parameter.key.toLowerCase(),
-              )
+              (value === undefined ||
+                value === null ||
+                String(value).trim() === "") &&
+              [
+                "name",
+                "customer_name",
+                "student_name",
+                "recipient_name",
+              ].includes(parameter.key.toLowerCase())
             ) {
               value = recipientName;
             }
 
             if (
               parameter.required &&
-              (value === undefined || value === null || String(value).trim() === "")
+              (value === undefined ||
+                value === null ||
+                String(value).trim() === "")
             ) {
               throw new Error(`${parameter.label} is required`);
             }
@@ -673,7 +696,9 @@ const sendBulkPlacementTemplateWhatsApp = async (req, res) => {
       }
 
       // Recalculate campaign summary counts for absolute accuracy
-      await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(campaign_id);
+      await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(
+        campaign_id,
+      );
 
       console.log(
         `[Bulk Placement WhatsApp Complete] Campaign: ${campaign_id}, Sent: ${successCount}, Failed: ${failedCount}`,
@@ -935,10 +960,7 @@ const sendTemplateToPlacementCampaignMembers = async (req, res) => {
       await WhatsAppPlacementCampaignModel.generateCampaignId("Bulk");
     const nowIST = WhatsAppPlacementCampaignModel.formatToBackendIST();
     const createdBy =
-      sent_by ||
-      req.user?.user_id ||
-      sourceCampaign.created_by ||
-      "CRM User";
+      sent_by || req.user?.user_id || sourceCampaign.created_by || "CRM User";
     const campName =
       customCampaignName ||
       `${template.template_label || template.campaign_name} - Placement Follow-up to ${sourceCampaign.campaign_name || sourceCampaign.campaign_id}`;
@@ -975,7 +997,9 @@ const sendTemplateToPlacementCampaignMembers = async (req, res) => {
       created_at: nowIST,
     }));
 
-    await WhatsAppPlacementCampaignModel.createCampaignMessages(recipientRecords);
+    await WhatsAppPlacementCampaignModel.createCampaignMessages(
+      recipientRecords,
+    );
 
     // 8. Respond immediately
     res.status(200).json({
@@ -1142,7 +1166,9 @@ const sendTemplateToPlacementCampaignMembers = async (req, res) => {
         }
       }
 
-      await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(newCampaignId);
+      await WhatsAppPlacementCampaignModel.recalculateCampaignCounts(
+        newCampaignId,
+      );
       console.log(
         `[Follow-up Placement Campaign Complete] Campaign: ${newCampaignId}, Sent: ${successCount}, Failed: ${failedCount}`,
       );
@@ -1180,7 +1206,8 @@ const simulatePlacementMessageStatus = async (req, res) => {
       });
     }
 
-    let matchQuery = "SELECT id, campaign_id, customer_id, mobile_number FROM whatsapp_placement_campaign_messages WHERE ";
+    let matchQuery =
+      "SELECT id, campaign_id, customer_id, mobile_number FROM whatsapp_placement_campaign_messages WHERE ";
     const params = [];
 
     if (message_id) {
@@ -1282,7 +1309,8 @@ const verifyAiSensyWebhook = async (req, res) => {
     }
     return res.status(200).json({
       success: true,
-      message: "AiSensy Placement WhatsApp Webhook endpoint is active and healthy",
+      message:
+        "AiSensy Placement WhatsApp Webhook endpoint is active and healthy",
       timestamp: WhatsAppPlacementCampaignModel.formatToBackendIST(),
     });
   } catch (error) {
@@ -1293,6 +1321,21 @@ const verifyAiSensyWebhook = async (req, res) => {
 /**
  * Handle AiSensy Webhook delivery status for Placement messages
  */
+const updateMessageAcrossCampaigns = async (messageId, data) => {
+  const placementRes =
+    await WhatsAppPlacementCampaignModel.updateMessageByAisensyId(
+      messageId,
+      data,
+    );
+  if (!placementRes) {
+    return await WhatsAppCampaignModel.updateMessageByAisensyId(
+      messageId,
+      data,
+    );
+  }
+  return placementRes;
+};
+
 const handleAiSensyWebhook = async (req, res) => {
   try {
     const body = req.body;
@@ -1301,20 +1344,17 @@ const handleAiSensyWebhook = async (req, res) => {
       for (const entry of body.entry) {
         for (const change of entry.changes || []) {
           for (const st of change.value?.statuses || []) {
-            await WhatsAppPlacementCampaignModel.updateMessageByAisensyId(
-              st.id,
-              {
-                status: st.status,
-                error: st.errors?.[0] || null,
-                timestamp: st.timestamp,
-                destination: st.recipient_id,
-              },
-            );
+            await updateMessageAcrossCampaigns(st.id, {
+              status: st.status,
+              error: st.errors?.[0] || null,
+              timestamp: st.timestamp,
+              destination: st.recipient_id,
+            });
           }
         }
       }
     } else if (body?.event === "message_status" && body?.data) {
-      await WhatsAppPlacementCampaignModel.updateMessageByAisensyId(
+      await updateMessageAcrossCampaigns(
         body.data.id || body.data.message_id || body.data.submitted_message_id,
         {
           status: body.data.status,
@@ -1336,7 +1376,7 @@ const handleAiSensyWebhook = async (req, res) => {
     ) {
       const msgId =
         body.submitted_message_id || body.message_id || body.id || null;
-      await WhatsAppPlacementCampaignModel.updateMessageByAisensyId(msgId, {
+      await updateMessageAcrossCampaigns(msgId, {
         status: body.status,
         error: body.error || body.errors,
         timestamp: body.timestamp,
@@ -1402,4 +1442,3 @@ module.exports = {
   handleAiSensyWebhook,
   getCustomerPlacementTemplateStatus,
 };
-

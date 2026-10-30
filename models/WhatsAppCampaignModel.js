@@ -481,7 +481,7 @@ const WhatsAppCampaignModel = {
 
     // 2. Fallback: If not found by ID, try finding by recipient phone number (last 10 digits)
     if (!message && destination) {
-      const cleanMobile = String(destination).replace(/\\D/g, "").slice(-10);
+      const cleanMobile = String(destination).replace(/\D/g, "").slice(-10);
       if (cleanMobile.length >= 7) {
         const [rows] = await pool.query(
           `SELECT id, campaign_id, message_status, delivered_at, aisensy_message_id 

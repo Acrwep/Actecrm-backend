@@ -3,6 +3,7 @@ const pool = require("../config/dbconfig");
 
 const WhatsAppTemplateConfigModal = require("../models/WhatsAppTemplateConfigModal");
 const WhatsAppCampaignModel = require("../models/WhatsAppCampaignModel");
+const WhatsAppPlacementCampaignModel = require("../models/WhatsAppPlacementCampaignModel");
 
 const createTemplateConfig = async (req, res) => {
   try {
@@ -857,6 +858,14 @@ const verifyAiSensyWebhook = async (req, res) => {
   }
 };
 
+const updateMessageAcrossCampaigns = async (messageId, data) => {
+  const leadRes = await WhatsAppCampaignModel.updateMessageByAisensyId(messageId, data);
+  if (!leadRes) {
+    return await WhatsAppPlacementCampaignModel.updateMessageByAisensyId(messageId, data);
+  }
+  return leadRes;
+};
+
 const handleAiSensyWebhook = async (req, res) => {
   try {
     const body = req.body;
@@ -867,7 +876,7 @@ const handleAiSensyWebhook = async (req, res) => {
       for (const entry of body.entry) {
         for (const change of entry.changes || []) {
           for (const st of change.value?.statuses || []) {
-            await WhatsAppCampaignModel.updateMessageByAisensyId(st.id, {
+            await updateMessageAcrossCampaigns(st.id, {
               status: st.status,
               error: st.errors?.[0] || null,
               timestamp: st.timestamp,
@@ -879,7 +888,7 @@ const handleAiSensyWebhook = async (req, res) => {
     }
     // Handle AiSensy standard event format: { event: "message_status", data: { id, status, recipient_id, destination, timestamp, errors } }
     else if (body?.event === "message_status" && body?.data) {
-      await WhatsAppCampaignModel.updateMessageByAisensyId(
+      await updateMessageAcrossCampaigns(
         body.data.id || body.data.message_id || body.data.submitted_message_id,
         {
           status: body.data.status,
@@ -903,7 +912,7 @@ const handleAiSensyWebhook = async (req, res) => {
     ) {
       const msgId =
         body.submitted_message_id || body.message_id || body.id || null;
-      await WhatsAppCampaignModel.updateMessageByAisensyId(msgId, {
+      await updateMessageAcrossCampaigns(msgId, {
         status: body.status,
         error: body.error || body.errors,
         timestamp: body.timestamp,
