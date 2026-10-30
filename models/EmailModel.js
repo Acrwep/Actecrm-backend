@@ -1678,7 +1678,7 @@ const sendServerRequestAcknowledgementMail = async (
     if (isLinkSent.length > 0)
       throw new Error("Acknowledge link has already been sent");
     const mailOptions = {
-      from: process.env.SMTP_FROM,
+      from: process.env.SERVER_MAIL,
       to: email,
       subject: "Server Request Acknowledgement",
       text: `Please confirm whether you have requested the server for your course. Your confirmation will help us verify and process the request.`,
@@ -1823,7 +1823,7 @@ const sendServerRequestAcknowledgementMail = async (
     );
 
     // Send mail
-    await transporterNotify.sendMail(mailOptions);
+    await transporterServer.sendMail(mailOptions);
 
     await connection.commit();
     return { success: true, message: "Mail sent successfully" };
