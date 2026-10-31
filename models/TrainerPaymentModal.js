@@ -3485,7 +3485,7 @@ GROUP BY
       if (getcustomerIDs.length > 0) {
         const values = getcustomerIDs.map((row) => [
           row.customer_id,
-          "Trainer Payment Request Deleted",
+          "Trainer Payment Deleted",
           status_date,
           updated_by,
         ]);
