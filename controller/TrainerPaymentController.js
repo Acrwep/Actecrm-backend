@@ -261,10 +261,13 @@ const getTrainerBankAccounts = async (req, res) => {
 
 const deleteTrainerPayment = async (req, res) => {
   try {
-    const { trainer_payment_id } = req.query;
+    const { trainer_payment_id, status_date, updated_by } = req.query;
 
-    const result =
-      await trainerPaymentModal.deleteTrainerPayment(trainer_payment_id);
+    const result = await trainerPaymentModal.deleteTrainerPayment(
+      trainer_payment_id,
+      status_date,
+      updated_by,
+    );
     return res.status(200).send({
       message: "Payment deleted successfully",
       data: result,

@@ -3453,7 +3453,7 @@ GROUP BY
     }
   },
 
-  deleteTrainerPayment: async (trainer_payment_id) => {
+  deleteTrainerPayment: async (trainer_payment_id, status_date, updated_by) => {
     try {
       let affectedRows = 0;
       const [isUserIdExists] = await pool.query(
@@ -3465,6 +3465,14 @@ GROUP BY
           "Cannot delete because the payment is already in process.",
         );
       }
+
+      const [getcustomerIDs] = await pool.query(
+        `SELECT tmp.customer_id FROM trainer_payment_trans tpt 
+        left join trainer_mapping tmp on tmp.id = tpt.trainer_mapping_id
+         WHERE tpt.payment_master_id = ?  `,
+        [trainer_payment_id],
+      );
+
       const [delteTrans] = await pool.query(
         ` delete from trainer_payment_trans where payment_master_id = ? `,
         [trainer_payment_id],
@@ -3473,6 +3481,21 @@ GROUP BY
         ` delete from trainer_payment_master where id = ? `,
         [trainer_payment_id],
       );
+
+      if (getcustomerIDs.length > 0) {
+        const values = getcustomerIDs.map((row) => [
+          row.customer_id,
+          "Trainer Payment Request Deleted",
+          status_date,
+          updated_by,
+        ]);
+
+        await pool.query(
+          `INSERT INTO customer_track 
+         (customer_id, status, status_date, updated_by) VALUES ?`,
+          [values],
+        );
+      }
 
       affectedRows += deltemaster.affectedRows;
 
