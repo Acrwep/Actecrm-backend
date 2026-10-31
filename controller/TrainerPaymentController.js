@@ -261,7 +261,7 @@ const getTrainerBankAccounts = async (req, res) => {
 
 const deleteTrainerPayment = async (req, res) => {
   try {
-    const { trainer_payment_id } = req.body;
+    const { trainer_payment_id } = req.query;
 
     const result =
       await trainerPaymentModal.deleteTrainerPayment(trainer_payment_id);
