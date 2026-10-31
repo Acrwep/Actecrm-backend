@@ -604,6 +604,12 @@ router.post(
   trainerPaymentController.getTrainerBankAccounts,
 );
 
+router.delete(
+  "/deleteTrainerPayment",
+  verifyToken,
+  trainerPaymentController.deleteTrainerPayment,
+);
+
 router.put(
   "/financeJuniorApprove",
   verifyToken,

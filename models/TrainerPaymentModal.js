@@ -3453,6 +3453,35 @@ GROUP BY
     }
   },
 
+  deleteTrainerPayment: async (trainer_payment_id) => {
+    try {
+      let affectedRows = 0;
+      const [isUserIdExists] = await pool.query(
+        `SELECT id FROM trainer_payment_master WHERE id = ? and status in ('Link Sent', 'Requested') `,
+        [trainer_payment_id],
+      );
+      if (isUserIdExists.length <= 0) {
+        throw new Error(
+          "Cannot delete because the payment is already in process.",
+        );
+      }
+      const [delteTrans] = await pool.query(
+        ` delete from trainer_payment_trans where payment_master_id = ? `,
+        [trainer_payment_id],
+      );
+      const [deltemaster] = await pool.query(
+        ` delete from trainer_payment_master where id = ? `,
+        [trainer_payment_id],
+      );
+
+      affectedRows += deltemaster.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPaymentById: async (payment_id, payment_trans_id) => {
     try {
       let payment_master_id = payment_id;

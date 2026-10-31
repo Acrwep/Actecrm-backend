@@ -259,6 +259,24 @@ const getTrainerBankAccounts = async (req, res) => {
   }
 };
 
+const deleteTrainerPayment = async (req, res) => {
+  try {
+    const { trainer_payment_id } = req.body;
+
+    const result =
+      await trainerPaymentModal.deleteTrainerPayment(trainer_payment_id);
+    return res.status(200).send({
+      message: "Payment deleted successfully",
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).send({
+      message: "Error while deleting payments",
+      details: err.message,
+    });
+  }
+};
+
 // Finance Head - Reject Payment
 const rejectTrainerPaymentApproval = async (req, res) => {
   try {
@@ -582,4 +600,5 @@ module.exports = {
   getNonClaimBatches,
   getTrainerPaymentBankSheet,
   getTrainerBankAccounts,
+  deleteTrainerPayment,
 };
