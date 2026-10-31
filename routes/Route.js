@@ -774,6 +774,8 @@ router.put(
   UserController.updateBranchManager,
 );
 router.get("/getBranchManagers", verifyToken, UserController.getBranchManagers);
+router.post("/addRegion", verifyToken, UserController.addRegion);
+router.post("/addBranches", verifyToken, UserController.addBranches);
 router.post("/acknowledgeLead", verifyToken, LeadController.acknowledgeLead);
 router.post(
   "/requestPaymentV1",

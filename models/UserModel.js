@@ -834,6 +834,51 @@ const UserModel = {
       throw new Error(error.message);
     }
   },
+
+  addRegion: async (region_name) => {
+    try {
+      let affectedRows = 0;
+      const [isUserIdExists] = await pool.query(
+        `SELECT name FROM region WHERE name = ? `,
+        [region_name],
+      );
+      if (isUserIdExists.length > 0) {
+        throw new Error("Region already exists");
+      }
+
+      const [insertTarget] = await pool.query(
+        `INSERT INTO region(name) VALUES(?)`,
+        [region_name],
+      );
+      affectedRows += insertTarget.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  addBranches: async (region_id, branch_name) => {
+    try {
+      let affectedRows = 0;
+      const [isUserIdExists] = await pool.query(
+        `SELECT region_id FROM branches WHERE region_id = ? and name = ?  `,
+        [region_id, branch_name],
+      );
+      if (isUserIdExists.length > 0) {
+        throw new Error("Branch  already exists in this region");
+      }
+      const [insertTarget] = await pool.query(
+        `INSERT INTO branches(region_id, name) VALUES(?, ?)`,
+        [region_id, branch_name],
+      );
+      affectedRows += insertTarget.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
 };
 
 module.exports = UserModel;

@@ -301,6 +301,38 @@ const getBranchManagers = async (request, response) => {
   }
 };
 
+const addRegion = async (request, response) => {
+  const { region_name } = request.body;
+  try {
+    const result = await userModel.addRegion(region_name);
+    response.status(200).json({
+      message: "Data Inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while inserting data",
+      details: error.message,
+    });
+  }
+};
+
+const addBranches = async (request, response) => {
+  const { region_id, branch_name } = request.body;
+  try {
+    const result = await userModel.addBranches(region_id, branch_name);
+    response.status(200).json({
+      message: "Data Inserted successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while inserting data",
+      details: error.message,
+    });
+  }
+};
+
 module.exports = {
   addUser,
   getUsers,
@@ -314,4 +346,6 @@ module.exports = {
   assignBranchManager,
   updateBranchManager,
   getBranchManagers,
+  addRegion,
+  addBranches,
 };
