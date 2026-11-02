@@ -277,6 +277,26 @@ const getTransactionWiseReport = async (request, response) => {
   }
 };
 
+const getPreSalesReportsCounts = async (request, response) => {
+  const { start_date, end_date, user_ids } = request.body;
+  try {
+    const leads = await ReportModel.getPreSalesReportsCounts(
+      start_date,
+      end_date,
+      user_ids,
+    );
+    return response.status(200).send({
+      message: "Reports counts fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching reports counts",
+      details: error.message,
+    });
+  }
+};
+
 const getUserwiseTransaction = async (request, response) => {
   const { start_date, end_date, user_ids } = request.body;
   try {
@@ -428,6 +448,7 @@ module.exports = {
   reportPostSale,
   getTopPerformingReport,
   getRegionWiseFinance,
+  getPreSalesReportsCounts,
   getTransactionWiseReport,
   getUserwiseTransaction,
   getServerReport,

@@ -1,6 +1,13 @@
 const pool = require("../config/dbconfig");
 
+const leadBucketCountsCache = new Map();
+const openLeadsCountsCache = new Map();
+
 const ReportModel = {
+  clearLeadCache: () => {
+    leadBucketCountsCache.clear();
+    openLeadsCountsCache.clear();
+  },
   reportScoreBoard: async (
     user_ids,
     start_date,
@@ -3266,6 +3273,355 @@ const ReportModel = {
       );
 
       return result[0];
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+  getPreSalesReportsCounts: async (start_date, end_date, user_ids) => {
+    try {
+      const bucketCountQueryParams = [];
+      let dateFilterAll = "1 = 1";
+      let dateFilterInterested = "1 = 1";
+
+      if (start_date && end_date) {
+        dateFilterAll =
+          "l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)";
+        dateFilterInterested =
+          "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY))";
+
+        // all_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // valid_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // validated_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // need_screening (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // junk_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        // communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // no_response_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // interested_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // joinings (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // super_hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // warm (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // cold (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // dormant (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_interested (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // follow_up
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Sales Ready (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Highly Interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Exploring (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Not Responding (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // Not Interested (4)
+        bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
+        // open_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
+      let bucketCountQuery = `SELECT 
+          IFNULL(SUM(CASE WHEN ${dateFilterAll} THEN 1 ELSE 0 END), 0) as all_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as valid_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as validated_leads,
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name = 'Data Incorrect' OR l.primary_course_id IS NULL OR l.lead_type_id IS NULL) AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as need_screening,
+          IFNULL(SUM(CASE WHEN ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as junk_leads,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as website_leads,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call',
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as direct,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as live_Chat,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as website,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 5 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as smo,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 6 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as reference,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as ivr,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as branch,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as enquiry_form,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_website,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 5 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as instant_form,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 6 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call_sub',
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 7 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_smo,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 8 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as google_ads,
+
+
+
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL THEN 1 ELSE 0 END), 0) as eligible_leads,
+
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name != 'Data Incorrect') AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as communicated_eligible_leads,
+
+          IFNULL(SUM(CASE WHEN (ls.name = 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Data Correct But No Response')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) THEN 1 ELSE 0 END), 0) as not_communicated_eligible_leads,
+          
+          IFNULL(SUM(CASE WHEN (ls.name != 'Dormant' OR l.lead_status_id IS NULL) AND (cm1.name IS NULL OR cm1.name NOT IN ('Data Incorrect', 'Incorrect Data')) AND ${dateFilterAll} AND l.primary_course_id IS NOT NULL AND l.lead_type_id IS NOT NULL AND (cm.name = 'Not Communicated' OR cm.name IS NULL) AND cm1.name = 'Data Correct But No Response' THEN 1 ELSE 0 END), 0) as no_response_eligible_leads,
+
+
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as interested_leads,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Super Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as super_hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Hot' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hot,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Warm' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as warm,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
+          IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
+          IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sales Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sales_ready_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_interested_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Exploring' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as exploring_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding_leads,
+          IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads,
+          IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
+        FROM lead_master AS l
+        LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+        LEFT JOIN customers AS c ON c.lead_id = l.id
+        LEFT JOIN (
+          SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
+          FROM lead_follow_up_history 
+          GROUP BY lead_id
+        ) AS max_lh ON max_lh.lead_id = l.id
+        LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
+        LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
+        LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
+        LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
+        LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+        WHERE 1 = 1`;
+
+      const openLeadsCountQueryParams = [];
+      if (start_date && end_date) {
+        openLeadsCountQueryParams.push(start_date, end_date);
+      }
+      let openLeadsCountQuery = `SELECT 
+          IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads
+        FROM lead_master AS l
+        LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+        LEFT JOIN customers AS c ON c.lead_id = l.id
+        LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+        WHERE 1 = 1`;
+
+      // Handle user_ids parameter for both queries
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          openLeadsCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          bucketCountQueryParams.push(...user_ids);
+          openLeadsCountQueryParams.push(...user_ids);
+        }
+      }
+
+      let bucketCountResult;
+      let openLeadsCountResult;
+
+      const cacheKey = JSON.stringify({
+        start_date,
+        end_date,
+        user_ids,
+      });
+
+      if (
+        leadBucketCountsCache.has(cacheKey) &&
+        openLeadsCountsCache.has(cacheKey)
+      ) {
+        bucketCountResult = leadBucketCountsCache.get(cacheKey);
+        openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
+      } else {
+        const [bucketRes, openRes] = await Promise.all([
+          pool.query(bucketCountQuery, bucketCountQueryParams),
+          pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
+        ]);
+
+        bucketCountResult = bucketRes[0];
+        openLeadsCountResult = openRes[0];
+
+        leadBucketCountsCache.set(cacheKey, bucketCountResult);
+        openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
+      }
+
+      const response = {
+        bucket_counts: {
+          all: parseInt(bucketCountResult[0]?.all_leads || 0),
+          website_leads: parseInt(bucketCountResult[0]?.website_leads || 0),
+          valid_leads: parseInt(bucketCountResult[0]?.valid_leads || 0),
+          eligible_leads: parseInt(bucketCountResult[0]?.eligible_leads || 0),
+          interested_leads: parseInt(
+            bucketCountResult[0]?.interested_leads || 0,
+          ),
+          followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
+          joinings: parseInt(bucketCountResult[0]?.joinings || 0),
+          open_leads: parseInt(openLeadsCountResult[0]?.open_leads || 0),
+        },
+        source_counts: {
+          call: parseInt(bucketCountResult[0]?.call || 0),
+          direct: parseInt(bucketCountResult[0]?.direct || 0),
+          live_chat: parseInt(bucketCountResult[0]?.live_chat || 0),
+          website: parseInt(bucketCountResult[0]?.website || 0),
+          smo: parseInt(bucketCountResult[0]?.smo || 0),
+          reference: parseInt(bucketCountResult[0]?.reference || 0),
+        },
+        sub_source_counts: {
+          ivr: parseInt(bucketCountResult[0]?.ivr || 0),
+          branch: parseInt(bucketCountResult[0]?.branch || 0),
+          enquiry_form: parseInt(bucketCountResult[0]?.enquiry_form || 0),
+          whatsapp_website: parseInt(
+            bucketCountResult[0]?.whatsapp_website || 0,
+          ),
+          instant_form: parseInt(bucketCountResult[0]?.instant_form || 0),
+          call: parseInt(bucketCountResult[0]?.call_sub || 0),
+          whatsapp_smo: parseInt(bucketCountResult[0]?.whatsapp_smo || 0),
+          google_ads: parseInt(bucketCountResult[0]?.google_ads || 0),
+        },
+
+        valid_lead_actions: {
+          validated: parseInt(bucketCountResult[0]?.validated_leads || 0),
+          need_screening: parseInt(bucketCountResult[0]?.need_screening || 0),
+          junk: parseInt(bucketCountResult[0]?.junk_leads || 0),
+        },
+        eligible_lead_actions: {
+          communicated: parseInt(
+            bucketCountResult[0]?.communicated_eligible_leads || 0,
+          ),
+          not_communicated: parseInt(
+            bucketCountResult[0]?.not_communicated_eligible_leads || 0,
+          ),
+          no_response: parseInt(
+            bucketCountResult[0]?.no_response_eligible_leads || 0,
+          ),
+        },
+        interested_lead_actions: {
+          all: parseInt(bucketCountResult[0]?.interested_leads || 0),
+          super_hot: parseInt(bucketCountResult[0]?.super_hot || 0),
+          hot: parseInt(bucketCountResult[0]?.hot || 0),
+          warm: parseInt(bucketCountResult[0]?.warm || 0),
+          cold: parseInt(bucketCountResult[0]?.cold || 0),
+          dormant: parseInt(bucketCountResult[0]?.dormant || 0),
+          not_interested: parseInt(bucketCountResult[0]?.not_interested || 0),
+        },
+        followup_actions: {
+          sales_ready_leads: parseInt(
+            bucketCountResult[0]?.sales_ready_leads || 0,
+          ),
+          highly_interested_leads: parseInt(
+            bucketCountResult[0]?.highly_interested_leads || 0,
+          ),
+          interested_leads: parseInt(
+            bucketCountResult[0]?.followup_interested_leads || 0,
+          ),
+          exploring_leads: parseInt(bucketCountResult[0]?.exploring_leads || 0),
+          not_responding_leads: parseInt(
+            bucketCountResult[0]?.not_responding_leads || 0,
+          ),
+          not_interested_leads: parseInt(
+            bucketCountResult[0]?.not_interested_leads || 0,
+          ),
+        },
+      };
+
+      const totalDays =
+        start_date && end_date
+          ? Math.floor(
+              (new Date(`${end_date}T00:00:00Z`) -
+                new Date(`${start_date}T00:00:00Z`)) /
+                (1000 * 60 * 60 * 24),
+            ) + 1
+          : 0;
+
+      const averagePerDay = {
+        all: totalDays
+          ? Number((response.bucket_counts.all / totalDays).toFixed(2))
+          : null,
+        open_leads: totalDays
+          ? Number((response.bucket_counts.open_leads / totalDays).toFixed(2))
+          : null,
+        website_leads: totalDays
+          ? Number(
+              (response.bucket_counts.website_leads / totalDays).toFixed(2),
+            )
+          : null,
+      };
+
+      const totalLeads = response.bucket_counts.all;
+
+      const percentage = {
+        valid_leads: totalLeads
+          ? Number(
+              ((response.bucket_counts.valid_leads / totalLeads) * 100).toFixed(
+                2,
+              ),
+            )
+          : 0,
+
+        eligible_leads: totalLeads
+          ? Number(
+              (
+                (response.bucket_counts.eligible_leads / totalLeads) *
+                100
+              ).toFixed(2),
+            )
+          : 0,
+
+        interested_leads: totalLeads
+          ? Number(
+              (
+                (response.bucket_counts.interested_leads / totalLeads) *
+                100
+              ).toFixed(2),
+            )
+          : 0,
+
+        joinings: totalLeads
+          ? Number(
+              ((response.bucket_counts.joinings / totalLeads) * 100).toFixed(2),
+            )
+          : 0,
+      };
+
+      return {
+        ...response,
+        average: averagePerDay,
+        percentage: percentage,
+      };
     } catch (error) {
       throw new Error(error.message);
     }

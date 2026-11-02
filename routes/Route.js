@@ -571,6 +571,11 @@ router.post(
   verifyToken,
   ReportController.getUserwiseTransaction,
 );
+router.get(
+  "/getPreSalesReportsCounts",
+  verifyToken,
+  ReportController.getPreSalesReportsCounts,
+);
 
 //-------------trainer payment-------------------------
 router.post("/getStudents", trainerPaymentController.getStudents);
