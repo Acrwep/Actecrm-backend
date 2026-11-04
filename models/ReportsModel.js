@@ -3279,12 +3279,24 @@ const ReportModel = {
       throw new Error(error.message);
     }
   },
-  getPreSalesReportsCounts: async (start_date, end_date, user_ids) => {
+  getPreSalesReportsCounts: async (
+    start_date,
+    end_date,
+    user_ids,
+    branch,
+    region,
+  ) => {
     try {
       const bucketCountQueryParams = [];
+      const openLeadsCountQueryParams = [];
+      const followupQueryParams = [];
+      const assignAndAwaitingParam = [];
+      const consignedParam = [];
+
       let dateFilterAll = "1 = 1";
       let dateFilterInterested = "1 = 1";
       let dateFilterFollwUp = "1 = 1";
+      let dateReAsign = "1 = 1";
 
       if (start_date && end_date) {
         dateFilterAll =
@@ -3293,6 +3305,8 @@ const ReportModel = {
           "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY))";
 
         dateFilterFollwUp = `AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
+
+        dateReAsign = ` l.re_assigned_date >= ? AND l.re_assigned_date < DATE_ADD(?, INTERVAL 1 DAY)`;
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // valid_leads (2)
@@ -3304,7 +3318,6 @@ const ReportModel = {
         // junk_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // eligible_leads (2)
-        bucketCountQueryParams.push(start_date, end_date);
         bucketCountQueryParams.push(start_date, end_date);
         bucketCountQueryParams.push(start_date, end_date);
         bucketCountQueryParams.push(start_date, end_date);
@@ -3359,6 +3372,15 @@ const ReportModel = {
         bucketCountQueryParams.push(start_date, end_date, start_date, end_date);
         // open_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
+
+        openLeadsCountQueryParams.push(start_date, end_date);
+
+        followupQueryParams.push(start_date, end_date);
+
+        assignAndAwaitingParam.push(start_date, end_date);
+        assignAndAwaitingParam.push(start_date, end_date);
+        assignAndAwaitingParam.push(start_date, end_date);
+        consignedParam.push(start_date, end_date);
       }
 
       let bucketCountQuery = `SELECT 
@@ -3370,7 +3392,7 @@ const ReportModel = {
           IFNULL(SUM(CASE WHEN l.lead_type_id = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as website_leads,
           IFNULL(SUM(CASE WHEN l.lead_type_id = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call',
           IFNULL(SUM(CASE WHEN l.lead_type_id = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as direct,
-          IFNULL(SUM(CASE WHEN l.lead_type_id = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as live_Chat,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as live_chat,
           IFNULL(SUM(CASE WHEN l.lead_type_id = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as website,
           IFNULL(SUM(CASE WHEN l.lead_type_id = 5 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as smo,
           IFNULL(SUM(CASE WHEN l.lead_type_id = 6 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as reference,
@@ -3401,7 +3423,6 @@ const ReportModel = {
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Cold' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as cold,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Dormant' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as dormant,
           IFNULL(SUM(CASE WHEN lh.id IS NOT NULL AND ls.name = 'Not Interested' AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as not_interested,
-          IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as followup_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Sales Ready' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as sales_ready_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Highly Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as highly_interested_leads,
@@ -3410,8 +3431,11 @@ const ReportModel = {
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Responding' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_responding_leads,
           IFNULL(SUM(CASE WHEN lh.is_updated = 0 AND c.id IS NULL AND ula.name = 'Not Interested' AND ${dateFilterInterested} THEN 1 ELSE 0 END), 0) as not_interested_leads,
           IFNULL(SUM(CASE WHEN c.id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as joinings
+          
         FROM lead_master AS l
         LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
@@ -3429,10 +3453,6 @@ const ReportModel = {
         LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         WHERE 1 = 1`;
 
-      const openLeadsCountQueryParams = [];
-      if (start_date && end_date) {
-        openLeadsCountQueryParams.push(start_date, end_date);
-      }
       let openLeadsCountQuery = `SELECT 
           IFNULL(SUM(CASE WHEN ((DATEDIFF(NOW(), COALESCE(l.re_assigned_date, l.created_date)) > 45 AND DATEDIFF(NOW(), l.next_follow_up_date) > 14) OR ls.name IN('Dormant', 'Not Interested')) AND c.id IS NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as open_leads
         FROM lead_master AS l
@@ -3442,17 +3462,55 @@ const ReportModel = {
         LEFT JOIN customers AS c ON c.lead_id = l.id
         LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
         LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+         left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
         WHERE 1 = 1`;
 
-      const followupQueryParams = [];
-      if (start_date && end_date) {
-        followupQueryParams.push(start_date, end_date);
-      }
       let followupQuery = `SELECT COUNT(lf.id) AS total_followups, SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled,
          SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled, ROUND(((SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100), 2) AS percentage
           FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id
            LEFT JOIN customers AS c ON c.lead_id = l.id
+            left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
           WHERE c.id IS NULL ${dateFilterFollwUp} `;
+
+      let assignAndAwaitingQuery = `SELECT COUNT(l.id) AS total,
+          IFNULL(SUM(CASE WHEN  l.is_reassigned = 1 AND ${dateReAsign} THEN 1 ELSE 0 END), 0) as assign_leads,
+          IFNULL(SUM(CASE WHEN  l.is_reassigned = 1 AND l.is_acknowledged = 0 and ${dateReAsign} THEN 1 ELSE 0 END), 0) as awaiting_leads,
+          IFNULL(SUM(CASE WHEN  l.is_self_assigned = 1  and ${dateReAsign} THEN 1 ELSE 0 END), 0) as open_leads
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                       left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
+                      WHERE 1 = 1`;
+
+      let consignedQuery = `SELECT COUNT(l.id) AS total,
+          IFNULL(SUM(CASE WHEN l.consigned_id IS NOT NULL and ${dateReAsign} THEN 1 ELSE 0 END), 0) as consigned_leads
+                      FROM
+                          lead_master AS l
+                      LEFT JOIN technologies AS t ON
+                          l.primary_course_id = t.id
+                      LEFT JOIN lead_status AS ls ON
+                          ls.id = l.lead_status_id
+                      LEFT JOIN lead_type AS lt ON
+                          lt.id = l.lead_type_id
+                      LEFT JOIN users AS u ON
+                          u.user_id = l.assigned_to
+                      LEFT JOIN users AS ab ON
+                          ab.user_id = l.user_id
+                       left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
+                      WHERE 1 = 1`;
 
       // Handle user_ids parameter for both queries
       if (user_ids) {
@@ -3461,45 +3519,62 @@ const ReportModel = {
           bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           openLeadsCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           followupQuery += ` AND l.assigned_to IN (${placeholders})`;
+          assignAndAwaitingQuery += ` AND l.assigned_to IN (${placeholders})`;
+          consignedQuery += ` AND (l.consigned_id IN (${placeholders}))`;
           bucketCountQueryParams.push(...user_ids);
           openLeadsCountQueryParams.push(...user_ids);
           followupQueryParams.push(...user_ids);
+          assignAndAwaitingParam.push(...user_ids);
+          consignedParam.push(...user_ids);
         }
+      }
+
+      if (branch) {
+        bucketCountQuery += ` AND l.assigned_branch_id = ?`;
+        openLeadsCountQuery += ` AND l.assigned_branch_id = ?`;
+        followupQuery += ` AND l.assigned_branch_id  = ?`;
+        assignAndAwaitingQuery += ` AND l.assigned_branch_id = ?`;
+        consignedQuery += ` AND l.assigned_branch_id  = ?`;
+        bucketCountQueryParams.push(branch);
+        openLeadsCountQueryParams.push(branch);
+        followupQueryParams.push(branch);
+        assignAndAwaitingParam.push(branch);
+        consignedParam.push(branch);
+      }
+
+      if (region) {
+        bucketCountQuery += ` AND regn.id = ?`;
+        openLeadsCountQuery += ` AND regn.id  = ?`;
+        followupQuery += ` AND regn.id   = ?`;
+        assignAndAwaitingQuery += ` AND regn.id = ?`;
+        consignedQuery += ` AND regn.id = ?`;
+        bucketCountQueryParams.push(region);
+        openLeadsCountQueryParams.push(region);
+        followupQueryParams.push(region);
+        assignAndAwaitingParam.push(region);
+        consignedParam.push(region);
       }
 
       let bucketCountResult;
       let openLeadsCountResult;
       let follwUpCountsResult;
+      let assignAndAwaitingResult;
+      let consignedResult;
 
-      const cacheKey = JSON.stringify({
-        start_date,
-        end_date,
-        user_ids,
-      });
-
-      if (
-        leadBucketCountsCache.has(cacheKey) &&
-        openLeadsCountsCache.has(cacheKey) &&
-        followUpCountsCache.has(cacheKey)
-      ) {
-        bucketCountResult = leadBucketCountsCache.get(cacheKey);
-        openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
-        follwUpCountsResult = followUpCountsCache.get(cacheKey);
-      } else {
-        const [bucketRes, openRes, followUp] = await Promise.all([
+      const [bucketRes, openRes, followUp, assign, consigned] =
+        await Promise.all([
           pool.query(bucketCountQuery, bucketCountQueryParams),
           pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
           pool.query(followupQuery, followupQueryParams),
+          pool.query(assignAndAwaitingQuery, assignAndAwaitingParam),
+          pool.query(consignedQuery, consignedParam),
         ]);
 
-        bucketCountResult = bucketRes[0];
-        openLeadsCountResult = openRes[0];
-        follwUpCountsResult = followUp[0];
-
-        leadBucketCountsCache.set(cacheKey, bucketCountResult);
-        openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
-        followUpCountsCache.set(cacheKey, follwUpCountsResult);
-      }
+      bucketCountResult = bucketRes[0];
+      openLeadsCountResult = openRes[0];
+      follwUpCountsResult = followUp[0];
+      assignAndAwaitingResult = assign[0];
+      consignedResult = consigned[0];
 
       const response = {
         bucket_counts: {
@@ -3512,7 +3587,7 @@ const ReportModel = {
           ),
           followup_leads: parseInt(bucketCountResult[0]?.followup_leads || 0),
           joinings: parseInt(bucketCountResult[0]?.joinings || 0),
-          open_leads: parseInt(openLeadsCountResult[0]?.open_leads || 0),
+          open_leads: parseInt(assignAndAwaitingResult[0]?.open_leads || 0),
         },
         source_counts: {
           call: parseInt(bucketCountResult[0]?.call || 0),
@@ -3584,6 +3659,13 @@ const ReportModel = {
           follow_up_unhandled: follwUpCountsResult[0].follow_up_unhandled || 0,
           follow_up_percentage: follwUpCountsResult[0].percentage || 0,
         },
+        assign_leads_counts: {
+          assign_leads: parseInt(assignAndAwaitingResult[0]?.assign_leads || 0),
+          awaiting_leads: parseInt(
+            assignAndAwaitingResult[0]?.awaiting_leads || 0,
+          ),
+          consigned_leads: parseInt(consignedResult[0]?.consigned_leads || 0),
+        },
       };
 
       const totalDays =
@@ -3605,6 +3687,14 @@ const ReportModel = {
         website_leads: totalDays
           ? Number(
               (response.bucket_counts.website_leads / totalDays).toFixed(2),
+            )
+          : null,
+
+        assign_leads: totalDays
+          ? Number(
+              (response.assign_leads_counts.assign_leads / totalDays).toFixed(
+                2,
+              ),
             )
           : null,
       };

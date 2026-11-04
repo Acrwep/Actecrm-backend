@@ -278,12 +278,14 @@ const getTransactionWiseReport = async (request, response) => {
 };
 
 const getPreSalesReportsCounts = async (request, response) => {
-  const { start_date, end_date, user_ids } = request.body;
+  const { start_date, end_date, user_ids, branch, region } = request.body;
   try {
     const leads = await ReportModel.getPreSalesReportsCounts(
       start_date,
       end_date,
       user_ids,
+      branch,
+      region,
     );
     return response.status(200).send({
       message: "Reports counts fetched successfully",
