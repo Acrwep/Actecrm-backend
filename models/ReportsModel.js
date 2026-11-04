@@ -3627,6 +3627,133 @@ const ReportModel = {
     }
   },
 
+  getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
+    try {
+      let dateFilterAll = "1 = 1";
+      let dateFilterInterested = "1 = 1";
+
+      // Separate user filters
+      let allLeadsUserFilter = "";
+      let admissionUserFilter = "";
+
+      const allLeadsParams = [];
+      const admissionParams = [];
+
+      // Date filters
+      if (start_date && end_date) {
+        dateFilterAll = `
+        l.created_date >= ?
+        AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        dateFilterInterested = `
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+      }
+
+      // Separate user filters
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+
+        // All leads user filter
+        allLeadsUserFilter = `
+        AND l.assigned_to IN (${placeholders})
+        AND (
+          IFNULL(l.is_reassigned, 0) = 0
+          OR (l.is_reassigned = 1 AND l.is_acknowledged = 1)
+        )
+      `;
+
+        // Admission user filter
+        admissionUserFilter = `
+        AND l.assigned_to IN (${placeholders})
+      `;
+
+        allLeadsParams.push(...user_ids);
+        admissionParams.push(...user_ids);
+      }
+
+      // Main count query
+      const bucketCountQuery = `
+      SELECT
+
+        IFNULL(
+          COUNT(DISTINCT CASE
+            WHEN ${dateFilterAll} ${allLeadsUserFilter}
+            THEN l.id
+          END),
+          0
+        ) AS all_leads,
+
+        IFNULL(
+          COUNT(DISTINCT CASE
+            WHEN c.id IS NOT NULL
+              AND ${dateFilterInterested} ${admissionUserFilter}
+            THEN c.id
+          END),
+          0
+        ) AS admission_total
+
+      FROM lead_master AS l
+      LEFT JOIN customers AS c
+        ON c.lead_id = l.id
+    `;
+
+      // Parameters in SQL placeholder order
+      const bucketCountQueryParams = [];
+
+      // All leads date parameters
+      if (start_date && end_date) {
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
+      // All leads user parameters
+      bucketCountQueryParams.push(...allLeadsParams);
+
+      // Admission date parameters
+      if (start_date && end_date) {
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
+      // Admission user parameters
+      bucketCountQueryParams.push(...admissionParams);
+
+      let bucketCountResult;
+
+      // Cache key
+      const cacheKey = JSON.stringify({
+        report_type: "presales_summary",
+        start_date,
+        end_date,
+        user_ids,
+      });
+
+      if (leadBucketCountsCache.has(cacheKey)) {
+        bucketCountResult = leadBucketCountsCache.get(cacheKey);
+      } else {
+        const [bucketRes] = await pool.query(
+          bucketCountQuery,
+          bucketCountQueryParams,
+        );
+
+        bucketCountResult = bucketRes;
+
+        leadBucketCountsCache.set(cacheKey, bucketCountResult);
+      }
+
+      // Response
+      return {
+        bucket_counts: {
+          all: parseInt(bucketCountResult[0]?.all_leads || 0),
+          admission_total: parseInt(bucketCountResult[0]?.admission_total || 0),
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getServerReport: async (start_date, end_date, type) => {
     try {
       const dateParams = [];

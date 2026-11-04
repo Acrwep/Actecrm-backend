@@ -571,10 +571,16 @@ router.post(
   verifyToken,
   ReportController.getUserwiseTransaction,
 );
-router.get(
+router.post(
   "/getPreSalesReportsCounts",
   verifyToken,
   ReportController.getPreSalesReportsCounts,
+);
+
+router.post(
+  "/getPreSalesReportsSummaryCounts",
+  verifyToken,
+  ReportController.getPreSalesReportsSummaryCounts,
 );
 
 //-------------trainer payment-------------------------
