@@ -2,11 +2,13 @@ const pool = require("../config/dbconfig");
 
 const leadBucketCountsCache = new Map();
 const openLeadsCountsCache = new Map();
+const followUpCountsCache = new Map();
 
 const ReportModel = {
   clearLeadCache: () => {
     leadBucketCountsCache.clear();
     openLeadsCountsCache.clear();
+    followUpCountsCache.clear();
   },
   reportScoreBoard: async (
     user_ids,
@@ -3282,6 +3284,7 @@ const ReportModel = {
       const bucketCountQueryParams = [];
       let dateFilterAll = "1 = 1";
       let dateFilterInterested = "1 = 1";
+      let dateFilterFollwUp = "1 = 1";
 
       if (start_date && end_date) {
         dateFilterAll =
@@ -3289,6 +3292,7 @@ const ReportModel = {
         dateFilterInterested =
           "(lh.next_follow_up_date >= ? AND lh.next_follow_up_date < DATE_ADD(?, INTERVAL 1 DAY) OR lh.today_followup_date >= ? AND lh.today_followup_date < DATE_ADD(?, INTERVAL 1 DAY))";
 
+        dateFilterFollwUp = `AND CAST(lf.next_follow_up_date AS DATE) BETWEEN ? AND ?`;
         // all_leads (2)
         bucketCountQueryParams.push(start_date, end_date);
         // valid_leads (2)
@@ -3440,19 +3444,32 @@ const ReportModel = {
         LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
         WHERE 1 = 1`;
 
+      const followupQueryParams = [];
+      if (start_date && end_date) {
+        followupQueryParams.push(start_date, end_date);
+      }
+      let followupQuery = `SELECT COUNT(lf.id) AS total_followups, SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) AS follow_up_handled,
+         SUM(CASE WHEN lf.is_updated = 0 THEN 1 ELSE 0 END) AS follow_up_unhandled, ROUND(((SUM(CASE WHEN lf.is_updated = 1 THEN 1 ELSE 0 END) / COUNT(lf.id)) * 100), 2) AS percentage
+          FROM lead_follow_up_history AS lf INNER JOIN lead_master AS l ON l.id = lf.lead_id
+           LEFT JOIN customers AS c ON c.lead_id = l.id
+          WHERE c.id IS NULL ${dateFilterFollwUp} `;
+
       // Handle user_ids parameter for both queries
       if (user_ids) {
         if (Array.isArray(user_ids) && user_ids.length > 0) {
           const placeholders = user_ids.map(() => "?").join(", ");
           bucketCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
           openLeadsCountQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+          followupQuery += ` AND l.assigned_to IN (${placeholders})`;
           bucketCountQueryParams.push(...user_ids);
           openLeadsCountQueryParams.push(...user_ids);
+          followupQueryParams.push(...user_ids);
         }
       }
 
       let bucketCountResult;
       let openLeadsCountResult;
+      let follwUpCountsResult;
 
       const cacheKey = JSON.stringify({
         start_date,
@@ -3462,21 +3479,26 @@ const ReportModel = {
 
       if (
         leadBucketCountsCache.has(cacheKey) &&
-        openLeadsCountsCache.has(cacheKey)
+        openLeadsCountsCache.has(cacheKey) &&
+        followUpCountsCache.has(cacheKey)
       ) {
         bucketCountResult = leadBucketCountsCache.get(cacheKey);
         openLeadsCountResult = openLeadsCountsCache.get(cacheKey);
+        follwUpCountsResult = followUpCountsCache.get(cacheKey);
       } else {
-        const [bucketRes, openRes] = await Promise.all([
+        const [bucketRes, openRes, followUp] = await Promise.all([
           pool.query(bucketCountQuery, bucketCountQueryParams),
           pool.query(openLeadsCountQuery, openLeadsCountQueryParams),
+          pool.query(followupQuery, followupQueryParams),
         ]);
 
         bucketCountResult = bucketRes[0];
         openLeadsCountResult = openRes[0];
+        follwUpCountsResult = followUp[0];
 
         leadBucketCountsCache.set(cacheKey, bucketCountResult);
         openLeadsCountsCache.set(cacheKey, openLeadsCountResult);
+        followUpCountsCache.set(cacheKey, follwUpCountsResult);
       }
 
       const response = {
@@ -3555,6 +3577,12 @@ const ReportModel = {
           not_interested_leads: parseInt(
             bucketCountResult[0]?.not_interested_leads || 0,
           ),
+        },
+        followup_leads: {
+          total_followups: follwUpCountsResult[0].total_followups || 0,
+          follow_up_handled: follwUpCountsResult[0].follow_up_handled || 0,
+          follow_up_unhandled: follwUpCountsResult[0].follow_up_unhandled || 0,
+          follow_up_percentage: follwUpCountsResult[0].percentage || 0,
         },
       };
 
