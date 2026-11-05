@@ -84,6 +84,24 @@ const getUsers = async (request, response) => {
   }
 };
 
+const getUsersByRoleId = async (request, response) => {
+  const { region_id, branch_id, roles } = request.body;
+
+  try {
+    const users = await userModel.getUsersByRoleId(region_id, branch_id, roles);
+
+    response.status(200).json({
+      message: "User fetched successfully",
+      data: users,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while fetching users",
+      details: error.message,
+    });
+  }
+};
+
 const updateUser = async (request, response) => {
   const {
     id,
@@ -336,6 +354,7 @@ const addBranches = async (request, response) => {
 module.exports = {
   addUser,
   getUsers,
+  getUsersByRoleId,
   updateUser,
   setTarget,
   getAllDownlines,

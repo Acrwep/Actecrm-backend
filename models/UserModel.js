@@ -303,6 +303,58 @@ const UserModel = {
     }
   },
 
+  getUsersByRoleId: async (region_id, branch_id, roles) => {
+    try {
+      const params = [];
+
+      let getQuery = `SELECT
+                      u.id,
+                      u.user_id,
+                      u.user_name,
+                      u.view_user_id,
+                      u.roles
+                    FROM users AS u
+                    LEFT JOIN branches AS b ON
+                      b.id = u.branch_id
+                      AND b.is_active = 1
+                    LEFT JOIN region AS r ON
+                      r.id = b.region_id
+                      AND r.is_active = 1
+                    WHERE 1 = 1`;
+
+      if (region_id) {
+        getQuery += ` AND r.id = ?`;
+        params.push(region_id);
+      }
+
+      if (branch_id) {
+        getQuery += ` AND b.id = ?`;
+        params.push(branch_id);
+      }
+
+      // Multiple roles filter
+      if (roles && Array.isArray(roles) && roles.length > 0) {
+        const roleConditions = roles.map(
+          () => `JSON_CONTAINS(u.roles, JSON_OBJECT('role_id', ?))`,
+        );
+
+        getQuery += ` AND (${roleConditions.join(" OR ")})`;
+
+        roles.forEach((role) => params.push(role));
+      }
+
+      const [users] = await pool.query(getQuery, params);
+
+      // Parse roles for every user
+      return users.map((user) => ({
+        ...user,
+        roles: user.roles ? JSON.parse(user.roles) : [],
+      }));
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   updateUser: async (
     id,
     user_id,

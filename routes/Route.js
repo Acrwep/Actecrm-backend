@@ -28,6 +28,7 @@ router.post("/login", LoginController.login);
 // User start
 router.post("/addUser", UserController.addUser);
 router.post("/getUsers", verifyToken, UserController.getUsers);
+router.post("/getUsersByRoleId", verifyToken, UserController.getUsersByRoleId);
 router.put("/updateUser", verifyToken, UserController.updateUser);
 router.put("/changePassword", verifyToken, LoginController.changePassword);
 // User end
