@@ -3797,12 +3797,15 @@ const ReportModel = {
       SELECT
 
         IFNULL(
-          COUNT(DISTINCT CASE
-            WHEN ${dateFilterAll} ${allLeadsUserFilter}
-            THEN l.id
-          END),
-          0
-        ) AS all_leads,
+  SUM(
+    CASE
+      WHEN ${dateFilterAll} ${allLeadsUserFilter}
+      THEN 1
+      ELSE 0
+    END
+  ),
+  0
+) AS all_leads,
 
         IFNULL(
           COUNT(DISTINCT CASE
@@ -3839,26 +3842,12 @@ const ReportModel = {
 
       let bucketCountResult;
 
-      // Cache key
-      const cacheKey = JSON.stringify({
-        report_type: "presales_summary",
-        start_date,
-        end_date,
-        user_ids,
-      });
+      const [bucketRes] = await pool.query(
+        bucketCountQuery,
+        bucketCountQueryParams,
+      );
 
-      if (leadBucketCountsCache.has(cacheKey)) {
-        bucketCountResult = leadBucketCountsCache.get(cacheKey);
-      } else {
-        const [bucketRes] = await pool.query(
-          bucketCountQuery,
-          bucketCountQueryParams,
-        );
-
-        bucketCountResult = bucketRes;
-
-        leadBucketCountsCache.set(cacheKey, bucketCountResult);
-      }
+      bucketCountResult = bucketRes;
 
       // Response
       return {
