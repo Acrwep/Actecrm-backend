@@ -3745,6 +3745,376 @@ const ReportModel = {
     }
   },
 
+  getAdmissionsReportsCounts: async (
+    start_date,
+    end_date,
+    user_ids,
+    branch,
+    region,
+  ) => {
+    try {
+      const bucketCountQueryParams = [];
+      const leadcountsQueryparams = [];
+      const courseParms = [];
+
+      let dateFilterAll = "1 = 1";
+
+      if (start_date && end_date) {
+        dateFilterAll = ` COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        // all_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // valid_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // validated_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // need_screening (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // junk_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        // communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_communicated_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // no_response_eligible_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // interested_leads (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // joinings (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // super_hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // hot (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // warm (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // cold (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // dormant (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        // not_interested (2)
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+        bucketCountQueryParams.push(start_date, end_date);
+      }
+
+      let bucketCountQuery = `SELECT 
+  COUNT(CASE
+    WHEN ${dateFilterAll} THEN 1
+END) AS total_count, 
+         SUM(CASE WHEN cm.name = 'Online' AND ${dateFilterAll} THEN 1 ELSE 0 END) AS online_mode,
+         SUM(CASE WHEN cm.name = 'Classroom' AND ${dateFilterAll} THEN 1 ELSE 0 END) AS classroom_mode,
+          IFNULL(SUM(CASE WHEN map.whatsapp_group_creation = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_group_creation,
+          IFNULL(SUM(CASE WHEN map.hr_welcome_message = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hr_welcome_message,
+          IFNULL(SUM(CASE WHEN map.shared_attendance_link = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as shared_attendance_link,
+          IFNULL(SUM(CASE WHEN map.first_class_monitoring = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as first_class_monitoring,
+          IFNULL(SUM(CASE WHEN map.trainer_confirmation = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as trainer_confirmation,
+         
+
+           IFNULL(SUM(CASE WHEN c.welcome_call_status = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as welcome_call_status,
+          IFNULL(SUM(CASE WHEN c.technology_verified = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as technology_verified,
+          IFNULL(SUM(CASE WHEN c.trainer_fixation_call = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as shared_attendance_link,
+        
+          IFNULL(
+    SUM(
+        CASE
+            WHEN c.status IN ('Class Going', 'Completed', 'Passedout process') AND ${dateFilterAll}
+            THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS class_progress_monitoring,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN ti.ticket_id IS NOT NULL AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS ticket_raised,
+ 0 as mid_course_feedback,
+ IFNULL(SUM(CASE WHEN c.lms_access = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as lms_access,
+ IFNULL(SUM(CASE WHEN c.is_server_required = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as is_server_required,
+ 0 as placement_handover,
+
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.class_percentage >= 100
+            AND c.status IN ('Passedout process', 'Completed') AND ${dateFilterAll}
+            THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS class_completion_confirmation,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM trainer_payment_trans AS tpt
+                WHERE tpt.trainer_mapping_id = latest_map.trainer_map_id
+            ) AND ${dateFilterAll}
+            THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS trainer_completion_report,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.is_acknowledged = 1 AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS student_completion_report,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.google_review IS NOT NULL AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS google_review_collection,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.linkedin_review IS NOT NULL AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS linkedin_review_collection,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.is_google_verified = 1
+            AND c.is_linkedin_verified = 1 AND ${dateFilterAll}
+            THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS review_verification_status,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.is_certificate_generated = 1 AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS course_completion_certificate,
+ IFNULL(
+    SUM(
+        CASE
+            WHEN c.status = 'Completed' AND ${dateFilterAll} THEN 1
+            ELSE 0
+        END
+    ),
+    0
+) AS is_course_completed,
+ 0 as course_closure_call,
+
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call',
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as direct,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as live_chat,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as website,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 5 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as smo,
+          IFNULL(SUM(CASE WHEN l.lead_type_id = 6 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as reference,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as ivr,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as branch,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as enquiry_form,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 4 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_website,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 5 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as instant_form,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 6 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call_sub',
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 7 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_smo,
+          IFNULL(SUM(CASE WHEN l.lead_sub_source = 8 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as google_ads
+
+        FROM
+                            customers AS c
+                        INNER JOIN technologies AS t ON
+                            t.id = c.enrolled_course
+                        INNER JOIN lead_master AS l ON
+                            l.id = c.lead_id
+                        LEFT JOIN users AS su ON
+                            su.user_id = l.assigned_to
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN branches AS b ON
+                            su.branch_id = b.id
+                        LEFT JOIN region AS r ON
+                        b.region_id = r.id
+                                 LEFT JOIN (
+    SELECT
+        MAX(id) AS trainer_map_id,
+        customer_id
+    FROM trainer_mapping
+    GROUP BY customer_id
+) AS latest_map
+    ON latest_map.customer_id = c.id
+    LEFT JOIN trainer_mapping AS map
+    ON map.id = latest_map.trainer_map_id
+    LEFT JOIN trainer AS tr
+    ON tr.id = map.trainer_id
+    LEFT JOIN (
+    SELECT
+        MAX(ticket_id) AS max_ticket_id,
+        raised_by_id
+    FROM tickets
+    where raised_by_role in ('Student', 'Customer') 
+    GROUP BY raised_by_id
+) AS latest_tickets on latest_tickets.raised_by_id = c.id
+LEFT JOIN tickets as ti on ti.ticket_id = latest_tickets.max_ticket_id
+                        WHERE 1 = 1`;
+
+      let leadcountsQuery = `SELECT 
+          count(l.id) as all_leads
+        
+        FROM lead_master AS l
+        LEFT JOIN users AS au ON au.user_id = l.assigned_to
+        left join branches as brss on brss.id = l.assigned_branch_id
+        left join region as regn on regn.id = brss.region_id
+        LEFT JOIN branches AS aub ON aub.id = au.branch_id
+        LEFT JOIN region AS aur ON aur.id = aub.region_id
+        LEFT JOIN customers AS c ON c.lead_id = l.id
+        LEFT JOIN (
+          SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
+          FROM lead_follow_up_history 
+          GROUP BY lead_id
+        ) AS max_lh ON max_lh.lead_id = l.id
+        LEFT JOIN lead_follow_up_history AS lh ON lh.id = max_lh.max_id
+        LEFT JOIN lead_follow_up_history AS luh ON luh.id = max_lh.max_updated_id
+        LEFT JOIN lead_action AS ula ON ula.id = luh.lead_action_id
+        LEFT JOIN communication_master AS cm ON luh.communication_status = cm.id
+        LEFT JOIN contact_mode AS cm1 ON luh.contact_mode = cm1.id
+        LEFT JOIN lead_status AS ls ON ls.id = l.lead_status_id
+        LEFT JOIN technologies AS pt ON pt.id = l.primary_course_id
+        WHERE 1 = 1`;
+
+      let courseQuery = `SELECT
+    t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT c.id) AS customer_count
+FROM customers AS c
+INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+ LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN users AS su ON
+                            su.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                            su.branch_id = b.id
+                        LEFT JOIN region AS r ON
+                        b.region_id = r.id 
+where 1 = 1`;
+
+      // Handle user_ids parameter for both queries
+
+      if (start_date && end_date) {
+        leadcountsQuery += ` AND l.created_date >= ? AND l.created_date < DATE_ADD(?, INTERVAL 1 DAY)`;
+
+        leadcountsQueryparams.push(start_date, end_date);
+      }
+
+      if (start_date && end_date) {
+        courseQuery += ` and COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+
+        courseParms.push(start_date, end_date);
+      }
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders})`;
+          courseQuery += ` AND l.assigned_to IN (${placeholders})`;
+          leadcountsQuery += ` AND l.assigned_to IN (${placeholders}) AND (IFNULL(l.is_reassigned, 0) = 0 OR (l.is_reassigned = 1 AND l.is_acknowledged = 1))`;
+
+          bucketCountQueryParams.push(...user_ids);
+          courseParms.push(...user_ids);
+          leadcountsQueryparams.push(...user_ids);
+        }
+      }
+
+      if (branch) {
+        bucketCountQuery += ` AND b.id = ?`;
+        courseQuery += ` AND b.id = ?`;
+        leadcountsQuery += ` AND l.assigned_branch_id = ?`;
+
+        bucketCountQueryParams.push(branch);
+        courseParms.push(branch);
+        leadcountsQueryparams.push(branch);
+      }
+
+      if (region) {
+        bucketCountQuery += ` AND r.id = ?`;
+        courseQuery += ` AND r.id = ?`;
+        leadcountsQuery += ` AND regn.id = ?`;
+
+        bucketCountQueryParams.push(region);
+        courseParms.push(region);
+        leadcountsQueryparams.push(region);
+      }
+
+      courseQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    customer_count DESC
+LIMIT 10`;
+
+      let admission;
+      let leadsCount;
+      let courseResult;
+
+      const [bucketRes, leadsCounts, course] = await Promise.all([
+        pool.query(bucketCountQuery, bucketCountQueryParams),
+        pool.query(leadcountsQuery, leadcountsQueryparams),
+        pool.query(courseQuery, courseParms),
+      ]);
+
+      admission = bucketRes[0];
+      leadsCount = leadsCounts[0];
+      courseResult = course[0];
+      return {
+        admission,
+        leadsCount,
+        courseResult,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
     try {
       let dateFilterAll = "1 = 1";

@@ -577,6 +577,11 @@ router.post(
   verifyToken,
   ReportController.getPreSalesReportsCounts,
 );
+router.post(
+  "/getAdmissionsReportsCounts",
+  verifyToken,
+  ReportController.getAdmissionsReportsCounts,
+);
 
 router.post(
   "/getPreSalesReportsSummaryCounts",
