@@ -4115,6 +4115,226 @@ LIMIT 10`;
     }
   },
 
+  getCustomersReportsCounts: async (
+    from_date,
+    to_date,
+    user_ids,
+    date_type,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      const allCustomerParams = [];
+      const formCompletedParams = [];
+
+      // 1. ALL CUSTOMER QUERY
+      let allCustomerQuery = `
+      SELECT
+        COUNT(DISTINCT c.id) AS all_customer
+      FROM customers AS c
+                        LEFT JOIN lead_master AS l ON
+                            c.lead_id = l.id
+                        LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                        LEFT JOIN region AS r ON
+                            r.id = c.region_id
+                        LEFT JOIN payment_master AS pm ON
+                            c.lead_id = pm.lead_id
+                        LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN customer_status_history AS csh
+                            ON csh.id = c.latest_status_history_id
+                        LEFT JOIN technologies AS t ON
+                        c.enrolled_course = t.id
+                        WHERE
+                            1 = 1
+    `;
+
+      // 2. FORM COMPLETED QUERY
+      let formCompletedQuery = `
+      SELECT
+        COUNT(DISTINCT CASE
+        WHEN csh.status = 'Awaiting Finance'
+        THEN c.id
+    END) AS form_completed,
+
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Awaiting Verify'
+        THEN c.id
+    END) AS payment_verified,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Awaiting Trainer'
+        THEN c.id
+    END) AS student_verified,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Awaiting Trainer Verify'
+        THEN c.id
+    END) AS trainer_assigned,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Trainer Rejected'
+        THEN c.id
+    END) AS trainer_rejected,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Trainer Approval'
+        THEN c.id
+    END) AS trainer_verified,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Approval Rejected'
+        THEN c.id
+    END) AS trainer_approval_rejected,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Awaiting Class'
+        THEN c.id
+    END) AS trainer_approved,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Class Going'
+        THEN c.id
+    END) AS class_scheduled,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Escalated'
+        THEN c.id
+    END) AS escalated,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Hold'
+        THEN c.id
+    END) AS hold,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Passedout process'
+        THEN c.id
+    END) AS passedout_processed,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Completed'
+        THEN c.id
+    END) AS course_completed,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Demo Completed'
+        THEN c.id
+    END) AS demo_completed,
+     COUNT(DISTINCT CASE
+        WHEN csh.status = 'Videos Given'
+        THEN c.id
+    END) AS videos_given,
+     COUNT(DISTINCT CASE
+        WHEN csh.status in ('Refund Request', 'Refund Ready to Pay', 'Refunded')
+        THEN c.id
+    END) AS refunded,
+    COUNT(DISTINCT CASE
+        WHEN csh.status in ('Partially Closed', 'Discontinued')
+        THEN c.id
+    END) AS others,
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Partially Closed'
+        THEN c.id
+    END) AS partially_closed,
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Discontinued'
+        THEN c.id
+    END) AS discontinued
+
+    
+      FROM customers AS c
+      INNER JOIN customer_status_history AS csh
+        ON csh.customer_id = c.id
+        
+      LEFT JOIN lead_master AS l
+        ON c.lead_id = l.id
+      LEFT JOIN users AS au
+        ON l.assigned_to = au.user_id
+      LEFT JOIN branches AS b
+        ON au.branch_id = b.id
+      LEFT JOIN region AS re
+        ON b.region_id = re.id
+      WHERE 1 = 1
+    `;
+
+      // 3. USER FILTER
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+
+        const userFilter = `
+        AND (
+          l.assigned_to IN (${placeholders})
+          OR l.ra_id IN (${placeholders})
+          OR l.hr_id IN (${placeholders})
+        )
+      `;
+
+        allCustomerQuery += userFilter;
+        formCompletedQuery += userFilter;
+
+        const params = [...user_ids, ...user_ids, ...user_ids];
+
+        allCustomerParams.push(...params);
+        formCompletedParams.push(...params);
+      }
+
+      // 4. REGION FILTER
+      if (region_id) {
+        allCustomerQuery += ` AND re.id = ?`;
+        formCompletedQuery += ` AND re.id = ?`;
+
+        allCustomerParams.push(region_id);
+        formCompletedParams.push(region_id);
+      }
+
+      // 5. BRANCH FILTER
+      if (branch_id) {
+        allCustomerQuery += ` AND b.id = ?`;
+        formCompletedQuery += ` AND b.id = ?`;
+
+        allCustomerParams.push(branch_id);
+        formCompletedParams.push(branch_id);
+      }
+
+      // 6. DATE FILTER
+      if (from_date && to_date) {
+        // ALL CUSTOMER: Always joining date
+        const joiningDateColumn = "COALESCE(c.date_of_joining, c.created_date)";
+
+        allCustomerQuery += `
+        AND ${joiningDateColumn} >= ?
+        AND ${joiningDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        allCustomerParams.push(from_date, to_date);
+
+        // FORM COMPLETED DATE FILTER
+        if (date_type === "Updated") {
+          formCompletedQuery += `
+          AND csh.updated_at >= ?
+          AND csh.updated_at < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+        } else {
+          formCompletedQuery += `
+          AND COALESCE(c.date_of_joining, c.created_date) >= ?
+          AND COALESCE(c.date_of_joining, c.created_date)
+              < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+        }
+
+        formCompletedParams.push(from_date, to_date);
+      }
+
+      // 7. EXECUTE QUERIES
+      const [[allCustomerResult], [formCompletedResult]] = await Promise.all([
+        pool.query(allCustomerQuery, allCustomerParams),
+        pool.query(formCompletedQuery, formCompletedParams),
+      ]);
+
+      // 8. RESPONSE
+      return {
+        all_counts: allCustomerResult[0]?.all_customer ?? 0,
+        ...formCompletedResult[0],
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
     try {
       let dateFilterAll = "1 = 1";
