@@ -4434,20 +4434,25 @@ LIMIT 10`;
         // ALL CUSTOMER: Always joining date
         const joiningDateColumn = "COALESCE(c.date_of_joining, c.created_date)";
 
-        allCustomerQuery += `
-        AND ${joiningDateColumn} >= ?
-        AND ${joiningDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)
-      `;
-
         allCustomerParams.push(from_date, to_date);
 
         // FORM COMPLETED DATE FILTER
         if (date_type === "Updated") {
+          allCustomerQuery += `
+          AND csh.updated_at >= ?
+          AND csh.updated_at < DATE_ADD(?, INTERVAL 1 DAY)
+        `;
+
           formCompletedQuery += `
           AND csh.updated_at >= ?
           AND csh.updated_at < DATE_ADD(?, INTERVAL 1 DAY)
         `;
         } else {
+          allCustomerQuery += `
+        AND ${joiningDateColumn} >= ?
+        AND ${joiningDateColumn} < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
           formCompletedQuery += `
           AND COALESCE(c.date_of_joining, c.created_date) >= ?
           AND COALESCE(c.date_of_joining, c.created_date)
