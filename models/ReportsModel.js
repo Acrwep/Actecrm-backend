@@ -4541,6 +4541,60 @@ LIMIT 10`;
   WHERE pt.payment_status <> 'Rejected'
 `;
 
+      let newPaymentQuery = `
+  SELECT
+    (
+      IFNULL(SUM(pt.amount), 0)
+      ${includeConvenienceFees ? `+ IFNULL(SUM(pt.convenience_fees), 0)` : ""}
+    ) AS new_payment
+  FROM lead_master AS l
+  INNER JOIN customers AS c
+    ON c.lead_id = l.id
+  INNER JOIN payment_master AS pm
+    ON pm.lead_id = c.lead_id
+    left join(
+    select min(id)as min_id, payment_master_id from payment_trans group by payment_master_id
+    )as minpm on minpm.payment_master_id= pm.id
+  inner join payment_trans pt on pt.id = minpm.min_id
+  LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+  LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+  LEFT JOIN region AS re
+    ON b.region_id = re.id
+  WHERE pt.payment_status <> 'Rejected'
+`;
+
+      let rePaymentQuery = `
+  SELECT
+    (
+      IFNULL(SUM(pt.amount), 0)
+      ${includeConvenienceFees ? `+ IFNULL(SUM(pt.convenience_fees), 0)` : ""}
+    ) AS re_payment
+  FROM lead_master AS l
+  INNER JOIN customers AS c
+    ON c.lead_id = l.id
+  INNER JOIN payment_master AS pm
+    ON pm.lead_id = c.lead_id
+  INNER JOIN payment_trans AS pt
+    ON pt.payment_master_id = pm.id
+  INNER JOIN (
+    SELECT
+      MIN(id) AS min_id,
+      payment_master_id
+    FROM payment_trans
+    GROUP BY payment_master_id
+  ) AS minpm
+    ON minpm.payment_master_id = pm.id
+  LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+  LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+  LEFT JOIN region AS re
+    ON b.region_id = re.id
+  WHERE pt.id > minpm.min_id AND pt.payment_status <> 'Rejected'
+`;
+
       let verfiypending = `SELECT IFNULL(SUM(pt.amount), 0) AS verify_pending FROM customers AS c
          INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
           INNER JOIN lead_master AS l ON l.id = c.lead_id
@@ -4557,6 +4611,8 @@ LIMIT 10`;
       const collectionParams = [];
       const totalCollectionParams = [];
       const verifyPendingParms = [];
+      const newPaymentParam = [];
+      const rePaymentParam = [];
       // Handle user_ids parameter for both queries
 
       if (user_ids) {
@@ -4568,12 +4624,16 @@ LIMIT 10`;
 
           totalCollectionQuery += ` AND l.assigned_to IN (${placeholders})`;
           verfiypending += ` AND l.assigned_to IN (${placeholders})`;
+          newPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+          rePaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
 
           saleVolumeParams.push(...user_ids);
           collectionParams.push(...user_ids);
 
           totalCollectionParams.push(...user_ids);
           verifyPendingParms.push(...user_ids);
+          newPaymentParam.push(...user_ids);
+          rePaymentParam.push(...user_ids);
         }
       }
 
@@ -4583,12 +4643,16 @@ LIMIT 10`;
 
         totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
         verfiypending += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        newPaymentQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        rePaymentQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
 
         saleVolumeParams.push(start_date, end_date);
         collectionParams.push(start_date, end_date);
 
         totalCollectionParams.push(start_date, end_date);
         verifyPendingParms.push(start_date, end_date);
+        newPaymentParam.push(start_date, end_date);
+        rePaymentParam.push(start_date, end_date);
       }
 
       if (region_id) {
@@ -4596,11 +4660,15 @@ LIMIT 10`;
         collectionQuery += ` AND re.id = ?`;
         totalCollectionQuery += ` AND re.id = ?`;
         verfiypending += ` AND re.id = ?`;
+        newPaymentQuery += ` AND re.id = ?`;
+        rePaymentQuery += ` AND re.id = ?`;
 
         saleVolumeParams.push(region_id);
         collectionParams.push(region_id);
         totalCollectionParams.push(region_id);
         verifyPendingParms.push(region_id);
+        newPaymentParam.push(region_id);
+        rePaymentParam.push(region_id);
       }
 
       // 5. BRANCH FILTER
@@ -4609,31 +4677,31 @@ LIMIT 10`;
         collectionQuery += ` AND b.id = ?`;
         totalCollectionQuery += ` AND b.id = ?`;
         verfiypending += ` AND b.id = ?`;
+        newPaymentQuery += ` AND b.id = ?`;
+        rePaymentQuery += ` AND b.id = ?`;
 
         saleVolumeParams.push(branch_id);
         collectionParams.push(branch_id);
         totalCollectionParams.push(branch_id);
         verifyPendingParms.push(branch_id);
+        newPaymentParam.push(branch_id);
+        rePaymentParam.push(branch_id);
       }
-
-      const [getSaleVolume] = await pool.query(
-        saleVolumeQuery,
-        saleVolumeParams,
-      );
-      const [getCollection] = await pool.query(
-        collectionQuery,
-        collectionParams,
-      );
-
-      const [getTotalCollection] = await pool.query(
-        totalCollectionQuery,
-        totalCollectionParams,
-      );
-
-      const [getVerifyPendings] = await pool.query(
-        verfiypending,
-        verifyPendingParms,
-      );
+      const [
+        [getSaleVolume],
+        [getCollection],
+        [getTotalCollection],
+        [getVerifyPendings],
+        [getNewPayment],
+        [getRepayment],
+      ] = await Promise.all([
+        pool.query(saleVolumeQuery, saleVolumeParams),
+        pool.query(collectionQuery, collectionParams),
+        pool.query(totalCollectionQuery, totalCollectionParams),
+        pool.query(verfiypending, verifyPendingParms),
+        pool.query(newPaymentQuery, newPaymentParam),
+        pool.query(rePaymentQuery, rePaymentParam),
+      ]);
 
       return {
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
@@ -4647,6 +4715,8 @@ LIMIT 10`;
         need_to_verify: parseFloat(getVerifyPendings[0].verify_pending).toFixed(
           2,
         ),
+        new_payment: parseFloat(getNewPayment[0].new_payment).toFixed(2),
+        re_payment: parseFloat(getRepayment[0].re_payment).toFixed(2),
       };
     } catch (error) {
       throw new Error(error.message);
