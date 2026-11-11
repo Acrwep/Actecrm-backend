@@ -4474,17 +4474,194 @@ LIMIT 10`;
     }
   },
 
+  getAccountsReportsCounts: async (
+    user_ids,
+    start_date,
+    end_date,
+    region_id,
+    branch_id,
+    convenience_fees_type,
+  ) => {
+    try {
+      let saleVolumeQuery = `SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM customers AS c
+         INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
+          INNER JOIN lead_master AS l ON l.id = c.lead_id
+          LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+                         WHERE 1 = 1`;
+      let collectionQuery = `SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM customers AS c
+         INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
+          INNER JOIN lead_master AS l ON l.id = c.lead_id
+          INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id
+          LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+           WHERE pt.payment_status <> 'Rejected'`;
+
+      // convenience_fee = "yes" or "no"
+      console.log("Received:", convenience_fees_type);
+
+      const includeConvenienceFees =
+        String(convenience_fees_type || "")
+          .trim()
+          .toLowerCase() === "yes";
+      console.log("Include fees:", includeConvenienceFees);
+
+      let totalCollectionQuery = `
+  SELECT
+    (
+      IFNULL(SUM(pt.amount), 0)
+      ${includeConvenienceFees ? `+ IFNULL(SUM(pt.convenience_fees), 0)` : ""}
+    ) AS total_collection
+  FROM lead_master AS l
+  INNER JOIN customers AS c
+    ON c.lead_id = l.id
+  INNER JOIN payment_master AS pm
+    ON pm.lead_id = c.lead_id
+  INNER JOIN payment_trans AS pt
+    ON pt.payment_master_id = pm.id
+  LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+  LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+  LEFT JOIN region AS re
+    ON b.region_id = re.id
+  WHERE pt.payment_status <> 'Rejected'
+`;
+
+      let verfiypending = `SELECT IFNULL(SUM(pt.amount), 0) AS verify_pending FROM customers AS c
+         INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
+          INNER JOIN lead_master AS l ON l.id = c.lead_id
+          INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id
+          LEFT JOIN users AS au ON
+                        l.assigned_to = au.user_id
+                        LEFT JOIN branches AS b ON
+                        au.branch_id = b.id
+                    LEFT JOIN region AS re ON
+                        b.region_id = re.id
+           WHERE pt.payment_status = 'Verify Pending'`;
+
+      const saleVolumeParams = [];
+      const collectionParams = [];
+      const totalCollectionParams = [];
+      const verifyPendingParms = [];
+      // Handle user_ids parameter for both queries
+
+      if (user_ids) {
+        if (Array.isArray(user_ids) && user_ids.length > 0) {
+          const placeholders = user_ids.map(() => "?").join(", ");
+
+          saleVolumeQuery += ` AND l.assigned_to IN (${placeholders})`;
+          collectionQuery += ` AND l.assigned_to IN (${placeholders})`;
+
+          totalCollectionQuery += ` AND l.assigned_to IN (${placeholders})`;
+          verfiypending += ` AND l.assigned_to IN (${placeholders})`;
+
+          saleVolumeParams.push(...user_ids);
+          collectionParams.push(...user_ids);
+
+          totalCollectionParams.push(...user_ids);
+          verifyPendingParms.push(...user_ids);
+        }
+      }
+
+      if (start_date && end_date) {
+        saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+
+        totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        verfiypending += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+
+        saleVolumeParams.push(start_date, end_date);
+        collectionParams.push(start_date, end_date);
+
+        totalCollectionParams.push(start_date, end_date);
+        verifyPendingParms.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        saleVolumeQuery += ` AND re.id = ?`;
+        collectionQuery += ` AND re.id = ?`;
+        totalCollectionQuery += ` AND re.id = ?`;
+        verfiypending += ` AND re.id = ?`;
+
+        saleVolumeParams.push(region_id);
+        collectionParams.push(region_id);
+        totalCollectionParams.push(region_id);
+        verifyPendingParms.push(region_id);
+      }
+
+      // 5. BRANCH FILTER
+      if (branch_id) {
+        saleVolumeQuery += ` AND b.id = ?`;
+        collectionQuery += ` AND b.id = ?`;
+        totalCollectionQuery += ` AND b.id = ?`;
+        verfiypending += ` AND b.id = ?`;
+
+        saleVolumeParams.push(branch_id);
+        collectionParams.push(branch_id);
+        totalCollectionParams.push(branch_id);
+        verifyPendingParms.push(branch_id);
+      }
+
+      const [getSaleVolume] = await pool.query(
+        saleVolumeQuery,
+        saleVolumeParams,
+      );
+      const [getCollection] = await pool.query(
+        collectionQuery,
+        collectionParams,
+      );
+
+      const [getTotalCollection] = await pool.query(
+        totalCollectionQuery,
+        totalCollectionParams,
+      );
+
+      const [getVerifyPendings] = await pool.query(
+        verfiypending,
+        verifyPendingParms,
+      );
+
+      return {
+        sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
+        total_collection: parseFloat(
+          getTotalCollection[0].total_collection,
+        ).toFixed(2),
+        pending_payment: (
+          parseFloat(getSaleVolume[0].sale_volume) -
+          parseFloat(getCollection[0].collection)
+        ).toFixed(2),
+        need_to_verify: parseFloat(getVerifyPendings[0].verify_pending).toFixed(
+          2,
+        ),
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
     try {
       let dateFilterAll = "1 = 1";
       let dateFilterInterested = "1 = 1";
+      let dateTotal = "1 = 1";
 
       // Separate user filters
       let allLeadsUserFilter = "";
       let admissionUserFilter = "";
+      let totalCountsfilter = "";
 
       const allLeadsParams = [];
       const admissionParams = [];
+      const totalCountsParams = [];
 
       // Date filters
       if (start_date && end_date) {
@@ -4497,6 +4674,8 @@ LIMIT 10`;
         COALESCE(c.date_of_joining, c.created_date) >= ?
         AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
       `;
+
+        dateTotal = `AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
       }
 
       // Separate user filters
@@ -4516,6 +4695,8 @@ LIMIT 10`;
         admissionUserFilter = `
         AND l.assigned_to IN (${placeholders})
       `;
+
+        totalCountsfilter = `AND l.assigned_to IN (${placeholders})`;
 
         allLeadsParams.push(...user_ids);
         admissionParams.push(...user_ids);
@@ -4550,6 +4731,25 @@ LIMIT 10`;
         ON c.lead_id = l.id
     `;
 
+      let totalCollectionQuery = `
+  SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0))
+   AS total_collection
+  FROM lead_master AS l
+  INNER JOIN customers AS c
+    ON c.lead_id = l.id
+  INNER JOIN payment_master AS pm
+    ON pm.lead_id = c.lead_id
+  INNER JOIN payment_trans AS pt
+    ON pt.payment_master_id = pm.id
+  LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+  LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+  LEFT JOIN region AS re
+    ON b.region_id = re.id
+  WHERE pt.payment_status <> 'Rejected' ${dateTotal} ${totalCountsfilter}
+`;
+
       // Parameters in SQL placeholder order
       const bucketCountQueryParams = [];
 
@@ -4569,11 +4769,23 @@ LIMIT 10`;
       // Admission user parameters
       bucketCountQueryParams.push(...admissionParams);
 
+      if (start_date && end_date) {
+        totalCountsParams.push(start_date, end_date);
+      }
+      if (Array.isArray(user_ids) && user_ids.length > 0) {
+        totalCountsParams.push(...user_ids);
+      }
+
       let bucketCountResult;
 
       const [bucketRes] = await pool.query(
         bucketCountQuery,
         bucketCountQueryParams,
+      );
+
+      const [totalCounts] = await pool.query(
+        totalCollectionQuery,
+        totalCountsParams,
       );
 
       bucketCountResult = bucketRes;
@@ -4583,6 +4795,7 @@ LIMIT 10`;
         bucket_counts: {
           all: parseInt(bucketCountResult[0]?.all_leads || 0),
           admission_total: parseInt(bucketCountResult[0]?.admission_total || 0),
+          total_collection: parseInt(totalCounts[0]?.total_collection || 0),
         },
       };
     } catch (error) {

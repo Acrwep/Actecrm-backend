@@ -588,6 +588,11 @@ router.post(
   ReportController.getCustomersReportsCounts,
 );
 router.post(
+  "/getAccountsReportsCounts",
+  verifyToken,
+  ReportController.getAccountsReportsCounts,
+);
+router.post(
   "/getPreSalesReportsSummaryCounts",
   verifyToken,
   ReportController.getPreSalesReportsSummaryCounts,

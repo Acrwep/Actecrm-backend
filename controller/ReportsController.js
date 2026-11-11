@@ -345,6 +345,36 @@ const getCustomersReportsCounts = async (request, response) => {
   }
 };
 
+const getAccountsReportsCounts = async (request, response) => {
+  const {
+    user_ids,
+    start_date,
+    end_date,
+    region_id,
+    branch_id,
+    convenience_fees_type,
+  } = request.body;
+  try {
+    const leads = await ReportModel.getAccountsReportsCounts(
+      user_ids,
+      start_date,
+      end_date,
+      region_id,
+      branch_id,
+      convenience_fees_type,
+    );
+    return response.status(200).send({
+      message: "Accounts Reports counts fetched successfully",
+      data: leads,
+    });
+  } catch (error) {
+    response.status(500).send({
+      message: "Error while fetching reports counts",
+      details: error.message,
+    });
+  }
+};
+
 const getPreSalesReportsSummaryCounts = async (request, response) => {
   const { start_date, end_date, user_ids } = request.body;
   try {
@@ -519,6 +549,7 @@ module.exports = {
   getPreSalesReportsCounts,
   getAdmissionsReportsCounts,
   getCustomersReportsCounts,
+  getAccountsReportsCounts,
   getPreSalesReportsSummaryCounts,
   getTransactionWiseReport,
   getUserwiseTransaction,
