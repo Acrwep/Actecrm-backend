@@ -4498,7 +4498,17 @@ LIMIT 10`;
                     LEFT JOIN region AS re ON
                         b.region_id = re.id
                          WHERE 1 = 1`;
-      let collectionQuery = `SELECT (IFNULL(SUM(pt.amount), 0) + IFNULL(SUM(pt.convenience_fees), 0)) AS collection FROM customers AS c
+
+      // convenience_fee = "yes" or "no"
+      console.log("Received:", convenience_fees_type);
+
+      const includeConvenienceFees =
+        String(convenience_fees_type || "")
+          .trim()
+          .toLowerCase() === "yes";
+      console.log("Include fees:", includeConvenienceFees);
+
+      let collectionQuery = ` SELECT (IFNULL(SUM(pt.amount), 0) ${includeConvenienceFees ? `+ IFNULL(SUM(pt.convenience_fees), 0)` : ""}) AS collection FROM customers AS c
          INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
           INNER JOIN lead_master AS l ON l.id = c.lead_id
           INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id
@@ -4509,15 +4519,6 @@ LIMIT 10`;
                     LEFT JOIN region AS re ON
                         b.region_id = re.id
            WHERE pt.payment_status <> 'Rejected'`;
-
-      // convenience_fee = "yes" or "no"
-      console.log("Received:", convenience_fees_type);
-
-      const includeConvenienceFees =
-        String(convenience_fees_type || "")
-          .trim()
-          .toLowerCase() === "yes";
-      console.log("Include fees:", includeConvenienceFees);
 
       let totalCollectionQuery = `
   SELECT
@@ -4717,6 +4718,7 @@ LIMIT 10`;
         ),
         new_payment: parseFloat(getNewPayment[0].new_payment).toFixed(2),
         re_payment: parseFloat(getRepayment[0].re_payment).toFixed(2),
+        collection: parseFloat(getCollection[0].collection).toFixed(2),
       };
     } catch (error) {
       throw new Error(error.message);
