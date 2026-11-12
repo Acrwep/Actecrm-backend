@@ -4372,7 +4372,16 @@ LIMIT 10`;
     COUNT(DISTINCT CASE
         WHEN csh.status = 'Discontinued'
         THEN c.id
-    END) AS discontinued
+    END) AS discontinued,
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Part Payment Verified'
+        THEN c.id
+    END) AS part_payment_verified,
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Part Payment'
+        THEN c.id
+    END) AS part_payment
+
 
     
       FROM customers AS c
