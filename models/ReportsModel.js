@@ -4617,12 +4617,28 @@ LIMIT 10`;
                         b.region_id = re.id
            WHERE pt.payment_status = 'Verify Pending'`;
 
+      let bucketCountQuery = `
+    SELECT
+        COUNT(DISTINCT c.id) AS admission_total
+    FROM lead_master AS l
+    JOIN customers AS c
+        ON c.lead_id = l.id
+    LEFT JOIN users AS au
+        ON l.assigned_to = au.user_id
+    LEFT JOIN branches AS b
+        ON au.branch_id = b.id
+    LEFT JOIN region AS re
+        ON b.region_id = re.id
+    WHERE 1 = 1
+`;
+
       const saleVolumeParams = [];
       const collectionParams = [];
       const totalCollectionParams = [];
       const verifyPendingParms = [];
       const newPaymentParam = [];
       const rePaymentParam = [];
+      const allCustomerParam = [];
       // Handle user_ids parameter for both queries
 
       if (user_ids) {
@@ -4636,6 +4652,7 @@ LIMIT 10`;
           verfiypending += ` AND l.assigned_to IN (${placeholders})`;
           newPaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
           rePaymentQuery += ` AND l.assigned_to IN (${placeholders})`;
+          bucketCountQuery += ` AND l.assigned_to IN (${placeholders})`;
 
           saleVolumeParams.push(...user_ids);
           collectionParams.push(...user_ids);
@@ -4644,6 +4661,7 @@ LIMIT 10`;
           verifyPendingParms.push(...user_ids);
           newPaymentParam.push(...user_ids);
           rePaymentParam.push(...user_ids);
+          allCustomerParam.push(...user_ids);
         }
       }
 
@@ -4655,6 +4673,10 @@ LIMIT 10`;
         verfiypending += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
         newPaymentQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
         rePaymentQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
+        bucketCountQuery += ` and
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
 
         saleVolumeParams.push(start_date, end_date);
         collectionParams.push(start_date, end_date);
@@ -4663,6 +4685,7 @@ LIMIT 10`;
         verifyPendingParms.push(start_date, end_date);
         newPaymentParam.push(start_date, end_date);
         rePaymentParam.push(start_date, end_date);
+        allCustomerParam.push(start_date, end_date);
       }
 
       if (region_id) {
@@ -4672,6 +4695,7 @@ LIMIT 10`;
         verfiypending += ` AND re.id = ?`;
         newPaymentQuery += ` AND re.id = ?`;
         rePaymentQuery += ` AND re.id = ?`;
+        bucketCountQuery += ` AND re.id = ?`;
 
         saleVolumeParams.push(region_id);
         collectionParams.push(region_id);
@@ -4679,6 +4703,7 @@ LIMIT 10`;
         verifyPendingParms.push(region_id);
         newPaymentParam.push(region_id);
         rePaymentParam.push(region_id);
+        allCustomerParam.push(region_id);
       }
 
       // 5. BRANCH FILTER
@@ -4689,6 +4714,7 @@ LIMIT 10`;
         verfiypending += ` AND b.id = ?`;
         newPaymentQuery += ` AND b.id = ?`;
         rePaymentQuery += ` AND b.id = ?`;
+        bucketCountQuery += ` AND b.id = ?`;
 
         saleVolumeParams.push(branch_id);
         collectionParams.push(branch_id);
@@ -4696,6 +4722,7 @@ LIMIT 10`;
         verifyPendingParms.push(branch_id);
         newPaymentParam.push(branch_id);
         rePaymentParam.push(branch_id);
+        allCustomerParam.push(branch_id);
       }
       const [
         [getSaleVolume],
@@ -4704,6 +4731,7 @@ LIMIT 10`;
         [getVerifyPendings],
         [getNewPayment],
         [getRepayment],
+        [getAllcustomer],
       ] = await Promise.all([
         pool.query(saleVolumeQuery, saleVolumeParams),
         pool.query(collectionQuery, collectionParams),
@@ -4711,6 +4739,7 @@ LIMIT 10`;
         pool.query(verfiypending, verifyPendingParms),
         pool.query(newPaymentQuery, newPaymentParam),
         pool.query(rePaymentQuery, rePaymentParam),
+        pool.query(bucketCountQuery, allCustomerParam),
       ]);
 
       return {
@@ -4728,6 +4757,7 @@ LIMIT 10`;
         new_payment: parseFloat(getNewPayment[0].new_payment).toFixed(2),
         re_payment: parseFloat(getRepayment[0].re_payment).toFixed(2),
         collection: parseFloat(getCollection[0].collection).toFixed(2),
+        admission_total: getAllcustomer[0].admission_total,
       };
     } catch (error) {
       throw new Error(error.message);
