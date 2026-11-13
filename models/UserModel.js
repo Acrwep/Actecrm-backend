@@ -910,6 +910,32 @@ const UserModel = {
     }
   },
 
+  updateRegion: async (region_id, region_name) => {
+    try {
+      let affectedRows = 0;
+
+      const [isRegionExists] = await pool.query(
+        `SELECT id FROM region WHERE name = ? AND id != ?`,
+        [region_name, region_id],
+      );
+
+      if (isRegionExists.length > 0) {
+        throw new Error("Region already exists");
+      }
+
+      const [updateTarget] = await pool.query(
+        `UPDATE region SET name = ? WHERE id = ?`,
+        [region_name, region_id],
+      );
+
+      affectedRows += updateTarget.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   addBranches: async (region_id, branch_name) => {
     try {
       let affectedRows = 0;
@@ -925,6 +951,35 @@ const UserModel = {
         [region_id, branch_name],
       );
       affectedRows += insertTarget.affectedRows;
+
+      return affectedRows;
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
+  updateBranches: async (branch_id, region_id, branch_name) => {
+    try {
+      let affectedRows = 0;
+
+      const [isBranchExists] = await pool.query(
+        `SELECT id FROM branches
+       WHERE region_id = ? AND name = ? AND id != ?`,
+        [region_id, branch_name, branch_id],
+      );
+
+      if (isBranchExists.length > 0) {
+        throw new Error("Branch already exists in this region");
+      }
+
+      const [updateTarget] = await pool.query(
+        `UPDATE branches
+       SET region_id = ?, name = ?
+       WHERE id = ?`,
+        [region_id, branch_name, branch_id],
+      );
+
+      affectedRows += updateTarget.affectedRows;
 
       return affectedRows;
     } catch (error) {

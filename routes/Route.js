@@ -807,7 +807,9 @@ router.put(
 );
 router.get("/getBranchManagers", verifyToken, UserController.getBranchManagers);
 router.post("/addRegion", verifyToken, UserController.addRegion);
+router.put("/updateRegion", verifyToken, UserController.updateRegion);
 router.post("/addBranches", verifyToken, UserController.addBranches);
+router.put("/updateBranches", verifyToken, UserController.updateBranches);
 router.post("/acknowledgeLead", verifyToken, LeadController.acknowledgeLead);
 router.post(
   "/requestPaymentV1",

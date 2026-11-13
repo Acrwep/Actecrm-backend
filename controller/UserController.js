@@ -335,6 +335,22 @@ const addRegion = async (request, response) => {
   }
 };
 
+const updateRegion = async (request, response) => {
+  const { region_id, region_name } = request.body;
+  try {
+    const result = await userModel.updateRegion(region_id, region_name);
+    response.status(200).json({
+      message: "Data Updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while Updating data",
+      details: error.message,
+    });
+  }
+};
+
 const addBranches = async (request, response) => {
   const { region_id, branch_name } = request.body;
   try {
@@ -346,6 +362,26 @@ const addBranches = async (request, response) => {
   } catch (error) {
     response.status(500).json({
       message: "Error while inserting data",
+      details: error.message,
+    });
+  }
+};
+
+const updateBranches = async (request, response) => {
+  const { branch_id, region_id, branch_name } = request.body;
+  try {
+    const result = await userModel.updateBranches(
+      branch_id,
+      region_id,
+      branch_name,
+    );
+    response.status(200).json({
+      message: "Data Updated successfully",
+      data: result,
+    });
+  } catch (error) {
+    response.status(500).json({
+      message: "Error while Updating data",
       details: error.message,
     });
   }
@@ -366,5 +402,7 @@ module.exports = {
   updateBranchManager,
   getBranchManagers,
   addRegion,
+  updateRegion,
   addBranches,
+  updateBranches,
 };
