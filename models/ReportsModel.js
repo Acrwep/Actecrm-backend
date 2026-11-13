@@ -4380,7 +4380,11 @@ LIMIT 10`;
     COUNT(DISTINCT CASE
         WHEN csh.status = 'Part Payment'
         THEN c.id
-    END) AS part_payment
+    END) AS part_payment,
+    COUNT(DISTINCT CASE
+        WHEN csh.status = 'Payment Rejected'
+        THEN c.id
+    END) AS payment_rejected
 
 
     
@@ -4666,8 +4670,12 @@ LIMIT 10`;
       }
 
       if (start_date && end_date) {
-        saleVolumeQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
-        collectionQuery += ` AND CAST(c.created_date AS DATE) BETWEEN ? AND ?`;
+        saleVolumeQuery += ` and
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
+        collectionQuery += ` and
+        COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
 
         totalCollectionQuery += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
         verfiypending += ` AND CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?`;
