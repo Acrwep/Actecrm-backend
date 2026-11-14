@@ -4772,6 +4772,172 @@ LIMIT 10`;
     }
   },
 
+  getTrainerPaymentsReportsCounts: async (
+    start_date,
+    end_date,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      let trainerPaymentQuery = `
+      SELECT
+        IFNULL(SUM(tpm.request_amount), 0) AS total_master_amount,
+
+        COUNT(tpm.id) AS total_master_count,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Link Sent'
+          THEN 1
+        END) AS link_sent_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Link Sent'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS link_sent_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Requested'
+          THEN 1
+        END) AS requested_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Requested'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS requested_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Awaiting Finance'
+          THEN 1
+        END) AS awaiting_finance_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Awaiting Finance'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS awaiting_finance_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Paid'
+          THEN 1
+        END) AS paid_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Paid'
+          THEN tpm.paid_amount
+          ELSE 0
+        END), 0) AS paid_amount,
+
+        COUNT(CASE
+          WHEN tpm.status != 'Paid'
+          THEN 1
+        END) AS balance_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status != 'Paid'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS balance_amount,
+         COUNT(CASE
+          WHEN tpm.commercial_type = 'Batch'
+          THEN 1
+        END) AS batch_count,
+          IFNULL(SUM(CASE
+          WHEN tpm.commercial_type = 'Batch'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS batch_amount,
+        COUNT(CASE
+          WHEN tpm.commercial_type = 'Pay Per Head'
+          THEN 1
+        END) AS pay_per_head_count,
+          IFNULL(SUM(CASE
+          WHEN tpm.commercial_type = 'Pay Per Head'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS pay_per_head_amount
+        
+
+      FROM trainer_payment_master AS tpm
+
+      WHERE 1 = 1
+    `;
+
+      const saleVolumeParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        trainerPaymentQuery += `
+        AND tpm.bill_raisedate >= ?
+        AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        saleVolumeParams.push(start_date, end_date);
+      }
+
+      // REGION / BRANCH FILTER
+      if (region_id || branch_id) {
+        trainerPaymentQuery += `
+        AND EXISTS (
+          SELECT 1
+          FROM trainer_payment_trans AS tpt
+
+          INNER JOIN trainer_mapping AS tm
+            ON tm.id = tpt.trainer_mapping_id
+
+          INNER JOIN customers AS c
+            ON c.id = tm.customer_id
+
+          INNER JOIN lead_master AS l
+            ON l.id = c.lead_id
+
+          INNER JOIN users AS se
+            ON se.user_id = l.assigned_to
+
+          INNER JOIN branches AS sb
+            ON sb.id = se.branch_id
+
+          INNER JOIN region AS sr
+            ON sr.id = sb.region_id
+
+          WHERE tpt.payment_master_id = tpm.id
+      `;
+
+        if (region_id) {
+          trainerPaymentQuery += `
+          AND sr.id = ?
+        `;
+
+          saleVolumeParams.push(region_id);
+        }
+
+        if (branch_id) {
+          trainerPaymentQuery += `
+          AND sb.id = ?
+        `;
+
+          saleVolumeParams.push(branch_id);
+        }
+
+        trainerPaymentQuery += `
+        )
+      `;
+      }
+
+      const [getSaleVolume] = await pool.query(
+        trainerPaymentQuery,
+        saleVolumeParams,
+      );
+
+      return {
+        ...getSaleVolume[0],
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
     try {
       let dateFilterAll = "1 = 1";
