@@ -4784,6 +4784,7 @@ LIMIT 10`;
         IFNULL(SUM(tpm.request_amount), 0) AS total_master_amount,
 
         COUNT(tpm.id) AS total_master_count,
+       
 
         COUNT(CASE
           WHEN tpm.status = 'Link Sent'
@@ -4856,7 +4857,33 @@ LIMIT 10`;
           WHEN tpm.commercial_type = 'Pay Per Head'
           THEN tpm.request_amount
           ELSE 0
-        END), 0) AS pay_per_head_amount
+        END), 0) AS pay_per_head_amount,
+          COUNT(CASE
+          WHEN tpm.status in ('Requested', 'Paid', 'Awaiting Finance') 
+          THEN 1
+        END) AS links_dispatched_count,
+         IFNULL(SUM(CASE
+          WHEN tpm.status in ('Requested', 'Paid', 'Awaiting Finance')
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS links_dispatched_amount,
+        COUNT(CASE
+          WHEN tpm.status in ('Paid', 'Awaiting Finance') 
+          THEN 1
+        END) AS claim_submitted_count,
+         IFNULL(SUM(CASE
+          WHEN tpm.status in ('Paid', 'Awaiting Finance')
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS claim_submitted_amount,
+        COUNT(DISTINCT CASE
+    WHEN tpm.status = 'Paid'
+    THEN tpm.trainer_id
+END) AS paid_total_trainer_count,
+COUNT(DISTINCT CASE
+    WHEN tpm.status != 'Paid'
+    THEN tpm.trainer_id
+END) AS not_paid_total_trainer_count
         
 
       FROM trainer_payment_master AS tpm
@@ -4930,8 +4957,146 @@ LIMIT 10`;
         saleVolumeParams,
       );
 
+      let customerCountQuery = `
+  SELECT
+    COUNT(DISTINCT CASE
+    WHEN tpm.status = 'Paid'
+    THEN tm.customer_id
+END) AS paid_total_customer_count,
+COUNT(DISTINCT CASE
+    WHEN tpm.status != 'Paid'
+    THEN tm.customer_id
+END) AS not_paid_total_customer_count
+
+  FROM trainer_payment_master AS tpm
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+  WHERE 1 = 1
+`;
+
+      const customerCountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        customerCountQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        customerCountParams.push(start_date, end_date);
+      }
+
+      // REGION / BRANCH FILTER
+      if (region_id || branch_id) {
+        customerCountQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM customers AS c
+      INNER JOIN lead_master AS l
+        ON l.id = c.lead_id
+      INNER JOIN users AS se
+        ON se.user_id = l.assigned_to
+      INNER JOIN branches AS sb
+        ON sb.id = se.branch_id
+      INNER JOIN region AS sr
+        ON sr.id = sb.region_id
+      WHERE c.id = tm.customer_id
+  `;
+
+        if (region_id) {
+          customerCountQuery += ` AND sr.id = ? `;
+          customerCountParams.push(region_id);
+        }
+
+        if (branch_id) {
+          customerCountQuery += ` AND sb.id = ? `;
+          customerCountParams.push(branch_id);
+        }
+
+        customerCountQuery += ` ) `;
+      }
+
+      const [customerCountResult] = await pool.query(
+        customerCountQuery,
+        customerCountParams,
+      );
+
+      let paidCountQuery = `
+  SELECT
+    COUNT(DISTINCT tm.customer_id) AS customer_paid_count,
+    COUNT(DISTINCT tpm.trainer_id) AS trainer_paid_count,
+    IFNULL(SUM(tp.paid_amount), 0) AS by_paid_amount
+
+  FROM trainer_payment AS tp
+
+  INNER JOIN trainer_payment_master AS tpm
+    ON tpm.id = tp.payment_master_id
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  INNER JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  INNER JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  INNER JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1
+`;
+
+      const paidCountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        paidCountQuery += `
+    AND tp.paid_date >= ?
+    AND tp.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        paidCountParams.push(start_date, end_date);
+      }
+
+      // REGION FILTER
+      if (region_id) {
+        paidCountQuery += `
+    AND sr.id = ?
+  `;
+
+        paidCountParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        paidCountQuery += `
+    AND sb.id = ?
+  `;
+
+        paidCountParams.push(branch_id);
+      }
+
+      const [paidCountResult] = await pool.query(
+        paidCountQuery,
+        paidCountParams,
+      );
+
       return {
         ...getSaleVolume[0],
+        ...customerCountResult[0],
+        ...paidCountResult[0],
       };
     } catch (error) {
       throw new Error(error.message);
