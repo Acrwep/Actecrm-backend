@@ -5175,11 +5175,18 @@ END) AS not_paid_total_customer_count
       WHEN cm.name = 'Online'
       THEN c.id
     END) AS online_total_customers,
+
+    IFNULL(SUM(DISTINCT CASE
+      WHEN cm.name = 'Online'
+      THEN tpm.id
+      ELSE NULL
+    END), 0) AS online_total_master_count,
+
     IFNULL(SUM(CASE
-          WHEN cm.name = 'Online'
-          THEN tpm.request_amount
-          ELSE 0
-        END), 0) AS online_total_amount,
+      WHEN cm.name = 'Online'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS online_total_amount,
 
     COUNT(DISTINCT CASE
       WHEN cm.name = 'Online'
@@ -5201,11 +5208,11 @@ END) AS not_paid_total_customer_count
       THEN c.id
     END) AS classroom_total_customers,
 
-     IFNULL(SUM(CASE
-          WHEN cm.name = 'Classroom'
-          THEN tpm.request_amount
-          ELSE 0
-        END), 0) AS classroom_total_amount,
+    IFNULL(SUM(CASE
+      WHEN cm.name = 'Classroom'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS classroom_total_amount,
 
     COUNT(DISTINCT CASE
       WHEN cm.name = 'Classroom'
@@ -5223,6 +5230,28 @@ END) AS not_paid_total_customer_count
     END) AS classroom_paid_customers
 
   FROM trainer_payment_master AS tpm
+
+  INNER JOIN (
+    SELECT DISTINCT payment_master_id
+    FROM trainer_payment
+    WHERE 1 = 1
+`;
+
+      const deadlinePaymentParams = [];
+
+      // DATE FILTER - PAYMENT PAID DATE
+      if (start_date && end_date) {
+        deadlinePaymentQuery += `
+    AND paid_date >= ?
+    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        deadlinePaymentParams.push(start_date, end_date);
+      }
+
+      deadlinePaymentQuery += `
+  ) AS filtered_payment
+    ON filtered_payment.payment_master_id = tpm.id
 
   INNER JOIN trainer_payment_trans AS tpt
     ON tpt.payment_master_id = tpm.id
@@ -5251,18 +5280,6 @@ END) AS not_paid_total_customer_count
   WHERE 1 = 1
 `;
 
-      const deadlinePaymentParams = [];
-
-      // DATE FILTER - MASTER RAISED DATE
-      if (start_date && end_date) {
-        deadlinePaymentQuery += `
-    AND tpm.bill_raisedate >= ?
-    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
-  `;
-
-        deadlinePaymentParams.push(start_date, end_date);
-      }
-
       // REGION FILTER
       if (region_id) {
         deadlinePaymentQuery += `
@@ -5286,193 +5303,7 @@ END) AS not_paid_total_customer_count
         deadlinePaymentParams,
       );
 
-      let deadlineAverageQuery = `
-  SELECT
-    ROUND(
-      AVG(
-        CASE
-          WHEN x.class_mode = 'Online'
-          THEN x.days_to_full_payment
-        END
-      ), 2
-    ) AS online_avg_days,
-
-    ROUND(
-      AVG(
-        CASE
-          WHEN x.class_mode = 'Classroom'
-          THEN x.days_to_full_payment
-        END
-      ), 2
-    ) AS classroom_avg_days
-
-  FROM (
-    SELECT DISTINCT
-      tpm.id AS payment_master_id,
-      c.id AS customer_id,
-      cm.name AS class_mode,
-
-      DATEDIFF(
-        (
-          SELECT MIN(DATE(tp1.paid_date))
-
-          FROM trainer_payment AS tp1
-
-          WHERE tp1.payment_master_id = tpm.id
-
-            AND tp1.paid_date >= DATE(tpm.bill_raisedate)
-
-            AND tp1.paid_date < CASE
-              WHEN cm.name = 'Online'
-                THEN DATE_ADD(
-                  DATE(tpm.bill_raisedate),
-                  INTERVAL 15 DAY
-                )
-
-              WHEN cm.name = 'Classroom'
-                THEN DATE_ADD(
-                  DATE(tpm.bill_raisedate),
-                  INTERVAL 6 DAY
-                )
-            END
-
-            AND (
-              SELECT COALESCE(SUM(tp2.paid_amount), 0)
-
-              FROM trainer_payment AS tp2
-
-              WHERE tp2.payment_master_id = tpm.id
-
-                AND tp2.paid_date >= DATE(tpm.bill_raisedate)
-
-                AND tp2.paid_date < DATE_ADD(
-                  DATE(tp1.paid_date),
-                  INTERVAL 1 DAY
-                )
-            ) >= tpm.request_amount
-        ),
-
-        DATE(tpm.bill_raisedate)
-
-      ) AS days_to_full_payment
-
-    FROM trainer_payment_master AS tpm
-
-    INNER JOIN trainer_payment_trans AS tpt
-      ON tpt.payment_master_id = tpm.id
-
-    INNER JOIN trainer_mapping AS tm
-      ON tm.id = tpt.trainer_mapping_id
-
-    INNER JOIN customers AS c
-      ON c.id = tm.customer_id
-
-    INNER JOIN class_mode AS cm
-      ON cm.id = c.mode_of_class
-
-    INNER JOIN lead_master AS l
-      ON l.id = c.lead_id
-
-    INNER JOIN users AS se
-      ON se.user_id = l.assigned_to
-
-    INNER JOIN branches AS sb
-      ON sb.id = se.branch_id
-
-    INNER JOIN region AS sr
-      ON sr.id = sb.region_id
-
-    WHERE 1 = 1
-`;
-
-      const deadlineAverageParams = [];
-
-      // DATE FILTER
-      if (start_date && end_date) {
-        deadlineAverageQuery += `
-    AND tpm.bill_raisedate >= ?
-    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
-  `;
-
-        deadlineAverageParams.push(start_date, end_date);
-      }
-
-      // REGION FILTER
-      if (region_id) {
-        deadlineAverageQuery += `
-    AND sr.id = ?
-  `;
-
-        deadlineAverageParams.push(region_id);
-      }
-
-      // BRANCH FILTER
-      if (branch_id) {
-        deadlineAverageQuery += `
-    AND sb.id = ?
-  `;
-
-        deadlineAverageParams.push(branch_id);
-      }
-
-      // COMPLETE QUERY
-      deadlineAverageQuery += `
-  ) AS x
-
-  WHERE x.days_to_full_payment IS NOT NULL
-`;
-
-      // EXECUTE QUERY
-      const [deadlineAverageResult] = await pool.query(
-        deadlineAverageQuery,
-        deadlineAverageParams,
-      );
-
-      const deadlineAverage = deadlineAverageResult[0];
-
       const deadlinePayment = deadlinePaymentResult[0];
-
-      const onlineAvgDays = Number(deadlineAverage.online_avg_days || 0);
-      const classroomAvgDays = Number(deadlineAverage.classroom_avg_days || 0);
-
-      const onlinePaidCustomers = Number(
-        deadlinePayment.online_paid_customers || 0,
-      );
-
-      const classroomPaidCustomers = Number(
-        deadlinePayment.classroom_paid_customers || 0,
-      );
-
-      const totalPaidCustomers = onlinePaidCustomers + classroomPaidCustomers;
-
-      const class_mode_avgDays =
-        totalPaidCustomers > 0
-          ? Number(
-              (
-                (onlineAvgDays * onlinePaidCustomers +
-                  classroomAvgDays * classroomPaidCustomers) /
-                totalPaidCustomers
-              ).toFixed(2),
-            )
-          : 0;
-
-      const online_percentage =
-        deadlinePayment.online_total_customers > 0
-          ? (
-              (deadlinePayment.online_paid_customers /
-                deadlinePayment.online_total_customers) *
-              100
-            ).toFixed(2)
-          : "0.00";
-
-      const classroom_percentage =
-        deadlinePayment.classroom_total_customers > 0
-          ? (
-              (deadlinePayment.classroom_paid_customers /
-                deadlinePayment.classroom_total_customers) *
-              100
-            ).toFixed(2)
-          : "0.00";
 
       const total_customers =
         Number(deadlinePayment.online_total_customers) +
@@ -5487,6 +5318,92 @@ END) AS not_paid_total_customer_count
           ? ((total_paid_customers / total_customers) * 100).toFixed(2)
           : "0.00";
 
+      let avgDaysQuery = `
+  SELECT
+    AVG(
+      DATEDIFF(
+        DATE(filtered_payment.paid_date),
+        DATE(tpm.bill_raisedate)
+      )
+    ) AS overall_avg_days
+
+  FROM trainer_payment_master AS tpm
+
+  INNER JOIN (
+    SELECT
+      payment_master_id,
+      paid_date
+    FROM trainer_payment
+    WHERE 1 = 1
+`;
+
+      const avgDaysParams = [];
+
+      // DATE FILTER - PAYMENT PAID DATE
+      if (start_date && end_date) {
+        avgDaysQuery += `
+    AND paid_date >= ?
+    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        avgDaysParams.push(start_date, end_date);
+      }
+
+      avgDaysQuery += `
+  ) AS filtered_payment
+    ON filtered_payment.payment_master_id = tpm.id
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN class_mode AS cm
+    ON cm.id = c.mode_of_class
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  INNER JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  INNER JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  INNER JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1
+`;
+
+      // REGION FILTER
+      if (region_id) {
+        avgDaysQuery += `
+    AND sr.id = ?
+  `;
+
+        avgDaysParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        avgDaysQuery += `
+    AND sb.id = ?
+  `;
+
+        avgDaysParams.push(branch_id);
+      }
+
+      const [avgDaysResult] = await pool.query(avgDaysQuery, avgDaysParams);
+
+      const overall_avg_days = Number(
+        avgDaysResult[0].overall_avg_days || 0,
+      ).toFixed(2);
+
       return {
         ...getSaleVolume[0],
         ...customerCountResult[0],
@@ -5494,7 +5411,7 @@ END) AS not_paid_total_customer_count
         ...classModeCountResult[0],
         class_mode_percentage: Number(overall_percentage),
 
-        class_mode_avgDays: Number(class_mode_avgDays),
+        class_mode_avgDays: Number(overall_avg_days),
         online_total_amount: deadlinePayment.online_total_amount,
         classroom_total_amount: deadlinePayment.classroom_total_amount,
       };
