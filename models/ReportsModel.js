@@ -5632,12 +5632,38 @@ END) AS not_paid_total_customer_count
 
       bucketCountResult = bucketRes;
 
+      let trainerPaymentQuery = `
+      SELECT
+        COUNT(tpm.id) AS total_master_count
+      FROM trainer_payment_master AS tpm
+      WHERE 1 = 1
+    `;
+
+      const saleVolumeParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        trainerPaymentQuery += `
+        AND tpm.bill_raisedate >= ?
+        AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        saleVolumeParams.push(start_date, end_date);
+      }
+      const [getSaleVolume] = await pool.query(
+        trainerPaymentQuery,
+        saleVolumeParams,
+      );
+
       // Response
       return {
         bucket_counts: {
           all: parseInt(bucketCountResult[0]?.all_leads || 0),
           admission_total: parseInt(bucketCountResult[0]?.admission_total || 0),
           total_collection: parseInt(totalCounts[0]?.total_collection || 0),
+          total_trainerPayment_count: parseInt(
+            getSaleVolume[0]?.total_master_count || 0,
+          ),
         },
       };
     } catch (error) {
