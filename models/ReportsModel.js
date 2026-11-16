@@ -4859,20 +4859,20 @@ LIMIT 10`;
           ELSE 0
         END), 0) AS pay_per_head_amount,
           COUNT(CASE
-          WHEN tpm.status in ('Requested', 'Paid', 'Awaiting Finance') 
+          WHEN tpm.status in ('Link Sent', 'Requested', 'Awaiting Finance', 'Paid') 
           THEN 1
         END) AS links_dispatched_count,
          IFNULL(SUM(CASE
-          WHEN tpm.status in ('Requested', 'Paid', 'Awaiting Finance')
+          WHEN tpm.status in ('Link Sent', 'Requested', 'Awaiting Finance', 'Paid')
           THEN tpm.request_amount
           ELSE 0
         END), 0) AS links_dispatched_amount,
         COUNT(CASE
-          WHEN tpm.status in ('Paid', 'Awaiting Finance') 
+          WHEN tpm.status in ('Requested', 'Awaiting Finance', 'Paid') 
           THEN 1
         END) AS claim_submitted_count,
          IFNULL(SUM(CASE
-          WHEN tpm.status in ('Paid', 'Awaiting Finance')
+          WHEN tpm.status in ('Requested', 'Awaiting Finance', 'Paid')
           THEN tpm.request_amount
           ELSE 0
         END), 0) AS claim_submitted_amount,
