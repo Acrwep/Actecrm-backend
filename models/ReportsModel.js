@@ -5103,7 +5103,19 @@ END) AS not_paid_total_customer_count
     COUNT(DISTINCT CASE
       WHEN (cm.name) = 'Classroom'
       THEN c.id
-    END) AS classroom_customer_count
+    END) AS classroom_customer_count,
+
+    IFNULL(SUM(CASE
+      WHEN cm.name = 'Online'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS online_total_amount,
+    IFNULL(SUM(CASE
+      WHEN cm.name = 'Classroom'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS classroom_total_amount
+
 
   FROM trainer_payment_master AS tpm
 
@@ -5176,11 +5188,10 @@ END) AS not_paid_total_customer_count
       THEN c.id
     END) AS online_total_customers,
 
-    IFNULL(SUM(DISTINCT CASE
-      WHEN cm.name = 'Online'
-      THEN tpm.id
-      ELSE NULL
-    END), 0) AS online_total_master_count,
+    COUNT(DISTINCT CASE
+  WHEN cm.name = 'Online'
+  THEN tpm.id
+END) AS online_total_master_count,
 
     IFNULL(SUM(CASE
       WHEN cm.name = 'Online'
@@ -5412,8 +5423,8 @@ END) AS not_paid_total_customer_count
         class_mode_percentage: Number(overall_percentage),
 
         class_mode_avgDays: Number(overall_avg_days),
-        online_total_amount: deadlinePayment.online_total_amount,
-        classroom_total_amount: deadlinePayment.classroom_total_amount,
+        // online_total_amount: deadlinePayment.online_total_amount,
+        // classroom_total_amount: deadlinePayment.classroom_total_amount,
       };
     } catch (error) {
       throw new Error(error.message);
