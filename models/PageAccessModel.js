@@ -553,59 +553,96 @@ const PageAccessModel = {
 
   getUsersDownline: async (user_id) => {
     try {
-      const getQuery = `SELECT
-                            u.id,
-                            u.user_id,
-                            u.user_name,
-                            u.view_user_id,
-                            u.child_users,
-                            u.roles
-                        FROM
-                            users AS u
-                        WHERE
-                            u.user_id = ? AND u.is_active = 1`;
-      const [getUser] = await pool.query(getQuery, user_id);
+      const getQuery = `
+      SELECT
+        u.id,
+        u.user_id,
+        u.user_name,
+        u.view_user_id,
+        u.child_users,
+        u.roles
+      FROM users AS u
+      WHERE u.user_id = ? AND u.is_active = 1
+    `;
 
-      // Parse the JSON data
-      const childUsers = JSON.parse(getUser[0].child_users);
-      const roles = JSON.parse(getUser[0].roles);
+      const [getUser] = await pool.query(getQuery, [user_id]);
 
-      // Extract user_ids from child_users and role_ids from roles
+      if (getUser.length === 0) {
+        return null;
+      }
+
+      // Parse JSON safely
+      const childUsers =
+        typeof getUser[0].child_users === "string"
+          ? JSON.parse(getUser[0].child_users || "[]")
+          : getUser[0].child_users || [];
+
+      const roles =
+        typeof getUser[0].roles === "string"
+          ? JSON.parse(getUser[0].roles || "[]")
+          : getUser[0].roles || [];
+
+      // Get child user IDs
       const childUserIds = [
-        getUser[0].user_id, // Include the current user's ID
-        ...childUsers.map((child) => child.user_id), // Extract user_id from each child
+        ...new Set(childUsers.map((child) => child.user_id)),
       ];
 
-      const roleIds = roles.map((role) => role.role_id); // Extract role_id from each role
+      // Fetch only active child users
+      let activeUsers = [];
 
-      // Get all users
-      const [getAllUsers] = await pool.query(
-        `SELECT id, user_id, view_user_id, user_name FROM users WHERE is_active = 1`,
+      if (childUserIds.length > 0) {
+        const placeholders = childUserIds.map(() => "?").join(",");
+
+        const [users] = await pool.query(
+          `SELECT id, user_id, view_user_id, user_name
+         FROM users
+         WHERE is_active = 1
+         AND user_id IN (${placeholders})`,
+          childUserIds,
+        );
+
+        activeUsers = users;
+      }
+
+      // Create active user lookup
+      const activeUserMap = new Map(
+        activeUsers.map((user) => [user.user_id, user]),
       );
 
-      // Create downline_users as an array
+      // Include only active child users
+      const activeChildUsers = childUsers.filter((child) =>
+        activeUserMap.has(child.user_id),
+      );
+
+      // Child IDs + current user ID
+      const finalChildUserIds = [
+        getUser[0].user_id,
+        ...activeChildUsers.map((child) => child.user_id),
+      ];
+
+      // Downline users
       const downline_users = [
         {
           user_id: getUser[0].user_id,
           user_name: getUser[0].user_name,
           view_user_id: getUser[0].view_user_id || null,
         },
-        ...childUsers.map((child) => {
-          const user = getAllUsers.find((r) => r.user_id === child.user_id);
+        ...activeChildUsers.map((child) => {
+          const user = activeUserMap.get(child.user_id);
 
           return {
-            user_id: child.user_id,
-            user_name: user?.user_name || "",
-            view_user_id: user?.view_user_id || null,
+            user_id: user.user_id,
+            user_name: user.user_name,
+            view_user_id: user.view_user_id || null,
           };
         }),
       ];
 
       return {
         ...getUser[0],
-        child_users: childUserIds,
-        roles: roleIds,
-        downline_users: downline_users,
+        child_users: finalChildUserIds,
+        roles: roles.map((role) => role.role_id),
+        downline_users,
       };
     } catch (error) {
       throw new Error(error.message);

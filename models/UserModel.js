@@ -320,7 +320,7 @@ const UserModel = {
                     LEFT JOIN region AS r ON
                       r.id = b.region_id
                       AND r.is_active = 1
-                    WHERE 1 = 1`;
+                    WHERE  u.is_active = 1 `;
 
       if (region_id) {
         getQuery += ` AND r.id = ?`;
@@ -503,9 +503,14 @@ const UserModel = {
 
       // If you want to include the root user in results, uncomment:
       const [getRootUser] = await pool.query(
-        `SELECT user_id, view_user_id,  user_name FROM users WHERE user_id = ?`,
+        `SELECT user_id, view_user_id,  user_name FROM users WHERE user_id = ? and is_active = 1 `,
         parent_id,
       );
+
+      if (getRootUser.length === 0) {
+        return [];
+      }
+
       downline.set(parent_id, {
         user_id: parent_id,
         view_user_id: getRootUser[0]?.view_user_id || "",
@@ -530,7 +535,7 @@ const UserModel = {
         const parentIds = batch.map((item) => item.userId);
 
         const [children] = await pool.query(
-          `SELECT d.user_id, u.user_name,u.view_user_id, d.parent_id, d.created_at FROM users_downline AS d INNER JOIN users AS u ON d.user_id = u.user_id WHERE d.parent_id IN (${placeholders})`,
+          `SELECT d.user_id, u.user_name,u.view_user_id, d.parent_id, d.created_at FROM users_downline AS d INNER JOIN users AS u ON d.user_id = u.user_id and u.is_active = 1  WHERE d.parent_id IN (${placeholders})`,
           parentIds,
         );
 
