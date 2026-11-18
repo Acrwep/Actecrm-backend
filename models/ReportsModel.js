@@ -3752,6 +3752,7 @@ const ReportModel = {
     user_ids,
     branch,
     region,
+    mode_of_class,
   ) => {
     try {
       const bucketCountQueryParams = [];
@@ -3843,6 +3844,8 @@ LEFT JOIN tickets as ti on ti.ticket_id = latest_tickets.max_ticket_id
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
+        LEFT JOIN class_mode AS cme ON
+                            c.mode_of_class = cme.id
         LEFT JOIN (
           SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
           FROM lead_follow_up_history 
@@ -3942,6 +3945,15 @@ where 1 = 1`;
         courseParms.push(region);
         leadcountsQueryparams.push(region);
       }
+      if (mode_of_class) {
+        bucketCountQuery += ` AND cm.name = ?`;
+        courseQuery += ` AND cm.name = ?`;
+        leadcountsQuery += ` AND cme.name = ?`;
+
+        bucketCountQueryParams.push(mode_of_class);
+        courseParms.push(mode_of_class);
+        leadcountsQueryparams.push(mode_of_class);
+      }
 
       courseQuery += `
     GROUP BY
@@ -3966,10 +3978,8 @@ LIMIT 10`;
         CASE
             WHEN su.user_id LIKE '%${CONSTANT_STATUS.CHENNAI}%'
                 THEN 'Chennai'
-
             WHEN su.user_id LIKE '%${CONSTANT_STATUS.BANGALORE}%'
                 THEN 'Bangalore'
-
             WHEN su.user_id LIKE '%${CONSTANT_STATUS.ONLINE}%'
                 THEN 'Hub'
         END AS region_name,
@@ -3977,7 +3987,6 @@ LIMIT 10`;
         r.id AS region_id,
         b.id AS branch_id,
         b.name AS branch_name,
-
         su.user_id AS user_id,
         su.view_user_id AS view_user_id,
         su.user_name AS user_name,
@@ -3997,10 +4006,21 @@ LIMIT 10`;
 
     LEFT JOIN customers AS c
         ON c.lead_id = l.id
+
         ${
           start_date && end_date
             ? `AND COALESCE(c.date_of_joining, c.created_date) >= ?
                AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`
+            : ""
+        }
+
+        ${
+          mode_of_class
+            ? `AND c.mode_of_class = (
+                  SELECT id
+                  FROM class_mode
+                  WHERE name = ?
+              )`
             : ""
         }
 
@@ -4009,11 +4029,16 @@ LIMIT 10`;
             su.roles,
             '{"role_id": 2}',
             '$'
-        ) = 1 and su.is_active = 1 
+        ) = 1
+        AND su.is_active = 1
 `;
 
       if (start_date && end_date) {
         userCustomerCountParams.push(start_date, end_date);
+      }
+
+      if (mode_of_class) {
+        userCustomerCountParams.push(mode_of_class);
       }
 
       if (branch) {
@@ -4133,7 +4158,7 @@ LIMIT 10`;
       const sub_sources = {
         branch: parseInt(admissionRow.branch || 0),
         instant_form: parseInt(admissionRow.instant_form || 0),
-        reference: parseInt(admissionRow.reference || 0),
+        call_sub: parseInt(admissionRow.call_sub || 0),
         whatsapp_smo: parseInt(admissionRow.whatsapp_smo || 0),
         enquiry_form: parseInt(admissionRow.enquiry_form || 0),
         ivr: parseInt(admissionRow.ivr || 0),
