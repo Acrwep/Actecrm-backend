@@ -1,4 +1,5 @@
 const pool = require("../config/dbconfig");
+const { CONSTANT_STATUS } = require("../constants/constant");
 
 const leadBucketCountsCache = new Map();
 const openLeadsCountsCache = new Map();
@@ -3756,6 +3757,7 @@ const ReportModel = {
       const bucketCountQueryParams = [];
       const leadcountsQueryparams = [];
       const courseParms = [];
+      const courseCompany = [];
 
       let dateFilterAll = "1 = 1";
 
@@ -3764,204 +3766,13 @@ const ReportModel = {
       }
 
       let bucketCountQuery = `SELECT 
-  COUNT(CASE
+       COUNT(CASE
     WHEN ${dateFilterAll} THEN 1
 END) AS total_count,
-  IFNULL(
-            SUM(
-              CASE
-                WHEN c.status IN (
-                  'Form Pending',
-                  'Awaiting Finance',
-                  'Payment Rejected',
-                  'Awaiting Verify',
-                  'Awaiting Trainer',
-                  'Trainer Rejected',
-                  'Awaiting Trainer Verify',
-                  'Trainer Approval',
-                  'Approval Rejected'
-                ) AND ${dateFilterAll}
-                THEN 1
-                ELSE 0
-              END
-            ),
-            0
-          ) as student_onboarding_count,
-
- IFNULL(
-            SUM(
-              CASE
-                WHEN c.status IN (
-                  'Awaiting Class'
-                ) AND ${dateFilterAll}
-                THEN 1
-                ELSE 0
-              END
-            ),
-            0
-          ) as trainer_coordination_count,
-
-           IFNULL(
-            SUM(
-              CASE
-                WHEN c.status IN (
-                  'Class Scheduled',
-                  'Class Going',
-                  'Escalated',
-                  'Hold'
-                ) AND ${dateFilterAll}
-                THEN 1
-                ELSE 0
-              END
-            ),
-            0
-          ) as progress_monitoring_count,
-
-          IFNULL(
-            SUM(
-              CASE
-                WHEN c.status IN (
-                  'Passedout process'
-                ) AND ${dateFilterAll}
-                THEN 1
-                ELSE 0
-              END
-            ),
-            0
-          ) as course_completion_count,
-
-          IFNULL(
-            SUM(
-              CASE
-                WHEN c.status IN (
-                  'Completed'
-                ) AND ${dateFilterAll}
-                THEN 1
-                ELSE 0
-              END
-            ),
-            0
-          ) as review_certifications_count,
-
+  
          SUM(CASE WHEN cm.name = 'Online' AND ${dateFilterAll} THEN 1 ELSE 0 END) AS online_mode,
          SUM(CASE WHEN cm.name = 'Classroom' AND ${dateFilterAll} THEN 1 ELSE 0 END) AS classroom_mode,
-          IFNULL(SUM(CASE WHEN map.whatsapp_group_creation = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as whatsapp_group_creation,
-          IFNULL(SUM(CASE WHEN map.hr_welcome_message = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as hr_welcome_message,
-          IFNULL(SUM(CASE WHEN map.shared_attendance_link = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as shared_attendance_link,
-          IFNULL(SUM(CASE WHEN map.first_class_monitoring = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as first_class_monitoring,
-          IFNULL(SUM(CASE WHEN map.trainer_confirmation = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as trainer_confirmation,
-
-           IFNULL(SUM(CASE WHEN c.welcome_call_status = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as welcome_call_status,
-          IFNULL(SUM(CASE WHEN c.technology_verified = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as technology_verified,
-          IFNULL(SUM(CASE WHEN latest_map.trainer_map_id IS NOT NULL AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as trainer_assignment_request,
-          IFNULL(SUM(CASE WHEN c.trainer_fixation_call = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as trainer_fixation_call,
-                  IFNULL(
-    SUM(
-        CASE
-            WHEN c.status IN ('Class Going', 'Completed', 'Passedout process') AND ${dateFilterAll}
-            THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS class_progress_monitoring,
- IFNULL(
-    SUM(
-        CASE
-            WHEN ti.ticket_id IS NOT NULL AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS ticket_raised,
- 0 as mid_course_feedback,
- IFNULL(SUM(CASE WHEN c.lms_access = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as lms_access,
- IFNULL(SUM(CASE WHEN c.is_server_required = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as is_server_required,
- 0 as placement_handover,
-
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.class_percentage >= 100
-            AND c.status IN ('Passedout process', 'Completed') AND ${dateFilterAll}
-            THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS class_completion_confirmation,
- IFNULL(
-    SUM(
-        CASE
-            WHEN EXISTS (
-                SELECT 1
-                FROM trainer_payment_trans AS tpt
-                WHERE tpt.trainer_mapping_id = latest_map.trainer_map_id
-            ) AND ${dateFilterAll}
-            THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS trainer_completion_report,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.is_acknowledged = 1 AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS student_completion_report,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.google_review IS NOT NULL AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS google_review_collection,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.linkedin_review IS NOT NULL AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS linkedin_review_collection,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.is_google_verified = 1
-            AND c.is_linkedin_verified = 1 AND ${dateFilterAll}
-            THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS review_verification_status,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.is_certificate_generated = 1 AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS course_completion_certificate,
- IFNULL(
-    SUM(
-        CASE
-            WHEN c.status = 'Completed' AND ${dateFilterAll} THEN 1
-            ELSE 0
-        END
-    ),
-    0
-) AS is_course_completed,
- 0 as course_closure_call,
-
+          
           IFNULL(SUM(CASE WHEN l.lead_type_id = 1 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as 'call',
           IFNULL(SUM(CASE WHEN l.lead_type_id = 2 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as direct,
           IFNULL(SUM(CASE WHEN l.lead_type_id = 3 AND ${dateFilterAll} THEN 1 ELSE 0 END), 0) as live_chat,
@@ -4065,6 +3876,25 @@ INNER JOIN lead_master AS l
                         b.region_id = r.id 
 where 1 = 1`;
 
+      let courseQueryCompany = `SELECT
+    t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT c.id) AS customer_count
+FROM customers AS c
+INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+ LEFT JOIN class_mode AS cm ON
+                            c.mode_of_class = cm.id
+                        LEFT JOIN users AS su ON
+                            su.user_id = l.assigned_to
+                        LEFT JOIN branches AS b ON
+                            su.branch_id = b.id
+                        LEFT JOIN region AS r ON
+                        b.region_id = r.id 
+where 1 = 1`;
+
       // Handle user_ids parameter for both queries
 
       if (start_date && end_date) {
@@ -4075,8 +3905,9 @@ where 1 = 1`;
 
       if (start_date && end_date) {
         courseQuery += ` and COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
-
+        courseQueryCompany += ` and COALESCE(c.date_of_joining, c.created_date) >= ? AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`;
         courseParms.push(start_date, end_date);
+        courseCompany.push(start_date, end_date);
       }
 
       if (user_ids) {
@@ -4120,102 +3951,169 @@ ORDER BY
     customer_count DESC
 LIMIT 10`;
 
-      const [bucketRes, leadsCounts, course] = await Promise.all([
+      courseQueryCompany += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    customer_count DESC
+LIMIT 10`;
+
+      const userCustomerCountParams = [];
+
+      let userCustomerCountQuery = `
+    SELECT
+        CASE
+            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+                THEN 'Chennai'
+            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+                THEN 'Bangalore'
+            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+                THEN 'Hub'
+        END AS region_name,
+
+        r.id AS region_id,
+        b.id AS branch_id,
+        b.name AS branch_name,
+
+        l.assigned_to AS user_id,
+
+        COUNT(DISTINCT c.id) AS customer_count
+
+    FROM customers AS c
+
+    INNER JOIN lead_master AS l
+        ON l.id = c.lead_id
+
+    LEFT JOIN users AS su
+        ON su.user_id = l.assigned_to
+
+    LEFT JOIN branches AS b
+        ON b.id = su.branch_id
+
+    LEFT JOIN region AS r
+        ON r.id = b.region_id
+
+    WHERE 1 = 1
+`;
+      if (start_date && end_date) {
+        userCustomerCountQuery += `
+        AND COALESCE(c.date_of_joining, c.created_date) >= ?
+        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
+    `;
+
+        userCustomerCountParams.push(start_date, end_date);
+      }
+
+      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
+        const placeholders = user_ids.map(() => "?").join(", ");
+
+        userCustomerCountQuery += `
+        AND l.assigned_to IN (${placeholders})
+    `;
+
+        userCustomerCountParams.push(...user_ids);
+      }
+
+      if (branch) {
+        userCustomerCountQuery += ` AND b.id = ?`;
+        userCustomerCountParams.push(branch);
+      }
+
+      if (region) {
+        userCustomerCountQuery += ` AND r.id = ?`;
+        userCustomerCountParams.push(region);
+      }
+
+      userCustomerCountQuery += `
+    AND (
+        l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+        OR l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+        OR l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+    )
+
+    GROUP BY
+        region_name,
+        r.id,
+        b.id,
+        b.name,
+        l.assigned_to
+
+    ORDER BY
+        region_name,
+        b.id,
+        l.assigned_to
+`;
+
+      const [
+        bucketRes,
+        leadsCounts,
+        course,
+        courseCompanys,
+        userCustomerCountRes,
+      ] = await Promise.all([
         pool.query(bucketCountQuery, bucketCountQueryParams),
         pool.query(leadcountsQuery, leadcountsQueryparams),
         pool.query(courseQuery, courseParms),
+        pool.query(courseQueryCompany, courseCompany),
+        pool.query(userCustomerCountQuery, userCustomerCountParams),
       ]);
 
       const admissionRow = bucketRes[0]?.[0] || {};
       const leadsCountRow = leadsCounts[0]?.[0] || {};
       const courseResult = course[0] || [];
+      const courseCompanysResult = courseCompanys[0] || [];
+      const userCustomerCountResult = userCustomerCountRes[0] || [];
+
+      const regionMap = {};
+
+      userCustomerCountResult.forEach((item) => {
+        const regionKey = item.region_name;
+
+        if (!regionMap[regionKey]) {
+          regionMap[regionKey] = {
+            region: regionKey,
+            region_id: item.region_id,
+            total_count: 0,
+            branches: {},
+          };
+        }
+
+        const regionData = regionMap[regionKey];
+
+        const branchKey = item.branch_id ?? "no_branch";
+
+        if (!regionData.branches[branchKey]) {
+          regionData.branches[branchKey] = {
+            branch_id: item.branch_id,
+            branch_name: item.branch_name,
+            total_count: 0,
+            users: [],
+          };
+        }
+
+        const branchData = regionData.branches[branchKey];
+
+        const count = Number(item.customer_count);
+
+        branchData.users.push({
+          user_id: item.user_id,
+          customer_count: count,
+        });
+
+        branchData.total_count += count;
+        regionData.total_count += count;
+      });
+
+      const user_customer_counts = Object.values(regionMap).map((region) => ({
+        ...region,
+        branches: Object.values(region.branches),
+      }));
 
       const admission = {
         total_count: parseInt(admissionRow.total_count || 0),
         online_mode: parseInt(admissionRow.online_mode || 0),
         classroom_mode: parseInt(admissionRow.classroom_mode || 0),
-
-        student_onboarding: {
-          student_onboarding_count: parseInt(
-            admissionRow.student_onboarding_count || 0,
-          ),
-          welcome_call_status: parseInt(admissionRow.welcome_call_status || 0),
-          technology_verified: parseInt(admissionRow.technology_verified || 0),
-          trainer_assignment_request: parseInt(
-            admissionRow.trainer_assignment_request || 0,
-          ),
-          trainer_fixation_call: parseInt(
-            admissionRow.trainer_fixation_call || 0,
-          ),
-        },
-
-        trainer_coordination: {
-          trainer_coordination_count: parseInt(
-            admissionRow.trainer_coordination_count || 0,
-          ),
-          whatsapp_group_creation: parseInt(
-            admissionRow.whatsapp_group_creation || 0,
-          ),
-          hr_welcome_message: parseInt(admissionRow.hr_welcome_message || 0),
-          shared_attendance_link: parseInt(
-            admissionRow.shared_attendance_link || 0,
-          ),
-          first_class_monitoring: parseInt(
-            admissionRow.first_class_monitoring || 0,
-          ),
-          trainer_confirmation: parseInt(
-            admissionRow.trainer_confirmation || 0,
-          ),
-        },
-
-        progress_monitoring: {
-          progress_monitoring_count: parseInt(
-            admissionRow.progress_monitoring_count || 0,
-          ),
-          class_progress_monitoring: parseInt(
-            admissionRow.class_progress_monitoring || 0,
-          ),
-          ticket_raised: parseInt(admissionRow.ticket_raised || 0),
-          mid_course_feedback: parseInt(admissionRow.mid_course_feedback || 0),
-          lms_access: parseInt(admissionRow.lms_access || 0),
-          is_server_required: parseInt(admissionRow.is_server_required || 0),
-          placement_handover: parseInt(admissionRow.placement_handover || 0),
-        },
-
-        course_completion: {
-          course_completion_count: parseInt(
-            admissionRow.course_completion_count || 0,
-          ),
-          class_completion_confirmation: parseInt(
-            admissionRow.class_completion_confirmation || 0,
-          ),
-          trainer_completion_report: parseInt(
-            admissionRow.trainer_completion_report || 0,
-          ),
-          student_completion_report: parseInt(
-            admissionRow.student_completion_report || 0,
-          ),
-        },
-
-        review_certifications: {
-          review_certifications_count: parseInt(
-            admissionRow.review_certifications_count || 0,
-          ),
-          google_review_collection: parseInt(
-            admissionRow.google_review_collection || 0,
-          ),
-          linkedin_review_collection: parseInt(
-            admissionRow.linkedin_review_collection || 0,
-          ),
-          review_verification_status: parseInt(
-            admissionRow.review_verification_status || 0,
-          ),
-          course_completion_certificate: parseInt(
-            admissionRow.course_completion_certificate || 0,
-          ),
-          is_course_completed: parseInt(admissionRow.is_course_completed || 0),
-          course_closure_call: parseInt(admissionRow.course_closure_call || 0),
-        },
       };
 
       const sources = {
@@ -4248,6 +4146,8 @@ LIMIT 10`;
         sub_sources,
         leadsCount,
         courseResult,
+        companies_top_10_courses: courseCompanysResult,
+        region_branches_usersCounts: user_customer_counts,
       };
     } catch (error) {
       throw new Error(error.message);
