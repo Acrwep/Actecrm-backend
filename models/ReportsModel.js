@@ -3977,6 +3977,8 @@ LIMIT 10`;
         b.name AS branch_name,
 
         l.assigned_to AS user_id,
+        su.view_user_id as view_user_id,
+        su.user_name as user_name,
 
         COUNT(DISTINCT c.id) AS customer_count
 
@@ -4098,6 +4100,8 @@ LIMIT 10`;
 
         branchData.users.push({
           user_id: item.user_id,
+          view_user_id: item.view_user_id,
+          user_name: item.user_name,
           customer_count: count,
         });
 
