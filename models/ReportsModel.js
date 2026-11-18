@@ -3844,8 +3844,6 @@ LEFT JOIN tickets as ti on ti.ticket_id = latest_tickets.max_ticket_id
         LEFT JOIN branches AS aub ON aub.id = au.branch_id
         LEFT JOIN region AS aur ON aur.id = aub.region_id
         LEFT JOIN customers AS c ON c.lead_id = l.id
-        LEFT JOIN class_mode AS cme ON
-                            c.mode_of_class = cme.id
         LEFT JOIN (
           SELECT lead_id, MAX(id) AS max_id, MAX(CASE WHEN is_updated = 1 THEN id END) AS max_updated_id
           FROM lead_follow_up_history 
@@ -3948,11 +3946,9 @@ where 1 = 1`;
       if (mode_of_class) {
         bucketCountQuery += ` AND cm.name = ?`;
         courseQuery += ` AND cm.name = ?`;
-        leadcountsQuery += ` AND cme.name = ?`;
 
         bucketCountQueryParams.push(mode_of_class);
         courseParms.push(mode_of_class);
-        leadcountsQueryparams.push(mode_of_class);
       }
 
       courseQuery += `
