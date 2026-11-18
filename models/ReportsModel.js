@@ -3964,11 +3964,13 @@ LIMIT 10`;
       let userCustomerCountQuery = `
     SELECT
         CASE
-            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+            WHEN su.user_id LIKE '%${CONSTANT_STATUS.CHENNAI}%'
                 THEN 'Chennai'
-            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+
+            WHEN su.user_id LIKE '%${CONSTANT_STATUS.BANGALORE}%'
                 THEN 'Bangalore'
-            WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+
+            WHEN su.user_id LIKE '%${CONSTANT_STATUS.ONLINE}%'
                 THEN 'Hub'
         END AS region_name,
 
@@ -3976,19 +3978,13 @@ LIMIT 10`;
         b.id AS branch_id,
         b.name AS branch_name,
 
-        l.assigned_to AS user_id,
-        su.view_user_id as view_user_id,
-        su.user_name as user_name,
+        su.user_id AS user_id,
+        su.view_user_id AS view_user_id,
+        su.user_name AS user_name,
 
         COUNT(DISTINCT c.id) AS customer_count
 
-    FROM customers AS c
-
-    INNER JOIN lead_master AS l
-        ON l.id = c.lead_id
-
-    LEFT JOIN users AS su
-        ON su.user_id = l.assigned_to
+    FROM users AS su
 
     LEFT JOIN branches AS b
         ON b.id = su.branch_id
@@ -3996,25 +3992,28 @@ LIMIT 10`;
     LEFT JOIN region AS r
         ON r.id = b.region_id
 
-    WHERE 1 = 1
+    LEFT JOIN lead_master AS l
+        ON l.assigned_to = su.user_id
+
+    LEFT JOIN customers AS c
+        ON c.lead_id = l.id
+        ${
+          start_date && end_date
+            ? `AND COALESCE(c.date_of_joining, c.created_date) >= ?
+               AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)`
+            : ""
+        }
+
+    WHERE
+        JSON_CONTAINS(
+            su.roles,
+            '{"role_id": 2}',
+            '$'
+        ) = 1 and su.is_active = 1 
 `;
+
       if (start_date && end_date) {
-        userCustomerCountQuery += `
-        AND COALESCE(c.date_of_joining, c.created_date) >= ?
-        AND COALESCE(c.date_of_joining, c.created_date) < DATE_ADD(?, INTERVAL 1 DAY)
-    `;
-
         userCustomerCountParams.push(start_date, end_date);
-      }
-
-      if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
-        const placeholders = user_ids.map(() => "?").join(", ");
-
-        userCustomerCountQuery += `
-        AND l.assigned_to IN (${placeholders})
-    `;
-
-        userCustomerCountParams.push(...user_ids);
       }
 
       if (branch) {
@@ -4029,9 +4028,9 @@ LIMIT 10`;
 
       userCustomerCountQuery += `
     AND (
-        l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
-        OR l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
-        OR l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+        su.user_id LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+        OR su.user_id LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+        OR su.user_id LIKE '%${CONSTANT_STATUS.ONLINE}%'
     )
 
     GROUP BY
@@ -4039,12 +4038,14 @@ LIMIT 10`;
         r.id,
         b.id,
         b.name,
-        l.assigned_to
+        su.user_id,
+        su.view_user_id,
+        su.user_name
 
     ORDER BY
         region_name,
         b.id,
-        l.assigned_to
+        su.user_id
 `;
 
       const [
