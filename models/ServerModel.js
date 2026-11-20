@@ -3,6 +3,22 @@ const nodemailer = require("nodemailer");
 const { CONSTANT_STATUS } = require("../constants/constant");
 const EmailModel = require("./EmailModel");
 
+function formatToBackendIST(date = new Date()) {
+  const istDate = new Date(
+    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+  );
+  const pad = (n) => String(n).padStart(2, "0");
+
+  const year = istDate.getFullYear();
+  const month = pad(istDate.getMonth() + 1);
+  const day = pad(istDate.getDate());
+  const hours = pad(istDate.getHours());
+  const minutes = pad(istDate.getMinutes());
+  const seconds = pad(istDate.getSeconds());
+
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 const transporter = nodemailer.createTransport({
   service: process.env.SMTP_HOST,
   auth: {
@@ -565,7 +581,6 @@ SUM(
       throw new Error(error.message);
     }
   },
-
   updateServerStatus: async (
     server_id,
     status,
@@ -710,8 +725,15 @@ SUM(
         affectedRows += updateTrans.affectedRows;
       } else {
         const [insertTrans] = await pool.query(
-          `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status) VALUES(?, ?, ?, ?, ?)`,
-          [server_id, vendor_id, server_cost, duration, "Pending"],
+          `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status, created_date) VALUES(?, ?, ?, ?, ?, ?)`,
+          [
+            server_id,
+            vendor_id,
+            server_cost,
+            duration,
+            "Pending",
+            formatToBackendIST(new Date()),
+          ],
         );
 
         await EmailModel.sendServerRequestAcknowledgementMail(
@@ -766,8 +788,15 @@ SUM(
       }
 
       const [insertTrans] = await pool.query(
-        `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status) VALUES(?, ?, ?, ?, ?)`,
-        [server_id, vendor_id, server_cost, duration, "Pending"],
+        `INSERT INTO server_trans(server_id, vendor_id, server_cost, duration, status, created_date) VALUES(?, ?, ?, ?, ?, ?)`,
+        [
+          server_id,
+          vendor_id,
+          server_cost,
+          duration,
+          "Pending",
+          formatToBackendIST(new Date()),
+        ],
       );
 
       await EmailModel.sendServerRequestAcknowledgementMail(

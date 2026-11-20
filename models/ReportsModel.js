@@ -5357,6 +5357,351 @@ END) AS online_total_master_count,
     }
   },
 
+  getServerReportsCounts: async (
+    start_date,
+    end_date,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      const serverMainParm = [];
+      const serverPurchasedParam = [];
+      const serverIssuedparam = [];
+
+      let serverMain = `SELECT 
+          count(st.id) as all_server_trans_counts,
+          count(Distinct c.id) as all_customers,
+          IFNULL(SUM(CASE
+            WHEN st.id
+            THEN st.server_cost
+            ELSE 0
+          END), 0) AS all_server_trans_amount
+          from server_trans st
+          left join server_master sm on sm.id = st.server_id
+          left JOIN customers AS c ON c.id = sm.customer_id 
+          left JOIN technologies AS t ON t.id = c.enrolled_course 
+          left JOIN lead_master AS l ON l.id = c.lead_id 
+          left JOIN users AS u ON u.user_id = l.assigned_to
+                               LEFT JOIN branches AS b ON
+                            u.branch_id = b.id
+                          LEFT JOIN region AS r ON
+                              b.region_id = r.id
+                               WHERE 1 = 1`;
+
+      let serverPurchased = `SELECT 
+          IFNULL(SUM(CASE
+            WHEN st.id
+            THEN st.server_cost
+            ELSE 0
+          END), 0) AS purchased_server_trans_amount
+          from server_trans st
+          left join server_master sm on sm.id = st.server_id
+          left JOIN customers AS c ON c.id = sm.customer_id 
+          left JOIN technologies AS t ON t.id = c.enrolled_course 
+          left JOIN lead_master AS l ON l.id = c.lead_id 
+          left JOIN users AS u ON u.user_id = l.assigned_to
+                               LEFT JOIN branches AS b ON
+                            u.branch_id = b.id
+                          LEFT JOIN region AS r ON
+                              b.region_id = r.id
+                               WHERE 1 = 1`;
+
+      let serverIssued = `SELECT 
+          count(st.id) as issude_server_trans_counts
+          from server_trans st
+          left join server_master sm on sm.id = st.server_id
+          left JOIN customers AS c ON c.id = sm.customer_id 
+          left JOIN technologies AS t ON t.id = c.enrolled_course 
+          left JOIN lead_master AS l ON l.id = c.lead_id 
+          left JOIN users AS u ON u.user_id = l.assigned_to
+                               LEFT JOIN branches AS b ON
+                            u.branch_id = b.id
+                          LEFT JOIN region AS r ON
+                              b.region_id = r.id
+                               WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        serverMain += ` AND CAST(st.created_date AS DATE) BETWEEN ? AND ?`;
+        serverPurchased += ` AND CAST(st.paid_date AS DATE) BETWEEN ? AND ?`;
+        serverIssued += ` AND CAST(st.issued_date AS DATE) BETWEEN ? AND ?`;
+
+        serverMainParm.push(start_date, end_date);
+        serverPurchasedParam.push(start_date, end_date);
+        serverIssuedparam.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        serverMain += `  AND r.id = ?
+            `;
+        serverPurchased += `  AND r.id = ?
+            `;
+
+        serverIssued += `  AND r.id = ?
+            `;
+
+        serverMainParm.push(region_id);
+        serverPurchasedParam.push(region_id);
+        serverIssuedparam.push(region_id);
+      }
+
+      if (branch_id) {
+        serverMain += `  AND b.id = ?
+            `;
+        serverPurchased += `  AND b.id = ?
+            `;
+        serverIssued += `  AND b.id = ?
+            `;
+
+        serverMainParm.push(branch_id);
+        serverPurchasedParam.push(branch_id);
+        serverIssuedparam.push(branch_id);
+      }
+
+      const regionBranchParams = [];
+
+      let regionBranchQuery = `
+  SELECT
+    r.id AS region_id,
+    CASE
+      WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+        THEN 'Chennai'
+      WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+        THEN 'Bangalore'
+      WHEN l.assigned_to LIKE '%${CONSTANT_STATUS.ONLINE}%'
+        THEN 'Hub'
+    END AS region_name,
+
+    b.id AS branch_id,
+    b.name as branch_name,
+
+IFNULL(SUM(
+  CASE
+    WHEN st.id IS NOT NULL
+    ${start_date && end_date ? `AND CAST(st.created_date AS DATE) BETWEEN ? AND ?` : ""}
+    THEN st.server_cost
+    ELSE 0
+  END
+), 0) AS all_server_trans_amount,
+
+    IFNULL(SUM(
+      CASE
+        WHEN st.paid_date IS NOT NULL
+        ${start_date && end_date ? `AND CAST(st.paid_date AS DATE) BETWEEN ? AND ?` : ""}
+        THEN st.server_cost
+        ELSE 0
+      END
+    ), 0) AS purchased_server_trans_amount,
+
+    COUNT(DISTINCT CASE
+      WHEN st.issued_date IS NOT NULL
+      ${start_date && end_date ? `AND CAST(st.issued_date AS DATE) BETWEEN ? AND ?` : ""}
+      THEN st.id
+    END) AS issude_server_trans_counts
+
+  FROM server_trans st
+  LEFT JOIN server_master sm ON sm.id = st.server_id
+  LEFT JOIN customers c ON c.id = sm.customer_id
+  LEFT JOIN lead_master l ON l.id = c.lead_id
+  LEFT JOIN users u ON u.user_id = l.assigned_to
+  LEFT JOIN branches b ON b.id = u.branch_id
+  LEFT JOIN region r ON r.id = b.region_id
+  WHERE 1 = 1
+`;
+      regionBranchQuery += `
+  AND r.id IS NOT NULL
+  AND b.id IS NOT NULL
+`;
+
+      if (start_date && end_date) {
+        regionBranchParams.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
+      }
+
+      if (region_id) {
+        regionBranchQuery += ` AND r.id = ?`;
+        regionBranchParams.push(region_id);
+      }
+
+      if (branch_id) {
+        regionBranchQuery += ` AND b.id = ?`;
+        regionBranchParams.push(branch_id);
+      }
+
+      regionBranchQuery += `
+  GROUP BY
+    r.id,
+    region_name,
+    b.id
+  ORDER BY
+    r.id,
+    b.id
+`;
+
+      const [regionBranchResult] = await pool.query(
+        regionBranchQuery,
+        regionBranchParams,
+      );
+
+      // Build Region -> Branch hierarchy
+
+      const regionMap = new Map();
+
+      for (const row of regionBranchResult) {
+        if (!regionMap.has(row.region_id)) {
+          regionMap.set(row.region_id, {
+            region_id: row.region_id,
+            region_name: row.region_name,
+
+            // Region overall totals
+            all_server_trans_amount: 0,
+            purchased_server_trans_amount: 0,
+            issude_server_trans_counts: 0,
+
+            branches: [],
+          });
+        }
+
+        const region = regionMap.get(row.region_id);
+
+        if (row.branch_id !== null) {
+          const purchasedAmount = Number(
+            row.purchased_server_trans_amount || 0,
+          );
+
+          const issuedCount = Number(row.issude_server_trans_counts || 0);
+
+          const allServerAmount = Number(row.all_server_trans_amount || 0);
+
+          region.all_server_trans_amount += allServerAmount;
+
+          // Add branch values to region totals
+          region.purchased_server_trans_amount += purchasedAmount;
+          region.issude_server_trans_counts += issuedCount;
+
+          region.branches.push({
+            branch_id: row.branch_id,
+            branch_name: row.branch_name,
+            purchased_server_trans_amount: purchasedAmount,
+            issude_server_trans_counts: issuedCount,
+            all_server_trans_amount: allServerAmount,
+          });
+        }
+      }
+
+      const serverRegionReports = Array.from(regionMap.values());
+
+      const [serverResult] = await pool.query(serverMain, serverMainParm);
+      const [serverPurchaseResult] = await pool.query(
+        serverPurchased,
+        serverPurchasedParam,
+      );
+      const [serverIssuedResult] = await pool.query(
+        serverIssued,
+        serverIssuedparam,
+      );
+
+      const courseQueryParam = [];
+
+      let courseQuery = `SELECT
+    t.id AS course_id,
+    t.name AS course_name,
+   
+     COUNT(DISTINCT CASE
+      WHEN st.created_date IS NOT NULL
+      ${start_date && end_date ? `AND CAST(st.created_date AS DATE) BETWEEN ? AND ?` : ""}
+      THEN st.id
+    END) AS serverTrans_counts,
+
+IFNULL(SUM(
+  CASE
+    WHEN st.id IS NOT NULL
+    ${start_date && end_date ? `AND CAST(st.created_date AS DATE) BETWEEN ? AND ?` : ""}
+    THEN st.server_cost
+    ELSE 0
+  END
+), 0) AS all_server_trans_amount,
+
+    IFNULL(SUM(
+      CASE
+        WHEN st.paid_date IS NOT NULL
+        ${start_date && end_date ? `AND CAST(st.paid_date AS DATE) BETWEEN ? AND ?` : ""}
+        THEN st.server_cost
+        ELSE 0
+      END
+    ), 0) AS purchased_server_trans_amount,
+
+    COUNT(DISTINCT CASE
+      WHEN st.issued_date IS NOT NULL
+      ${start_date && end_date ? `AND CAST(st.issued_date AS DATE) BETWEEN ? AND ?` : ""}
+      THEN st.id
+    END) AS issude_server_trans_counts
+
+  FROM server_trans st
+  inner JOIN server_master sm ON sm.id = st.server_id
+inner join customers AS c on c.id = sm.customer_id
+INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+INNER JOIN lead_master AS l on l.id = c.lead_id
+  LEFT JOIN users u ON u.user_id = l.assigned_to
+  LEFT JOIN branches b ON b.id = u.branch_id
+  LEFT JOIN region r ON r.id = b.region_id
+  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        courseQueryParam.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
+      }
+
+      if (region_id) {
+        courseQuery += ` AND r.id = ?`;
+        courseQueryParam.push(region_id);
+      }
+
+      if (branch_id) {
+        courseQuery += ` AND b.id = ?`;
+        courseQueryParam.push(branch_id);
+      }
+      courseQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    serverTrans_counts DESC
+LIMIT 10`;
+
+      const [courseQueryResult] = await pool.query(
+        courseQuery,
+        courseQueryParam,
+      );
+
+      return {
+        server_reports_counts: {
+          ...serverResult[0],
+          ...serverPurchaseResult[0],
+          ...serverIssuedResult[0],
+          server_region_reports: serverRegionReports,
+          course_reports: courseQueryResult,
+        },
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getPreSalesReportsSummaryCounts: async (start_date, end_date, user_ids) => {
     try {
       let dateFilterAll = "1 = 1";

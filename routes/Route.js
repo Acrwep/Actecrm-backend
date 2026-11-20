@@ -598,6 +598,11 @@ router.post(
   ReportController.getTrainerPaymentsReportsCounts,
 );
 router.post(
+  "/getServerReportsCounts",
+  verifyToken,
+  ReportController.getServerReportsCounts,
+);
+router.post(
   "/getPreSalesReportsSummaryCounts",
   verifyToken,
   ReportController.getPreSalesReportsSummaryCounts,
