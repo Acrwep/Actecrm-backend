@@ -5687,6 +5687,76 @@ LIMIT 10`;
         courseQuery,
         courseQueryParam,
       );
+      const courseComapnyParm = [];
+
+      let courseComapny = `SELECT
+    t.id AS course_id,
+    t.name AS course_name,
+   
+     COUNT(DISTINCT CASE
+      WHEN st.created_date IS NOT NULL
+      ${start_date && end_date ? `AND CAST(st.created_date AS DATE) BETWEEN ? AND ?` : ""}
+      THEN st.id
+    END) AS serverTrans_counts,
+
+IFNULL(SUM(
+  CASE
+    WHEN st.id IS NOT NULL
+    ${start_date && end_date ? `AND CAST(st.created_date AS DATE) BETWEEN ? AND ?` : ""}
+    THEN st.server_cost
+    ELSE 0
+  END
+), 0) AS all_server_trans_amount,
+
+    IFNULL(SUM(
+      CASE
+        WHEN st.paid_date IS NOT NULL
+        ${start_date && end_date ? `AND CAST(st.paid_date AS DATE) BETWEEN ? AND ?` : ""}
+        THEN st.server_cost
+        ELSE 0
+      END
+    ), 0) AS purchased_server_trans_amount,
+
+    COUNT(DISTINCT CASE
+      WHEN st.issued_date IS NOT NULL
+      ${start_date && end_date ? `AND CAST(st.issued_date AS DATE) BETWEEN ? AND ?` : ""}
+      THEN st.id
+    END) AS issude_server_trans_counts
+
+  FROM server_trans st
+  inner JOIN server_master sm ON sm.id = st.server_id
+inner join customers AS c on c.id = sm.customer_id
+INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+INNER JOIN lead_master AS l on l.id = c.lead_id
+  LEFT JOIN users u ON u.user_id = l.assigned_to
+  LEFT JOIN branches b ON b.id = u.branch_id
+  LEFT JOIN region r ON r.id = b.region_id
+  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        courseComapnyParm.push(
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+          start_date,
+          end_date,
+        );
+      }
+      courseComapny += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    serverTrans_counts DESC
+LIMIT 10`;
+      const [courseComoanyResult] = await pool.query(
+        courseComapny,
+        courseComapnyParm,
+      );
 
       return {
         server_reports_counts: {
@@ -5695,6 +5765,7 @@ LIMIT 10`;
           ...serverIssuedResult[0],
           server_region_reports: serverRegionReports,
           course_reports: courseQueryResult,
+          companies_top_10_courses_server: courseComoanyResult,
         },
       };
     } catch (error) {
@@ -5867,6 +5938,21 @@ LIMIT 10`;
         saleVolumeParams,
       );
 
+      const servermaniparam = [];
+      let serverMain = `SELECT 
+          count(st.id) as all_server_trans_counts
+          from server_trans st
+           left join server_master sm on sm.id = st.server_id
+           left JOIN customers AS c ON c.id = sm.customer_id 
+                               WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        serverMain += ` AND CAST(st.created_date AS DATE) BETWEEN ? AND ?`;
+
+        servermaniparam.push(start_date, end_date);
+      }
+      const [serverResult] = await pool.query(serverMain, servermaniparam);
+
       // Response
       return {
         bucket_counts: {
@@ -5875,6 +5961,9 @@ LIMIT 10`;
           total_collection: parseInt(totalCounts[0]?.total_collection || 0),
           total_trainerPayment_count: parseInt(
             getSaleVolume[0]?.total_master_count || 0,
+          ),
+          all_server_trans_counts: parseInt(
+            serverResult[0]?.all_server_trans_counts || 0,
           ),
         },
       };
