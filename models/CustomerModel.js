@@ -840,6 +840,7 @@ const CustomerModel = {
     c.comments as customer_comments,
     c.lms_access,
     c.is_videos_only,
+    ctk.status_date as classGoing_start_date,
    
 
     CASE
@@ -1012,6 +1013,14 @@ LEFT JOIN users AS au
 -- Get place of sale from assigned user's branch
 LEFT JOIN branches AS posb
     ON posb.id = au.branch_id
+
+left join (
+select MIN(id) as min_id, customer_id
+from customer_track
+where status = 'Class Going'
+group by customer_id
+)as min on min.customer_id = c.id
+left join customer_track ctk on ctk.id = min.min_id
 
 LEFT JOIN (
     SELECT
