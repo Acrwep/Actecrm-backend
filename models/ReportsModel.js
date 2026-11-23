@@ -4427,7 +4427,9 @@ LIMIT 10`;
     convenience_fees_type,
   ) => {
     try {
-      let saleVolumeQuery = `SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume FROM customers AS c
+      let saleVolumeQuery = `SELECT IFNULL(SUM(pm.total_amount), 0) AS sale_volume,
+      IFNULL(SUM(pm.gst_amount), 0) AS gst_amount
+       FROM customers AS c
          INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
           INNER JOIN lead_master AS l ON l.id = c.lead_id
           LEFT JOIN users AS au ON
@@ -4535,17 +4537,37 @@ LIMIT 10`;
   WHERE pt.id > minpm.min_id AND pt.payment_status <> 'Rejected'
 `;
 
-      let verfiypending = `SELECT IFNULL(SUM(pt.amount), 0) AS verify_pending FROM customers AS c
-         INNER JOIN payment_master AS pm ON c.lead_id = pm.lead_id
-          INNER JOIN lead_master AS l ON l.id = c.lead_id
-          INNER JOIN payment_trans AS pt ON pt.payment_master_id = pm.id
-          LEFT JOIN users AS au ON
-                        l.assigned_to = au.user_id
-                        LEFT JOIN branches AS b ON
-                        au.branch_id = b.id
-                    LEFT JOIN region AS re ON
-                        b.region_id = re.id
-           WHERE pt.payment_status = 'Verify Pending'`;
+      let verfiypending = ` SELECT
+    IFNULL(SUM(CASE
+        WHEN pt.payment_status = 'Verify Pending'
+        THEN pt.amount ELSE 0
+    END), 0) AS verify_pending,
+
+    IFNULL(SUM(CASE
+        WHEN pt.payment_status = 'Verified'
+        THEN pt.amount ELSE 0
+    END), 0) AS verified,
+
+    IFNULL(SUM(CASE
+        WHEN pt.payment_status = 'Rejected'
+        THEN pt.amount ELSE 0
+    END), 0) AS rejected
+
+
+FROM customers AS c
+INNER JOIN payment_master AS pm
+    ON c.lead_id = pm.lead_id
+INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+INNER JOIN payment_trans AS pt
+    ON pt.payment_master_id = pm.id
+LEFT JOIN users AS au
+    ON l.assigned_to = au.user_id
+LEFT JOIN branches AS b
+    ON au.branch_id = b.id
+LEFT JOIN region AS re
+    ON b.region_id = re.id 
+    where 1 = 1 `;
 
       let bucketCountQuery = `
     SELECT
@@ -4678,6 +4700,12 @@ LIMIT 10`;
 
       return {
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
+        gst_amount: parseFloat(getSaleVolume[0].gst_amount).toFixed(2),
+        course_fees: (
+          parseFloat(getSaleVolume[0].sale_volume) -
+          parseFloat(getSaleVolume[0].gst_amount)
+        ).toFixed(2),
+
         total_collection: parseFloat(
           getTotalCollection[0].total_collection,
         ).toFixed(2),
@@ -4688,6 +4716,8 @@ LIMIT 10`;
         need_to_verify: parseFloat(getVerifyPendings[0].verify_pending).toFixed(
           2,
         ),
+        verified: parseFloat(getVerifyPendings[0].verified).toFixed(2),
+        rejected: parseFloat(getVerifyPendings[0].rejected).toFixed(2),
         new_payment: parseFloat(getNewPayment[0].new_payment).toFixed(2),
         re_payment: parseFloat(getRepayment[0].re_payment).toFixed(2),
         collection: parseFloat(getCollection[0].collection).toFixed(2),
