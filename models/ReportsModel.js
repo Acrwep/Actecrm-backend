@@ -4537,22 +4537,24 @@ LIMIT 10`;
   WHERE pt.id > minpm.min_id AND pt.payment_status <> 'Rejected'
 `;
 
-      let verfiypending = ` SELECT
-    IFNULL(SUM(CASE
-        WHEN pt.payment_status = 'Verify Pending'
-        THEN pt.amount ELSE 0
-    END), 0) AS verify_pending,
+      let verfiypending = `  SELECT
+        IFNULL(SUM(CASE
+            WHEN pt.payment_status = 'Verify Pending'
+            THEN pt.amount ${includeConvenienceFees ? "+ IFNULL(pt.convenience_fees, 0)" : ""}
+            ELSE 0
+        END), 0) AS verify_pending,
 
-    IFNULL(SUM(CASE
-        WHEN pt.payment_status = 'Verified'
-        THEN pt.amount ELSE 0
-    END), 0) AS verified,
+        IFNULL(SUM(CASE
+            WHEN pt.payment_status = 'Verified'
+            THEN pt.amount ${includeConvenienceFees ? "+ IFNULL(pt.convenience_fees, 0)" : ""}
+            ELSE 0
+        END), 0) AS verified,
 
-    IFNULL(SUM(CASE
-        WHEN pt.payment_status = 'Rejected'
-        THEN pt.amount ELSE 0
-    END), 0) AS rejected
-
+        IFNULL(SUM(CASE
+            WHEN pt.payment_status = 'Rejected'
+            THEN pt.amount ${includeConvenienceFees ? "+ IFNULL(pt.convenience_fees, 0)" : ""}
+            ELSE 0
+        END), 0) AS rejected
 
 FROM customers AS c
 INNER JOIN payment_master AS pm
