@@ -4876,7 +4876,7 @@ GROUP BY
             feedback,
             1,
             deadlineDate,
-            paid_amount,
+            perStudentAmount,
           ];
 
           const [insertMaster] = await connection.query(
@@ -4901,7 +4901,7 @@ GROUP BY
         VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               lastInsertId,
-              paid_amount,
+              perStudentAmount,
               "Completed",
               "Fully Paid",
               transaction_id,
