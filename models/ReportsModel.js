@@ -4730,6 +4730,899 @@ LEFT JOIN region AS re
     }
   },
 
+  getTrainerPaymentsReportsCounts1: async (
+    start_date,
+    end_date,
+    region_id,
+    branch_id,
+  ) => {
+    try {
+      let trainerPaymentQuery = `
+      SELECT
+        IFNULL(SUM(tpm.request_amount), 0) AS total_master_amount,
+
+        COUNT(tpm.id) AS total_master_count,
+       
+
+        COUNT(CASE
+          WHEN tpm.status = 'Link Sent'
+          THEN 1
+        END) AS link_sent_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Link Sent'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS link_sent_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Requested'
+          THEN 1
+        END) AS requested_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Requested'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS requested_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Awaiting Finance'
+          THEN 1
+        END) AS awaiting_finance_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Awaiting Finance'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS awaiting_finance_amount,
+
+        COUNT(CASE
+          WHEN tpm.status = 'Paid'
+          THEN 1
+        END) AS paid_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status = 'Paid'
+          THEN tpm.paid_amount
+          ELSE 0
+        END), 0) AS paid_amount,
+
+        COUNT(CASE
+          WHEN tpm.status != 'Paid'
+          THEN 1
+        END) AS balance_count,
+
+        IFNULL(SUM(CASE
+          WHEN tpm.status != 'Paid'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS balance_amount,
+         COUNT(CASE
+          WHEN tpm.commercial_type = 'Batch'
+          THEN 1
+        END) AS batch_count,
+          IFNULL(SUM(CASE
+          WHEN tpm.commercial_type = 'Batch'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS batch_amount,
+        COUNT(CASE
+          WHEN tpm.commercial_type = 'Pay Per Head'
+          THEN 1
+        END) AS pay_per_head_count,
+          IFNULL(SUM(CASE
+          WHEN tpm.commercial_type = 'Pay Per Head'
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS pay_per_head_amount,
+          COUNT(CASE
+          WHEN tpm.status in ('Link Sent', 'Requested', 'Awaiting Finance', 'Paid') 
+          THEN 1
+        END) AS links_dispatched_count,
+         IFNULL(SUM(CASE
+          WHEN tpm.status in ('Link Sent', 'Requested', 'Awaiting Finance', 'Paid')
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS links_dispatched_amount,
+        COUNT(CASE
+          WHEN tpm.status in ('Requested', 'Awaiting Finance', 'Paid') 
+          THEN 1
+        END) AS claim_submitted_count,
+         IFNULL(SUM(CASE
+          WHEN tpm.status in ('Requested', 'Awaiting Finance', 'Paid')
+          THEN tpm.request_amount
+          ELSE 0
+        END), 0) AS claim_submitted_amount,
+        COUNT(DISTINCT CASE
+    WHEN tpm.status = 'Paid'
+    THEN tpm.trainer_id
+END) AS paid_total_trainer_count,
+COUNT(DISTINCT CASE
+    WHEN tpm.status != 'Paid'
+    THEN tpm.trainer_id
+END) AS not_paid_total_trainer_count
+        
+
+      FROM trainer_payment_master AS tpm
+
+      WHERE 1 = 1
+    `;
+
+      const saleVolumeParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        trainerPaymentQuery += `
+        AND tpm.bill_raisedate >= ?
+        AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+      `;
+
+        saleVolumeParams.push(start_date, end_date);
+      }
+
+      // REGION / BRANCH FILTER
+      if (region_id || branch_id) {
+        trainerPaymentQuery += `
+        AND EXISTS (
+          SELECT 1
+          FROM trainer_payment_trans AS tpt
+
+          INNER JOIN trainer_mapping AS tm
+            ON tm.id = tpt.trainer_mapping_id
+
+          INNER JOIN customers AS c
+            ON c.id = tm.customer_id
+
+          INNER JOIN lead_master AS l
+            ON l.id = c.lead_id
+
+          INNER JOIN users AS se
+            ON se.user_id = l.assigned_to
+
+          INNER JOIN branches AS sb
+            ON sb.id = se.branch_id
+
+          INNER JOIN region AS sr
+            ON sr.id = sb.region_id
+
+          WHERE tpt.payment_master_id = tpm.id
+      `;
+
+        if (region_id) {
+          trainerPaymentQuery += `
+          AND sr.id = ?
+        `;
+
+          saleVolumeParams.push(region_id);
+        }
+
+        if (branch_id) {
+          trainerPaymentQuery += `
+          AND sb.id = ?
+        `;
+
+          saleVolumeParams.push(branch_id);
+        }
+
+        trainerPaymentQuery += `
+        )
+      `;
+      }
+
+      const [getSaleVolume] = await pool.query(
+        trainerPaymentQuery,
+        saleVolumeParams,
+      );
+
+      let customerCountQuery = `
+  SELECT
+    COUNT(DISTINCT CASE
+    WHEN tpm.status = 'Paid'
+    THEN tm.customer_id
+END) AS paid_total_customer_count,
+COUNT(DISTINCT CASE
+    WHEN tpm.status != 'Paid'
+    THEN tm.customer_id
+END) AS not_paid_total_customer_count
+
+  FROM trainer_payment_master AS tpm
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+  WHERE 1 = 1
+`;
+
+      const customerCountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        customerCountQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        customerCountParams.push(start_date, end_date);
+      }
+
+      // REGION / BRANCH FILTER
+      if (region_id || branch_id) {
+        customerCountQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM customers AS c
+      INNER JOIN lead_master AS l
+        ON l.id = c.lead_id
+      INNER JOIN users AS se
+        ON se.user_id = l.assigned_to
+      INNER JOIN branches AS sb
+        ON sb.id = se.branch_id
+      INNER JOIN region AS sr
+        ON sr.id = sb.region_id
+      WHERE c.id = tm.customer_id
+  `;
+
+        if (region_id) {
+          customerCountQuery += ` AND sr.id = ? `;
+          customerCountParams.push(region_id);
+        }
+
+        if (branch_id) {
+          customerCountQuery += ` AND sb.id = ? `;
+          customerCountParams.push(branch_id);
+        }
+
+        customerCountQuery += ` ) `;
+      }
+
+      const [customerCountResult] = await pool.query(
+        customerCountQuery,
+        customerCountParams,
+      );
+
+      let paidCountQuery = `
+  SELECT
+    COUNT(DISTINCT tm.customer_id) AS customer_paid_count,
+
+    COUNT(DISTINCT tpm.trainer_id) AS trainer_paid_count,
+
+    IFNULL((
+      SELECT SUM(tp2.paid_amount)
+      FROM trainer_payment AS tp2
+
+      INNER JOIN trainer_payment_master AS tpm2
+        ON tpm2.id = tp2.payment_master_id
+
+      WHERE 1 = 1
+`;
+
+      const paidCountParams = [];
+      const paidAmountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        paidCountQuery += `
+      AND tp2.paid_date >= ?
+      AND tp2.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        paidAmountParams.push(start_date, end_date);
+      }
+
+      // REGION FILTER
+      if (region_id) {
+        paidCountQuery += `
+      AND EXISTS (
+        SELECT 1
+        FROM trainer_payment_trans AS tpt2
+        INNER JOIN trainer_mapping AS tm2
+          ON tm2.id = tpt2.trainer_mapping_id
+        INNER JOIN customers AS c2
+          ON c2.id = tm2.customer_id
+        INNER JOIN lead_master AS l2
+          ON l2.id = c2.lead_id
+        INNER JOIN users AS se2
+          ON se2.user_id = l2.assigned_to
+        INNER JOIN branches AS sb2
+          ON sb2.id = se2.branch_id
+        WHERE tpt2.payment_master_id = tpm2.id
+          AND sb2.region_id = ?
+      )
+  `;
+
+        paidAmountParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        paidCountQuery += `
+      AND EXISTS (
+        SELECT 1
+        FROM trainer_payment_trans AS tpt2
+        INNER JOIN trainer_mapping AS tm2
+          ON tm2.id = tpt2.trainer_mapping_id
+        INNER JOIN customers AS c2
+          ON c2.id = tm2.customer_id
+        INNER JOIN lead_master AS l2
+          ON l2.id = c2.lead_id
+        INNER JOIN users AS se2
+          ON se2.user_id = l2.assigned_to
+        INNER JOIN branches AS sb2
+          ON sb2.id = se2.branch_id
+        WHERE tpt2.payment_master_id = tpm2.id
+          AND sb2.id = ?
+      )
+  `;
+
+        paidAmountParams.push(branch_id);
+      }
+
+      paidCountQuery += `
+    ), 0) AS by_paid_amount
+
+  FROM trainer_payment AS tp
+
+  INNER JOIN trainer_payment_master AS tpm
+    ON tpm.id = tp.payment_master_id
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  INNER JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  INNER JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  INNER JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1
+`;
+
+      // MAIN QUERY DATE FILTER
+      if (start_date && end_date) {
+        paidCountQuery += `
+    AND tp.paid_date >= ?
+    AND tp.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        paidCountParams.push(start_date, end_date);
+      }
+
+      // MAIN QUERY REGION FILTER
+      if (region_id) {
+        paidCountQuery += `
+    AND sr.id = ?
+  `;
+
+        paidCountParams.push(region_id);
+      }
+
+      // MAIN QUERY BRANCH FILTER
+      if (branch_id) {
+        paidCountQuery += `
+    AND sb.id = ?
+  `;
+
+        paidCountParams.push(branch_id);
+      }
+
+      const [paidCountResult] = await pool.query(paidCountQuery, [
+        ...paidAmountParams,
+        ...paidCountParams,
+      ]);
+
+      let classModeCountQuery = `
+  WITH filtered_data AS (
+    SELECT
+      tpm.id AS master_id,
+      tpm.request_amount,
+      c.id AS customer_id,
+      cm.name AS class_mode
+
+    FROM trainer_payment_master AS tpm
+
+    INNER JOIN trainer_payment_trans AS tpt
+      ON tpt.payment_master_id = tpm.id
+
+    INNER JOIN trainer_mapping AS tm
+      ON tm.id = tpt.trainer_mapping_id
+
+    INNER JOIN customers AS c
+      ON c.id = tm.customer_id
+
+    INNER JOIN class_mode AS cm
+      ON cm.id = c.mode_of_class
+
+    INNER JOIN lead_master AS l
+      ON l.id = c.lead_id
+
+    INNER JOIN users AS se
+      ON se.user_id = l.assigned_to
+
+    INNER JOIN branches AS sb
+      ON sb.id = se.branch_id
+
+    INNER JOIN region AS sr
+      ON sr.id = sb.region_id
+
+    WHERE 1 = 1
+`;
+
+      const classModeCountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        classModeCountQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        classModeCountParams.push(start_date, end_date);
+      }
+
+      // REGION FILTER
+      if (region_id) {
+        classModeCountQuery += `
+    AND sr.id = ?
+  `;
+
+        classModeCountParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        classModeCountQuery += `
+    AND sb.id = ?
+  `;
+
+        classModeCountParams.push(branch_id);
+      }
+
+      classModeCountQuery += `
+  ),
+
+  master_mode AS (
+    SELECT
+      master_id,
+      class_mode,
+      MAX(request_amount) AS request_amount
+    FROM filtered_data
+    GROUP BY master_id, class_mode
+  ),
+
+  customer_mode AS (
+    SELECT
+      class_mode,
+      COUNT(DISTINCT customer_id) AS customer_count
+    FROM filtered_data
+    GROUP BY class_mode
+  )
+
+  SELECT
+
+    IFNULL((
+      SELECT customer_count
+      FROM customer_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_customer_count,
+
+    IFNULL((
+      SELECT customer_count
+      FROM customer_mode
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_customer_count,
+
+    IFNULL((
+      SELECT SUM(request_amount)
+      FROM master_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_total_amount,
+
+    IFNULL((
+      SELECT SUM(request_amount)
+      FROM master_mode
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_total_amount
+`;
+
+      const [classModeCountResult] = await pool.query(
+        classModeCountQuery,
+        classModeCountParams,
+      );
+
+      let deadlinePaymentQuery = `
+  SELECT
+    COUNT(DISTINCT CASE
+      WHEN cm.name = 'Online'
+      THEN c.id
+    END) AS online_total_customers,
+
+    COUNT(DISTINCT CASE
+  WHEN cm.name = 'Online'
+  THEN tpm.id
+END) AS online_total_master_count,
+
+    IFNULL(SUM(CASE
+      WHEN cm.name = 'Online'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS online_total_amount,
+
+    COUNT(DISTINCT CASE
+      WHEN cm.name = 'Online'
+        AND (
+          SELECT COALESCE(SUM(tp.paid_amount), 0)
+          FROM trainer_payment AS tp
+          WHERE tp.payment_master_id = tpm.id
+            AND tp.paid_date >= DATE(tpm.bill_raisedate)
+            AND tp.paid_date < DATE_ADD(
+              DATE(tpm.bill_raisedate),
+              INTERVAL 15 DAY
+            )
+        ) >= tpm.request_amount
+      THEN c.id
+    END) AS online_paid_customers,
+
+    COUNT(DISTINCT CASE
+      WHEN cm.name = 'Classroom'
+      THEN c.id
+    END) AS classroom_total_customers,
+
+    IFNULL(SUM(CASE
+      WHEN cm.name = 'Classroom'
+      THEN tpm.request_amount
+      ELSE 0
+    END), 0) AS classroom_total_amount,
+
+    COUNT(DISTINCT CASE
+      WHEN cm.name = 'Classroom'
+        AND (
+          SELECT COALESCE(SUM(tp.paid_amount), 0)
+          FROM trainer_payment AS tp
+          WHERE tp.payment_master_id = tpm.id
+            AND tp.paid_date >= DATE(tpm.bill_raisedate)
+            AND tp.paid_date < DATE_ADD(
+              DATE(tpm.bill_raisedate),
+              INTERVAL 6 DAY
+            )
+        ) >= tpm.request_amount
+      THEN c.id
+    END) AS classroom_paid_customers
+
+  FROM trainer_payment_master AS tpm
+
+  INNER JOIN (
+    SELECT DISTINCT payment_master_id
+    FROM trainer_payment
+    WHERE 1 = 1
+`;
+
+      const deadlinePaymentParams = [];
+
+      // DATE FILTER - PAYMENT PAID DATE
+      if (start_date && end_date) {
+        deadlinePaymentQuery += `
+    AND paid_date >= ?
+    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        deadlinePaymentParams.push(start_date, end_date);
+      }
+
+      deadlinePaymentQuery += `
+  ) AS filtered_payment
+    ON filtered_payment.payment_master_id = tpm.id
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN class_mode AS cm
+    ON cm.id = c.mode_of_class
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  INNER JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  INNER JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  INNER JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1
+`;
+
+      // REGION FILTER
+      if (region_id) {
+        deadlinePaymentQuery += `
+    AND sr.id = ?
+  `;
+
+        deadlinePaymentParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        deadlinePaymentQuery += `
+    AND sb.id = ?
+  `;
+
+        deadlinePaymentParams.push(branch_id);
+      }
+
+      const [deadlinePaymentResult] = await pool.query(
+        deadlinePaymentQuery,
+        deadlinePaymentParams,
+      );
+
+      const deadlinePayment = deadlinePaymentResult[0];
+
+      const total_customers =
+        Number(deadlinePayment.online_total_customers) +
+        Number(deadlinePayment.classroom_total_customers);
+
+      const total_paid_customers =
+        Number(deadlinePayment.online_paid_customers) +
+        Number(deadlinePayment.classroom_paid_customers);
+
+      const overall_percentage =
+        total_customers > 0
+          ? ((total_paid_customers / total_customers) * 100).toFixed(2)
+          : "0.00";
+
+      let avgDaysQuery = `
+  SELECT
+    AVG(
+      DATEDIFF(
+        DATE(filtered_payment.paid_date),
+        DATE(tpm.bill_raisedate)
+      )
+    ) AS overall_avg_days
+
+  FROM trainer_payment_master AS tpm
+
+  INNER JOIN (
+    SELECT
+      payment_master_id,
+      paid_date
+    FROM trainer_payment
+    WHERE 1 = 1
+`;
+
+      const avgDaysParams = [];
+
+      // DATE FILTER - PAYMENT PAID DATE
+      if (start_date && end_date) {
+        avgDaysQuery += `
+    AND paid_date >= ?
+    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        avgDaysParams.push(start_date, end_date);
+      }
+
+      avgDaysQuery += `
+  ) AS filtered_payment
+    ON filtered_payment.payment_master_id = tpm.id
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN class_mode AS cm
+    ON cm.id = c.mode_of_class
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  INNER JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  INNER JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  INNER JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1
+`;
+
+      // REGION FILTER
+      if (region_id) {
+        avgDaysQuery += `
+    AND sr.id = ?
+  `;
+
+        avgDaysParams.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        avgDaysQuery += `
+    AND sb.id = ?
+  `;
+
+        avgDaysParams.push(branch_id);
+      }
+
+      const [avgDaysResult] = await pool.query(avgDaysQuery, avgDaysParams);
+
+      const overall_avg_days = Number(
+        avgDaysResult[0].overall_avg_days || 0,
+      ).toFixed(2);
+
+      const courseQueryParam = [];
+      let courseQuery = ` select
+   t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT tpm.id) AS payment_count,
+    COUNT(DISTINCT c.id) AS customer_count
+   FROM trainer_payment_master AS tpm
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  left JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  left JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  left JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        courseQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        courseQueryParam.push(start_date, end_date);
+      }
+
+      if (region_id) {
+        courseQuery += `
+    AND sr.id = ?
+  `;
+
+        courseQueryParam.push(region_id);
+      }
+
+      // BRANCH FILTER
+      if (branch_id) {
+        courseQuery += `
+    AND sb.id = ?
+  `;
+
+        courseQueryParam.push(branch_id);
+      }
+
+      courseQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    payment_count DESC
+LIMIT 10`;
+
+      const [course] = await pool.query(courseQuery, courseQueryParam);
+
+      const courseCompanyQueryParam = [];
+      let courseCompanyQuery = ` select
+   t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT tpm.id) AS payment_count,
+    COUNT(DISTINCT c.id) AS customer_count
+   FROM trainer_payment_master AS tpm
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  left JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  left JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  left JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        courseCompanyQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        courseCompanyQueryParam.push(start_date, end_date);
+      }
+
+      courseCompanyQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    payment_count DESC
+LIMIT 10`;
+
+      const [courseCompany] = await pool.query(
+        courseCompanyQuery,
+        courseCompanyQueryParam,
+      );
+
+      const courseResult = course[0] || [];
+      const courseCompanysResult = courseCompany[0] || [];
+
+      return {
+        ...getSaleVolume[0],
+        ...customerCountResult[0],
+        ...paidCountResult[0],
+        ...classModeCountResult[0],
+        class_mode_percentage: Number(overall_percentage),
+
+        class_mode_avgDays: Number(overall_avg_days),
+        courseResult: course,
+        companies_top_10_courses: courseCompany,
+        // online_total_amount: deadlinePayment.online_total_amount,
+        // classroom_total_amount: deadlinePayment.classroom_total_amount,
+      };
+    } catch (error) {
+      throw new Error(error.message);
+    }
+  },
+
   getTrainerPaymentsReportsCounts: async (
     start_date,
     end_date,
@@ -4984,8 +5877,66 @@ END) AS not_paid_total_customer_count
       let paidCountQuery = `
   SELECT
     COUNT(DISTINCT tm.customer_id) AS customer_paid_count,
+
     COUNT(DISTINCT tpm.trainer_id) AS trainer_paid_count,
-    IFNULL(SUM(tp.paid_amount), 0) AS by_paid_amount
+
+    IFNULL((
+      SELECT SUM(tp2.paid_amount)
+      FROM trainer_payment AS tp2
+
+      INNER JOIN trainer_payment_master AS tpm2
+        ON tpm2.id = tp2.payment_master_id
+
+      WHERE 1 = 1
+`;
+
+      const paidCountParams = [];
+      const paidAmountParams = [];
+
+      // DATE FILTER
+      if (start_date && end_date) {
+        paidCountQuery += `
+      AND tp2.paid_date >= ?
+      AND tp2.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        paidAmountParams.push(start_date, end_date);
+      }
+
+      // REGION / BRANCH FILTER - SAME CUSTOMER MAPPING MUST MATCH BOTH
+      if (region_id || branch_id) {
+        paidCountQuery += `
+      AND EXISTS (
+        SELECT 1
+        FROM trainer_payment_trans AS tpt2
+        INNER JOIN trainer_mapping AS tm2
+          ON tm2.id = tpt2.trainer_mapping_id
+        INNER JOIN customers AS c2
+          ON c2.id = tm2.customer_id
+        INNER JOIN lead_master AS l2
+          ON l2.id = c2.lead_id
+        INNER JOIN users AS se2
+          ON se2.user_id = l2.assigned_to
+        INNER JOIN branches AS sb2
+          ON sb2.id = se2.branch_id
+        WHERE tpt2.payment_master_id = tpm2.id
+`;
+
+        if (region_id) {
+          paidCountQuery += ` AND sb2.region_id = ? `;
+          paidAmountParams.push(region_id);
+        }
+
+        if (branch_id) {
+          paidCountQuery += ` AND sb2.id = ? `;
+          paidAmountParams.push(branch_id);
+        }
+
+        paidCountQuery += ` ) `;
+      }
+
+      paidCountQuery += `
+    ), 0) AS by_paid_amount
 
   FROM trainer_payment AS tp
 
@@ -5016,9 +5967,7 @@ END) AS not_paid_total_customer_count
   WHERE 1 = 1
 `;
 
-      const paidCountParams = [];
-
-      // DATE FILTER
+      // MAIN QUERY DATE FILTER
       if (start_date && end_date) {
         paidCountQuery += `
     AND tp.paid_date >= ?
@@ -5028,7 +5977,7 @@ END) AS not_paid_total_customer_count
         paidCountParams.push(start_date, end_date);
       }
 
-      // REGION FILTER
+      // MAIN QUERY REGION FILTER
       if (region_id) {
         paidCountQuery += `
     AND sr.id = ?
@@ -5037,7 +5986,7 @@ END) AS not_paid_total_customer_count
         paidCountParams.push(region_id);
       }
 
-      // BRANCH FILTER
+      // MAIN QUERY BRANCH FILTER
       if (branch_id) {
         paidCountQuery += `
     AND sb.id = ?
@@ -5046,62 +5995,46 @@ END) AS not_paid_total_customer_count
         paidCountParams.push(branch_id);
       }
 
-      const [paidCountResult] = await pool.query(
-        paidCountQuery,
-        paidCountParams,
-      );
+      const [paidCountResult] = await pool.query(paidCountQuery, [
+        ...paidAmountParams,
+        ...paidCountParams,
+      ]);
 
       let classModeCountQuery = `
-  SELECT
-    COUNT(DISTINCT CASE
-      WHEN (cm.name) = 'Online'
-      THEN c.id
-    END) AS online_customer_count,
+  WITH filtered_data AS (
+    SELECT
+      tpm.id AS master_id,
+      tpm.request_amount,
+      c.id AS customer_id,
+      cm.name AS class_mode
 
-    COUNT(DISTINCT CASE
-      WHEN (cm.name) = 'Classroom'
-      THEN c.id
-    END) AS classroom_customer_count,
+    FROM trainer_payment_master AS tpm
 
-    IFNULL(SUM(CASE
-      WHEN cm.name = 'Online'
-      THEN tpm.request_amount
-      ELSE 0
-    END), 0) AS online_total_amount,
-    IFNULL(SUM(CASE
-      WHEN cm.name = 'Classroom'
-      THEN tpm.request_amount
-      ELSE 0
-    END), 0) AS classroom_total_amount
+    INNER JOIN trainer_payment_trans AS tpt
+      ON tpt.payment_master_id = tpm.id
 
+    INNER JOIN trainer_mapping AS tm
+      ON tm.id = tpt.trainer_mapping_id
 
-  FROM trainer_payment_master AS tpm
+    INNER JOIN customers AS c
+      ON c.id = tm.customer_id
 
-  INNER JOIN trainer_payment_trans AS tpt
-    ON tpt.payment_master_id = tpm.id
+    INNER JOIN class_mode AS cm
+      ON cm.id = c.mode_of_class
 
-  INNER JOIN trainer_mapping AS tm
-    ON tm.id = tpt.trainer_mapping_id
+    INNER JOIN lead_master AS l
+      ON l.id = c.lead_id
 
-  INNER JOIN customers AS c
-    ON c.id = tm.customer_id
+    INNER JOIN users AS se
+      ON se.user_id = l.assigned_to
 
-  INNER JOIN class_mode AS cm
-    ON cm.id = c.mode_of_class
+    INNER JOIN branches AS sb
+      ON sb.id = se.branch_id
 
-  INNER JOIN lead_master AS l
-    ON l.id = c.lead_id
+    INNER JOIN region AS sr
+      ON sr.id = sb.region_id
 
-  INNER JOIN users AS se
-    ON se.user_id = l.assigned_to
-
-  INNER JOIN branches AS sb
-    ON sb.id = se.branch_id
-
-  INNER JOIN region AS sr
-    ON sr.id = sb.region_id
-
-  WHERE 1 = 1
+    WHERE 1 = 1
 `;
 
       const classModeCountParams = [];
@@ -5134,73 +6067,79 @@ END) AS not_paid_total_customer_count
         classModeCountParams.push(branch_id);
       }
 
+      classModeCountQuery += `
+  ),
+
+  master_mode_counts AS (
+    SELECT
+      master_id,
+      class_mode,
+      MAX(request_amount) AS request_amount,
+      COUNT(DISTINCT customer_id) AS mode_customer_count
+    FROM filtered_data
+    GROUP BY master_id, class_mode
+  ),
+
+  master_customer_counts AS (
+    SELECT
+      master_id,
+      COUNT(DISTINCT customer_id) AS total_customer_count
+    FROM filtered_data
+    GROUP BY master_id
+  ),
+
+  master_mode AS (
+    SELECT
+      mm.master_id,
+      mm.class_mode,
+      (mm.request_amount * mm.mode_customer_count / NULLIF(mc.total_customer_count, 0)) AS allocated_amount
+    FROM master_mode_counts AS mm
+    INNER JOIN master_customer_counts AS mc
+      ON mc.master_id = mm.master_id
+  ),
+
+  customer_mode AS (
+    SELECT
+      class_mode,
+      COUNT(DISTINCT customer_id) AS customer_count
+    FROM filtered_data
+    GROUP BY class_mode
+  )
+
+  SELECT
+
+    IFNULL((
+      SELECT customer_count
+      FROM customer_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_customer_count,
+
+    IFNULL((
+      SELECT customer_count
+      FROM customer_mode
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_customer_count,
+
+    IFNULL((
+      SELECT SUM(allocated_amount)
+      FROM master_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_total_amount,
+
+    IFNULL((
+      SELECT SUM(allocated_amount)
+      FROM master_mode
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_total_amount
+`;
+
       const [classModeCountResult] = await pool.query(
         classModeCountQuery,
         classModeCountParams,
       );
 
       let deadlinePaymentQuery = `
-  SELECT
-    COUNT(DISTINCT CASE
-      WHEN cm.name = 'Online'
-      THEN c.id
-    END) AS online_total_customers,
-
-    COUNT(DISTINCT CASE
-  WHEN cm.name = 'Online'
-  THEN tpm.id
-END) AS online_total_master_count,
-
-    IFNULL(SUM(CASE
-      WHEN cm.name = 'Online'
-      THEN tpm.request_amount
-      ELSE 0
-    END), 0) AS online_total_amount,
-
-    COUNT(DISTINCT CASE
-      WHEN cm.name = 'Online'
-        AND (
-          SELECT COALESCE(SUM(tp.paid_amount), 0)
-          FROM trainer_payment AS tp
-          WHERE tp.payment_master_id = tpm.id
-            AND tp.paid_date >= DATE(tpm.bill_raisedate)
-            AND tp.paid_date < DATE_ADD(
-              DATE(tpm.bill_raisedate),
-              INTERVAL 15 DAY
-            )
-        ) >= tpm.request_amount
-      THEN c.id
-    END) AS online_paid_customers,
-
-    COUNT(DISTINCT CASE
-      WHEN cm.name = 'Classroom'
-      THEN c.id
-    END) AS classroom_total_customers,
-
-    IFNULL(SUM(CASE
-      WHEN cm.name = 'Classroom'
-      THEN tpm.request_amount
-      ELSE 0
-    END), 0) AS classroom_total_amount,
-
-    COUNT(DISTINCT CASE
-      WHEN cm.name = 'Classroom'
-        AND (
-          SELECT COALESCE(SUM(tp.paid_amount), 0)
-          FROM trainer_payment AS tp
-          WHERE tp.payment_master_id = tpm.id
-            AND tp.paid_date >= DATE(tpm.bill_raisedate)
-            AND tp.paid_date < DATE_ADD(
-              DATE(tpm.bill_raisedate),
-              INTERVAL 6 DAY
-            )
-        ) >= tpm.request_amount
-      THEN c.id
-    END) AS classroom_paid_customers
-
-  FROM trainer_payment_master AS tpm
-
-  INNER JOIN (
+  WITH filtered_payment AS (
     SELECT DISTINCT payment_master_id
     FROM trainer_payment
     WHERE 1 = 1
@@ -5211,61 +6150,160 @@ END) AS online_total_master_count,
       // DATE FILTER - PAYMENT PAID DATE
       if (start_date && end_date) {
         deadlinePaymentQuery += `
-    AND paid_date >= ?
-    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
-  `;
-
+      AND paid_date >= ?
+      AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+`;
         deadlinePaymentParams.push(start_date, end_date);
       }
 
       deadlinePaymentQuery += `
-  ) AS filtered_payment
-    ON filtered_payment.payment_master_id = tpm.id
+  ),
 
-  INNER JOIN trainer_payment_trans AS tpt
-    ON tpt.payment_master_id = tpm.id
-
-  INNER JOIN trainer_mapping AS tm
-    ON tm.id = tpt.trainer_mapping_id
-
-  INNER JOIN customers AS c
-    ON c.id = tm.customer_id
-
-  INNER JOIN class_mode AS cm
-    ON cm.id = c.mode_of_class
-
-  INNER JOIN lead_master AS l
-    ON l.id = c.lead_id
-
-  INNER JOIN users AS se
-    ON se.user_id = l.assigned_to
-
-  INNER JOIN branches AS sb
-    ON sb.id = se.branch_id
-
-  INNER JOIN region AS sr
-    ON sr.id = sb.region_id
-
-  WHERE 1 = 1
+  filtered_data AS (
+    SELECT DISTINCT
+      tpm.id AS master_id,
+      tpm.request_amount,
+      tpm.bill_raisedate,
+      c.id AS customer_id,
+      cm.name AS class_mode
+    FROM trainer_payment_master AS tpm
+    INNER JOIN filtered_payment AS fp
+      ON fp.payment_master_id = tpm.id
+    INNER JOIN trainer_payment_trans AS tpt
+      ON tpt.payment_master_id = tpm.id
+    INNER JOIN trainer_mapping AS tm
+      ON tm.id = tpt.trainer_mapping_id
+    INNER JOIN customers AS c
+      ON c.id = tm.customer_id
+    INNER JOIN class_mode AS cm
+      ON cm.id = c.mode_of_class
+    INNER JOIN lead_master AS l
+      ON l.id = c.lead_id
+    INNER JOIN users AS se
+      ON se.user_id = l.assigned_to
+    INNER JOIN branches AS sb
+      ON sb.id = se.branch_id
+    INNER JOIN region AS sr
+      ON sr.id = sb.region_id
+    WHERE 1 = 1
 `;
 
-      // REGION FILTER
       if (region_id) {
-        deadlinePaymentQuery += `
-    AND sr.id = ?
-  `;
-
+        deadlinePaymentQuery += ` AND sr.id = ? `;
         deadlinePaymentParams.push(region_id);
       }
 
-      // BRANCH FILTER
       if (branch_id) {
-        deadlinePaymentQuery += `
-    AND sb.id = ?
-  `;
-
+        deadlinePaymentQuery += ` AND sb.id = ? `;
         deadlinePaymentParams.push(branch_id);
       }
+
+      deadlinePaymentQuery += `
+  ),
+
+  master_summary AS (
+    SELECT
+      master_id,
+      MAX(request_amount) AS request_amount,
+      MAX(bill_raisedate) AS bill_raisedate,
+      COUNT(DISTINCT customer_id) AS total_customer_count
+    FROM filtered_data
+    GROUP BY master_id
+  ),
+
+  master_mode_counts AS (
+    SELECT
+      master_id,
+      class_mode,
+      COUNT(DISTINCT customer_id) AS mode_customer_count
+    FROM filtered_data
+    GROUP BY master_id, class_mode
+  ),
+
+  master_mode AS (
+    SELECT
+      mm.master_id,
+      mm.class_mode,
+      ms.request_amount,
+      (ms.request_amount * mm.mode_customer_count / NULLIF(ms.total_customer_count, 0)) AS allocated_amount
+    FROM master_mode_counts AS mm
+    INNER JOIN master_summary AS ms
+      ON ms.master_id = mm.master_id
+  ),
+
+  master_payment_status AS (
+    SELECT
+      ms.master_id,
+      CASE
+        WHEN (
+          SELECT COALESCE(SUM(tp.paid_amount), 0)
+          FROM trainer_payment AS tp
+          WHERE tp.payment_master_id = ms.master_id
+            AND tp.paid_date >= DATE(ms.bill_raisedate)
+            AND tp.paid_date < DATE_ADD(DATE(ms.bill_raisedate), INTERVAL 15 DAY)
+        ) >= ms.request_amount THEN 1 ELSE 0
+      END AS online_full_paid,
+      CASE
+        WHEN (
+          SELECT COALESCE(SUM(tp.paid_amount), 0)
+          FROM trainer_payment AS tp
+          WHERE tp.payment_master_id = ms.master_id
+            AND tp.paid_date >= DATE(ms.bill_raisedate)
+            AND tp.paid_date < DATE_ADD(DATE(ms.bill_raisedate), INTERVAL 6 DAY)
+        ) >= ms.request_amount THEN 1 ELSE 0
+      END AS classroom_full_paid
+    FROM master_summary AS ms
+  )
+
+  SELECT
+    IFNULL((
+      SELECT COUNT(DISTINCT customer_id)
+      FROM filtered_data
+      WHERE class_mode = 'Online'
+    ), 0) AS online_total_customers,
+
+    IFNULL((
+      SELECT COUNT(DISTINCT master_id)
+      FROM master_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_total_master_count,
+
+    IFNULL((
+      SELECT SUM(allocated_amount)
+      FROM master_mode
+      WHERE class_mode = 'Online'
+    ), 0) AS online_total_amount,
+
+    IFNULL((
+      SELECT COUNT(DISTINCT fd.customer_id)
+      FROM filtered_data AS fd
+      INNER JOIN master_payment_status AS mps
+        ON mps.master_id = fd.master_id
+      WHERE fd.class_mode = 'Online'
+        AND mps.online_full_paid = 1
+    ), 0) AS online_paid_customers,
+
+    IFNULL((
+      SELECT COUNT(DISTINCT customer_id)
+      FROM filtered_data
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_total_customers,
+
+    IFNULL((
+      SELECT SUM(allocated_amount)
+      FROM master_mode
+      WHERE class_mode = 'Classroom'
+    ), 0) AS classroom_total_amount,
+
+    IFNULL((
+      SELECT COUNT(DISTINCT fd.customer_id)
+      FROM filtered_data AS fd
+      INNER JOIN master_payment_status AS mps
+        ON mps.master_id = fd.master_id
+      WHERE fd.class_mode = 'Classroom'
+        AND mps.classroom_full_paid = 1
+    ), 0) AS classroom_paid_customers
+`;
 
       const [deadlinePaymentResult] = await pool.query(
         deadlinePaymentQuery,
@@ -5291,19 +6329,14 @@ END) AS online_total_master_count,
   SELECT
     AVG(
       DATEDIFF(
-        DATE(filtered_payment.paid_date),
+        DATE(tp.paid_date),
         DATE(tpm.bill_raisedate)
       )
     ) AS overall_avg_days
-
   FROM trainer_payment_master AS tpm
-
-  INNER JOIN (
-    SELECT
-      payment_master_id,
-      paid_date
-    FROM trainer_payment
-    WHERE 1 = 1
+  INNER JOIN trainer_payment AS tp
+    ON tp.payment_master_id = tpm.id
+  WHERE 1 = 1
 `;
 
       const avgDaysParams = [];
@@ -5311,16 +6344,57 @@ END) AS online_total_master_count,
       // DATE FILTER - PAYMENT PAID DATE
       if (start_date && end_date) {
         avgDaysQuery += `
-    AND paid_date >= ?
-    AND paid_date < DATE_ADD(?, INTERVAL 1 DAY)
-  `;
-
+    AND tp.paid_date >= ?
+    AND tp.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+`;
         avgDaysParams.push(start_date, end_date);
       }
 
-      avgDaysQuery += `
-  ) AS filtered_payment
-    ON filtered_payment.payment_master_id = tpm.id
+      // REGION / BRANCH FILTER - FILTER MASTER WITHOUT MULTIPLYING PAYMENT ROW
+      if (region_id || branch_id) {
+        avgDaysQuery += `
+    AND EXISTS (
+      SELECT 1
+      FROM trainer_payment_trans AS tpt
+      INNER JOIN trainer_mapping AS tm
+        ON tm.id = tpt.trainer_mapping_id
+      INNER JOIN customers AS c
+        ON c.id = tm.customer_id
+      INNER JOIN lead_master AS l
+        ON l.id = c.lead_id
+      INNER JOIN users AS se
+        ON se.user_id = l.assigned_to
+      INNER JOIN branches AS sb
+        ON sb.id = se.branch_id
+      WHERE tpt.payment_master_id = tpm.id
+`;
+
+        if (region_id) {
+          avgDaysQuery += ` AND sb.region_id = ? `;
+          avgDaysParams.push(region_id);
+        }
+
+        if (branch_id) {
+          avgDaysQuery += ` AND sb.id = ? `;
+          avgDaysParams.push(branch_id);
+        }
+
+        avgDaysQuery += ` ) `;
+      }
+
+      const [avgDaysResult] = await pool.query(avgDaysQuery, avgDaysParams);
+
+      const overall_avg_days = Number(
+        avgDaysResult[0].overall_avg_days || 0,
+      ).toFixed(2);
+
+      const courseQueryParam = [];
+      let courseQuery = ` select
+   t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT tpm.id) AS payment_count,
+    COUNT(DISTINCT c.id) AS customer_count
+   FROM trainer_payment_master AS tpm
 
   INNER JOIN trainer_payment_trans AS tpt
     ON tpt.payment_master_id = tpm.id
@@ -5331,47 +6405,168 @@ END) AS online_total_master_count,
   INNER JOIN customers AS c
     ON c.id = tm.customer_id
 
-  INNER JOIN class_mode AS cm
-    ON cm.id = c.mode_of_class
+  INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
 
   INNER JOIN lead_master AS l
     ON l.id = c.lead_id
 
-  INNER JOIN users AS se
+  left JOIN users AS se
     ON se.user_id = l.assigned_to
 
-  INNER JOIN branches AS sb
+  left JOIN branches AS sb
     ON sb.id = se.branch_id
 
-  INNER JOIN region AS sr
+  left JOIN region AS sr
     ON sr.id = sb.region_id
 
-  WHERE 1 = 1
-`;
+  WHERE 1 = 1`;
 
-      // REGION FILTER
+      if (start_date && end_date) {
+        courseQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        courseQueryParam.push(start_date, end_date);
+      }
+
       if (region_id) {
-        avgDaysQuery += `
+        courseQuery += `
     AND sr.id = ?
   `;
 
-        avgDaysParams.push(region_id);
+        courseQueryParam.push(region_id);
       }
 
       // BRANCH FILTER
       if (branch_id) {
-        avgDaysQuery += `
+        courseQuery += `
     AND sb.id = ?
   `;
 
-        avgDaysParams.push(branch_id);
+        courseQueryParam.push(branch_id);
       }
 
-      const [avgDaysResult] = await pool.query(avgDaysQuery, avgDaysParams);
+      courseQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    payment_count DESC
+LIMIT 10`;
 
-      const overall_avg_days = Number(
-        avgDaysResult[0].overall_avg_days || 0,
-      ).toFixed(2);
+      const [course] = await pool.query(courseQuery, courseQueryParam);
+
+      const courseCompanyQueryParam = [];
+      let courseCompanyQuery = ` select
+   t.id AS course_id,
+    t.name AS course_name,
+    COUNT(DISTINCT tpm.id) AS payment_count,
+    COUNT(DISTINCT c.id) AS customer_count
+   FROM trainer_payment_master AS tpm
+
+  INNER JOIN trainer_payment_trans AS tpt
+    ON tpt.payment_master_id = tpm.id
+
+  INNER JOIN trainer_mapping AS tm
+    ON tm.id = tpt.trainer_mapping_id
+
+  INNER JOIN customers AS c
+    ON c.id = tm.customer_id
+
+  INNER JOIN technologies AS t
+    ON t.id = c.enrolled_course
+
+  INNER JOIN lead_master AS l
+    ON l.id = c.lead_id
+
+  left JOIN users AS se
+    ON se.user_id = l.assigned_to
+
+  left JOIN branches AS sb
+    ON sb.id = se.branch_id
+
+  left JOIN region AS sr
+    ON sr.id = sb.region_id
+
+  WHERE 1 = 1`;
+
+      if (start_date && end_date) {
+        courseCompanyQuery += `
+    AND tpm.bill_raisedate >= ?
+    AND tpm.bill_raisedate < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        courseCompanyQueryParam.push(start_date, end_date);
+      }
+
+      courseCompanyQuery += `
+    GROUP BY
+    t.id,
+    t.name
+ORDER BY
+    payment_count DESC
+LIMIT 10`;
+
+      const [courseCompany] = await pool.query(
+        courseCompanyQuery,
+        courseCompanyQueryParam,
+      );
+
+      const topTrainersQueryParam = [];
+
+      let topTrainersQuery = `
+  SELECT
+    t.id AS trainer_id,
+    t.name AS trainer_name,
+    teh.id AS course_id,
+    teh.name AS course_name,
+
+    COUNT(DISTINCT tpm.id) AS payment_count,
+
+    IFNULL(SUM(tp.paid_amount), 0) AS paid_amount
+
+  FROM trainer_payment_master AS tpm
+
+  INNER JOIN trainer_payment AS tp
+    ON tp.payment_master_id = tpm.id
+
+  INNER JOIN trainer AS t
+    ON t.id = tpm.trainer_id
+
+  LEFT JOIN technologies AS teh
+    ON teh.id = t.technology_id
+
+  WHERE 1 = 1
+`;
+
+      if (start_date && end_date) {
+        topTrainersQuery += `
+    AND tp.paid_date >= ?
+    AND tp.paid_date < DATE_ADD(?, INTERVAL 1 DAY)
+  `;
+
+        topTrainersQueryParam.push(start_date, end_date);
+      }
+
+      topTrainersQuery += `
+  GROUP BY
+    t.id,
+    t.name,
+    teh.id,
+    teh.name
+
+  ORDER BY
+    paid_amount DESC
+
+  LIMIT 10
+`;
+
+      const [topTrainers] = await pool.query(
+        topTrainersQuery,
+        topTrainersQueryParam,
+      );
 
       return {
         ...getSaleVolume[0],
@@ -5381,6 +6576,9 @@ END) AS online_total_master_count,
         class_mode_percentage: Number(overall_percentage),
 
         class_mode_avgDays: Number(overall_avg_days),
+        courseResult: course,
+        companies_top_10_courses: courseCompany,
+        top_10_trainers: topTrainers,
         // online_total_amount: deadlinePayment.online_total_amount,
         // classroom_total_amount: deadlinePayment.classroom_total_amount,
       };
