@@ -4682,6 +4682,312 @@ LEFT JOIN region AS re
         rePaymentParam.push(branch_id);
         allCustomerParam.push(branch_id);
       }
+
+      // -----------------------------------------
+      // COMMON USER WISE QUERY BUILDER
+      // -----------------------------------------
+
+      const buildUserWiseQuery = (
+        fromSql,
+        amountSql,
+        conditions,
+        conditionParams = [],
+      ) => {
+        let query = `
+    SELECT
+      CASE
+        WHEN su.user_id LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+          THEN 'Chennai'
+        WHEN su.user_id LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+          THEN 'Bangalore'
+        WHEN su.user_id LIKE '%${CONSTANT_STATUS.ONLINE}%'
+          THEN 'Hub'
+      END AS region_name,
+
+      r.id AS region_id,
+      b.id AS branch_id,
+      b.name AS branch_name,
+      su.user_id,
+      su.view_user_id,
+      su.user_name,
+      IFNULL(ua.amount, 0) AS amount,
+      IFNULL(ua.customer_count, 0) AS customer_count
+
+    FROM users su
+
+    LEFT JOIN branches b
+      ON b.id = su.branch_id
+
+    LEFT JOIN region r
+      ON r.id = b.region_id
+
+    LEFT JOIN (
+      SELECT
+        l.assigned_to,
+        ${amountSql} AS amount,
+        COUNT(DISTINCT c.id) AS customer_count
+
+      FROM ${fromSql}
+
+      WHERE 1 = 1
+      ${conditions.length ? `AND ${conditions.join(" AND ")}` : ""}
+
+      GROUP BY l.assigned_to
+
+    ) ua
+      ON ua.assigned_to = su.user_id
+
+    WHERE
+      JSON_CONTAINS(
+        su.roles,
+        '{"role_id": 2}',
+        '$'
+      ) = 1
+
+      AND su.is_active = 1
+
+      AND (
+        su.user_id LIKE '%${CONSTANT_STATUS.CHENNAI}%'
+        OR su.user_id LIKE '%${CONSTANT_STATUS.BANGALORE}%'
+        OR su.user_id LIKE '%${CONSTANT_STATUS.ONLINE}%'
+      )
+  `;
+
+        const params = [...conditionParams];
+
+        if (region_id) {
+          query += ` AND r.id = ?`;
+          params.push(region_id);
+        }
+
+        if (branch_id) {
+          query += ` AND b.id = ?`;
+          params.push(branch_id);
+        }
+
+        query += ` ORDER BY region_name, b.id, su.user_id`;
+
+        return { query, params };
+      };
+
+      // -----------------------------------------
+      // COMMON HIERARCHY BUILDER
+      // -----------------------------------------
+
+      const buildUserCustomerCounts = (rows) => {
+        const regionMap = {};
+
+        rows.forEach((item) => {
+          const regionKey = item.region_name;
+
+          if (!regionMap[regionKey]) {
+            regionMap[regionKey] = {
+              region: regionKey,
+              region_id: item.region_id,
+              total: 0,
+              total_customer_count: 0,
+              branches: {},
+            };
+          }
+
+          const regionData = regionMap[regionKey];
+          const branchKey = item.branch_id ?? "no_branch";
+
+          if (!regionData.branches[branchKey]) {
+            regionData.branches[branchKey] = {
+              branch_id: item.branch_id,
+              branch_name: item.branch_name,
+              total: 0,
+              customer_count: 0,
+              users: [],
+            };
+          }
+
+          const branchData = regionData.branches[branchKey];
+          const amount = Number(item.amount || 0);
+
+          const customerCount = Number(item.customer_count || 0);
+
+          branchData.customer_count += customerCount;
+          regionData.total_customer_count += customerCount;
+
+          branchData.users.push({
+            user_id: item.user_id,
+            view_user_id: item.view_user_id,
+            user_name: item.user_name,
+            amount: amount.toFixed(2),
+          });
+
+          branchData.total += amount;
+          regionData.total += amount;
+        });
+
+        return Object.values(regionMap).map((region) => ({
+          ...region,
+          total: region.total.toFixed(2),
+
+          branches: Object.values(region.branches).map((branch) => ({
+            ...branch,
+            total: branch.total.toFixed(2),
+          })),
+        }));
+      };
+
+      // -----------------------------------------
+      // COMMON SQL BASE
+      // -----------------------------------------
+
+      const joiningDateCondition = [];
+      const invoiceDateCondition = [];
+
+      const joiningDateParams = [];
+      const invoiceDateParams = [];
+
+      if (start_date && end_date) {
+        joiningDateCondition.push(`
+    COALESCE(c.date_of_joining, c.created_date) >= ?
+  `);
+
+        joiningDateCondition.push(`
+    COALESCE(c.date_of_joining, c.created_date)
+      < DATE_ADD(?, INTERVAL 1 DAY)
+  `);
+
+        joiningDateParams.push(start_date, end_date);
+
+        invoiceDateCondition.push(`
+    CAST(pt.invoice_date AS DATE) BETWEEN ? AND ?
+  `);
+
+        invoiceDateParams.push(start_date, end_date);
+      }
+
+      const paymentAmountSql = `
+  IFNULL(SUM(pt.amount), 0)
+  ${includeConvenienceFees ? `+ IFNULL(SUM(pt.convenience_fees), 0)` : ""}
+`;
+
+      // -----------------------------------------
+      // 1. SALE VOLUME USER QUERY
+      // -----------------------------------------
+
+      const saleUserQuery = buildUserWiseQuery(
+        `
+    customers c
+    INNER JOIN payment_master pm
+      ON pm.lead_id = c.lead_id
+    INNER JOIN lead_master l
+      ON l.id = c.lead_id
+  `,
+        `IFNULL(SUM(pm.total_amount), 0)`,
+        joiningDateCondition,
+        joiningDateParams,
+      );
+
+      // -----------------------------------------
+      // 2. COLLECTION USER QUERY
+      // Customer joining date
+      // -----------------------------------------
+
+      const collectionUserQuery = buildUserWiseQuery(
+        `
+    customers c
+    INNER JOIN payment_master pm
+      ON pm.lead_id = c.lead_id
+    INNER JOIN lead_master l
+      ON l.id = c.lead_id
+    INNER JOIN payment_trans pt
+      ON pt.payment_master_id = pm.id
+  `,
+        paymentAmountSql,
+        [`pt.payment_status <> 'Rejected'`, ...joiningDateCondition],
+        joiningDateParams,
+      );
+
+      // -----------------------------------------
+      // 3. TOTAL COLLECTION USER QUERY
+      // Invoice date
+      // -----------------------------------------
+
+      const totalCollectionUserQuery = buildUserWiseQuery(
+        `
+    customers c
+    INNER JOIN payment_master pm
+      ON pm.lead_id = c.lead_id
+    INNER JOIN lead_master l
+      ON l.id = c.lead_id
+    INNER JOIN payment_trans pt
+      ON pt.payment_master_id = pm.id
+  `,
+        paymentAmountSql,
+        [`pt.payment_status <> 'Rejected'`, ...invoiceDateCondition],
+        invoiceDateParams,
+      );
+
+      // -----------------------------------------
+      // 4. NEW PAYMENT USER QUERY
+      // First payment transaction
+      // -----------------------------------------
+
+      const newPaymentUserQuery = buildUserWiseQuery(
+        `
+    customers c
+    INNER JOIN payment_master pm
+      ON pm.lead_id = c.lead_id
+    INNER JOIN lead_master l
+      ON l.id = c.lead_id
+
+    INNER JOIN (
+      SELECT
+        MIN(id) AS min_id,
+        payment_master_id
+      FROM payment_trans
+      GROUP BY payment_master_id
+    ) minpm
+      ON minpm.payment_master_id = pm.id
+
+    INNER JOIN payment_trans pt
+      ON pt.id = minpm.min_id
+  `,
+        paymentAmountSql,
+        [`pt.payment_status <> 'Rejected'`, ...invoiceDateCondition],
+        invoiceDateParams,
+      );
+
+      // -----------------------------------------
+      // 5. RE-PAYMENT USER QUERY
+      // Subsequent payment transactions
+      // -----------------------------------------
+
+      const rePaymentUserQuery = buildUserWiseQuery(
+        `
+    customers c
+    INNER JOIN payment_master pm
+      ON pm.lead_id = c.lead_id
+    INNER JOIN lead_master l
+      ON l.id = c.lead_id
+
+    INNER JOIN payment_trans pt
+      ON pt.payment_master_id = pm.id
+
+    INNER JOIN (
+      SELECT
+        MIN(id) AS min_id,
+        payment_master_id
+      FROM payment_trans
+      GROUP BY payment_master_id
+    ) minpm
+      ON minpm.payment_master_id = pm.id
+  `,
+        paymentAmountSql,
+        [
+          `pt.id > minpm.min_id`,
+          `pt.payment_status <> 'Rejected'`,
+          ...invoiceDateCondition,
+        ],
+        invoiceDateParams,
+      );
+
       const [
         [getSaleVolume],
         [getCollection],
@@ -4690,6 +4996,12 @@ LEFT JOIN region AS re
         [getNewPayment],
         [getRepayment],
         [getAllcustomer],
+
+        [saleVolumeUserRows],
+        [collectionUserRows],
+        [totalCollectionUserRows],
+        [newPaymentUserRows],
+        [rePaymentUserRows],
       ] = await Promise.all([
         pool.query(saleVolumeQuery, saleVolumeParams),
         pool.query(collectionQuery, collectionParams),
@@ -4698,7 +5010,59 @@ LEFT JOIN region AS re
         pool.query(newPaymentQuery, newPaymentParam),
         pool.query(rePaymentQuery, rePaymentParam),
         pool.query(bucketCountQuery, allCustomerParam),
+
+        pool.query(saleUserQuery.query, saleUserQuery.params),
+        pool.query(collectionUserQuery.query, collectionUserQuery.params),
+        pool.query(
+          totalCollectionUserQuery.query,
+          totalCollectionUserQuery.params,
+        ),
+        pool.query(newPaymentUserQuery.query, newPaymentUserQuery.params),
+        pool.query(rePaymentUserQuery.query, rePaymentUserQuery.params),
       ]);
+
+      // -----------------------------------------
+      // BUILD ALL 6 USER WISE MODELS
+      // -----------------------------------------
+
+      const saleVolumeUserCustomerCounts =
+        buildUserCustomerCounts(saleVolumeUserRows);
+
+      const collectionUserCustomerCounts =
+        buildUserCustomerCounts(collectionUserRows);
+
+      const totalCollectionUserCustomerCounts = buildUserCustomerCounts(
+        totalCollectionUserRows,
+      );
+
+      const newPaymentUserCustomerCounts =
+        buildUserCustomerCounts(newPaymentUserRows);
+
+      const rePaymentUserCustomerCounts =
+        buildUserCustomerCounts(rePaymentUserRows);
+
+      // -----------------------------------------
+      // PENDING PAYMENT USER WISE
+      // SALE VOLUME - COLLECTION
+      // -----------------------------------------
+
+      const collectionAmountMap = new Map(
+        collectionUserRows.map((item) => [
+          item.user_id,
+          Number(item.amount || 0),
+        ]),
+      );
+
+      const pendingPaymentUserRows = saleVolumeUserRows.map((item) => ({
+        ...item,
+        amount:
+          Number(item.amount || 0) -
+          (collectionAmountMap.get(item.user_id) || 0),
+      }));
+
+      const pendingPaymentUserCustomerCounts = buildUserCustomerCounts(
+        pendingPaymentUserRows,
+      );
 
       return {
         sale_volume: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
@@ -4724,6 +5088,39 @@ LEFT JOIN region AS re
         re_payment: parseFloat(getRepayment[0].re_payment).toFixed(2),
         collection: parseFloat(getCollection[0].collection).toFixed(2),
         admission_total: getAllcustomer[0].admission_total,
+
+        sale_volume_new: {
+          total: parseFloat(getSaleVolume[0].sale_volume).toFixed(2),
+          user_customer_counts: saleVolumeUserCustomerCounts,
+        },
+
+        total_collection_new: {
+          total: parseFloat(getTotalCollection[0].total_collection).toFixed(2),
+          user_customer_counts: totalCollectionUserCustomerCounts,
+        },
+
+        pending_payment_new: {
+          total: (
+            parseFloat(getSaleVolume[0].sale_volume) -
+            parseFloat(getCollection[0].collection)
+          ).toFixed(2),
+          user_customer_counts: pendingPaymentUserCustomerCounts,
+        },
+
+        new_payment_new: {
+          total: parseFloat(getNewPayment[0].new_payment).toFixed(2),
+          user_customer_counts: newPaymentUserCustomerCounts,
+        },
+
+        re_payment_new: {
+          total: parseFloat(getRepayment[0].re_payment).toFixed(2),
+          user_customer_counts: rePaymentUserCustomerCounts,
+        },
+
+        collection_new: {
+          total: parseFloat(getCollection[0].collection).toFixed(2),
+          user_customer_counts: collectionUserCustomerCounts,
+        },
       };
     } catch (error) {
       throw new Error(error.message);
